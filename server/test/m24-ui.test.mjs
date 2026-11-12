@@ -26,7 +26,7 @@ test('M2.4.3 会员中心：Basic 状态、套餐、7 项权益对比，来自�
   const post = page.locator('[data-ent=longer_post_text]');
   assert.match(await post.locator('[data-p=vip]').innerText(), /动态 1000/);
   assert.match(await page.innerText('#vipc'), /这些永远免费/);
-  assert.equal(await page.locator('#vipc .tag', {hasText: '即将推出'}).count(), 6, '尚未实现的权益要标明「即将推出」，不提前承诺（香槟金主题已于 M2.4.5 实现）');
+  assert.equal(await page.locator('#vipc .tag', {hasText: '即将推出'}).count(), 4, '尚未实现的权益要标明「即将推出」，不提前承诺（主题、标识、装饰已实现）');
   assert.ok(await overflowX(page) <= 0, '390px 宽度不应出现横向溢出');
   await page.screenshot({path: SHOT + 'm243-center-basic.png', fullPage: false});
 });

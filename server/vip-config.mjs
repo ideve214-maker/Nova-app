@@ -53,7 +53,7 @@ export const VIP_CONFIG = Object.freeze({
   // status: live = 功能已实现并通过测试；planned = 尚未实现（对应步骤完成并验证后才改成 live，不提前承诺）。
   entitlements: Object.freeze({
     vip_badge: Object.freeze({
-      title: 'NOVA VIP 标识', kind: 'flag', basic: false, vip: true, status: 'planned', phase: 'M2.5.2',
+      title: 'NOVA VIP 标识', kind: 'flag', basic: false, vip: true, status: 'live', phase: 'M2.5.2',
       description: '名字旁显示 VIP 标识。它只表示订阅状态，不是实名认证。',
       onExpire: '标识立即消失。',
     }),
@@ -63,7 +63,7 @@ export const VIP_CONFIG = Object.freeze({
       onExpire: '立即恢复默认主题；你的偏好会保留，续订后自动恢复。',
     }),
     profile_decoration: Object.freeze({
-      title: '资料边框与装饰', kind: 'flag', basic: false, vip: true, status: 'planned', phase: 'M2.5.2',
+      title: '资料边框与装饰', kind: 'flag', basic: false, vip: true, status: 'live', phase: 'M2.5.2',
       description: '头像金边与个人主页装饰。',
       onExpire: '边框和装饰立即消失。',
     }),

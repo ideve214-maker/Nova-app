@@ -1,4 +1,4 @@
-# NOVA 后端（M2.5.1）
+# NOVA 后端（M2.5.2）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -43,3 +43,7 @@
 ## 权益检查（M2.5.1）
 - 所有 VIP 专属接口必须调用 `vip.requireEntitlement`（或 `requireQuota` / `requireTextLength`），只靠前端隐藏按钮不算鉴权。
 - 错误：`ENTITLEMENT_REQUIRED`（403，需升级）、`QUOTA_EXCEEDED`（403，超额）、`TEXT_TOO_LONG`（403，超长）。到期由服务端按时间自动回落，无需额外操作。
+
+## 资料装饰（M2.5.2，前端）
+- 头像金边、主页装饰只看 `entitlements.profile_decoration.enabled`；VIP 标识只看 `entitlements.vip_badge.enabled`。到期后服务端不再返回有效状态，下一次渲染立即回落。
+- 「别人看到你的标识」要等 M4 把他人资料接到服务器。

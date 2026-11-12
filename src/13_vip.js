@@ -21,21 +21,25 @@ async function loadVip(){
   if(!acct)VIP.me=null;
   syncVipUser();
 }
-/* 服务端说你是 VIP，个人资料里的标识才亮；到期回落后同样由服务端结果驱动。 */
-function syncVipUser(){if(MODE==='account'&&D&&D.u&&D.u.me)D.u.me[5]=VIP.me&&VIP.me.vip.active?1:0}
+/* 某项 flag 权益是否由服务端确认为有效。只看 /api/vip/me 的缓存，客户端不能自己打开。 */
+function vipFlag(key){
+  if(MODE!=='account'||!VIP.me||!VIP.me.vip||!VIP.me.vip.active)return false;
+  const e=VIP.me.entitlements&&VIP.me.entitlements[key];
+  return !!(e&&e.enabled)}
+function vipBadgeOn(){return vipFlag('vip_badge')}
+function vipDecoOn(){return vipFlag('profile_decoration')}
+/* 服务端返回 vip_badge 有效，个人资料里的标识才亮；到期或撤销后下一次渲染立即去掉。 */
+function syncVipUser(){if(MODE==='account'&&D&&D.u&&D.u.me)D.u.me[5]=vipBadgeOn()?1:0}
 /* 香槟金主题（M2.4.5）：是否启用只看服务端返回的状态与权益（VIP 有效 + profile_theme_gold 开启），再加上本机的「不想用」偏好 D.st.vt===0。
    偏好只能关掉主题，不能打开：客户端无法凭自己的数据获得 VIP 外观。到期后服务端不再返回有效状态，下一次读取/刷新即回落默认主题，偏好保留。 */
-function vipThemeOn(){
-  if(MODE!=='account'||!VIP.me||!VIP.me.vip||!VIP.me.vip.active)return false;
-  const e=VIP.me.entitlements&&VIP.me.entitlements.profile_theme_gold;
-  return !!(e&&e.enabled)&&!(D&&D.st&&D.st.vt===0)}
+function vipThemeOn(){return vipFlag('profile_theme_gold')&&!(D&&D.st&&D.st.vt===0)}
 function applyVipTheme(on){const r=document.documentElement;if(on)r.dataset.vip='gold';else delete r.dataset.vip}
 /* 会员中心里的「主题与标识」：左右两张资料预览（普通 / 香槟金），VIP 有效时多一组切换按钮。预览是静态示意，不是购买入口。 */
 function vipThemeCard(c){
   if(MODE!=='account')return '';
   const ent=c.entitlements.find(e=>e.key==='profile_theme_gold');if(!ent)return '';
   const act=!!(VIP.me&&VIP.me.vip.active),on=vipThemeOn(),me=P('me');
-  const pv=(k,t)=>`<div class="gpv ${k}" data-pv="${k==='g'?'gold':'basic'}" role="group" aria-label="${t}预览"><div class="gh">${av('me',36)}<div class="gn"><b>${esc(me.n)}${k==='g'?' '+vipBadge():''}</b><small>@${esc(me.h)}</small></div></div><div class="gl">查看全部</div><div class="gb" aria-hidden="true">编辑资料</div><small class="gc">${t}</small></div>`;
+  const pv=(k,t)=>`<div class="gpv ${k}" data-pv="${k==='g'?'gold':'basic'}" role="group" aria-label="${t}预览"><div class="gh">${av('me',36,{dec:k==='g'})}<div class="gn"><b>${esc(me.n)}${k==='g'?' '+vipBadge():''}</b><small>@${esc(me.h)}</small></div></div><div class="gl">查看全部</div><div class="gb" aria-hidden="true">编辑资料</div><small class="gc">${t}</small></div>`;
   const note=!VIP.me?'':act?(on?'当前正在使用香槟金主题。':'你选择了默认主题，VIP 有效期内可随时切回香槟金。'):'预览仅作示意。VIP 有效期内自动使用香槟金主题。';
   const btns=act?`<div class="vtb"><button class="pb${on?'':' s'}" data-a="vtheme" data-v="gold" aria-pressed="${on}">香槟金</button><button class="pb${on?' s':''}" data-a="vtheme" data-v="off" aria-pressed="${!on}">默认</button></div>`:'';
   return `<div class="shd">主题与标识</div><div class="vtn" style="padding-top:0;border-bottom:0">${esc(ent.description)}</div><div class="gpvs" id="vtheme">${pv('n','普通主题')}${pv('g','香槟金主题')}</div>${btns}<div class="vtn" data-vt="${on?'gold':'default'}">${esc(note)} 到期后：${esc(ent.onExpire)}</div>`}
