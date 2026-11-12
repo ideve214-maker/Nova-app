@@ -41,7 +41,20 @@ const friendsRow=()=>`<button class="row" style="width:100%;text-align:left" dat
 function loadUserCard(id){
   if(typeof usingNet!=='function'||!usingNet())return Promise.resolve();
   return api('GET','/api/users/'+id).then(r=>{
-    if(r.s===200&&r.j&&r.j.user){S.userView={id:String(id),hidden:false,user:r.j.user};return}
-    S.userView={id:String(id),hidden:true,code:r.j&&r.j.error&&r.j.error.code,message:(r.j&&r.j.error&&r.j.error.message)||'该用户资料不可见'};
+    if(r.s===200&&r.j&&r.j.user){S.userView={id:String(id),hidden:false,user:r.j.user}}
+    else S.userView={id:String(id),hidden:true,code:r.j&&r.j.error&&r.j.error.code,message:(r.j&&r.j.error&&r.j.error.message)||'该用户资料不可见'};
+    if(r.s!==200)return;
+    return Promise.all([
+      api('GET','/api/follows?kind=following&user='+id),
+      api('GET','/api/follows?kind=followers&user='+id),
+    ]).then(([fo,fr])=>{
+      const following=fo.s===200?(fo.j.users||[]).map(u=>String(u.id)):[];
+      if(fo.s===200)(fo.j.users||[]).forEach(rememberAuthor);
+      S.userFollowing=following;
+      S.userSocial={
+        following:fo.s===200?(fo.j.followingCount||following.length):0,
+        followers:fr.s===200?(fr.j.followerCount||(fr.j.users||[]).length):0,
+      };
+    });
   });
 }

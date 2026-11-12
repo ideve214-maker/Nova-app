@@ -16,7 +16,7 @@ async function acc(n) {
   return {tok: r.j.token, id: r.j.user.id};
 }
 
-test('评论和回复入库，数量随发表和删除更新；只能回复一层', async () => {
+test('评论和回复入库，数量随发表和删除更新', async () => {
   const a = await acc('ca'), b = await acc('cb');
   const p = (await call('POST', '/api/posts', {text: '原文'}, a.tok)).j.post;
   assert.equal(p.commentCount, 0);
@@ -26,8 +26,6 @@ test('评论和回复入库，数量随发表和删除更新；只能回复一�
   assert.equal(c1.j.commentCount, 1);
   const c2 = await call('POST', '/api/posts/' + p.id + '/comments', {text: '那就先折在这里。', parentId: c1.j.comment.id}, a.tok);
   assert.equal(c2.s, 200); assert.equal(c2.j.comment.parentId, c1.j.comment.id); assert.equal(c2.j.commentCount, 2);
-  const deep = await call('POST', '/api/posts/' + p.id + '/comments', {text: '第三层？', parentId: c2.j.comment.id}, b.tok);
-  assert.equal(deep.s, 400); assert.equal(deep.j.error.code, 'BAD_PARENT');
   const got = await call('GET', '/api/posts/' + p.id, null, a.tok);
   assert.equal(got.j.post.commentCount, 2);
   const list = await call('GET', '/api/posts/' + p.id + '/comments', null, a.tok);
@@ -37,6 +35,39 @@ test('评论和回复入库，数量随发表和删除更新；只能回复一�
   const after = await call('GET', '/api/posts/' + p.id + '/comments', null, a.tok);
   assert.equal(after.j.commentCount, 1);
   assert.ok(!after.j.comments.some(c => c.id === c2.j.comment.id && !c.deleted));
+});
+
+test('楼中楼：可回复回复；删除中间层保留结构；管理端能看到父评与层级', async () => {
+  const a = await acc('na'), b = await acc('nb');
+  const p = (await call('POST', '/api/posts', {text: '楼中楼'}, a.tok)).j.post;
+  const c1 = (await call('POST', '/api/posts/' + p.id + '/comments', {text: '一层'}, a.tok)).j.comment;
+  const c2 = (await call('POST', '/api/posts/' + p.id + '/comments', {text: '二层', parentId: c1.id}, b.tok)).j.comment;
+  assert.equal(c2.depth, 1);
+  assert.equal(c2.replyTo.id, c1.id);
+  assert.equal(c2.replyTo.author.id, a.id);
+  const c3 = await call('POST', '/api/posts/' + p.id + '/comments', {text: '三层', parentId: c2.id}, a.tok);
+  assert.equal(c3.s, 200, JSON.stringify(c3.j));
+  assert.equal(c3.j.comment.depth, 2);
+  assert.equal(c3.j.comment.parentId, c2.id);
+  assert.equal(c3.j.comment.rootId, c1.id);
+  assert.equal(c3.j.comment.replyTo.author.id, b.id);
+  assert.equal(c3.j.commentCount, 3);
+  // 删中间层：占位保留，子评仍在
+  const rm = await call('POST', '/api/comments/' + c2.id + '/delete', {}, b.tok);
+  assert.equal(rm.s, 200);
+  const list = await call('GET', '/api/posts/' + p.id + '/comments', null, a.tok);
+  assert.equal(list.j.commentCount, 2);
+  const mid = list.j.comments.find(x => x.id === c2.id);
+  assert.ok(mid.deleted);
+  assert.equal(mid.text, '');
+  const leaf = list.j.comments.find(x => x.id === c3.j.comment.id);
+  assert.ok(leaf && !leaf.deleted);
+  assert.equal(leaf.parentId, c2.id);
+  assert.equal(leaf.replyTo.deleted, true);
+  // 仍可回复已删除的中间层，线程不断
+  const c4 = await call('POST', '/api/posts/' + p.id + '/comments', {text: '接上', parentId: c2.id}, a.tok);
+  assert.equal(c4.s, 200, JSON.stringify(c4.j));
+  assert.equal(c4.j.comment.parentId, c2.id);
 });
 
 test('删除评论：只能删自己的；有回复时保留占位，计数不含已删', async () => {

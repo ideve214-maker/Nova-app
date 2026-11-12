@@ -1,13 +1,24 @@
 /* M4.1 动态联网：登录后发帖必须等服务器确认才显示成功；演示数据仍只在本机。 */
-function ago(ms){
-  if(!ms)return '';
-  const d=Math.max(0,(typeof now==='function'?now():Date.now())-ms);
+/** 用本机时区把 UTC 时间戳（毫秒）格式化。服务端只存 UTC epoch，不存「刚刚」这类相对文案。 */
+function fmtTime(ms, clock){
+  if(ms==null||ms==='')return '';
+  const n=typeof ms==='number'?ms:(typeof ms==='string'&&/^\d+$/.test(ms)?Number(ms):Date.parse(ms));
+  if(!Number.isFinite(n))return typeof ms==='string'?ms:'';
+  const nowMs=clock!=null?clock:(typeof now==='function'?now():Date.now());
+  const d=Math.max(0,nowMs-n);
   if(d<60e3)return '刚刚';
   if(d<3600e3)return Math.floor(d/60e3)+' 分钟前';
-  if(d<86400e3)return Math.floor(d/3600e3)+' 小时前';
-  if(d<7*86400e3)return Math.floor(d/86400e3)+' 天前';
-  return vipDate(ms);
+  const dt=new Date(n), cur=new Date(nowMs);
+  const hh=pad2(dt.getHours())+':'+pad2(dt.getMinutes());
+  const sameDay=dt.getFullYear()===cur.getFullYear()&&dt.getMonth()===cur.getMonth()&&dt.getDate()===cur.getDate();
+  if(sameDay)return '今天 '+hh;
+  const yest=new Date(nowMs);yest.setDate(yest.getDate()-1);
+  if(dt.getFullYear()===yest.getFullYear()&&dt.getMonth()===yest.getMonth()&&dt.getDate()===yest.getDate())return '昨天 '+hh;
+  if(dt.getFullYear()===cur.getFullYear())return (dt.getMonth()+1)+'月'+dt.getDate()+'日 '+hh;
+  return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日';
 }
+function ago(ms, clock){return fmtTime(ms, clock)}
+
 function rememberAuthor(a){
   if(!a||!a.id||!D.u)return;
   const me=SESSION&&SESSION.user&&Number(SESSION.user.id)===Number(a.id);
@@ -20,7 +31,7 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount};if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount};if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;return o;
 }
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
@@ -44,7 +55,7 @@ function postsOf(id){return feedSrc().filter(p=>p.a==id)}
 function adoptComment(c){
   rememberAuthor(c.author);
   const me=SESSION&&SESSION.user&&c.author&&Number(SESSION.user.id)===Number(c.author.id);
-  return {id:c.id,p:c.postId,pa:c.parentId||0,a:me?'me':String(c.author.id),t:ago(c.createdAt),l:c.likeCount||0,ml:c.liked?1:0,x:c.deleted?'（已删除）':c.text,deleted:!!c.deleted,src:'net'};
+  return {id:c.id,p:c.postId,pa:c.parentId||0,a:me?'me':String(c.author.id),at:c.createdAt,t:ago(c.createdAt),l:c.likeCount||0,ml:c.liked?1:0,x:c.deleted?'（已删除）':c.text,deleted:!!c.deleted,src:'net',depth:c.depth||0,rootId:c.rootId||c.id,replyTo:c.replyTo||null,replyCount:c.replyCount||0};
 }
 async function loadComments(postId){
   if(!usingNet()||!SESSION)return;

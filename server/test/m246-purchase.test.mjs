@@ -15,7 +15,7 @@ test('开通入口显示定价 ¥9.9/¥99 和扫码开通，不声称付款即�
     await register(p, 'buy_qr1');
     await goCenter(p);
     const text = await p.innerText('#vipc');
-    assert.doesNotMatch(text, /暂定/);
+    assert.doesNotMatch(text.replace(/数值暂定/g, ''), /暂定/); // 价格不含「暂定」；媒体额度说明可保留「数值暂定」
     assert.match(text, /¥9\.9/);
     assert.match(text, /¥9\.9\/月[\s\S]*¥99\/年/);
     assert.match(text, /开通 ¥9\.9\/月/);
@@ -77,7 +77,7 @@ test('两种收款方式都关闭时，开通按钮回到「暂未开放」占�
     assert.equal(await btn.isDisabled(), true);
     assert.match(await btn.innerText(), /暂未开放|暂未/);
     const text = await p.innerText('#vipc');
-    assert.doesNotMatch(text, /暂定/);
+    assert.doesNotMatch(text.replace(/数值暂定/g, ''), /暂定/); // 价格不含「暂定」；媒体额度说明可保留「数值暂定」
     assert.doesNotMatch(text, /我已付款/);
   } finally { await p.context().close(); await S.close(); }
 });

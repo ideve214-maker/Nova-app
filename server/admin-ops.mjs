@@ -78,26 +78,26 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     return {user: userRow(getUser(id))};
   }
 
-  function ban(admin, id, body = {}) {
+  function ban(admin, id, body = {}, ip = null) {
     const u = getUser(id);
     if (u.status === 'banned') return {user: userRow(u), already: true};
     const reason = String(body.reason || body.note || '').trim().slice(0, 500);
     db.prepare("UPDATE users SET status='banned' WHERE id=?").run(u.id);
     db.prepare('DELETE FROM sessions WHERE user_id=?').run(u.id);
-    if (audit) audit(admin.id, 'admin.user.ban', 'user:' + u.id, null, {reason, username: u.username, adminUsername: admin.username});
+    if (audit) audit(admin.id, 'admin.user.ban', 'user:' + u.id, ip, {reason, username: u.username, adminUsername: admin.username});
     return {user: userRow(getUser(u.id)), already: false};
   }
 
-  function unban(admin, id, body = {}) {
+  function unban(admin, id, body = {}, ip = null) {
     const u = getUser(id);
     if (u.status !== 'banned') return {user: userRow(u), already: true};
     const reason = String(body.reason || body.note || '').trim().slice(0, 500);
     db.prepare("UPDATE users SET status='active' WHERE id=?").run(u.id);
-    if (audit) audit(admin.id, 'admin.user.unban', 'user:' + u.id, null, {reason, username: u.username, adminUsername: admin.username});
+    if (audit) audit(admin.id, 'admin.user.unban', 'user:' + u.id, ip, {reason, username: u.username, adminUsername: admin.username});
     return {user: userRow(getUser(u.id)), already: false};
   }
 
-  function resetPassword(admin, id, body = {}) {
+  function resetPassword(admin, id, body = {}, ip = null) {
     const u = getUser(id);
     let pw = String(body.password || body.temporaryPassword || '').trim();
     if (pw) {
@@ -109,11 +109,11 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     }
     db.prepare('UPDATE users SET password_hash=?, must_change_pw=1 WHERE id=?').run(hashPassword(pw), u.id);
     db.prepare('DELETE FROM sessions WHERE user_id=?').run(u.id);
-    if (audit) audit(admin.id, 'admin.user.reset_password', 'user:' + u.id, null, {username: u.username, adminUsername: admin.username});
+    if (audit) audit(admin.id, 'admin.user.reset_password', 'user:' + u.id, ip, {username: u.username, adminUsername: admin.username});
     return {user: userRow(getUser(u.id)), temporaryPassword: pw, mustChangePw: true};
   }
 
-  function grantVip(admin, body = {}) {
+  function grantVip(admin, body = {}, ip = null) {
     const id = body.userId || body.user_id || body.id;
     const u = getUser(id);
     if (u.status === 'banned') throw new ApiError(409, 'BANNED', '封禁账号不能开通会员');
@@ -122,17 +122,17 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     const reason = String(body.reason || body.note || '').trim();
     if (!reason) throw new ApiError(400, 'BAD_REASON', '请填写原因');
     const updated = vip.grant(u.id, {days, source: 'admin', actorId: admin.id, note: reason.slice(0, 500)});
-    if (audit) audit(admin.id, 'admin.vip.grant', 'user:' + u.id, null, {days, reason: reason.slice(0, 200), adminUsername: admin.username});
+    if (audit) audit(admin.id, 'admin.vip.grant', 'user:' + u.id, ip, {days, reason: reason.slice(0, 200), adminUsername: admin.username});
     return {user: userRow(updated)};
   }
 
-  function revokeVip(admin, body = {}) {
+  function revokeVip(admin, body = {}, ip = null) {
     const id = body.userId || body.user_id || body.id;
     const u = getUser(id);
     const reason = String(body.reason || body.note || '').trim();
     if (!reason) throw new ApiError(400, 'BAD_REASON', '请填写原因');
     const updated = vip.revoke(u.id, {source: 'admin', actorId: admin.id, note: reason.slice(0, 500)});
-    if (audit) audit(admin.id, 'admin.vip.revoke', 'user:' + u.id, null, {reason: reason.slice(0, 200), adminUsername: admin.username});
+    if (audit) audit(admin.id, 'admin.vip.revoke', 'user:' + u.id, ip, {reason: reason.slice(0, 200), adminUsername: admin.username});
     return {user: userRow(updated)};
   }
 
@@ -156,18 +156,64 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
       adminActorId: row.admin_actor_id || null,
     };
   }
+  function commentThread(row) {
+    let depth = 0, rootId = row.id, walk = row, replyTo = null, guard = 0;
+    const by = db.prepare('SELECT * FROM post_comments WHERE id=?');
+    if (row.parent_id) {
+      const p = by.get(row.parent_id);
+      if (p) {
+        const pu = db.prepare('SELECT * FROM users WHERE id=?').get(p.author_id);
+        const pp = pu && profile ? profile.publicOf(pu) : {};
+        replyTo = {
+          id: p.id,
+          deleted: !!p.deleted_at,
+          author: pu ? {id: pu.id, username: pu.username, displayName: (pp && pp.displayName) || pu.username} : null,
+          text: p.deleted_at ? '' : String(p.text || '').slice(0, 80),
+        };
+      } else {
+        replyTo = {id: row.parent_id, deleted: true, missing: true, author: null, text: ''};
+      }
+    }
+    while (walk && walk.parent_id && guard++ < 30) {
+      const p = by.get(walk.parent_id);
+      if (!p) break;
+      depth++;
+      rootId = p.parent_id ? rootId : p.id;
+      if (!p.parent_id) rootId = p.id;
+      walk = p;
+    }
+    if (row.parent_id && depth === 0) depth = 1;
+    // recompute root properly
+    walk = row; rootId = row.id; depth = 0; guard = 0;
+    while (walk && walk.parent_id && guard++ < 30) {
+      const p = by.get(walk.parent_id);
+      if (!p) break;
+      depth++;
+      rootId = p.id;
+      walk = p;
+    }
+    const replyCount = db.prepare('SELECT COUNT(*) AS n FROM post_comments WHERE parent_id=? AND deleted_at IS NULL').get(row.id).n;
+    return {depth, rootId, replyTo, replyCount, parentId: row.parent_id || null};
+  }
   function pubComment(row) {
     const u = db.prepare('SELECT * FROM users WHERE id=?').get(row.author_id);
     const p = u && profile ? profile.publicOf(u) : {};
+    const th = commentThread(row);
     return {
       id: row.id,
       type: 'comment',
       text: row.text,
       title: String(row.text || '').slice(0, 40),
       postId: row.post_id,
+      parentId: th.parentId,
+      rootId: th.rootId,
+      depth: th.depth,
+      replyTo: th.replyTo,
+      replyCount: th.replyCount,
       authorId: row.author_id,
       author: u ? {id: u.id, username: u.username, displayName: (p && p.displayName) || u.username} : null,
       createdAt: row.created_at,
+      createdAtUtc: new Date(row.created_at).toISOString(),
       deleted: !!row.deleted_at,
       deletedAt: row.deleted_at || null,
       status: row.deleted_at ? 'removed' : 'approved',
@@ -212,7 +258,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     throw new ApiError(400, 'BAD_TYPE', 'type 须为 post 或 comment');
   }
 
-  function hideContent(admin, type, id, body = {}) {
+  function hideContent(admin, type, id, body = {}, ip = null) {
     const reason = String(body.reason || body.note || '').trim().slice(0, 500);
     const at = nowFn();
     if (type === 'post') {
@@ -223,7 +269,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
       }
       db.prepare('UPDATE posts SET deleted_at=COALESCE(deleted_at,?), admin_hidden=1, admin_reason=?, admin_actor_id=? WHERE id=?')
         .run(at, reason, admin.id, id);
-      if (audit) audit(admin.id, 'admin.content.delete', 'post:' + id, null, {reason, adminUsername: admin.username});
+      if (audit) audit(admin.id, 'admin.content.delete', 'post:' + id, ip, {reason, adminUsername: admin.username});
       return {item: pubPost(db.prepare('SELECT * FROM posts WHERE id=?').get(id)), already: false};
     }
     if (type === 'comment') {
@@ -232,19 +278,19 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
       if (row.deleted_at && row.admin_hidden) return {item: pubComment(row), already: true};
       db.prepare('UPDATE post_comments SET deleted_at=COALESCE(deleted_at,?), admin_hidden=1, admin_reason=?, admin_actor_id=? WHERE id=?')
         .run(at, reason, admin.id, id);
-      if (audit) audit(admin.id, 'admin.content.delete', 'comment:' + id, null, {reason, adminUsername: admin.username});
+      if (audit) audit(admin.id, 'admin.content.delete', 'comment:' + id, ip, {reason, adminUsername: admin.username});
       return {item: pubComment(db.prepare('SELECT * FROM post_comments WHERE id=?').get(id)), already: false};
     }
     throw new ApiError(400, 'BAD_TYPE', 'type 须为 post 或 comment');
   }
 
-  function restoreContent(admin, type, id) {
+  function restoreContent(admin, type, id, body = {}, ip = null) {
     if (type === 'post') {
       const row = db.prepare('SELECT * FROM posts WHERE id=?').get(id);
       if (!row) throw new ApiError(404, 'NOT_FOUND', '动态不存在');
       if (!row.deleted_at) return {item: pubPost(row), already: true};
       db.prepare('UPDATE posts SET deleted_at=NULL, admin_hidden=0, admin_reason=NULL, admin_actor_id=? WHERE id=?').run(admin.id, id);
-      if (audit) audit(admin.id, 'admin.content.restore', 'post:' + id, null, {adminUsername: admin.username});
+      if (audit) audit(admin.id, 'admin.content.restore', 'post:' + id, ip, {adminUsername: admin.username});
       return {item: pubPost(db.prepare('SELECT * FROM posts WHERE id=?').get(id)), already: false};
     }
     if (type === 'comment') {
@@ -252,7 +298,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
       if (!row) throw new ApiError(404, 'NOT_FOUND', '评论不存在');
       if (!row.deleted_at) return {item: pubComment(row), already: true};
       db.prepare('UPDATE post_comments SET deleted_at=NULL, admin_hidden=0, admin_reason=NULL, admin_actor_id=? WHERE id=?').run(admin.id, id);
-      if (audit) audit(admin.id, 'admin.content.restore', 'comment:' + id, null, {adminUsername: admin.username});
+      if (audit) audit(admin.id, 'admin.content.restore', 'comment:' + id, ip, {adminUsername: admin.username});
       return {item: pubComment(db.prepare('SELECT * FROM post_comments WHERE id=?').get(id)), already: false};
     }
     throw new ApiError(400, 'BAD_TYPE', 'type 须为 post 或 comment');
@@ -287,12 +333,9 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
   function listAnnouncements(q = {}) {
     const limit = Math.min(Math.max(Number(q.limit) || 50, 1), 100);
     const rows = db.prepare('SELECT * FROM announcements ORDER BY created_at DESC LIMIT ?').all(limit);
-    return {announcements: rows.map(r => ({
-      id: r.id, title: r.title, body: r.body, published: !!r.published,
-      createdAt: r.created_at, updatedAt: r.updated_at || null, authorAdminId: r.author_admin_id,
-    }))};
+    return {announcements: rows.map(pubAnn)};
   }
-  function addAnnouncement(admin, body = {}) {
+  function addAnnouncement(admin, body = {}, ip = null) {
     const title = String(body.title || '').trim();
     const text = String(body.body || body.content || '').trim();
     if (!title) throw new ApiError(400, 'BAD_TITLE', '请填写公告标题');
@@ -300,20 +343,91 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     const at = nowFn();
     const r = db.prepare('INSERT INTO announcements(title,body,created_at,published,author_admin_id) VALUES(?,?,?,?,?)')
       .run(title.slice(0, 120), text.slice(0, 8000), at, body.published === false ? 0 : 1, admin.id);
-    if (audit) audit(admin.id, 'admin.announcement.create', 'announcement:' + r.lastInsertRowid, null, {title, adminUsername: admin.username});
+    if (audit) audit(admin.id, 'admin.announcement.create', 'announcement:' + r.lastInsertRowid, ip, {title, adminUsername: admin.username});
     return listAnnouncements();
   }
-  function removeAnnouncement(admin, id) {
+  function pubAnn(r) {
+    return {
+      id: r.id, title: r.title, body: r.body, published: !!r.published,
+      createdAt: r.created_at, updatedAt: r.updated_at || null, authorAdminId: r.author_admin_id,
+      withdrawn: !r.published,
+    };
+  }
+  function removeAnnouncement(admin, id, ip = null) {
     const row = db.prepare('SELECT * FROM announcements WHERE id=?').get(asInt(id));
     if (!row) throw new ApiError(404, 'NOT_FOUND', '公告不存在');
     db.prepare('DELETE FROM announcements WHERE id=?').run(row.id);
-    if (audit) audit(admin.id, 'admin.announcement.delete', 'announcement:' + row.id, null, {adminUsername: admin.username});
+    if (audit) audit(admin.id, 'admin.announcement.delete', 'announcement:' + row.id, ip, {adminUsername: admin.username});
     return {deleted: row.id};
+  }
+  function editAnnouncement(admin, id, body = {}, ip = null) {
+    const row = db.prepare('SELECT * FROM announcements WHERE id=?').get(asInt(id));
+    if (!row) throw new ApiError(404, 'NOT_FOUND', '公告不存在');
+    const title = body.title != null ? String(body.title).trim() : row.title;
+    const text = body.body != null || body.content != null ? String(body.body || body.content).trim() : row.body;
+    if (!title) throw new ApiError(400, 'BAD_TITLE', '请填写公告标题');
+    if (!text) throw new ApiError(400, 'BAD_BODY', '请填写公告内容');
+    let published = row.published;
+    if (body.published != null) published = body.published ? 1 : 0;
+    db.prepare('UPDATE announcements SET title=?, body=?, published=?, updated_at=? WHERE id=?')
+      .run(title.slice(0, 120), text.slice(0, 8000), published, nowFn(), row.id);
+    if (audit) audit(admin.id, 'admin.announcement.edit', 'announcement:' + row.id, ip, {title, published: !!published, adminUsername: admin.username});
+    return {announcement: pubAnn(db.prepare('SELECT * FROM announcements WHERE id=?').get(row.id))};
+  }
+  function withdrawAnnouncement(admin, id, ip = null) {
+    const row = db.prepare('SELECT * FROM announcements WHERE id=?').get(asInt(id));
+    if (!row) throw new ApiError(404, 'NOT_FOUND', '公告不存在');
+    if (!row.published) return {announcement: pubAnn(row), already: true};
+    db.prepare('UPDATE announcements SET published=0, updated_at=? WHERE id=?').run(nowFn(), row.id);
+    if (audit) audit(admin.id, 'admin.announcement.withdraw', 'announcement:' + row.id, ip, {adminUsername: admin.username});
+    return {announcement: pubAnn(db.prepare('SELECT * FROM announcements WHERE id=?').get(row.id)), already: false};
+  }
+
+  function listCommunities(q = {}) {
+    const limit = Math.min(Math.max(Number(q.limit) || 50, 1), 100);
+    const rows = db.prepare(`SELECT * FROM communities WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`).all(limit);
+    const nMem = db.prepare("SELECT COUNT(*) AS n FROM community_members WHERE community_id=? AND status='active'");
+    return {communities: rows.map(r => ({
+      id: r.id, name: r.name, description: r.description, visibility: r.visibility,
+      ownerId: r.owner_id, memberCount: nMem.get(r.id).n, createdAt: r.created_at,
+    }))};
+  }
+  function getCommunity(id) {
+    const row = db.prepare('SELECT * FROM communities WHERE id=?').get(id);
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+    const nMem = db.prepare("SELECT COUNT(*) AS n FROM community_members WHERE community_id=? AND status='active'").get(row.id).n;
+    const members = db.prepare("SELECT * FROM community_members WHERE community_id=? AND status='active' ORDER BY joined_at").all(row.id).map(m => {
+      const u = db.prepare('SELECT * FROM users WHERE id=?').get(m.user_id);
+      return {userId: m.user_id, username: u && u.username, role: m.role, status: m.status, joinedAt: m.joined_at};
+    });
+    const chs = db.prepare("SELECT * FROM community_channels WHERE community_id=? AND deleted_at IS NULL ORDER BY created_at").all(row.id);
+    const nMsg = db.prepare("SELECT COUNT(*) AS n FROM community_messages WHERE channel_id=?");
+    const channels = chs.map(ch => ({
+      id: ch.id, name: ch.name, kind: ch.kind, isDefault: !!ch.is_default,
+      messageCount: nMsg.get(ch.id).n,
+    }));
+    return {community: {id: row.id, name: row.name, description: row.description, visibility: row.visibility, ownerId: row.owner_id, memberCount: nMem, createdAt: row.created_at, members, channels}};
+  }
+  function listChannelMessages(chId, q = {}) {
+    const ch = db.prepare('SELECT * FROM community_channels WHERE id=?').get(chId);
+    if (!ch || ch.deleted_at) throw new ApiError(404, 'NOT_FOUND', '频道不存在');
+    const limit = Math.min(Math.max(Number(q.limit) || 50, 1), 200);
+    const rows = db.prepare('SELECT * FROM community_messages WHERE channel_id=? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?').all(ch.id, limit);
+    return {channel: {id: ch.id, name: ch.name, communityId: ch.community_id, kind: ch.kind},
+      messages: rows.reverse().map(r => {
+        const u = db.prepare('SELECT * FROM users WHERE id=?').get(r.author_id);
+        return {
+          id: r.id, channelId: ch.id, authorId: r.author_id,
+          author: u ? {id: u.id, username: u.username, displayName: u.display_name} : null,
+          text: r.text, createdAt: r.created_at, createdAtUtc: new Date(r.created_at).toISOString(),
+        };
+      })};
   }
 
   return {
     listUsers, oneUser, ban, unban, resetPassword, grantVip, revokeVip,
     listContent, getContent, hideContent, restoreContent,
-    stats, listAnnouncements, addAnnouncement, removeAnnouncement, userRow,
+    stats, listAnnouncements, addAnnouncement, removeAnnouncement, editAnnouncement, withdrawAnnouncement,
+    listCommunities, getCommunity, listChannelMessages, userRow,
   };
 }

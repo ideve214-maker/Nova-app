@@ -35,15 +35,20 @@ node scripts/build.mjs --api-base=https://api.example.com
 ### 2. 服务端 CORS：`NOVA_CORS_ORIGIN`
 
 - **未设置**：与原来一样，响应 `Access-Control-Allow-Origin: *`。
-- **逗号分隔白名单**：例如 `NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost`。请求的 `Origin` 在名单里时原样回显，不在则不回显（浏览器会拦截）。比较是精确字符串匹配（含协议和端口）。
-- 预检 `OPTIONS` 返回 204，允许方法 `GET, POST, OPTIONS`，允许头 `Authorization, Content-Type, X-File-Name`（媒体上传用）、以及 `Last-Event-ID`。
+- **逗号分隔白名单**：例如 `NOVA_CORS_ORIGIN=https://admin.example.com,capacitor://localhost,http://localhost`。请求的 `Origin` 在名单里时原样回显，不在则不回显（浏览器会拦截）。比较是精确字符串匹配（含协议和端口）。
+- **生产必须把这些来源写进白名单**（缺一不可，否则对应端会被浏览器拦住）：
+  - 管理后台（Agen）的 Web 来源，例如 `https://admin.example.com`（含协议和端口，与浏览器里实际 Origin 一致）
+  - `capacitor://localhost`（iOS Capacitor 壳）
+  - `http://localhost`（Android Capacitor / WebView 壳）
+  - 如在浏览器里直接打开客户端或管理端本地调试，再加上对应的 `http://localhost:端口` / `https://localhost`
+- 预检 `OPTIONS` 返回 204，允许方法 `GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS`，允许头 `Authorization, Content-Type, X-File-Name`（媒体上传用）、以及 `Last-Event-ID`。
 - SSE（`GET /api/events`）和媒体文件/预览响应同样带上述 CORS 头。
 
 ```bash
-NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost npm run server
+NOVA_CORS_ORIGIN=https://admin.example.com,capacitor://localhost,http://localhost npm run server
 ```
 
-代码里也可 `createApp({corsOrigin: 'capacitor://localhost,https://localhost'})`。
+代码里也可 `createApp({corsOrigin: 'https://admin.example.com,capacitor://localhost,http://localhost'})`。
 
 ### 3. 生产构建关闭本机演示：`window.NOVA_DISABLE_DEMO`
 
@@ -61,7 +66,7 @@ NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost npm run server
 
 ```bash
 node scripts/build.mjs --api-base=https://api.example.com --disable-demo
-NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost NOVA_ENV=production npm run server
+NOVA_CORS_ORIGIN=https://admin.example.com,capacitor://localhost,http://localhost NOVA_ENV=production npm run server
 ```
 
 

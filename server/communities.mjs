@@ -204,7 +204,7 @@ export function createCommunities(db, {profile, vip, now}) {
     vip.requireTextLength(user, 'channel', text);
     const id = nid('ms'), t = now();
     insMsg.run(id, chId, user.id, text, t);
-    return {message: {id, channelId: chId, author: authorOf(user.id), text, createdAt: t}};
+    return {message: {id, channelId: chId, author: authorOf(user.id), text, createdAt: t, createdAtUtc: new Date(t).toISOString()}};
   }
   function listMessages(user, chId, q = {}) {
     const ch = chBy.get(chId);
@@ -212,7 +212,7 @@ export function createCommunities(db, {profile, vip, now}) {
     const row = getVisible(user, ch.community_id);
     requireMem(row, user, 'post', 1);
     const limit = Math.min(Math.max(+(q.limit) || 50, 1), 100);
-    return {messages: msgs.all(chId, limit).reverse().map(r => ({id: r.id, channelId: chId, author: authorOf(r.author_id), text: r.text, createdAt: r.created_at}))};
+    return {messages: msgs.all(chId, limit).reverse().map(r => ({id: r.id, channelId: chId, author: authorOf(r.author_id), text: r.text, createdAt: r.created_at, createdAtUtc: new Date(r.created_at).toISOString()}))};
   }
   function invite(user, id, body = {}) {
     const row = getVisible(user, id);

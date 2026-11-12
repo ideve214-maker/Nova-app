@@ -1,5 +1,43 @@
 # 更新日志（最新在上）
 
+## V7 0.7.0-m5.1 · M5 消息与社区增强、楼中楼、真实数据与管理端补强（2026-11-12）
+
+本版把 M5（消息回复/转发/反应/收藏/草稿、投票、话题、定时发布、屏蔽词、在线与输入中、多设备同步策略、数据导出）与用户/管理端后续需求一并纳入。VIP 价格为月度 ¥9.9（30 天）、年度 ¥99（365 天），文案不再写「暂定」。`POST /api/admin/payments/:id/refund` 幂等扣回**本笔订单**对应的 VIP 天数，成功（含第二次）返回 `vipRevoked:true`、`daysSubtracted`，并写 `admin.payment.refund` 审计。
+
+### M5 接口摘要
+- 消息：`POST /api/messages/:id/forward`（加密私聊须客户端重加密）、反应、`POST /api/messages/:id/save|/unsave`、`GET /api/saved-messages`；`PUT|GET|DELETE /api/conversations/:id/draft`、`GET /api/drafts`（E2EE 私聊草稿建议只留本机）。
+- 动态：投票（2–10 选项，一人一票，相同选项幂等，改票 409）；话题（每帖最多 5 个、每小时新建 20）；草稿与定时发布；平台/个人屏蔽词（`/api/admin/blockwords`、`/api/me/blockwords`）。
+- 在场：`online|away|invisible`，可见性默认 `friends`，隐身对外一律离线；输入中 `POST /api/conversations/:id/typing` 只走即时推送、不入库、不重放。
+- 多设备：`GET /api/me/sync-policy`；撤销会话不等于撤销 E2EE 设备；pickle 不同步。
+- 导出：`GET|POST /api/me/export`，E2EE 消息只含密文，客户端本地解密。
+
+### 楼中楼（嵌套评论）
+- 取消「只能回复一层」。`parent_id` 链，服务端最大深度 20（`TOO_DEEP`），展示建议在深度 ≥2 时折叠为「回复 @某人」。软删除中间层若有未删子孙则保留占位，结构不断。`pubC` 与管理端 `GET /api/admin/content/comment/:id` 均含 `parentId`、`rootId`、`depth`、`replyTo`、`replyCount`、`createdAtUtc`。可回复已删除的父评。
+
+### 时间
+- 服务端存储 UTC 毫秒时间戳，API 另给 `createdAtUtc`（ISO，以 `Z` 结尾）：帖子、评论、聊天消息、社区频道消息。
+- 客户端用手机本地时区在展示时格式化：刚刚 / x分钟前 / 今天 HH:mm / 昨天 HH:mm / M月D日 / YYYY年M月D日。不把「刚刚」等相对文案写入网络数据。演示夹具仍可保留字符串时间，仅在演示模式使用。
+
+### 真实成员数
+- 社区 `memberCount` 来自 `community_members` 中 `status='active'` 的 `COUNT(*)`，加入/退出即时变化。
+- 群聊 `memberCount` 为当前成员数（含自己）；客户端不再把「他人列表长度」当成成员数。
+
+### 演示数据审计（真实 API 模式不再用夹具）
+- 发现并处理：好友申请在联网下走 `S.friendIn` + `faccept`/`fdecline`（`acc`/`rej` 仅演示）；资料「关注的人」走 `S.following`；选人建群/加成员走 `S.friends`（`pickPeople`）；群成员数含自己；社区/频道消息联网走 `GET|POST /api/channels/:id/messages`，不再把演示 `D.cmsg` 画进真实社区；搜索、通知、动态、会话列表本已按 `usingNet()` 分流。`10_data.js` 中的示例帖、用户、社区人数（如 128/86/240）、「刚刚/昨天」字符串**仅演示模式**。
+- 管理端可查看同一份真实数据：内容（含评论楼中楼字段）、用户、支付、社区与频道消息、公告、审计。
+
+### 管理端（给 Agen）
+- `POST /api/admin/payments/:id/refund`：撤销本笔 VIP 时 `vipRevoked:true`（含幂等第二次）。
+- `GET` 与 **`HEAD`** `/api/admin/payments/:id/receipt`：HEAD 返回与 GET 相同头、无正文。
+- 管理操作审计（封禁、解封、重置密码、VIP 授予/撤销、内容删除/恢复、公告创建/编辑/撤回/删除）写入请求 IP，与登录/登出一致（不再为 `null`）。
+- 公告：`PATCH /api/admin/announcements/:id`（或 `POST .../:id/edit`）编辑；`POST /api/admin/announcements/:id/withdraw` 撤回（`published=false`，幂等 `already`）。
+- 社区：`GET /api/admin/communities`、`GET /api/admin/communities/:id`（真实 `memberCount`、成员、频道与消息数）、`GET /api/admin/channels/:id/messages`。
+- CORS：`NOVA_CORS_ORIGIN` 白名单必须包含管理端 Web Origin、`capacitor://localhost`（iOS）、`http://localhost`（Android）。允许方法含 GET/HEAD/POST/PUT/PATCH/DELETE。说明见 `docs/DEPLOY.md` 与 `server/README.md`。
+
+### 限制与既有约定
+- VIP ¥9.9 / ¥99，30 / 365 天；退款只扣本笔天数。媒体额度文案若仍有「数值暂定」是额度说明，不是价格。
+- 投票一人一票；标签 2–24 字、每帖 5、每小时新建 20；个人屏蔽词最多 100；评论最大深度 20；群聊不提供 E2EE；E2EE pickle 不同步。诚实 UI：不写「已端到端加密」。
+
 ## V7 M4.12 · 管理端内容/用户/VIP 与人工收款开通（2026-11-12）
 - **内容删除与恢复（M3.5.3）：** `GET /api/admin/content`（`type=post|comment`，`status=all|visible|removed`）。`POST /api/admin/content/:type/:id/delete`（软删除，可附 reason，幂等）与 `/restore`。写入 `audit_log`。用户端仍按 `deleted_at` 隐藏，恢复后重新可见。
 - **用户管理（对齐 Agen 路径）：** `GET /api/admin/users`、`GET /api/admin/users/:id`、`POST .../ban`、`.../unban`、`.../reset-password`。封禁立即清会话，登录返回 403 `BANNED`，持有旧令牌访问与发帖会被拒。解禁后可再登录。重置密码返回一次性 `temporaryPassword` 并设 `mustChangePw`。

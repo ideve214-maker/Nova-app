@@ -43,6 +43,7 @@ export function createPosts(db, {vip, profile, now}) {
       author: authorOf(row.author_id),
       text: row.text,
       createdAt: row.created_at,
+      createdAtUtc: new Date(row.created_at).toISOString(),
       updatedAt: row.updated_at,
       edited: row.updated_at > row.created_at,
       mine: !!(me && Number(me.id) === Number(row.author_id)),

@@ -52,7 +52,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   function corsHeaders(req) {
     const out = {
       'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name, Last-Event-ID, Last-Event-Id',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS',
     };
     const raw = (corsOrigin == null || String(corsOrigin).trim() === '') ? '*' : String(corsOrigin).trim();
     if (raw === '*') {
@@ -895,23 +895,23 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/admin/users/:id/ban'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.ban(admin, req.params.id, b || {});
+      return adminOps.ban(admin, req.params.id, b || {}, ip(req));
     },
     'POST /api/admin/users/:id/unban'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.unban(admin, req.params.id, b || {});
+      return adminOps.unban(admin, req.params.id, b || {}, ip(req));
     },
     'POST /api/admin/users/:id/reset-password'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.resetPassword(admin, req.params.id, b || {});
+      return adminOps.resetPassword(admin, req.params.id, b || {}, ip(req));
     },
     'POST /api/admin/vip/grant'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.grantVip(admin, b || {});
+      return adminOps.grantVip(admin, b || {}, ip(req));
     },
     'POST /api/admin/vip/revoke'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.revokeVip(admin, b || {});
+      return adminOps.revokeVip(admin, b || {}, ip(req));
     },
     'GET /api/admin/content'(req) {
       const {admin} = adminAuth(req);
@@ -923,11 +923,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/admin/content/:type/:id/delete'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.hideContent(admin, req.params.type, req.params.id, b || {});
+      return adminOps.hideContent(admin, req.params.type, req.params.id, b || {}, ip(req));
     },
     'POST /api/admin/content/:type/:id/restore'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.restoreContent(admin, req.params.type, req.params.id, b || {});
+      return adminOps.restoreContent(admin, req.params.type, req.params.id, b || {}, ip(req));
     },
     'GET /api/admin/stats'(req) {
       const {admin} = adminAuth(req);
@@ -939,11 +939,35 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/admin/announcements'(req, b) {
       const {admin} = adminAuth(req);
-      return adminOps.addAnnouncement(admin, b || {});
+      return adminOps.addAnnouncement(admin, b || {}, ip(req));
     },
     'POST /api/admin/announcements/:id/delete'(req) {
       const {admin} = adminAuth(req);
-      return adminOps.removeAnnouncement(admin, req.params.id);
+      return adminOps.removeAnnouncement(admin, req.params.id, ip(req));
+    },
+    'PATCH /api/admin/announcements/:id'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.editAnnouncement(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/announcements/:id/edit'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.editAnnouncement(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/announcements/:id/withdraw'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.withdrawAnnouncement(admin, req.params.id, ip(req));
+    },
+    'GET /api/admin/communities'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.listCommunities(req.query || {});
+    },
+    'GET /api/admin/communities/:id'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.getCommunity(req.params.id);
+    },
+    'GET /api/admin/channels/:id/messages'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.listChannelMessages(req.params.id, req.query || {});
     },
     'GET /api/admin/payments'(req) {
       const {admin} = adminAuth(req);
@@ -1292,7 +1316,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     }
     const payRcpt = /^\/api\/admin\/payments\/([^/]+)\/receipt$/.exec(path);
-    if (req.method === 'GET' && payRcpt) {
+    if ((req.method === 'GET' || req.method === 'HEAD') && payRcpt) {
       try {
         const {admin} = adminAuth(req);
         const got = pay.getFor(admin, decodeURIComponent(payRcpt[1]), {admin: true});
@@ -1306,6 +1330,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
           'Cache-Control': 'private, no-store',
           'X-Content-Type-Options': 'nosniff',
         });
+        if (req.method === 'HEAD') return res.end();
         return res.end(f.buf);
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});

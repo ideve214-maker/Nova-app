@@ -32,3 +32,26 @@ async function loadCommunity(id){
   else S.communities.push(c);
   return c;
 }
+
+function adoptChMsg(m){
+  if(!m)return null;
+  if(m.author)rememberAuthor(m.author);
+  const me=SESSION&&SESSION.user&&Number(SESSION.user.id)===Number(m.author&&m.author.id);
+  const who=me?'me':String(m.author&&m.author.id||'');
+  const at=m.createdAt||(m.createdAtUtc?Date.parse(m.createdAtUtc):0);
+  const row=[who,'',m.text||'',m.id];
+  row.at=at;
+  return row;
+}
+function chMsgSrc(cid){
+  if(typeof usingNet==='function'&&usingNet()&&S.channelMessages)
+    return S.channelMessages[cid]||[];
+  return (D.cmsg&&D.cmsg[cid])||[];
+}
+async function loadChannelMessages(cid){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION||!cid)return;
+  const r=await api('GET','/api/channels/'+cid+'/messages');
+  if(r.s!==200)return;
+  S.channelMessages=S.channelMessages||{};
+  S.channelMessages[cid]=(r.j.messages||[]).map(adoptChMsg);
+}

@@ -5,6 +5,9 @@ import {ApiError} from './errors.mjs';
 const nid = () => 'co_' + randomBytes(12).toString('base64url');
 const len = s => [...String(s)].length;
 export const COMMENT_MAX = 280;
+export const COMMENT_MAX_DEPTH = 20;
+/** 展示时超过此深度不再继续缩进，改为「回复 @某人」。 */
+export const COMMENT_COLLAPSE_DEPTH = 2;
 export const EMOJIS = Object.freeze(['❤️', '😂', '👍', '😮', '😢', '🔥']);
 
 export function createComments(db, {profile, vip, posts, now}) {
@@ -49,9 +52,14 @@ export function createComments(db, {profile, vip, posts, now}) {
       text: gone ? '' : row.text,
       deleted: gone,
       createdAt: row.created_at,
+      createdAtUtc: new Date(row.created_at).toISOString(),
       likeCount: gone ? 0 : cntLike.get(row.id).n,
       liked: !!(me && !gone && hasLike.get(row.id, me.id)),
       mine: !!(me && Number(me.id) === Number(row.author_id)),
+      depth: 0,
+      rootId: row.id,
+      replyTo: null,
+      replyCount: 0,
     };
     if (!gone && extras && extras.personalFilter && me) {
       const f = extras.personalFilter(out.text, me, row.author_id);
@@ -64,6 +72,50 @@ export function createComments(db, {profile, vip, posts, now}) {
     if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '动态不存在');
     return row;
   }
+  function chainInfo(row, cache = new Map()) {
+    if (cache.has(row.id)) return cache.get(row.id);
+    if (!row.parent_id) {
+      const v = {depth: 0, rootId: row.id};
+      cache.set(row.id, v);
+      return v;
+    }
+    const parent = byId.get(row.parent_id);
+    if (!parent) {
+      const v = {depth: 1, rootId: row.id};
+      cache.set(row.id, v);
+      return v;
+    }
+    const up = chainInfo(parent, cache);
+    const v = {depth: up.depth + 1, rootId: up.rootId};
+    cache.set(row.id, v);
+    return v;
+  }
+  function replyToOf(row) {
+    if (!row.parent_id) return null;
+    const p = byId.get(row.parent_id);
+    if (!p) return {id: row.parent_id, deleted: true, missing: true, author: null, text: ''};
+    const a = authorOf(p.author_id);
+    return {
+      id: p.id,
+      deleted: !!p.deleted_at,
+      author: {id: a.id, username: a.username, displayName: a.displayName},
+      text: p.deleted_at ? '' : String(p.text || '').slice(0, 80),
+    };
+  }
+  function enrich(row, me, cache, counts) {
+    const out = pubC(row, me);
+    const ch = chainInfo(row, cache);
+    out.depth = ch.depth;
+    out.rootId = ch.rootId;
+    out.replyTo = replyToOf(row);
+    out.replyCount = counts.get(row.id) || 0;
+    return out;
+  }
+  function livingDescendants(id, kids) {
+    const ch = kids.get(id) || [];
+    return ch.some(k => !k.deleted_at || livingDescendants(k.id, kids));
+  }
+
   function add(user, postId, body) {
     ensurePost(postId);
     const text = String((body && body.text) != null ? body.text : '').trim();
@@ -73,17 +125,30 @@ export function createComments(db, {profile, vip, posts, now}) {
     const pid = body && body.parentId;
     if (pid) {
       parent = byId.get(String(pid));
-      if (!parent || parent.deleted_at || parent.post_id !== postId) throw new ApiError(400, 'BAD_PARENT', '回复的评论不存在');
-      if (parent.parent_id) throw new ApiError(400, 'BAD_PARENT', '只能回复一层');
+      if (!parent || parent.post_id !== postId) throw new ApiError(400, 'BAD_PARENT', '回复的评论不存在');
+      const d = chainInfo(parent).depth;
+      if (d + 1 > COMMENT_MAX_DEPTH) throw new ApiError(400, 'TOO_DEEP', '回复层级过深（最多 ' + COMMENT_MAX_DEPTH + ' 层）');
     }
-    const id = nid(), t = now();
-    insC.run(id, postId, user.id, parent ? parent.id : null, text, t);
-    return {comment: pubC(byId.get(id), user), commentCount: commentCount(postId)};
+    const id = nid(), ts = now();
+    insC.run(id, postId, user.id, parent ? parent.id : null, text, ts);
+    const kids = new Map();
+    return {comment: enrich(byId.get(id), user, new Map(), kids), commentCount: commentCount(postId)};
   }
   function list(user, postId) {
     ensurePost(postId);
-    const rows = listAll.all(postId).filter(r => !r.deleted_at || replies.get(r.id).n > 0);
-    return {comments: rows.map(r => pubC(r, user)), commentCount: commentCount(postId)};
+    const all = listAll.all(postId);
+    const kids = new Map();
+    const counts = new Map();
+    for (const r of all) {
+      if (r.parent_id) {
+        if (!kids.has(r.parent_id)) kids.set(r.parent_id, []);
+        kids.get(r.parent_id).push(r);
+        if (!r.deleted_at) counts.set(r.parent_id, (counts.get(r.parent_id) || 0) + 1);
+      }
+    }
+    const rows = all.filter(r => !r.deleted_at || livingDescendants(r.id, kids));
+    const cache = new Map();
+    return {comments: rows.map(r => enrich(r, user, cache, counts)), commentCount: commentCount(postId), collapseDepth: COMMENT_COLLAPSE_DEPTH};
   }
   function remove(user, id) {
     const row = byId.get(id);
@@ -97,7 +162,8 @@ export function createComments(db, {profile, vip, posts, now}) {
     if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '评论不存在');
     if (hasLike.get(id, user.id)) delLike.run(id, user.id);
     else insLike.run(id, user.id, now());
-    return {comment: pubC(byId.get(id), user)};
+    const n = replies.get(id).n;
+    return {comment: enrich(byId.get(id), user, new Map(), new Map([[id, n]]))};
   }
   function react(user, postId, body) {
     ensurePost(postId);
@@ -108,5 +174,5 @@ export function createComments(db, {profile, vip, posts, now}) {
     else insRx.run(postId, user.id, idx, now());
     return {postId, ...reactOf(postId, user)};
   }
-  return {add, list, remove, like, react, reactOf, commentCount, COMMENT_MAX, EMOJIS, attach};
+  return {add, list, remove, like, react, reactOf, commentCount, COMMENT_MAX, COMMENT_MAX_DEPTH, COMMENT_COLLAPSE_DEPTH, EMOJIS, attach, enrich, chainInfo};
 }

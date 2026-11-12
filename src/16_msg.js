@@ -1,6 +1,6 @@
 /* NOVA V5 消息工具：消息 ID、置顶、@提醒（纯数据层，界面只读这里） */
 /* 私聊/群聊消息：[发送者,类型,时间,状态,文字,id]；社区频道消息：[发送者,时间,文字,id] */
-const msgs=(k,cid)=>{if(k=='cv')return (typeof msgSrc==='function'?msgSrc(cid):D.m[cid])||[];return D.cmsg[cid]||[]};
+const msgs=(k,cid)=>{if(k=='cv')return (typeof msgSrc==='function'?msgSrc(cid):D.m[cid])||[];return (typeof chMsgSrc==='function'?chMsgSrc(cid):D.cmsg[cid])||[]};
 const mid=(k,m)=>k=='cv'?m[5]:m[3];
 const mtext=(k,m)=>{const x=k=='cv'?m[4]:m[2];return x&&typeof x==='object'?(typeof stkLabel==='function'?stkLabel(x):(x.glyph||'')+' '+(x.name||'')):x};
 const newId=()=>'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -9,7 +9,7 @@ function fixIds(){
   for(const c in D.m)D.m[c].forEach((m,i)=>{if(!m[5])m[5]=c+'_'+i});
   for(const h in D.cmsg)D.cmsg[h].forEach((m,i)=>{if(!m[3])m[3]=h+'_'+i});
 }
-const cmOf=cid=>D.cm.find(c=>c.ch.some(x=>x[0]==cid));
+const cmOf=cid=>(typeof cmSrc==='function'?cmSrc():D.cm).find(c=>c.ch&&c.ch.some(x=>x[0]==cid));
 /* 权限：置顶 / @所有人 / 删除他人消息。k='cv'(会话) 或 'ch'(社区频道) */
 function msgPerm(k,cid,act){
   if(k=='cv'){const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==cid);if(!c||!c.g)return false;return canG(gRole(c,'me'),act=='delMsg'?'pinMsg':act)}

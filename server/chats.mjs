@@ -376,6 +376,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       sessionId: (enc && !row.deleted_at) ? (row.olm_session_id || undefined) : undefined,
       deleted: !!row.deleted_at,
       createdAt: row.created_at,
+      createdAtUtc: new Date(row.created_at).toISOString(),
       mine: !!(me && Number(me.id) === Number(row.author_id)),
       clientId: row.client_id || undefined,
       atAll: !!(hasAt && row.at_all),

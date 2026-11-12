@@ -1,7 +1,7 @@
 /* M4.6 通知联网：登录后通知中心走服务器。演示通知仍只在本机。 */
 function adoptNotif(n){
   if(n.actor)rememberAuthor(n.actor);
-  return {id:n.id,x:n.title+(n.body?(' · '+n.body):''),t:typeof ago==='function'?ago(n.createdAt):'',u:n.read?0:1,kind:n.kind,refType:n.refType,refId:n.refId,src:'net'};
+  return {id:n.id,x:n.title+(n.body?(' · '+n.body):''),at:n.createdAt,t:typeof fmtTime==='function'?fmtTime(n.createdAt):(typeof ago==='function'?ago(n.createdAt):''),u:n.read?0:1,kind:n.kind,refType:n.refType,refId:n.refId,src:'net'};
 }
 function nSrc(){return typeof usingNet==='function'&&usingNet()&&Array.isArray(S.notifications)?S.notifications:D.n}
 async function loadNotifications(){

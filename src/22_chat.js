@@ -9,8 +9,10 @@ function adoptCv(c){
   const my=(c.members||[]).find(m=>Number(m.id)===Number(me));
   const title=g?(c.name||'群聊'):(others[0]?(others[0].displayName||others[0].username):'私聊');
   const adm=(c.members||[]).filter(m=>m.roleKey==='admin'||m.role==='管理员').map(m=>Number(m.id)===Number(me)?'me':String(m.id));
+  const memAll=(c.members||[]).map(m=>Number(m.id)===Number(me)?'me':String(m.id));
+  const memCount=c.memberCount!=null?c.memberCount:memAll.length;
   return {
-    id:c.id,g,n:title,mem:others.map(m=>String(m.id)),u:c.unread||0,mute:c.muted?1:0,pin:c.pinned?1:0,lastRead:c.lastReadMessageId||null,
+    id:c.id,g,n:title,mem:g?memAll:others.map(m=>String(m.id)),memberCount:memCount,members:c.members||[],u:c.unread||0,mute:c.muted?1:0,pin:c.pinned?1:0,lastRead:c.lastReadMessageId||null,
     own:owner?(Number(owner.id)===Number(me)?'me':String(owner.id)):'',
     adm,r:c.myRole||(my&&my.role)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:c.kind==='dm',peerId:others[0]&&others[0].id,publicPins:c.publicPins||[],personalPins:c.personalPins||[]
   };
@@ -62,6 +64,7 @@ function adoptMsg(m){
     if(m.reactions)row.reactions=m.reactions;
     if(m.saved)row.saved=true;
     row.encrypted=!!m.encrypted;row.decryptError=m.decryptError;
+    if(m.createdAt!=null)row.at=m.createdAt;
     return row}
   if(m.deleted)return finish([me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'','（已撤回）',m.id,m.media]);
   if(m.sticker)return finish([me?'me':String(m.author.id),'k',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.sticker,m.id,m.media]);
