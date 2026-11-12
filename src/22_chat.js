@@ -158,6 +158,7 @@ async function sendNet(cid,text,extra){
 function stopEvents(){if(S.evtAbort){try{S.evtAbort.abort()}catch(e){}S.evtAbort=null}S.evtOn=0}
 function applyEvent(ev,data){
   if(ev&&ev.startsWith('friend.')&&typeof loadFriends==='function'){loadFriends().then(()=>{if(typeof render==='function')render()});}
+  if(ev==='conversation.typing'&&data){if(typeof noteTyping==='function')noteTyping(data);return}
   if(ev==='conversation.reaction'&&data){const cid=data.conversationId,arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.messageId);if(i>=0)arr[i].reactions=data.reactions||[]}if(typeof render==='function')render();return}
   if(ev==='conversation.recall'&&data&&data.message){const cid=data.conversationId||data.message.conversationId;const arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.message.id);if(i>=0){arr[i][4]='（已撤回）';arr[i].deleted=1}}if(typeof render==='function')render();return}
 if(ev==='conversation.message'&&data&&data.message){
@@ -310,4 +311,22 @@ function applyDraft(cid){
 function clearChatDraft(cid){
   S.drafts=S.drafts||{};delete S.drafts[cid];storeLocalDraft(cid,'');
   if(typeof usingNet==='function'&&usingNet()&&SESSION)api('DELETE','/api/conversations/'+cid+'/draft');
+}
+
+let _typeAt=0;
+function sendTyping(cid){
+  if(!(typeof usingNet==='function'&&usingNet()&&SESSION&&cid))return;
+  const n=Date.now();if(n-_typeAt<2000)return;_typeAt=n;
+  api('POST','/api/conversations/'+cid+'/typing',{on:true}).catch(()=>{});
+}
+function noteTyping(data){
+  if(!data||!data.conversationId)return;
+  S.typing=S.typing||{};
+  const cid=data.conversationId;
+  if(!data.on){delete S.typing[cid];}
+  else{S.typing[cid]={userId:data.userId,until:data.until||Date.now()+5000}}
+  if(typeof render==='function'){
+    const cur=S.st&&S.st[S.st.length-1];
+    if(cur&&String(cur)==='chat:'+cid)render();
+  }
 }
