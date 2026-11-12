@@ -8,7 +8,9 @@ const avx=(c,l,s)=>`<span class="av" style="width:${s}px;height:${s}px;backgroun
 const phImg=(src,s)=>`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${esc(src)}" alt=""></span>`;
 function cssUrl(src){return String(src||'').replace(/["'\\\n\r<>]/g,'')}
 function bgCss(src){const s=cssUrl(src);if(!s)return 'background:#1a1c20';if(s.startsWith('linear-gradient')||s.startsWith('#'))return 'background:'+s;return "background-color:#1a1c20;background-image:url('"+s+"');background-size:cover;background-position:center"}
-const av=(id,s,opt)=>{const own=id==='me'&&D.pf&&D.pf.me&&D.pf.me.ph;let h=own?phImg(D.pf.me.ph,s):PH[id]?phImg(PH[id],s):avx(P(id).c,P(id).l,s);
+const av=(id,s,opt)=>{const own=id==='me'&&D.pf&&D.pf.me&&D.pf.me.ph;
+  const acctColor=id==='me'&&MODE==='account'&&!own;
+  let h=own?phImg(D.pf.me.ph,s):acctColor?avx(P(id).c,P(id).l,s):PH[id]?phImg(PH[id],s):avx(P(id).c,P(id).l,s);
   const deco=opt&&Object.prototype.hasOwnProperty.call(opt,'dec')?!!opt.dec:(id==='me'&&typeof vipDecoOn==='function'&&vipDecoOn());
   if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');return h};
 const gface=(c,s)=>phImg(c&&c.gp&&(String(c.gp).startsWith('data:')||String(c.gp).startsWith('assets/'))?c.gp:PH.group,s);

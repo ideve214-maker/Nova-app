@@ -8,6 +8,8 @@ import {hashPassword, verifyPassword, newToken, tokenHash} from './auth.mjs';
 import {createVip, VipError} from './vip.mjs';
 import {createSaved, PUBLIC_PIN_MAX} from './saved.mjs';
 import {createStickers} from './stickers.mjs';
+import {createProfile, newSessionId, maskIp, deviceOf} from './profile.mjs';
+import {ApiError} from './errors.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -23,13 +25,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const vip = createVip(db, {clock});
   const saved = createSaved(db, {vip, now});
   const stickers = createStickers({vip});
+  const profile = createProfile(db, {now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
-  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at}; };
+  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
     userBy: db.prepare('SELECT * FROM users WHERE id=?'),
     userByLogin: db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE OR email = ?'),
     insUser: db.prepare('INSERT INTO users(username,email,password_hash,created_at) VALUES(?,?,?,?)'),
-    insSess: db.prepare('INSERT INTO sessions(token_hash,user_id,created_at,expires_at,ip,ua) VALUES(?,?,?,?,?,?)'),
+    insSess: db.prepare('INSERT INTO sessions(token_hash,user_id,created_at,expires_at,ip,ua,public_id) VALUES(?,?,?,?,?,?,?)'),
     sess: db.prepare('SELECT * FROM sessions WHERE token_hash=?'),
     delSess: db.prepare('DELETE FROM sessions WHERE token_hash=?'),
     delOther: db.prepare('DELETE FROM sessions WHERE user_id=? AND token_hash<>?'),
@@ -39,7 +42,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     audit: db.prepare('INSERT INTO audit_log(at,actor_id,action,target,ip,detail) VALUES(?,?,?,?,?,?)'),
     setPw: db.prepare('UPDATE users SET password_hash=?, must_change_pw=0 WHERE id=?'),
     seen: db.prepare('UPDATE users SET last_login_at=? WHERE id=?'),
-    mySess: db.prepare('SELECT token_hash,created_at,expires_at,ip,ua FROM sessions WHERE user_id=? ORDER BY created_at DESC'),
+    mySess: db.prepare('SELECT token_hash,created_at,expires_at,ip,ua,public_id FROM sessions WHERE user_id=? ORDER BY created_at DESC'),
+    setSid: db.prepare('UPDATE sessions SET public_id=? WHERE token_hash=?'),
+    sessBySid: db.prepare('SELECT * FROM sessions WHERE public_id=? AND user_id=?'),
+    delSid: db.prepare('DELETE FROM sessions WHERE public_id=? AND user_id=? AND token_hash<>?'),
   };
   const audit = (actor, action, target, ip, detail) => q.audit.run(now(), actor || null, action, target || null, ip || null, detail ? JSON.stringify(detail) : null);
 
@@ -52,7 +58,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
   function issue(user, req) {
     const t = newToken(), n = now();
-    q.insSess.run(tokenHash(t), user.id, n, n + SESSION_MS, ip(req), String(req.headers['user-agent'] || '').slice(0, 200));
+    q.insSess.run(tokenHash(t), user.id, n, n + SESSION_MS, ip(req), String(req.headers['user-agent'] || '').slice(0, 200), newSessionId());
     return {token: t, expiresAt: n + SESSION_MS};
   }
   const ip = req => req.socket.remoteAddress || '';
@@ -106,7 +112,52 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'GET /api/me/sessions'(req) {
       const {user, hash} = auth(req);
-      return {sessions: q.mySess.all(user.id).map(s => ({id: s.token_hash.slice(0, 12), current: s.token_hash === hash, createdAt: s.created_at, ip: s.ip, ua: s.ua}))};
+      const sessions = q.mySess.all(user.id).map(s => {
+        let sid = s.public_id;
+        if (!sid) { sid = newSessionId(); q.setSid.run(sid, s.token_hash); }
+        return {id: sid, current: s.token_hash === hash, createdAt: s.created_at, ip: maskIp(s.ip), device: deviceOf(s.ua)};
+      });
+      return {sessions};
+    },
+    // 退出其他设备：其他令牌服务端立即失效；当前设备默认保留。
+    'POST /api/me/sessions/revoke-others'(req) {
+      const {user, hash} = auth(req);
+      const before = q.mySess.all(user.id).length;
+      q.delOther.run(user.id, hash);
+      const after = q.mySess.all(user.id).length;
+      audit(user.id, 'auth.revoke_others', 'user:' + user.id, ip(req), {revoked: before - after});
+      return {revoked: before - after, kept: after, keptCurrent: true};
+    },
+    'POST /api/me/sessions/revoke'(req, b) {
+      const {user, hash} = auth(req);
+      const sid = String(b.id || '').trim();
+      if (!sid) throw bad('BAD_REQUEST', '请指定要退出的设备');
+      const s = q.sessBySid.get(sid, user.id);
+      if (!s) throw bad('NOT_FOUND', '找不到这台设备的登录', 404);
+      if (s.token_hash === hash) throw bad('CURRENT_SESSION', '不能退出当前设备，请使用「退出登录」', 400);
+      q.delSid.run(sid, user.id, hash);
+      audit(user.id, 'auth.revoke_session', 'session:' + sid, ip(req));
+      return {revoked: 1};
+    },
+    'GET /api/me/profile'(req) { const {user} = auth(req); return {profile: profile.publicOf(user)}; },
+    'POST /api/me/profile'(req, b) {
+      const {user} = auth(req);
+      const p = profile.save(user, b || {});
+      audit(user.id, 'user.profile_update', 'user:' + user.id, ip(req));
+      return {profile: p, user: pubUser(q.userBy.get(user.id))};
+    },
+    'POST /api/me/avatar'(req, b) {
+      const {user} = auth(req);
+      const p = profile.save(user, {avatar: (b && b.avatar) || b || {}});
+      audit(user.id, 'user.avatar_update', 'user:' + user.id, ip(req));
+      return {profile: p, user: pubUser(q.userBy.get(user.id))};
+    },
+    'GET /api/me/privacy'(req) { const {user} = auth(req); return {privacy: profile.privacyOf(user), defaults: profile.PRIVACY_DEFAULTS}; },
+    'POST /api/me/privacy'(req, b) {
+      const {user} = auth(req);
+      const prv = profile.savePrivacy(user, b || {});
+      audit(user.id, 'user.privacy_update', 'user:' + user.id, ip(req));
+      return {privacy: prv};
     },
     // ---- VIP（M2.4.2）----
     'GET /api/vip/catalog'() { return vip.catalog({testToggle: {enabled: testToggleOn}}); },
@@ -192,12 +243,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         if (b === null || typeof b !== 'object') throw bad('BAD_JSON', '请求格式不正确');
         send(200, {ok: true, ...fn(req, b)});
       } catch (e) {
-        if (e instanceof HttpError || e instanceof VipError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
         else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile;
   return server;
 }
 

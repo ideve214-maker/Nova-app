@@ -1,4 +1,4 @@
-# NOVA 后端（M2.5.6）
+# NOVA 后端（M2.6.1）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -26,6 +26,14 @@
 | POST /api/content/check | 校验发帖/发言长度（`{scope,text}`）；超长 403 `TEXT_TOO_LONG` |
 | GET /api/stickers | 表情包目录（公开；登录后专属包带 usable） |
 | POST /api/stickers/use | 选用一张贴纸；专属包需 VIP，否则 403 |
+| GET /api/me/profile | 读取自己的资料（默认显示名=用户名） |
+| POST /api/me/profile | 保存显示名、简介、性别、生日、颜色文字头像 |
+| POST /api/me/avatar | 保存颜色/文字头像；图片头像返回 AVATAR_IMAGE_PENDING |
+| GET /api/me/privacy | 读取隐私设置（未写过库则返回默认值） |
+| POST /api/me/privacy | 保存隐私设置 |
+| GET /api/me/sessions | 自己的登录设备；公开 id、脱敏 IP、设备名 |
+| POST /api/me/sessions/revoke-others | 退出其他设备，当前设备保留 |
+| POST /api/me/sessions/revoke | 退出指定设备（不能是当前或别人的） |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
@@ -65,3 +73,14 @@
 ## 专属表情包（M2.5.5）
 - 只用原创 Unicode 白名单，经内容审核范围管理；不引入第三方版权贴纸。
 - 免费用户能看到专属包、能用常用表情、能看见别人发出的专属贴纸；不能从面板选用专属包。
+
+## 个人资料（M2.6.1–M2.6.2）
+- `GET/POST /api/me/profile`、`POST /api/me/avatar`。资料和颜色/文字头像写在 `profiles` 表，重登仍在。图片头像返回 `AVATAR_IMAGE_PENDING`，等 M4.5。
+- 显示名 1–20 字，简介最多 80 字，头像文字恰好 1 个字，颜色为 8 种固定色之一。接口只操作调用者自己。
+
+## 隐私设置（M2.6.3）
+- `GET/POST /api/me/privacy`。未写过库时返回默认值：`everyone` / `everyone` / 生日、年龄、性别公开 / 可被搜索。非法枚举 400。
+
+## 登录设备（M2.6.4–M2.6.5）
+- `GET /api/me/sessions` 只返回自己的会话：公开 id（`ss_…`）、脱敏 IP、设备名、是否当前设备。不含令牌、哈希、原始 IP 或 UA。
+- `POST /api/me/sessions/revoke-others` 使其他令牌立即失效，当前设备保留。`POST /api/me/sessions/revoke` 退出指定设备，不能退出当前设备或别人的设备。改密也会踢掉其他设备。
