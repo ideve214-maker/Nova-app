@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.4.4 · 置顶（2026-11-12）
+- `POST /api/messages/:id/pin` / `unpin`，`kind` 为 `public`（房间公共，群主/管理员，最多 5 条）或 `personal`（仅自己可见，任何成员可操作）。两种置顶分开存储。
+- 会话详情带 `publicPins` 与 `personalPins`。会话列表个人置顶用 `POST /api/conversations/:id/pin`。
+- 测试：新增服务端 1 项。
+
 ## V7 M4.4.3 · 撤回（2026-11-12）
 - `POST /api/messages/:id/recall`：仅作者可在 2 分钟内撤回。超时 400 `RECALL_EXPIRED`；他人 403。双方历史保留占位，`deleted:true` 且 `text` 为空（看不到原文）。重复撤回幂等。
 - 撤回消息仍出现在历史里，但不计入未读。
