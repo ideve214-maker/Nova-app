@@ -47,12 +47,14 @@ async function acc(n) {
   return {tok: r.j.token, id: r.j.user.id, u};
 }
 
-test('目录与 /api/pay/config：人工收款码可用，价格暂定，两种方式默认可开', async () => {
+test('目录与 /api/pay/config：人工收款码可用，价格为 ¥9.9/¥99，两种方式默认可开', async () => {
   const c = await call('GET', '/api/vip/catalog');
   assert.equal(c.s, 200);
   assert.equal(c.j.plans.vip.purchase.enabled, true);
   assert.equal(c.j.plans.vip.purchase.provider, 'manual_qr');
-  assert.match(c.j.plans.vip.priceNote, /暂定/);
+  assert.doesNotMatch(c.j.plans.vip.priceNote, /暂定/);
+  assert.match(JSON.stringify(c.j), /¥9\.9/);
+  assert.doesNotMatch(JSON.stringify(c.j.plans.vip), /暂定/);
   const cfg = await call('GET', '/api/pay/config');
   assert.equal(cfg.s, 200);
   const ids = cfg.j.methods.map(m => m.id);
@@ -152,12 +154,16 @@ test('管理员确认：幂等开通 VIP；拒绝需原因；重复确认不重�
   assert.equal(got.j.order.status, 'rejected');
   assert.equal((await call('GET', '/api/vip/me', null, b.tok)).j.vip.active, false);
 
-  // 退款只改状态，不自动撤销 VIP
+  // 退款会扣回本笔授予的天数；本用例只有这一笔，VIP 应失效
   const rf = await call('POST', '/api/admin/payments/' + o.j.order.id + '/refund', {reason: '测试退款'}, AH());
   assert.equal(rf.s, 200, JSON.stringify(rf.j));
   assert.equal(rf.j.order.status, 'refunded');
-  assert.equal(rf.j.vipRevoked, false);
-  assert.equal((await call('GET', '/api/vip/me', null, a.tok)).j.vip.active, true);
+  assert.equal(rf.j.vipRevoked, true);
+  assert.equal(rf.j.daysSubtracted, 30);
+  assert.equal((await call('GET', '/api/vip/me', null, a.tok)).j.vip.active, false);
+  const againRf = await call('POST', '/api/admin/payments/' + o.j.order.id + '/refund', {reason: '再退'}, AH());
+  assert.equal(againRf.s, 200);
+  assert.equal(againRf.j.already, true);
 });
 
 test('截图类型与大小限制；不能看别人的订单', async () => {
@@ -315,4 +321,45 @@ test('mock 回调：签名校验、幂等开通 VIP', async () => {
     const me2 = await f('GET', '/api/vip/me', null, tok, {sign: false});
     assert.equal(me2.j.vip.until, until);
   } finally { tmp.close(); }
+});
+
+test('退款只扣回本笔天数，不影响其他授予；写审计且幂等', async () => {
+  const a = await acc('rfkeep');
+  // 管理员先赠 60 天
+  const g = await call('POST', '/api/admin/vip/grant', {userId: a.id, days: 60, reason: '活动赠送'}, AH());
+  assert.equal(g.s, 200, JSON.stringify(g.j));
+  const afterGrant = await call('GET', '/api/vip/me', null, a.tok);
+  assert.equal(afterGrant.j.vip.active, true);
+  const untilGrant = afterGrant.j.vip.until;
+  // 再买一个月（从原到期日顺延 30 天）
+  const o = await call('POST', '/api/pay/orders', {period: 'month', method: 'wechat'}, a.tok);
+  await call('POST', '/api/pay/orders/' + o.j.order.id + '/paid', {}, a.tok);
+  const conf = await call('POST', '/api/admin/payments/' + o.j.order.id + '/confirm', {}, AH());
+  assert.equal(conf.s, 200, JSON.stringify(conf.j));
+  const afterPay = await call('GET', '/api/vip/me', null, a.tok);
+  const DAY = 864e5;
+  assert.ok(Math.abs(afterPay.j.vip.until - (untilGrant + 30 * DAY)) < 2000, '续期应在原到期日上加 30 天 ' + afterPay.j.vip.until + ' vs ' + (untilGrant + 30 * DAY));
+  const rf = await call('POST', '/api/admin/payments/' + o.j.order.id + '/refund', {reason: '用户申请退款'}, AH());
+  assert.equal(rf.s, 200, JSON.stringify(rf.j));
+  assert.equal(rf.j.already, false);
+  assert.equal(rf.j.vipRevoked, true);
+  assert.equal(rf.j.daysSubtracted, 30);
+  const afterRf = await call('GET', '/api/vip/me', null, a.tok);
+  assert.equal(afterRf.j.vip.active, true, '其他授予仍应有效');
+  assert.ok(Math.abs(afterRf.j.vip.until - untilGrant) < 2000, '退款后应回到赠送的 60 天到期日');
+  // 幂等：再退不继续扣
+  const rf2 = await call('POST', '/api/admin/payments/' + o.j.order.id + '/refund', {reason: '重复'}, AH());
+  assert.equal(rf2.s, 200);
+  assert.equal(rf2.j.already, true);
+  const after2 = await call('GET', '/api/vip/me', null, a.tok);
+  assert.equal(after2.j.vip.until, afterRf.j.vip.until);
+  const audit = await call('GET', '/api/admin/audit?action=admin.payment.refund', null, AH());
+  assert.equal(audit.s, 200);
+  const hit = audit.j.audits.find(x => x.target === 'order:' + o.j.order.id);
+  assert.ok(hit, '应有退款审计');
+  assert.equal(hit.detail && hit.detail.daysSubtracted, 30);
+  const ev = srv.db.prepare("SELECT action,source,until_before,until_after,note FROM vip_events WHERE user_id=? AND action='shorten'").all(a.id);
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].source, 'payment');
+  assert.ok(String(ev[0].note).includes(o.j.order.code));
 });

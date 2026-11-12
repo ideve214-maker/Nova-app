@@ -32,7 +32,8 @@ test('目录公开可读：套餐、价格占位、权益表、到期规则，�
   assert.equal(c.plans.vip.purchase.provider, 'manual_qr');
   assert.ok(c.pay && c.pay.methods.some(m => m.enabled), '至少一种收款码可用');
   assert.match(c.plans.vip.purchase.reason, /管理员核对/);
-  assert.match(c.plans.vip.priceNote, /暂定/);
+  assert.doesNotMatch(c.plans.vip.priceNote, /暂定/);
+  assert.match(c.plans.vip.priceNote, /¥9\.9/);
   assert.deepEqual(c.entitlements.map(e => e.key), Object.keys(C.entitlements));
   const saved = c.entitlements.find(e => e.key === 'personal_saved_items_plus');
   assert.equal(saved.basic, 20); assert.equal(saved.vip, 100); assert.equal(saved.status, 'live');

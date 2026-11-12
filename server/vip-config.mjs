@@ -3,7 +3,7 @@
 // 产品原则（来自 M2.3 调研与负责人决定）：
 //   · 安全、隐私、基本聊天、好友、举报/拉黑、内容治理不收费，不出现在权益表里；
 //   · VIP 只扩展个性化和适度便利额度；不卖曝光、推荐、聊天优先级，也不因 VIP 获得社区/群管理权限；
-//   · 价格仍是占位（「暂定」）；开通走人工收款码，管理员核对后生效。
+//   · 价格为 ¥9.9/月、¥99/年（30/365 天）；开通走人工收款码，管理员核对后生效。
 
 const DAY = 864e5;
 
@@ -33,7 +33,7 @@ export const VIP_CONFIG = Object.freeze({
         Object.freeze({period: 'month', label: '¥9.9/月', amountCents: 990, currency: 'CNY'}),
         Object.freeze({period: 'year', label: '¥99/年', amountCents: 9900, currency: 'CNY'}),
       ]),
-      priceNote: '价格暂定，正式上线前可能调整。',
+      priceNote: '月度 ¥9.9，年度 ¥99。',
       purchase: Object.freeze({enabled: false, label: '暂未开放', reason: '支付功能尚未接入'}),
     }),
   }),
@@ -116,7 +116,7 @@ export function validateConfig(cfg = VIP_CONFIG) {
   if (!cfg.plans || !cfg.plans.basic || !cfg.plans.vip) add('必须同时有 basic 与 vip 套餐');
   const vip = cfg.plans && cfg.plans.vip;
   if (vip) {
-    if (!vip.priceNote) add('vip 套餐必须带价格暂定说明');
+    if (typeof (vip.priceNote) !== 'string' || !vip.priceNote.trim()) add('vip 套餐必须带价格说明');
     if (!vip.purchase || typeof vip.purchase.enabled !== 'boolean') add('vip 套餐必须有 purchase.enabled（布尔值）');
     for (const p of vip.prices || []) if (!(Number.isInteger(p.amountCents) && p.amountCents > 0 && p.label)) add('价格项不合法：' + JSON.stringify(p));
   }

@@ -48,9 +48,10 @@ test('过期行为：无宽限期，已有内容保留', () => {
   assert.ok(C.expiry.soonDays > 0 && C.expiry.testGrantDays > 0);
 });
 
-test('静态配置：默认 purchase.enabled 为 false（目录由支付层运行时覆盖），价格带「暂定」声明', () => {
+test('静态配置：默认 purchase.enabled 为 false（目录由支付层运行时覆盖），价格为 ¥9.9/月与 ¥99/年', () => {
   assert.equal(C.plans.vip.purchase.enabled, false, '冻结配置本身不打开购买，由 /api/vip/catalog 按收款方式覆盖');
-  assert.match(C.plans.vip.priceNote, /暂定/);
+  assert.doesNotMatch(C.plans.vip.priceNote, /暂定/);
+  assert.match(C.plans.vip.priceNote, /¥9\.9/);
   assert.deepEqual(C.plans.vip.prices.map(p => p.label), ['¥9.9/月', '¥99/年']);
 });
 

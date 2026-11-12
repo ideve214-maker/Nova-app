@@ -149,7 +149,7 @@ export function createPay(db, {now, vip, audit, dataDir, env = process.env} = {}
     return {
       defaultProvider: String(env.NOVA_PAY_PROVIDER || 'manual_qr'),
       methods: methods(),
-      instructions: '选择套餐并生成订单后，请用对应 App 扫描收款码，按显示金额转账，并在转账备注中填写订单码。付款后点击「我已付款」，可选择上传截图。开通需管理员核对后生效，本页不会自动扣款或立刻开通会员。价格暂定。',
+      instructions: '选择套餐并生成订单后，请用对应 App 扫描收款码，按显示金额转账，并在转账备注中填写订单码。付款后点击「我已付款」，可选择上传截图。开通需管理员核对后生效，本页不会自动扣款或立刻开通会员。',
       expireMinutes: expireMinutes(),
       pendingLimit: pendingLimit(),
       receiptMaxBytes: RECEIPT_MAX,
@@ -364,12 +364,24 @@ export function createPay(db, {now, vip, audit, dataDir, env = process.env} = {}
     expire();
     const row = get(id);
     if (!row) throw new ApiError(404, 'NOT_FOUND', '订单不存在');
-    if (row.status === 'refunded') return {order: pub(row, {admin: true}), already: true};
-    if (row.status !== 'paid') throw new ApiError(409, 'NOT_PAID', '只能对已开通的订单标记退款状态（不会自动撤销 VIP）');
-    updStatus.run('refunded', body.reason || row.reject_reason, body.providerRef || row.provider_ref, row.paid_at, admin ? admin.id : row.reviewed_by, nowFn(), row.vip_event_id, row.id);
-    ev(row.id, 'refunded', admin ? 'admin' : 'provider', admin ? admin.id : null, {reason: body.reason || null, vipRevoked: false});
-    if (audit && admin) audit(admin.id, 'admin.payment.refund', 'order:' + row.id, null, {code: row.code, note: '仅标记退款状态，未自动撤销 VIP'});
-    return {order: pub(byId.get(row.id), {admin: true}), already: false, vipRevoked: false};
+    if (row.status === 'refunded') {
+      const u = db.prepare('SELECT vip_until FROM users WHERE id=?').get(row.user_id);
+      return {order: pub(row, {admin: true}), already: true, vipRevoked: true, daysSubtracted: 0, vipUntil: u ? u.vip_until : null};
+    }
+    if (row.status !== 'paid') throw new ApiError(409, 'NOT_PAID', '只能对已开通的订单退款');
+    const days = daysOf(row.period);
+    const actorId = admin ? admin.id : null;
+    const u = vip.shorten(row.user_id, {
+      days, source: 'payment', actorId,
+      note: 'refund:' + row.code + (body.reason ? (' ' + String(body.reason).slice(0, 200)) : ''),
+    });
+    updStatus.run('refunded', body.reason || row.reject_reason, body.providerRef || row.provider_ref, row.paid_at, actorId || row.reviewed_by, nowFn(), row.vip_event_id, row.id);
+    ev(row.id, 'refunded', admin ? 'admin' : 'provider', actorId, {reason: body.reason || null, vipRevoked: true, daysSubtracted: days, vipUntil: u.vip_until});
+    if (audit) audit(actorId, 'admin.payment.refund', 'order:' + row.id, null, {
+      code: row.code, daysSubtracted: days, vipUntilAfter: u.vip_until || null,
+      reason: body.reason || null, already: false, adminUsername: admin && admin.username,
+    });
+    return {order: pub(byId.get(row.id), {admin: true}), already: false, vipRevoked: true, daysSubtracted: days, vipUntil: u.vip_until || null};
   }
 
   function adminList(q = {}) {

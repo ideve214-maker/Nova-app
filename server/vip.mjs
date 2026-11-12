@@ -59,6 +59,25 @@ export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
     });
   }
 
+  /** 按天数缩短有效期（退款用）：只减去本笔天数，不抹掉其他授予。到期日落到现在或之前则清除。 */
+  function shorten(userId, {days, source, actorId = null, note = null}) {
+    if (!(Number.isInteger(days) && days > 0 && days <= 3660)) throw new Error('days 必须是 1–3660 的整数');
+    if (!['test', 'admin', 'payment'].includes(source)) throw new Error('未知来源 ' + source);
+    return tx(() => {
+      const u = getUser.get(userId); if (!u) throw new Error('用户不存在');
+      const at = now(), before = u.vip_until || null;
+      let after = before ? before - days * DAY_MS : null;
+      if (!after || after <= at) {
+        setVip.run(null, null, null, userId);
+        after = null;
+      } else {
+        setVip.run(after, u.vip_since || null, u.vip_source || source, userId);
+      }
+      addEvent.run(userId, at, 'shorten', source, actorId, before, after, note);
+      return getUser.get(userId);
+    });
+  }
+
   /** 当前身份下每项权益的取值：flag → true/false；quota → 数字或按 scope 的对象；待定 → null。 */
   function entitlements(user, at = now()) {
     const plan = status(user, at).plan, out = {};
@@ -148,5 +167,5 @@ export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
     return {...r, scope, length: n, limit: lim};
   }
 
-  return {config, now, status, entitlements, has, limit, requireEntitlement, requireQuota, requireTextLength, catalog, lastEvent, grant, revoke};
+  return {config, now, status, entitlements, has, limit, requireEntitlement, requireQuota, requireTextLength, catalog, lastEvent, grant, revoke, shorten};
 }
