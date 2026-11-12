@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.3.5 · 消息幂等与离线补拉（2026-11-12）
+- 同一会话、同一作者、同一 `clientId` 并发重发只入库一次，响应同一条消息并带 `idempotent: true`。
+- 离线期间的消息用 `GET /api/conversations/:id/messages?after=` 一次补齐，不丢不重。用户端在 SSE 重连时对当前会话补拉。
+- 测试：新增服务端 2 项。
+
 ## V7 M4.3.4 · SSE 服务端推送（2026-11-12）
 - `GET /api/events` 为 `text/event-stream`。新消息以 `conversation.message` 事件推送给会话成员。心跳注释 `: ping`。
 - 鉴权只用 `Authorization` 头（前端用 `fetch`，不用 EventSource）。URL 带 `token` / `access_token` 一律 400 `TOKEN_IN_URL`。

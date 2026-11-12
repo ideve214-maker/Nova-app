@@ -108,6 +108,19 @@ function applyEvent(ev,data){
     if(typeof render==='function')render();
   }
 }
+
+async function catchUpMessages(id){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION||!id)return;
+  S.messages=S.messages||{};
+  const arr=S.messages[id]||[];
+  const last=arr[arr.length-1];
+  if(!last){return loadMessages(id)}
+  const r=await api('GET','/api/conversations/'+id+'/messages?after='+encodeURIComponent(last[5])+'&limit=50');
+  if(r.s!==200)return;
+  const page=(r.j.messages||[]).map(adoptMsg);
+  const seen=new Set((S.messages[id]||[]).map(m=>m[5]));
+  S.messages[id]=(S.messages[id]||[]).concat(page.filter(m=>!seen.has(m[5])));
+}
 async function startEvents(){
   if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
   stopEvents();
@@ -115,6 +128,8 @@ async function startEvents(){
   const loop=async()=>{
     while(S.evtOn&&SESSION&&!ac.signal.aborted){
       try{
+        const cur=S.st&&S.st[S.st.length-1];
+        if(cur&&String(cur).startsWith('chat:'))await catchUpMessages(String(cur).slice(5));
         const headers={Authorization:'Bearer '+SESSION.token,Accept:'text/event-stream'};
         if(S.lastEventId)headers['Last-Event-ID']=String(S.lastEventId);
         const r=await fetch('/api/events',{headers,signal:ac.signal});
