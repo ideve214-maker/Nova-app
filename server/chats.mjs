@@ -13,7 +13,7 @@ const NAME_MAX = 20;
 const RECALL_MS = 2 * 60 * 1000; // 撤回时间窗：2 分钟
 const PUBLIC_PIN_MAX = 5;
 
-export function createChats(db, {profile, vip, now, friends, onEvent, media} = {}) {
+export function createChats(db, {profile, vip, now, friends, onEvent, media, stickers} = {}) {
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
   const insCv = db.prepare(`INSERT INTO conversations(id,kind,name,owner_id,created_at,dm_lo,dm_hi) VALUES(?,?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM conversations WHERE id=?');
@@ -70,6 +70,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media} = {
   const nPinPub = hasPin ? db.prepare("SELECT COUNT(*) AS n FROM message_pins WHERE conversation_id=? AND kind='public'") : null;
   const delMsg = hasMsg ? db.prepare('UPDATE messages SET deleted_at=? WHERE id=? AND conversation_id=? AND deleted_at IS NULL') : null;
   const hasAt = (() => { try { db.prepare('SELECT at_all FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
+  const hasSticker = (() => { try { db.prepare('SELECT sticker FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
 
 
 
@@ -335,6 +336,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media} = {
       atAll: !!(hasAt && row.at_all),
       mediaId: row.media_id || undefined,
       media: (row.media_id && media) ? media.pub(media._byId.get(row.media_id)) : undefined,
+      sticker: (!row.deleted_at && row.sticker) ? (() => { try { return JSON.parse(row.sticker); } catch { return undefined; } })() : undefined,
       ...receiptOf(row, me),
     };
   }
@@ -356,10 +358,18 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media} = {
       const other = mems.all(id).find(m => Number(m.user_id) !== Number(user.id));
       if (other) checkDmGate(user.id, other.user_id);
     }
-    const text = String((body && body.text) != null ? body.text : '').trim();
+    let text = String((body && body.text) != null ? body.text : '').trim();
     const mediaId = body && body.mediaId ? String(body.mediaId) : '';
-    if (!len(text) && !mediaId) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
-    if (vip) vip.requireTextLength(user, 'chat', text);
+    let stickerObj = null;
+    if (body && body.sticker) {
+      if (!stickers) throw new ApiError(503, 'NO_STICKERS', '贴纸功能尚未就绪');
+      if (mediaId) throw new ApiError(400, 'BAD_STICKER', '贴纸不能和文件一起发送');
+      const used = stickers.use(user, body.sticker);
+      stickerObj = used.sticker;
+      if (!text) text = stickerObj.glyph || '';
+    }
+    if (!len(text) && !mediaId && !stickerObj) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
+    if (vip && len(text)) vip.requireTextLength(user, 'chat', text);
     const wantAtAll = text.includes('@所有人');
     if (wantAtAll && row.kind === 'group') {
       const m = activeMem(id, user.id);
@@ -388,6 +398,9 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media} = {
       if (Number(md.ownerId) !== Number(user.id)) throw new ApiError(403, 'FORBIDDEN', '只能发送自己上传的文件');
       db.prepare('UPDATE messages SET media_id=? WHERE id=?').run(mediaId, mid);
       media.attachToMessage(mediaId, id, mid);
+    }
+    if (stickerObj && hasSticker) {
+      db.prepare('UPDATE messages SET sticker=? WHERE id=?').run(JSON.stringify(stickerObj), mid);
     }
     const msg = pubMsg(msgById.get(mid), user);
     const others = mems.all(id).map(m => m.user_id);

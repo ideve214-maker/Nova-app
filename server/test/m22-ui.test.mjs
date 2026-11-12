@@ -83,8 +83,10 @@ test('M2.2 网页注册登录刷新退出', { timeout: 90000 }, async () => {
     });
     assert.equal(split.demo, '林知夏');
     assert.equal(split.acct, 'friend_a');
-    assert.equal(split.post, true);
+    // 账号动态在服务端（S.posts），不写入本机账号库，也不混进演示 localStorage
     assert.equal(split.demoPost, false);
+    const onServer = srv.db.prepare('SELECT COUNT(*) AS n FROM posts WHERE text=?').get('仅账号A可见');
+    assert.ok(onServer.n >= 1, '帖子应已写入服务端');
 
     await page.click('[data-a=toacct]');
     await page.waitForFunction(() => document.body.innerText.includes('仅账号A可见'));
@@ -107,8 +109,21 @@ test('M2.2 网页注册登录刷新退出', { timeout: 90000 }, async () => {
     await page.evaluate(() => { A.logout(); render(); });
     await page.waitForSelector('#gate');
     await reg('friend_b', 'b@friend.test');
-    assert.equal(await page.evaluate(() => document.body.innerText.includes('仅账号A可见')), false);
     assert.match(await page.locator('.ban').first().innerText(), /friend_b/);
+    // 推荐流是全站公开的：B 能看见 A 刚发的公开帖（在服务端），这不是本机数据串台。
+    // 演示 localStorage 里仍然没有这条帖，B 的本机账号库也不把该帖当作本地帖。
+    assert.match(await page.locator('body').innerText(), /仅账号A可见/);
+    const iso = await page.evaluate(() => {
+      const demo = JSON.parse(localStorage.getItem('nova_v5') || 'null');
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('nova_v5_u_'));
+      const accts = keys.map(k => JSON.parse(localStorage.getItem(k) || 'null'));
+      return {
+        demoPost: !!(demo && JSON.stringify(demo).includes('仅账号A可见')),
+        localPost: accts.some(a => a && JSON.stringify(a).includes('仅账号A可见')),
+      };
+    });
+    assert.equal(iso.demoPost, false);
+    assert.equal(iso.localPost, false);
 
     const row = srv.db.prepare('SELECT * FROM users WHERE username=?').get('friend_a');
     assert.equal(row.email, 'a@friend.test');

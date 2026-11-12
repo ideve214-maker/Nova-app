@@ -67,3 +67,25 @@ test('到期后专属包立即不可用；基础包仍可用；夹带别人身�
   T = T0;
   assert.equal(STICKER_PACKS[1].items.length, 8);
 });
+
+test('贴纸可作为消息入库：双方都看见对象；Basic 不能发专属包；撤回后不返回贴纸明文', async () => {
+  const a = await mk(), b = await mk();
+  srv.friends.setAccepted(a.id, b.id);
+  const cv = (await call('POST', '/api/conversations', {kind: 'dm', userId: b.id}, a.tok)).j.conversation;
+  const empty = await call('POST', '/api/conversations/' + cv.id + '/messages', {sticker: {pack: 'basic', id: 'smile'}}, a.tok);
+  assert.equal(empty.s, 200, JSON.stringify(empty.j));
+  assert.equal(empty.j.message.sticker.pack, 'basic');
+  assert.equal(empty.j.message.sticker.id, 'smile');
+  assert.equal(empty.j.message.sticker.glyph, '😊');
+  assert.equal(empty.j.message.text, '😊');
+  const asB = await call('GET', '/api/conversations/' + cv.id + '/messages', null, b.tok);
+  assert.equal(asB.j.messages[0].sticker.glyph, '😊');
+  const deny = await call('POST', '/api/conversations/' + cv.id + '/messages', {sticker: {pack: 'nova_gold', id: 'gold_cheers'}}, a.tok);
+  assert.equal(deny.s, 403);
+  assert.equal(deny.j.error.code, 'ENTITLEMENT_REQUIRED');
+  const rec = await call('POST', '/api/messages/' + empty.j.message.id + '/recall', {}, a.tok);
+  assert.equal(rec.s, 200, JSON.stringify(rec.j));
+  assert.equal(rec.j.message.deleted, true);
+  assert.equal(rec.j.message.text, '');
+  assert.equal(rec.j.message.sticker, undefined);
+});

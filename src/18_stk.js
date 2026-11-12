@@ -16,7 +16,12 @@ function stkuse(v){
   const[pack,id]=v.split('|'),packs=stkPacks(),p=packs.find(x=>x.id===pack),it=p&&p.items.find(x=>x.id===id);
   if(!it)return T('贴纸不存在');
   if(p.premium&&!p.usable){S.sh=null;T('这项功能需要 NOVA VIP，才能使用「专属表情包」。');return}
-  const send=st=>{const cid=S.sh&&S.sh.cid;S.sh=null;if(!cid)return;(D.m[cid]=D.m[cid]||[]).push(['me','k','刚刚','已发送',st,newId()]);const i=D.cv.findIndex(c=>c.id==cid),c=D.cv.splice(i,1)[0];D.cv.unshift(c);S.bot=1;T('已发送 '+st.name)};
+  const sendLocal=st=>{const cid=S.sh&&S.sh.cid;S.sh=null;if(!cid)return;(D.m[cid]=D.m[cid]||[]).push(['me','k','刚刚','已发送',st,newId()]);const i=D.cv.findIndex(c=>c.id==cid);if(i>=0){const c=D.cv.splice(i,1)[0];D.cv.unshift(c)}S.bot=1;T('已发送 '+st.name)};
   const st={pack,id,glyph:it.glyph,name:it.name,premium:!!p.premium};
-  if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{if(r.s!==200){T(errMsg(r,'无法使用这张贴纸'));return}send(r.j.sticker)});
-  send(st)}
+  if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{
+    if(r.s!==200){T(errMsg(r,'无法使用这张贴纸'));return}
+    const st2=r.j.sticker,cid=S.sh&&S.sh.cid;S.sh=null;
+    if(!cid||typeof sendNet!=='function')return;
+    return sendNet(cid,st2.glyph||'',{sticker:{pack:st2.pack,id:st2.id}}).then(m=>{if(m){S.bot=1;T('已发送 '+st2.name)}});
+  });
+  sendLocal(st)}

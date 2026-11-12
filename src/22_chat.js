@@ -56,7 +56,9 @@ function adoptMsg(m){
   if(!m)return null;
   rememberAuthor(m.author);
   const me=SESSION&&SESSION.user&&m.author&&Number(SESSION.user.id)===Number(m.author.id);
-  const tx=m.deleted?'（已撤回）':(m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text);return [me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
+  if(m.deleted)return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'','（已撤回）',m.id,m.media];
+  if(m.sticker)return [me?'me':String(m.author.id),'k',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.sticker,m.id,m.media];
+  const tx=m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text;return [me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
 }
 function msgSrc(id){
   if(typeof usingNet==='function'&&usingNet())return (S.messages&&S.messages[id])||[];
@@ -84,9 +86,12 @@ async function loadMessages(id,cursor){
   }
   S.msgCursor[id]=r.j.nextCursor||null;
 }
-async function sendNet(cid,text){
+async function sendNet(cid,text,extra){
   const clientId='c'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
-  const r=await api('POST','/api/conversations/'+cid+'/messages',{text,clientId});
+  const body={text:text||'',clientId};
+  if(extra&&extra.sticker)body.sticker={pack:extra.sticker.pack,id:extra.sticker.id};
+  if(extra&&extra.mediaId)body.mediaId=extra.mediaId;
+  const r=await api('POST','/api/conversations/'+cid+'/messages',body);
   if(r.s!==200){T(errMsg(r,'发送失败'));return null}
   const m=adoptMsg(r.j.message);
   S.messages=S.messages||{};

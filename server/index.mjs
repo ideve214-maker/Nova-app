@@ -64,7 +64,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     }
   };
-  const chats = createChats(db, {profile, vip, now, friends, media, onEvent});
+  const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent});
   notifications = createNotifications(db, {now, profile, vip, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   const search = createSearch(db, {profile, vip, now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。

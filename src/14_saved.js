@@ -29,7 +29,7 @@ async function unsaveItem(kind,target,id){
     if(S.saved){S.saved.items=S.saved.items.filter(i=>i.id!==r.j.removed.id);S.saved.count=r.j.count}
     T('已取消收藏');return}
   D.sv=localSaved().filter(i=>id!=null&&id!==''?String(i.id)!==String(id):!(i.kind===kind&&i.target===target));T('已取消收藏')}
-function savp(v){const p=D.p.find(x=>x.id==v);S.sh=null;if(!p)return;if(isSaved('post',v))return unsaveItem('post',v);return saveItem('post',v,P(p.a).n,p.x)}
+function savp(v){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==v)||D.p.find(x=>x.id==v);S.sh=null;if(!p)return;if(isSaved('post',v))return unsaveItem('post',v);return saveItem('post',v,(typeof P==='function'?P(p.a).n:''),p.x)}
 function savm(v){const[k,cid,id]=v.split('|'),m=msgs(k,cid).find(x=>mid(k,x)==id);S.sh=null;if(!m)return;const tgt=cid+':'+id;if(isSaved('message',tgt))return unsaveItem('message',tgt);return saveItem('message',tgt,P(m[0]).n,String(mtext(k,m)||'').slice(0,80))}
 function unsav(v){const it=savedItems().find(i=>String(i.id)===String(v));if(it)return unsaveItem(it.kind,it.target,it.id);const i=String(v).indexOf('|');if(i<0)return;return unsaveItem(v.slice(0,i),v.slice(i+1))}
 const savedOpen=()=>{S.sh=null;S.st.push('saved');return MODE==='account'?loadSaved():Promise.resolve()};

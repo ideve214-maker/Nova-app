@@ -355,7 +355,7 @@ async function unsaveItem(kind,target,id){
     if(S.saved){S.saved.items=S.saved.items.filter(i=>i.id!==r.j.removed.id);S.saved.count=r.j.count}
     T('已取消收藏');return}
   D.sv=localSaved().filter(i=>id!=null&&id!==''?String(i.id)!==String(id):!(i.kind===kind&&i.target===target));T('已取消收藏')}
-function savp(v){const p=D.p.find(x=>x.id==v);S.sh=null;if(!p)return;if(isSaved('post',v))return unsaveItem('post',v);return saveItem('post',v,P(p.a).n,p.x)}
+function savp(v){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==v)||D.p.find(x=>x.id==v);S.sh=null;if(!p)return;if(isSaved('post',v))return unsaveItem('post',v);return saveItem('post',v,(typeof P==='function'?P(p.a).n:''),p.x)}
 function savm(v){const[k,cid,id]=v.split('|'),m=msgs(k,cid).find(x=>mid(k,x)==id);S.sh=null;if(!m)return;const tgt=cid+':'+id;if(isSaved('message',tgt))return unsaveItem('message',tgt);return saveItem('message',tgt,P(m[0]).n,String(mtext(k,m)||'').slice(0,80))}
 function unsav(v){const it=savedItems().find(i=>String(i.id)===String(v));if(it)return unsaveItem(it.kind,it.target,it.id);const i=String(v).indexOf('|');if(i<0)return;return unsaveItem(v.slice(0,i),v.slice(i+1))}
 const savedOpen=()=>{S.sh=null;S.st.push('saved');return MODE==='account'?loadSaved():Promise.resolve()};
@@ -496,10 +496,15 @@ function stkuse(v){
   const[pack,id]=v.split('|'),packs=stkPacks(),p=packs.find(x=>x.id===pack),it=p&&p.items.find(x=>x.id===id);
   if(!it)return T('贴纸不存在');
   if(p.premium&&!p.usable){S.sh=null;T('这项功能需要 NOVA VIP，才能使用「专属表情包」。');return}
-  const send=st=>{const cid=S.sh&&S.sh.cid;S.sh=null;if(!cid)return;(D.m[cid]=D.m[cid]||[]).push(['me','k','刚刚','已发送',st,newId()]);const i=D.cv.findIndex(c=>c.id==cid),c=D.cv.splice(i,1)[0];D.cv.unshift(c);S.bot=1;T('已发送 '+st.name)};
+  const sendLocal=st=>{const cid=S.sh&&S.sh.cid;S.sh=null;if(!cid)return;(D.m[cid]=D.m[cid]||[]).push(['me','k','刚刚','已发送',st,newId()]);const i=D.cv.findIndex(c=>c.id==cid);if(i>=0){const c=D.cv.splice(i,1)[0];D.cv.unshift(c)}S.bot=1;T('已发送 '+st.name)};
   const st={pack,id,glyph:it.glyph,name:it.name,premium:!!p.premium};
-  if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{if(r.s!==200){T(errMsg(r,'无法使用这张贴纸'));return}send(r.j.sticker)});
-  send(st)}
+  if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{
+    if(r.s!==200){T(errMsg(r,'无法使用这张贴纸'));return}
+    const st2=r.j.sticker,cid=S.sh&&S.sh.cid;S.sh=null;
+    if(!cid||typeof sendNet!=='function')return;
+    return sendNet(cid,st2.glyph||'',{sticker:{pack:st2.pack,id:st2.id}}).then(m=>{if(m){S.bot=1;T('已发送 '+st2.name)}});
+  });
+  sendLocal(st)}
 
 /* ===== 19_feed.js ===== */
 /* M4.1 动态联网：登录后发帖必须等服务器确认才显示成功；演示数据仍只在本机。 */
@@ -719,7 +724,9 @@ function adoptMsg(m){
   if(!m)return null;
   rememberAuthor(m.author);
   const me=SESSION&&SESSION.user&&m.author&&Number(SESSION.user.id)===Number(m.author.id);
-  const tx=m.deleted?'（已撤回）':(m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text);return [me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
+  if(m.deleted)return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'','（已撤回）',m.id,m.media];
+  if(m.sticker)return [me?'me':String(m.author.id),'k',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.sticker,m.id,m.media];
+  const tx=m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text;return [me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
 }
 function msgSrc(id){
   if(typeof usingNet==='function'&&usingNet())return (S.messages&&S.messages[id])||[];
@@ -747,9 +754,12 @@ async function loadMessages(id,cursor){
   }
   S.msgCursor[id]=r.j.nextCursor||null;
 }
-async function sendNet(cid,text){
+async function sendNet(cid,text,extra){
   const clientId='c'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
-  const r=await api('POST','/api/conversations/'+cid+'/messages',{text,clientId});
+  const body={text:text||'',clientId};
+  if(extra&&extra.sticker)body.sticker={pack:extra.sticker.pack,id:extra.sticker.id};
+  if(extra&&extra.mediaId)body.mediaId=extra.mediaId;
+  const r=await api('POST','/api/conversations/'+cid+'/messages',body);
   if(r.s!==200){T(errMsg(r,'发送失败'));return null}
   const m=adoptMsg(r.j.message);
   S.messages=S.messages||{};
@@ -1305,10 +1315,10 @@ newg:()=>{S.sh={t:'newg'};S.d.gn='';S.gp=[]},gsel:v=>{S.gp=S.gp.includes(v)?S.gp
 mkg:()=>{const n=(S.d.gn||'').trim();if(len(n)<1||len(n)>20)return T('群名需要 1 到 20 个字');if(!S.gp.length)return T('至少选择一位成员');const go=c=>{S.sh=null;S.cseg='in';T('已创建');if(c){S.tab='chat';S.st=['chat:'+c.id]}};if(typeof usingNet==='function'&&usingNet()&&SESSION)return createGroupChat(n,S.gp).then(c=>{if(c)go(c)});const id='cv'+Date.now();D.cv.unshift({id,g:1,n,mem:[...S.gp],u:0,own:'me'});D.m[id]=[['me','s','刚刚','','你创建了群聊「'+n+'」']];go({id})},
 rolem:v=>{const[c,u]=v.split('|');S.sh={t:'rolem',cm:c,u}},setrole:v=>{const[c,u,r]=v.split('|'),m=cmp(c);const go=()=>{if(m)m.mb[u]=r;T('已设为'+r)};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/communities/'+c+'/role',{userId:Number(u)||u,role:r}).then(x=>{if(x.s!==200){T(errMsg(x,'没有权限'));return}go()});if(!assignable(m.r,m.mb[u]||'成员').includes(r))return T('没有权限');go()},kick:v=>{const[c,u]=v.split('|'),m=cmp(c);const go=()=>{if(m){delete m.mb[u];m.m--}S.sh=null;T('已移出')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/communities/'+c+'/kick',{userId:Number(u)||u}).then(x=>{if(x.s!==200){T(errMsg(x,'没有权限'));return}go()});if(!canManage(m.r,m.mb[u]||'成员'))return T('没有权限');go()},
 addch:v=>{if(!canC(cmp(v).r,'addChannel'))return T('没有权限');S.sh={t:'addch',id:v};S.d.chn='';S.d.cht='文字'},chtype:v=>{S.d.cht=v},
-mkch:v=>{const c=cmp(v),n=(S.d.chn||'').trim();if(len(n)<1||len(n)>20)return T('频道名需要 1 到 20 个字');const kind=S.d.cht||'文字';const go=ch=>{const id=ch&&ch.id||(v+'_ch'+Date.now());c.ch.push([id,n,ch&&ch.kind||kind]);D.cmsg[id]=[];S.ch[v]=id;S.sh=null;T('已创建频道')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/communities/'+v+'/channels',{name:n,kind:kind==='公告'?'announce':'text'}).then(r=>{if(r.s!==200){T(errMsg(r,'无法创建'));return}go(r.j.channel)});if(!canC(c.r,'addChannel'))return T('没有权限');if(c.ch.some(x=>x[1].toLowerCase()==n.toLowerCase()))return T('已有同名频道');go()},
+mkch:v=>{const c=cmp(v),n=(S.d.chn||'').trim();const mx=(MODE==='account'?20:12);if(len(n)<1||len(n)>mx)return T('频道名需要 1 到 '+mx+' 个字');const kind=S.d.cht||'文字';const go=ch=>{const id=ch&&ch.id||(v+'_ch'+Date.now());c.ch.push([id,n,ch&&ch.kind||kind]);D.cmsg[id]=[];S.ch[v]=id;S.sh=null;T('已创建频道')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/communities/'+v+'/channels',{name:n,kind:kind==='公告'?'announce':'text'}).then(r=>{if(r.s!==200){T(errMsg(r,'无法创建'));return}go(r.j.channel)});if(!canC(c.r,'addChannel'))return T('没有权限');if(c.ch.some(x=>x[1].toLowerCase()==n.toLowerCase()))return T('已有同名频道');go()},
 chmgr:v=>{if(!canC(cmp(v).r,'editChannel'))return T('没有权限');S.sh={t:'chmgr',id:v}},
 chren:v=>{const[c,h]=v.split('|'),x=cmp(c).ch.find(y=>y[0]==h);S.d.chn=x[1];S.sh={t:'chren',cm:c,ch:h}},
-chren2:v=>{const[c,h]=v.split('|'),m=cmp(c),n=(S.d.chn||'').trim();if(len(n)<1||len(n)>20)return T('频道名需要 1 到 20 个字');const go=()=>{m.ch.find(x=>x[0]==h)[1]=n;S.sh={t:'chmgr',id:c};T('已改名')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/channels/'+h+'/rename',{name:n}).then(r=>{if(r.s!==200){T(errMsg(r,'改名失败'));return}go()});if(!canC(m.r,'editChannel'))return T('没有权限');go()},
+chren2:v=>{const[c,h]=v.split('|'),m=cmp(c),n=(S.d.chn||'').trim();const mx=(MODE==='account'?20:12);if(len(n)<1||len(n)>mx)return T('频道名需要 1 到 '+mx+' 个字');const go=()=>{m.ch.find(x=>x[0]==h)[1]=n;S.sh={t:'chmgr',id:c};T('已改名')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/channels/'+h+'/rename',{name:n}).then(r=>{if(r.s!==200){T(errMsg(r,'改名失败'));return}go()});if(!canC(m.r,'editChannel'))return T('没有权限');go()},
 rmch:v=>{const[c,h]=v.split('|');S.sh={t:'rmch',cm:c,ch:h}},
 rmch2:v=>{const[c,h]=v.split('|'),m=cmp(c);const go=()=>{m.ch=m.ch.filter(x=>x[0]!=h);delete D.cmsg[h];if(S.ch[c]==h)delete S.ch[c];S.sh={t:'chmgr',id:c};T('已删除频道')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/channels/'+h+'/delete',{}).then(r=>{if(r.s!==200){T(errMsg(r,'不能删除'));return}go()});if(!canC(m.r,'delChannel')||(m.ch[0]&&m.ch[0][0]==h)||m.ch.length<=1)return T('不能删除');go()},
 gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.split('|'),c=cvf(i);c.adm=c.adm||[];const on=!c.adm.includes(u);c.adm=on?[...c.adm,u]:c.adm.filter(x=>x!=u);gm(i,on?'你将 '+P(u).n+' 设为了管理员':'你取消了 '+P(u).n+' 的管理员身份');S.sh=null},
