@@ -1,4 +1,4 @@
-# NOVA 后端（M4.2.5）
+# NOVA 后端（M4.3.1）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -62,6 +62,14 @@
 | GET /api/communities/:id/invites | 邀请列表 |
 | POST /api/communities/:id/invites/revoke | 撤销邀请 |
 | POST /api/communities/join-code | 用邀请码加入 |
+| POST /api/conversations | 创建单聊或群聊 |
+| GET /api/conversations | 我的会话列表 |
+| GET /api/conversations/:id | 会话详情（非成员 404） |
+| POST /api/conversations/:id/members | 群聊添加成员 |
+| POST /api/conversations/:id/role | 设置角色 / 转让群主 |
+| POST /api/conversations/:id/kick | 移出成员 |
+| POST /api/conversations/:id/leave | 退出（群主须转让） |
+| POST /api/conversations/:id/rename | 群聊改名 |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。

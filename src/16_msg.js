@@ -12,7 +12,7 @@ function fixIds(){
 const cmOf=cid=>D.cm.find(c=>c.ch.some(x=>x[0]==cid));
 /* 权限：置顶 / @所有人 / 删除他人消息。k='cv'(会话) 或 'ch'(社区频道) */
 function msgPerm(k,cid,act){
-  if(k=='cv'){const c=D.cv.find(x=>x.id==cid);if(!c||!c.g)return false;return canG(gRole(c,'me'),act=='delMsg'?'pinMsg':act)}
+  if(k=='cv'){const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==cid);if(!c||!c.g)return false;return canG(gRole(c,'me'),act=='delMsg'?'pinMsg':act)}
   const c=cmOf(cid);return !!c&&!!c.j&&canC(c.r,act);
 }
 const pinned=(k,cid)=>(D.pm[cid]||[]).filter(id=>msgs(k,cid).some(m=>mid(k,m)==id));
