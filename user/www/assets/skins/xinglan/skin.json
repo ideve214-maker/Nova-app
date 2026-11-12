@@ -1,0 +1,36 @@
+{
+  "id": "xinglan",
+  "name": "星澜",
+  "version": "1.0.0",
+  "preview": "preview/buttons.png",
+  "css": "skin.css",
+  "tokensCss": "tokens.css",
+  "logo": "logo/nova-lockup.svg",
+  "logoMark": "logo/nova-mark.svg",
+  "icons": {
+    "home": "icons/home.svg",
+    "people": "icons/community.svg",
+    "community": "icons/community.svg",
+    "chat": "icons/chat.svg",
+    "person": "icons/profile.svg",
+    "profile": "icons/profile.svg",
+    "search": "icons/search.svg",
+    "bell": "icons/bell.svg",
+    "back": "icons/back.svg",
+    "plus": "icons/plus.svg",
+    "more": "icons/more.svg",
+    "send": "icons/send.svg",
+    "settings": "icons/settings.svg",
+    "vip": "icons/vip.svg"
+  },
+  "buttons": {
+    "normal": { "background": "var(--ac-grad, var(--ac))", "color": "var(--onac)", "radius": "var(--r-btn, 14px)", "shadow": "var(--sh-btn)" },
+    "pressed": { "background": "var(--ac-pressed, var(--ac))", "transform": "scale(0.97)", "shadow": "none" },
+    "disabled": { "opacity": 0.4, "shadow": "none" }
+  },
+  "components": {
+    ".pb.s": { "background": "var(--s2)", "color": "var(--tx)", "border": "1px solid var(--ln)" },
+    ".pb.d": { "background": "var(--dg-grad, var(--dg))", "shadow": "var(--sh-dg)" },
+    ".ib": { "radius": "var(--r-sm, 12px)" }
+  }
+}

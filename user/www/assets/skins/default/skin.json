@@ -1,0 +1,12 @@
+{
+  "id": "default",
+  "name": "经典",
+  "version": "1.0.0",
+  "preview": "preview.svg",
+  "css": "skin.css",
+  "buttons": {
+    "normal": { "background": "var(--ac)", "color": "var(--onac)", "radius": "22px" },
+    "pressed": { "transform": "scale(0.97)" },
+    "disabled": { "opacity": 0.4 }
+  }
+}

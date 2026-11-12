@@ -1,0 +1,47 @@
+name: Unsigned iOS IPAs
+
+on:
+  push:
+    branches: [release-build]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    name: IPA (${{ matrix.ipa }})
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: user
+            ipa: Nova.ipa
+          - dir: admin
+            ipa: NovaAdmin.ipa
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build unsigned IPA
+        run: |
+          chmod +x scripts/build-unsigned-ipa.sh
+          mkdir -p dist
+          ./scripts/build-unsigned-ipa.sh "${{ matrix.dir }}" "dist/${{ matrix.ipa }}"
+          ls -lh "dist/${{ matrix.ipa }}"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.ipa }}
+          path: dist/${{ matrix.ipa }}
+          if-no-files-found: error
+          retention-days: 14

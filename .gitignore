@@ -1,0 +1,11 @@
+node_modules/
+android/
+ios/
+*.apk
+*.ipa
+*.xcarchive
+derived/
+build/
+.gradle/
+.DS_Store
+dist-local/

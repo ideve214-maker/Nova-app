@@ -1,0 +1,22 @@
+/* 星澜按键与图标。色彩令牌由应用默认主题（00_head / tokens）提供，本文件强化按键状态。 */
+html[data-skin="xinglan"] .pb{
+  border-radius:var(--r-btn,14px);
+  background:var(--ac-grad,var(--ac));
+  color:var(--onac);
+  letter-spacing:var(--tracking-btn,0.02em);
+  box-shadow:var(--sh-btn,0 4px 14px rgba(110,139,255,.38),inset 0 1px 0 rgba(255,255,255,.18));
+}
+html[data-skin="xinglan"] .pb:hover{filter:brightness(1.05)}
+html[data-skin="xinglan"] .pb:active{transform:scale(.97);background:var(--ac-pressed,var(--ac));box-shadow:none}
+html[data-skin="xinglan"] .pb:disabled{opacity:.4;box-shadow:none;filter:none}
+html[data-skin="xinglan"] .pb.s{background:var(--s2);color:var(--tx);box-shadow:none;border:1px solid var(--ln)}
+html[data-skin="xinglan"] .pb.s:hover{background:var(--s3,var(--s2))}
+html[data-skin="xinglan"] .pb.d{background:var(--dg-grad,var(--dg));box-shadow:var(--sh-dg,0 4px 14px rgba(229,114,106,.32))}
+html[data-skin="xinglan"] .pb.off:disabled{opacity:1;background:var(--s2);color:var(--t2);border:1px dashed var(--t3);box-shadow:none}
+html[data-skin="xinglan"] .ib{border-radius:var(--r-sm,12px)}
+html[data-skin="xinglan"] .ib:hover{background:var(--ac-soft,rgba(110,139,255,.16));color:var(--ac)}
+html[data-skin="xinglan"] nav svg,
+html[data-skin="xinglan"] .ib svg,
+html[data-skin="xinglan"] .bar svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+html[data-skin="xinglan"] nav button.on{background:var(--ac-soft,rgba(110,139,255,.16));border-radius:999px;margin:6px 4px;color:var(--ac)}
+html[data-skin="xinglan"] .br-logo{height:22px;width:auto;display:block}
