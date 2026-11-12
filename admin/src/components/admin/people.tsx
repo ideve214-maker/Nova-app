@@ -9,7 +9,7 @@ import {
   vipPhase,
   type Member,
 } from "@/lib/admin/store";
-import { Avatar, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
+import { Avatar, DemoBanner, Field, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 
 type UserTab = "all" | "active" | "banned" | "vip";
 
@@ -20,6 +20,9 @@ export function UsersScreen() {
   const back = useAdmin((s) => s.back);
   const addUser = useAdmin((s) => s.addUser);
   const banUser = useAdmin((s) => s.banUser);
+  const demoMode = useAdmin((s) => s.demoMode);
+  const connection = useAdmin((s) => s.connection);
+  const canMutate = demoMode || !!connection.available.adminUsers;
   const [tab, setTab] = useState<UserTab>("all");
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(false);
@@ -51,14 +54,20 @@ export function UsersScreen() {
         </button>
       }
       footer={
-        <div className="flex gap-2 border-t border-line bg-surface px-4 py-3 pb-safe">
-          <button type="button" className="h-11 flex-1 rounded-full bg-subtle font-semibold" onClick={() => setPicking((v) => !v)}>
-            {picking ? "取消选择" : "批量操作"}
-          </button>
-          <button type="button" className="h-11 flex-1 rounded-full bg-primary font-semibold text-on-primary" onClick={() => setAdding(true)}>
-            添加用户
-          </button>
-        </div>
+        canMutate ? (
+          <div className="flex gap-2 border-t border-line bg-surface px-4 py-2 pb-safe">
+            <button type="button" className="h-11 flex-1 rounded-full bg-subtle text-[15px] font-semibold" onClick={() => setPicking((v) => !v)}>
+              {picking ? "取消选择" : "批量操作"}
+            </button>
+            <button type="button" className="h-11 flex-1 rounded-full bg-primary text-[15px] font-semibold text-on-primary" onClick={() => setAdding(true)}>
+              添加用户
+            </button>
+          </div>
+        ) : (
+          <div className="border-t border-line bg-surface px-4 py-2 pb-safe text-center text-[12px] leading-4 text-muted">
+            添加 / 封禁等写入接口待接入
+          </div>
+        )
       }
     >
       <Seg
@@ -71,7 +80,8 @@ export function UsersScreen() {
         ]}
         onChange={(id) => setTab(id as UserTab)}
       />
-      <div className="bg-surface px-4 py-3">
+      <DemoBanner />
+      <div className="bg-surface px-4 py-2">
         <label className="flex h-11 items-center gap-2 rounded-full bg-subtle px-3">
           <Search className="size-4 text-muted" />
           <input
@@ -82,7 +92,17 @@ export function UsersScreen() {
           />
         </label>
       </div>
-      {list.length === 0 && <p className="px-4 py-12 text-center text-sm text-muted">没有符合条件的用户</p>}
+      {list.length === 0 && (
+        members.length === 0 && !demoMode ? (
+          connection.available.adminUsers ? (
+            <p className="px-4 py-10 text-center text-[15px] text-muted">暂无用户</p>
+          ) : (
+            <PendingApi name="用户列表（GET /api/admin/users）" />
+          )
+        ) : (
+          <p className="px-4 py-10 text-center text-[15px] text-muted">没有符合条件的用户</p>
+        )
+      )}
       <ul className="bg-surface">
         {list.map((member) => {
           const selected = picked.includes(member.id);
@@ -90,7 +110,7 @@ export function UsersScreen() {
             <li key={member.id} className="border-t border-line">
               <button
                 type="button"
-                className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left"
                 onClick={() => {
                   if (picking) {
                     setPicked((curr) => (curr.includes(member.id) ? curr.filter((id) => id !== member.id) : [...curr, member.id]));
@@ -104,13 +124,13 @@ export function UsersScreen() {
                     {selected ? "✓" : ""}
                   </span>
                 )}
-                <Avatar src={member.avatar} name={member.name} className="size-12" />
+                <Avatar src={member.avatar} name={member.name} className="size-9" />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate font-semibold">{member.name}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-[15px] font-medium">{member.name}</span>
                     {isVip(member, entitlements) && <Pill tone="vip">VIP</Pill>}
                   </span>
-                  <span className="block text-sm text-muted">ID: {member.id}</span>
+                  <span className="block text-[13px] text-muted">ID: {member.id}</span>
                 </span>
                 <Status member={member} />
               </button>

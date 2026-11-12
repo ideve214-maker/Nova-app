@@ -31,10 +31,10 @@ describe("extractList", () => {
 });
 
 describe("detectVersion", () => {
-  it("prefers headers then body, and recognizes M2 health", () => {
+  it("prefers headers then body, and recognizes health without a version field", () => {
     assert.equal(detectVersion({}, { "x-nova-version": "7.1" }), "7.1");
     assert.equal(detectVersion({ version: "m3.2" }, {}), "m3.2");
-    assert.match(detectVersion({ status: "ok", time: 1 }, {}) || "", /M2/);
+    assert.match(detectVersion({ status: "ok", time: 1 }, {}) || "", /未声明版本号/);
     assert.equal(detectVersion({ status: "fail" }, {}), null);
   });
 });

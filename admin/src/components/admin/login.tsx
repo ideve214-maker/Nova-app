@@ -6,15 +6,12 @@ import { ConnectionBadge, ServerPanel } from "./server-panel";
 
 export function LoginScreen() {
   const attemptLogin = useAdmin((s) => s.attemptLogin);
-  const confirmTotp = useAdmin((s) => s.confirmTotp);
   const resetDemo = useAdmin((s) => s.resetDemo);
   const [account, setAccount] = useState("admin");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
-  const [step, setStep] = useState<"password" | "totp">("password");
-  const [code, setCode] = useState("");
   const [serverOpen, setServerOpen] = useState(false);
   const [forgot, setForgot] = useState(false);
 
@@ -27,100 +24,85 @@ export function LoginScreen() {
     }
     if (!remember) sessionStorage.setItem("nova-admin-session", "1");
     setError("");
-    setStep("totp");
-  }
-
-  function submitTotp(event: FormEvent) {
-    event.preventDefault();
-    const message = confirmTotp(code);
-    setError(message ?? "");
   }
 
   return (
-    <div className="nova-login flex min-h-dvh flex-col px-6 pb-safe pt-16 text-on-primary">
-      <div className="flex flex-1 flex-col items-center">
-        <span className="grid size-20 place-items-center rounded-3xl bg-surface/15">
-          <StarMark className="size-10" />
+    <div
+      className="nova-login flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto px-5 pb-safe text-on-primary"
+      style={{ paddingTop: "max(12px, env(safe-area-inset-top, 0px))" }}
+    >
+      <div className="flex flex-1 flex-col items-center pt-4">
+        <span className="grid size-[52px] place-items-center rounded-[14px] bg-surface/15">
+          <StarMark className="size-7" />
         </span>
-        <h1 className="mt-5 text-3xl font-semibold tracking-tight">NOVA 管理端</h1>
-        <p className="mt-2 text-sm text-on-primary/80">社区管理 · 让社区更健康</p>
+        <h1 className="mt-3 text-[22px] font-semibold tracking-tight">NOVA 管理端</h1>
+        <p className="mt-1 text-[13px] text-on-primary/80">社区管理</p>
 
-        {step === "password" ? (
-          <form onSubmit={submitPassword} className="mt-8 w-full">
-            <label className="mb-3 flex h-12 items-center gap-2 rounded-2xl bg-surface px-3 text-fg">
-              <UserRound className="size-5 text-muted" />
-              <input
-                className="h-full min-w-0 flex-1 bg-transparent outline-none"
-                autoComplete="username"
-                value={account}
-                onChange={(event) => setAccount(event.target.value)}
-                placeholder="管理员账号"
-              />
-            </label>
-            <label className="mb-3 flex h-12 items-center gap-2 rounded-2xl bg-surface px-3 text-fg">
-              <LockKeyhole className="size-5 text-muted" />
-              <input
-                className="h-full min-w-0 flex-1 bg-transparent outline-none"
-                type={show ? "text" : "password"}
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="密码"
-              />
-              <button type="button" className="grid size-10 place-items-center text-muted" onClick={() => setShow((v) => !v)} aria-label={show ? "隐藏密码" : "显示密码"}>
-                {show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-              </button>
-            </label>
-            <div className="mb-4 flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
-                记住登录
-              </label>
-              <button type="button" onClick={() => setForgot(true)}>
-                忘记密码？
-              </button>
-            </div>
-            {error && <p className="mb-3 text-center text-sm text-surface">{error}</p>}
-            <button type="submit" className="h-12 w-full rounded-full bg-surface font-semibold text-primary-deep">
-              登录
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={submitTotp} className="mt-8 w-full">
-            <p className="mb-3 text-center text-sm text-on-primary/85">二次验证 · 演示验证码 246810</p>
+        <form onSubmit={submitPassword} className="mt-6 w-full">
+          <label className="mb-2.5 flex h-11 items-center gap-2 rounded-xl bg-surface px-3 text-fg">
+            <UserRound className="size-4 shrink-0 text-muted" />
             <input
-              className="mb-3 h-12 w-full rounded-2xl bg-surface px-3 text-center text-lg tracking-widest text-fg outline-none"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={code}
-              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="6 位验证码"
+              className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none"
+              autoComplete="username"
+              value={account}
+              onChange={(event) => setAccount(event.target.value)}
+              placeholder="管理员账号"
             />
-            {error && <p className="mb-3 text-center text-sm">{error}</p>}
-            <button type="submit" className="h-12 w-full rounded-full bg-surface font-semibold text-primary-deep">
-              验证并进入
+          </label>
+          <label className="mb-2.5 flex h-11 items-center gap-2 rounded-xl bg-surface px-3 text-fg">
+            <LockKeyhole className="size-4 shrink-0 text-muted" />
+            <input
+              className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none"
+              type={show ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="密码"
+            />
+            <button
+              type="button"
+              className="grid size-11 shrink-0 place-items-center text-muted"
+              onClick={() => setShow((v) => !v)}
+              aria-label={show ? "隐藏密码" : "显示密码"}
+            >
+              {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
-            <button type="button" className="mt-3 h-10 w-full text-sm" onClick={() => setStep("password")}>
-              返回
+          </label>
+          <div className="mb-3 flex items-center justify-between text-[13px]">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+              记住登录
+            </label>
+            <button type="button" onClick={() => setForgot(true)}>
+              忘记密码？
             </button>
-          </form>
-        )}
+          </div>
+          {error && <p className="mb-2.5 text-center text-[13px] text-surface">{error}</p>}
+          <button type="submit" className="h-11 w-full rounded-full bg-surface text-[16px] font-semibold text-primary-deep">
+            登录
+          </button>
+        </form>
       </div>
-      <button type="button" className="mx-auto mb-2 flex items-center gap-2 text-sm" onClick={() => setServerOpen(true)}>
-        <Server className="size-4" />
-        设置服务器
-      </button>
-      <div className="mb-2 flex justify-center">
-        <ConnectionBadge />
+
+      <div className="mt-4 pb-3">
+        <button type="button" className="mx-auto flex h-11 items-center gap-1.5 text-[13px]" onClick={() => setServerOpen(true)}>
+          <Server className="size-3.5" />
+          设置服务器
+        </button>
+        <div className="mb-2 flex justify-center">
+          <ConnectionBadge />
+        </div>
+        <p className="px-1 text-center text-[11px] leading-4 text-on-primary/75">
+          本机操作员登录：后端尚无管理端鉴权接口。口令只存在本机，默认 admin / nova1234，不是服务器账号。列表与统计来自真实后端；连不上或接口未开放时显示空状态，不会填入虚构数字。
+        </p>
       </div>
-      <p className="pb-4 text-center text-xs text-on-primary/75">预览演示 · 账号 admin · 密码 nova1234 · 验证码 246810</p>
+
       <Sheet open={serverOpen} title="服务器" onClose={() => setServerOpen(false)}>
         <ServerPanel onDone={() => setServerOpen(false)} />
       </Sheet>
       <Sheet open={forgot} title="忘记密码" onClose={() => setForgot(false)}>
-        <p className="mb-4 text-sm text-muted">
-          演示环境不会发送邮件，也不会显示原密码。如果改过预览口令，可以恢复初始演示账号。
+        <p className="mb-4 text-[15px] leading-5 text-muted">
+          这是本机口令，不会发邮件，也不会显示原密码。可以把口令恢复为初始值 admin / nova1234。这不是服务器账号。
         </p>
         <PrimaryButton
           onClick={() => {
@@ -130,7 +112,7 @@ export function LoginScreen() {
             setError("");
           }}
         >
-          恢复演示账号
+          恢复本机默认口令
         </PrimaryButton>
       </Sheet>
     </div>

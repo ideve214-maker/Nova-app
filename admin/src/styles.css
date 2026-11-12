@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Noto Sans SC Variable", "Noto Sans SC", "PingFang SC", "WenQuanYi Zen Hei",
-    ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Noto Sans SC Variable", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
+    "WenQuanYi Zen Hei", ui-sans-serif, system-ui, sans-serif;
   --color-stage: #e6e0f4;
-  --color-bg: #f5f3fb;
+  --color-bg: #f4f2f8;
   --color-surface: #ffffff;
   --color-fg: #1c1633;
   --color-muted: #8b86a0;
@@ -18,7 +18,7 @@
   --color-vip: #c8963e;
   --color-warn: #e09a2b;
   --color-ink: #241b3d;
-  --radius-card: 1.35rem;
+  --radius-card: 0.75rem;
 }
 
 @layer base {
@@ -31,6 +31,14 @@
   body,
   #root {
     min-height: 100%;
+    min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -38,74 +46,73 @@
     background: var(--color-stage);
     color: var(--color-fg);
     font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.37;
+    letter-spacing: -0.01em;
     text-rendering: optimizeLegibility;
   }
 
   input,
-  textarea {
+  textarea,
+  select {
     font: inherit;
+    font-size: 16px;
+  }
+
+  img,
+  svg,
+  video {
+    max-width: 100%;
   }
 }
 
 .nova-frame {
   min-height: 100vh;
   min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .nova-login {
-  background: linear-gradient(180deg, #5b35f0 0%, #7a59ff 46%, #c8b6ff 100%);
+  background: linear-gradient(180deg, #5b35f0 0%, #7a59ff 52%, #c8b6ff 100%);
 }
 
 @supports (background: color-mix(in srgb, white 72%, transparent)) {
   .nova-login {
     background:
-      radial-gradient(90% 42% at 50% 100%, color-mix(in srgb, white 72%, transparent), transparent 70%),
-      linear-gradient(180deg, #5b35f0 0%, #7a59ff 46%, #c8b6ff 100%);
+      radial-gradient(80% 36% at 50% 100%, color-mix(in srgb, white 68%, transparent), transparent 70%),
+      linear-gradient(180deg, #5b35f0 0%, #7a59ff 52%, #c8b6ff 100%);
   }
 }
 
 .nova-hero {
-  background: linear-gradient(145deg, #623cf3 0%, #7d5cff 52%, #a489ff 100%);
+  background: linear-gradient(145deg, #623cf3 0%, #7d5cff 58%, #a489ff 100%);
   color: var(--color-on-primary);
 }
 
-.nova-soft {
-  background: color-mix(in srgb, var(--color-primary) 12%, white);
-  color: var(--color-primary-deep);
-}
-
-.nova-ok-soft {
-  background: color-mix(in srgb, var(--color-ok) 14%, white);
-  color: var(--color-ok);
-}
-
-.nova-danger-soft {
-  background: color-mix(in srgb, var(--color-danger) 12%, white);
-  color: var(--color-danger);
-}
-
-.nova-vip-soft {
-  background: color-mix(in srgb, var(--color-vip) 18%, white);
-  color: #8a6418;
-}
-
-.nova-warn-soft {
-  background: color-mix(in srgb, var(--color-warn) 18%, white);
-  color: #9a6810;
-}
-
 .shadow-card {
-  box-shadow: 0 10px 30px rgba(109, 74, 255, 0.1);
+  box-shadow: 0 1px 2px rgba(36, 27, 61, 0.05), 0 4px 12px rgba(109, 74, 255, 0.06);
 }
 
-@supports (background: color-mix(in srgb, white 50%, transparent)) {
-  .shadow-card {
-    box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 10%, transparent);
-  }
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .pb-safe {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.nova-tabbar {
+  min-height: 49px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -119,17 +126,11 @@
 }
 
 @layer base {
-  input,
-  textarea,
-  select {
-    font-size: 16px;
-  }
-
   button,
   a,
   [role="button"] {
     touch-action: manipulation;
-    -webkit-tap-highlight-color: rgba(109, 74, 255, 0.15);
+    -webkit-tap-highlight-color: rgba(109, 74, 255, 0.12);
   }
 }
 

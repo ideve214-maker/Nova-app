@@ -162,11 +162,7 @@ export const TREND_90 = [
   { d: "11月", active: 1248, added: 156 },
 ];
 
-const USER_BASE = 8247;
-const ACTIVE_BASE = 1243;
-const POST_BASE = 3887;
-
-const KEY = "nova-admin-m3-v1";
+const KEY = "nova-admin-v2";
 
 function stamp() {
   const d = new Date();
@@ -513,6 +509,7 @@ function entitlementMap() {
 type Persisted = {
   authed: boolean;
   password: string;
+  demoMode: boolean;
   members: Member[];
   posts: PostItem[];
   reports: ReportItem[];
@@ -547,6 +544,7 @@ export type AdminState = Persisted & {
   logout: () => void;
   changePassword: (current: string, next: string) => string | null;
   resetDemo: () => void;
+  setDemoMode: (on: boolean) => void;
   banUser: (id: string) => void;
   unbanUser: (id: string) => void;
   updateUser: (id: string, patch: Partial<Pick<Member, "name" | "bio" | "canPost" | "canComment">>) => void;
@@ -571,9 +569,36 @@ export type AdminState = Persisted & {
   sendNotice: (userId: string, body: string) => string | null;
 };
 
-const persistedSeed = (): Persisted => ({
+const emptyPersisted = (): Persisted => ({
   authed: false,
   password: "nova1234",
+  demoMode: false,
+  members: [],
+  posts: [],
+  reports: [],
+  audits: [],
+  notices: [],
+  announcements: [],
+  topics: [],
+  boards: [],
+  devices: [{ id: "d1", name: "本机浏览器", current: true, ip: "本机", time: "现在" }],
+  admins: [{ id: "root", name: "admin", role: "root", active: true }],
+  invites: [],
+  flags: {
+    loginProtect: true,
+    registrationOpen: true,
+    maintenance: false,
+    reviewRequired: true,
+  },
+  entitlements: entitlementMap(),
+  failedLogins: 0,
+  lockedUntil: 0,
+});
+
+const demoPersisted = (): Persisted => ({
+  authed: false,
+  password: "nova1234",
+  demoMode: true,
   members: seedMembers,
   posts: seedPosts,
   reports: seedReports,
@@ -642,8 +667,21 @@ function restoreLocal(): Partial<Persisted> {
     const data = JSON.parse(raw) as Partial<Persisted>;
     return {
       ...data,
+      demoMode: !!data.demoMode,
+      // 未打开演示时不要把上次残留的虚构列表带回来
+      ...(!data.demoMode
+        ? {
+            members: data.members || [],
+            posts: data.posts || [],
+            reports: data.reports || [],
+            notices: data.notices || [],
+            announcements: data.announcements || [],
+            topics: data.topics || [],
+            boards: data.boards || [],
+          }
+        : {}),
       entitlements: { ...entitlementMap(), ...(data.entitlements || {}) },
-      flags: { ...persistedSeed().flags, ...(data.flags || {}) },
+      flags: { ...emptyPersisted().flags, ...(data.flags || {}) },
     };
   } catch {
     return {};
@@ -651,7 +689,7 @@ function restoreLocal(): Partial<Persisted> {
 }
 
 export const useAdmin = create<AdminState>((set, get) => ({
-  ...persistedSeed(),
+  ...emptyPersisted(),
   ...restoreLocal(),
   // On the client we start already "booted" so a failed/slow useEffect can never
   // trap the user on the star splash. SSR still starts false (no window).
@@ -672,7 +710,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     saveConfig({ baseUrl: (baseUrl || "").trim(), ...(endpoints ? { endpoints } : {}) });
     const status = await probeConnection(baseUrl);
     applyConnection(status);
-    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "后端已通，部分功能仍用演示数据") : "后端不可达，已保持演示数据");
+    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "后端已通，管理接口仍待接入，列表保持为空") : "后端不可达，列表保持为空（未打开演示模式）");
     return status;
   },
   go: (name, userId) => set((s) => ({ history: [...s.history, s.nav], nav: { name, userId } })),
@@ -699,12 +737,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
       });
       return locked ? "连续失败 5 次，已锁定 30 秒" : "账号或密码不正确";
     }
-    return null;
-  },
-  confirmTotp: (code) => {
-    if (code.trim() !== "246810") return "验证码不正确";
     set((s) =>
-      withAudit(s, { kind: "security", action: "管理员登录", target: "admin · 已验证" }, {
+      withAudit(s, { kind: "security", action: "管理员登录", target: "admin · 本机口令（后端无管理鉴权）" }, {
         authed: true,
         failedLogins: 0,
         lockedUntil: 0,
@@ -713,6 +747,9 @@ export const useAdmin = create<AdminState>((set, get) => ({
       }),
     );
     return null;
+  },
+  confirmTotp: (_code) => {
+    return "当前无二次验证；请使用本机账号密码直接登录";
   },
   logout: () =>
     set((s) =>
@@ -733,9 +770,52 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return null;
   },
   resetDemo: () => {
-    const fresh = persistedSeed();
-    set({ ...fresh, authed: false, nav: { name: "home" }, history: [] });
-    get().flash("已恢复演示账号");
+    const on = get().demoMode;
+    const fresh = on ? demoPersisted() : emptyPersisted();
+    set({
+      ...fresh,
+      demoMode: on,
+      authed: false,
+      password: "nova1234",
+      nav: { name: "home" },
+      history: [],
+      booted: true,
+      connection: get().connection,
+    });
+    get().flash("已恢复本机默认口令 admin / nova1234");
+  },
+  setDemoMode: (on) => {
+    const cur = get();
+    if (on) {
+      const fresh = demoPersisted();
+      set({
+        ...fresh,
+        authed: cur.authed,
+        password: cur.password,
+        booted: true,
+        connection: cur.connection,
+        nav: cur.nav,
+        history: cur.history,
+        demoMode: true,
+      });
+      get().flash("已打开演示模式：页面数据均为本地虚构，已标明");
+      return;
+    }
+    const fresh = emptyPersisted();
+    set({
+      ...fresh,
+      authed: cur.authed,
+      password: cur.password,
+      booted: true,
+      connection: cur.connection,
+      nav: cur.nav,
+      history: cur.history,
+      demoMode: false,
+    });
+    get().flash("已关闭演示模式，仅展示后端真实数据");
+    if (cur.connection.mode === "live") {
+      void pullRemoteUsers().catch(() => {});
+    }
   },
   banUser: (id) => {
     const member = get().members.find((item) => item.id === id);
@@ -1066,10 +1146,15 @@ export const useAdmin = create<AdminState>((set, get) => ({
 export function overviewOf(members: Member[], posts: PostItem[]) {
   const online = members.filter((item) => item.status === "active" && item.presence === "online").length;
   return {
-    users: USER_BASE + members.length,
-    active: ACTIVE_BASE + online,
-    posts: POST_BASE + posts.filter((item) => item.status !== "removed").length,
+    users: members.length,
+    active: online,
+    posts: posts.filter((item) => item.status !== "removed").length,
   };
+}
+
+/** 某类管理数据是否有真实接口；演示模式不算真实。 */
+export function hasLiveEndpoint(connection: ConnectionStatus, key: string) {
+  return !!connection.available?.[key as keyof ConnectionStatus["available"]];
 }
 
 function applyConnection(status: ConnectionStatus) {
@@ -1077,8 +1162,8 @@ function applyConnection(status: ConnectionStatus) {
   if (status.catalog) {
     patch.entitlements = mapCatalogEntitlements(status.catalog, useAdmin.getState().entitlements);
   }
-  // 若未来后端已有用户列表，用服务器数据替换演示用户（保留无法映射的字段默认值）。
-  // 探测阶段若只是「路径存在但需要管理员令牌」(401)，不要清空演示用户。
+  // 若未来后端已有用户列表，用服务器真实用户替换列表（保留无法映射的字段默认值）。
+  // 探测阶段若只是「路径存在但需要管理员令牌」(401)，不要清空已有用户（例如演示模式下列表）。
   useAdmin.setState(patch);
   markAppBooted();
 }
@@ -1108,6 +1193,7 @@ function startPersisting() {
     const slice: Persisted = {
       authed: state.authed,
       password: state.password,
+      demoMode: state.demoMode,
       members: state.members,
       posts: state.posts,
       reports: state.reports,
@@ -1143,7 +1229,7 @@ export function hydrateAdmin() {
     } catch (err) {
       useAdmin.setState({
         booted: true,
-        bootError: err instanceof Error ? err.message : "本地数据读取失败，已进入演示模式",
+        bootError: err instanceof Error ? err.message : "本地数据读取失败，已进入应用（列表为空）",
       });
     }
     markAppBooted();
@@ -1157,7 +1243,7 @@ export function hydrateAdmin() {
     if (!useAdmin.getState().booted) {
       useAdmin.setState({
         booted: true,
-        bootError: "启动超时，已进入离线演示模式。可在「设置服务器」填写后端地址后重试。",
+        bootError: "启动超时。可在「设置服务器」填写后端地址后重试；列表在未打开演示模式时保持为空。",
       });
       markAppBooted();
     }
@@ -1172,22 +1258,22 @@ export function hydrateAdmin() {
         const status = await Promise.race([
           probeConnection(base, 3500, true),
           new Promise<ConnectionStatus>((resolve) =>
-            setTimeout(() => resolve({ ...emptyConnection(base), message: "检测超时，先使用演示数据。", lastChecked: Date.now() }), 3500),
+            setTimeout(() => resolve({ ...emptyConnection(base), message: "检测超时，未连接后端。", lastChecked: Date.now() }), 3500),
           ),
         ]);
         applyConnection(status);
-        if (status.mode === "live") {
+        if (status.mode === "live" && !useAdmin.getState().demoMode) {
           try {
             await pullRemoteUsers();
           } catch {
-            /* keep demo members */
+            /* keep current members */
           }
         }
       }
     } catch (err) {
       useAdmin.setState({
         booted: true,
-        bootError: err instanceof Error ? err.message : "后端检测失败，已使用演示数据",
+        bootError: err instanceof Error ? err.message : "后端检测失败，列表保持为空",
         connection: emptyConnection(),
       });
       markAppBooted();

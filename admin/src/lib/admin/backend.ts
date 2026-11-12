@@ -6,7 +6,7 @@
  * 2. 路径集中在 DEFAULT_ENDPOINT_MAP，设置页可覆盖；主路径 404 时再试别名。
  * 3. 通过 /api/health、/api/version 或响应头尽量识别后端版本；识别不到也不算失败。
  * 4. 字段名容错：username/name/displayName、vip_until/vipUntil 等都能读；未知字段忽略。
- * 5. 后端不可达或管理接口尚未实现时，回落本机演示数据，绝不阻塞进入管理端。
+ * 5. 后端不可达或管理接口尚未实现时，列表与指标保持为空并标明「接口待接入」，绝不阻塞进入管理端；虚构数据仅在用户手动打开演示模式时出现。
  */
 
 export const CONFIG_KEY = "nova-admin-api-config-v1";
@@ -29,9 +29,15 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminVipGrant: "/api/admin/vip/grant",
   adminVipRevoke: "/api/admin/vip/revoke",
   adminReports: "/api/admin/reports",
+  adminContent: "/api/admin/content",
   adminAudit: "/api/admin/audit",
   adminAnnouncements: "/api/admin/announcements",
   adminStats: "/api/admin/stats",
+  posts: "/api/posts",
+  communities: "/api/communities",
+  notifications: "/api/notifications",
+  stickers: "/api/stickers",
+  search: "/api/search",
 } as const;
 
 export type EndpointName = keyof typeof DEFAULT_ENDPOINT_MAP;
@@ -45,11 +51,17 @@ export const ENDPOINT_ALIASES: Partial<Record<EndpointName, string[]>> = {
   adminLogin: ["/api/admin/auth/login", "/api/admin/login", "/admin/api/login"],
   adminUsers: ["/api/admin/users", "/admin/api/users", "/api/users"],
   adminReports: ["/api/admin/reports", "/api/reports"],
+  adminContent: ["/api/admin/content", "/api/admin/posts", "/api/posts"],
   adminAudit: ["/api/admin/audit", "/api/audit", "/api/admin/logs"],
   adminStats: ["/api/admin/stats", "/api/stats", "/api/admin/overview"],
   adminAnnouncements: ["/api/admin/announcements", "/api/announcements"],
   adminVipGrant: ["/api/admin/vip/grant", "/api/admin/vip"],
   adminVipRevoke: ["/api/admin/vip/revoke"],
+  posts: ["/api/posts"],
+  communities: ["/api/communities"],
+  notifications: ["/api/notifications"],
+  stickers: ["/api/stickers"],
+  search: ["/api/search"],
 };
 
 export type ConnectionMode = "live" | "degraded" | "demo";
@@ -64,6 +76,8 @@ export type ConnectionStatus = {
   lastChecked: number;
   catalog: unknown | null;
   rawHealth: unknown | null;
+  /** 接口已存在但返回 401/403：需要用户令牌，管理端没有管理员鉴权，不能当已拉到数据。 */
+  authRequired: Partial<Record<EndpointName, string>>;
 };
 
 export type ApiConfig = {
@@ -79,10 +93,11 @@ export const emptyConnection = (baseUrl = ""): ConnectionStatus => ({
   reachable: false,
   detectedVersion: null,
   available: {},
-  message: "未连接后端，正在使用本机演示数据。",
+  message: "未连接后端。列表与统计为空，没有虚构数字。可在「我的」中手动打开演示模式。",
   lastChecked: 0,
   catalog: null,
   rawHealth: null,
+  authRequired: {},
 });
 
 function canUseStorage() {
@@ -262,8 +277,8 @@ export function detectVersion(json: unknown, headers: Record<string, string> = {
     if (typeof v === "string" && v.trim()) return v.trim();
     if (typeof v === "number") return String(v);
   }
-  // 当前用户端 M2.6 健康检查是 {status:'ok', time}，没有版本号。
-  if (o.status === "ok" && "time" in o) return "NOVA 用户端后端（/api/health 正常，未声明版本号，按 M2.x 兼容）";
+  // 健康检查是 {status:'ok', time}（M2–M4 均如此），没有版本号。
+  if (o.status === "ok" && "time" in o) return "NOVA 用户端后端（/api/health 正常，未声明版本号）";
   return null;
 }
 
@@ -430,12 +445,21 @@ const PROBE_GET: EndpointName[] = [
   "health",
   "version",
   "vipCatalog",
+  "stickers",
+  "posts",
+  "communities",
+  "notifications",
+  "search",
   "adminUsers",
   "adminStats",
   "adminReports",
+  "adminContent",
   "adminAudit",
   "adminAnnouncements",
 ];
+
+const QUICK_PROBE: EndpointName[] = ["stickers", "posts", "communities", "notifications"];
+
 
 export async function probeConnection(baseUrl?: string, timeoutMs?: number, quick = false): Promise<ConnectionStatus> {
   const cfg = loadConfig();
@@ -456,7 +480,7 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
   if (!health.ok) {
     status.reachable = false;
     status.mode = "demo";
-    status.message = `无法连接后端（${health.error || "HTTP " + health.status}）。已回落演示数据，管理功能仍可预览。`;
+    status.message = `无法连接后端（${health.error || "HTTP " + health.status}）。列表保持为空，未使用虚构数据。`;
     return status;
   }
 
@@ -476,23 +500,32 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
     status.catalog = catalog.json;
   }
 
-  const extra = quick ? [] : PROBE_GET;
+  const extra = quick ? QUICK_PROBE : PROBE_GET;
   for (const name of extra) {
     if (name === "health" || name === "version" || name === "vipCatalog") continue;
     if (remain() < 600) break;
-    const res = await apiRequest(name, { baseUrl: base, timeoutMs: remain() });
-    if (res.status && res.status !== 404 && res.status !== 0) {
+    const res = await apiRequest(name, { baseUrl: base, timeoutMs: Math.min(1500, remain()) });
+    if (res.status === 401 || res.status === 403) {
+      status.authRequired[name] = res.path;
+    } else if (res.ok && res.status && res.status !== 404) {
       status.available[name] = res.path;
+    } else if (res.status && res.status !== 404 && res.status !== 0) {
+      // 例如 405、500：路径存在但不能当已取到数据
+      status.authRequired[name] = res.path;
     }
   }
 
   const adminKeys = Object.keys(status.available).filter((k) => k.startsWith("admin"));
+  const gated = Object.keys(status.authRequired);
   if (adminKeys.length > 0) {
     status.mode = "live";
-    status.message = `已连接${status.detectedVersion ? " · " + status.detectedVersion : ""}。发现 ${adminKeys.length} 个管理接口，将优先用服务器数据；其余仍用演示数据。`;
+    status.message = `已连接${status.detectedVersion ? " · " + status.detectedVersion : ""}。发现 ${adminKeys.length} 个管理接口，将优先用服务器数据；其余显示「接口待接入」，不用虚构数字。`;
   } else {
     status.mode = "degraded";
-    status.message = `后端已连通${status.detectedVersion ? "（" + status.detectedVersion + "）" : ""}，但还没有管理端专用接口（用户列表、封禁、VIP 开通等属于规划中的 M3）。这些页面使用演示数据，VIP 目录${status.catalog ? "已从服务器读取" : "未能读取"}。将来更新用户端后端后，只要路径能对上会自动切换。`;
+    const gatedNote = gated.length
+      ? `已探测到需登录的用户接口（${gated.join("、")}），管理端没有管理员令牌，不会代用户拉取，相关列表保持为空。`
+      : "";
+    status.message = `后端已连通${status.detectedVersion ? "（" + status.detectedVersion + "）" : ""}。管理专用接口（用户列表、封禁、全站统计、管理员登录等）尚未提供。${gatedNote}VIP 目录${status.catalog ? "已从服务器读取" : "未能读取"}。公开接口（如健康检查、VIP 目录、表情包）会展示真实数据。不用虚构数字。`;
   }
   return status;
 }

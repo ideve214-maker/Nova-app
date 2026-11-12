@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#6d4aff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="NOVA 社区管理端，用户、内容、举报与会员权益。" />
+    <title>NOVA 管理端</title>
+    <style>html,body,#root{min-height:100%;min-height:100dvh;margin:0}body{background:#e6e0f4;font-family:-apple-system,BlinkMacSystemFont,PingFang SC,Hiragino Sans GB,sans-serif}#nova-static-splash{min-height:100vh;color:#fff;text-align:center;background:linear-gradient(#5b35f0 0%,#7a59ff 46%,#c8b6ff 100%);flex-direction:column;justify-content:center;align-items:center;min-height:100dvh;padding:32px 24px;display:flex}#nova-static-msg{max-width:320px;font-size:14px;line-height:1.6;display:none}#nova-static-btn{color:#542ee0;background:#fff;border:0;border-radius:999px;height:44px;margin-top:16px;padding:0 22px;font-size:16px;font-weight:600;display:none}</style>
+    <script type="module" crossorigin src="./assets/spa-OborrHTI.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/style-BuJ3IJea.css">
+  </head>
+  <body>
+    <div id="root">
+      <div id="nova-static-splash">
+        <svg viewBox="0 0 64 64" width="48" height="48" aria-hidden="true">
+          <path fill="currentColor" d="M32 3c1.2 14 7 20.2 22 22.4C39 27.6 33.2 34 32 48 30.8 34 25 27.6 10 25.4 25 23.2 30.8 17 32 3z"/>
+        </svg>
+        <p id="nova-static-msg">正在进入管理端。如果长时间没有变化，请用 Safari 打开预览链接，或确认这是「单文件版」HTML。</p>
+        <button type="button" id="nova-static-btn">刷新重试</button>
+      </div>
+    </div>
+    <script>
+      window.__NOVA_BOOTED__ = false;
+      setTimeout(function () {
+        if (window.__NOVA_BOOTED__) return;
+        var msg = document.getElementById("nova-static-msg");
+        var btn = document.getElementById("nova-static-btn");
+        if (msg) { msg.style.display = "block"; }
+        if (btn) {
+          btn.style.display = "inline-block";
+          btn.onclick = function () { window.location.reload(); };
+        }
+      }, 4000);
+    </script>
+  </body>
+</html>

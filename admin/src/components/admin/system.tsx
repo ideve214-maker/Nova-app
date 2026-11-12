@@ -11,63 +11,72 @@ import {
   vipPhase,
   type Flags,
 } from "@/lib/admin/store";
-import { Field, inputClass, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
+import { DataHint, DemoBanner, EmptyState, Field, inputClass, PendingApi, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
 import { ServerPanel } from "./server-panel";
 
 export function StatsScreen() {
   const back = useAdmin((s) => s.back);
   const members = useAdmin((s) => s.members);
   const posts = useAdmin((s) => s.posts);
+  const demoMode = useAdmin((s) => s.demoMode);
+  const hasStats = useAdmin((s) => !!s.connection.available.adminStats);
   const [period, setPeriod] = useState<"7" | "30" | "90">("7");
   const data = period === "7" ? TREND_7 : period === "30" ? TREND_30 : TREND_90;
   const added = data.reduce((sum, item) => sum + item.added, 0);
   const active = data[data.length - 1]?.active ?? 0;
   return (
     <Screen title="数据统计" onBack={back}>
-      <div className="flex gap-2 bg-surface px-4 py-3">
-        {(
-          [
-            ["7", "近 7 天"],
-            ["30", "近 30 天"],
-            ["90", "近 90 天"],
-          ] as const
-        ).map(([id, label]) => (
-          <button key={id} type="button" onClick={() => setPeriod(id)} className={`h-9 flex-1 rounded-full text-sm font-semibold ${period === id ? "bg-primary text-on-primary" : "bg-subtle text-muted"}`}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-3 p-4">
-        <Card label="新增用户" value={added.toLocaleString("zh-CN")} delta="+12%" />
-        <Card label="活跃用户" value={active.toLocaleString("zh-CN")} delta="+8%" />
-      </div>
-      <div className="mx-4 rounded-card bg-surface p-4 shadow-card">
-        <h2 className="mb-2 font-semibold">用户增长趋势</h2>
-        <div className="h-44">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <XAxis dataKey="d" tick={{ fill: "var(--color-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(value) => [String(value), "新增"]} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-line)", fontSize: 12 }} />
-              <Bar dataKey="added" fill="var(--color-primary)" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface shadow-card">
-        <Info label="帖子" value={String(posts.filter((item) => item.kind === "post").length)} hint="当前预览队列" />
-        <Info label="待审核" value={String(posts.filter((item) => item.status === "pending").length)} />
-        <Info label="账号样本" value={String(members.length)} hint="总用户含历史基数" />
-      </div>
+      <DemoBanner />
+      {!demoMode && !hasStats ? (
+        <PendingApi name="管理统计（GET /api/admin/stats）" />
+      ) : (
+        <>
+          <div className="flex gap-2 bg-surface px-4 py-2">
+            {(
+              [
+                ["7", "近 7 天"],
+                ["30", "近 30 天"],
+                ["90", "近 90 天"],
+              ] as const
+            ).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setPeriod(id)} className={`h-9 flex-1 rounded-full text-[13px] font-semibold ${period === id ? "bg-primary text-on-primary" : "bg-subtle text-muted"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 p-3">
+            <Card label="新增用户" value={added.toLocaleString("zh-CN")} delta={demoMode ? "演示" : ""} />
+            <Card label="活跃用户" value={active.toLocaleString("zh-CN")} delta={demoMode ? "演示" : ""} />
+          </div>
+          <div className="mx-4 rounded-card bg-surface p-3 shadow-card">
+            <h2 className="mb-2 text-[15px] font-semibold">用户增长趋势</h2>
+            <div className="h-36">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data}>
+                  <XAxis dataKey="d" tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(value) => [String(value), "新增"]} contentStyle={{ borderRadius: 10, border: "1px solid var(--color-line)", fontSize: 12 }} />
+                  <Bar dataKey="added" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="mx-4 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
+            <Info label="帖子" value={String(posts.filter((item) => item.kind === "post").length)} hint={demoMode ? "演示队列" : "来自已接入接口"} />
+            <Info label="待审核" value={String(posts.filter((item) => item.status === "pending").length)} />
+            <Info label="账号" value={String(members.length)} />
+          </div>
+        </>
+      )}
     </Screen>
   );
 }
 
 function Card({ label, value, delta }: { label: string; value: string; delta: string }) {
   return (
-    <div className="rounded-card bg-surface p-4 shadow-card">
-      <div className="text-sm text-muted">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
-      <div className="text-sm text-ok">{delta}</div>
+    <div className="rounded-card bg-surface p-3 shadow-card">
+      <div className="text-[13px] text-muted">{label}</div>
+      <div className="mt-0.5 text-[20px] font-semibold tabular-nums">{value}</div>
+      {delta ? <div className="text-[12px] text-warn">{delta}</div> : null}
     </div>
   );
 }
@@ -99,7 +108,7 @@ export function SettingsScreen() {
   const [server, setServer] = useState(false);
   return (
     <Screen title="系统设置" onBack={back}>
-      <p className="px-4 pb-2 pt-4 text-sm text-muted">公开配置。密钥只放环境变量，这里不能查看。</p>
+      <DataHint>下列开关目前只存在本机，没有写入服务器的配置接口（接口待接入）。密钥不会出现在此页面。</DataHint>
       <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
         <RowLink icon={<Megaphone className="size-5" />} title="公告管理" desc="草稿、发布、撤回" onClick={() => go("announce")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<SlidersHorizontal className="size-5" />} title="权益开关" desc="套餐能力由配置控制" onClick={() => go("vip")} extra={<ChevronRight className="size-4 text-muted" />} />
@@ -143,7 +152,9 @@ export function AuditScreen() {
         ]}
         onChange={setTab}
       />
-      <p className="px-4 py-2 text-xs text-muted">只读。预览里没有提供修改或删除日志的操作。</p>
+      <DemoBanner />
+      <p className="px-4 py-2 text-[12px] text-muted">本机操作会记在这里。服务器审计接口待接入；关闭演示后只显示本次本机操作，没有虚构历史。</p>
+      {list.length === 0 && <EmptyState title="暂无审计记录" hint="登录、改口令等本机操作会出现在这里。" />}
       {list.map((item) => (
         <article key={item.id} className="flex gap-3 border-b border-line bg-surface px-4 py-3">
           <span className={`mt-1 grid size-9 place-items-center rounded-2xl ${item.kind === "security" ? "nova-warn-soft" : "nova-soft"}`}>
@@ -166,15 +177,16 @@ export function SecurityScreen() {
   const flags = useAdmin((s) => s.flags);
   const devices = useAdmin((s) => s.devices);
   const [report, setReport] = useState(false);
-  const healthy = flags.loginProtect && !flags.maintenance;
   return (
     <Screen title="安全中心" onBack={back}>
-      <div className="px-4 py-6 text-center">
-        <span className="mx-auto grid size-16 place-items-center rounded-full nova-ok-soft">
-          <ShieldCheck className="size-8" />
+      <DemoBanner />
+      <DataHint>后端尚无安全管理状态接口。下面不是服务器体检结果，本机口令与设备仅供操作员使用。</DataHint>
+      <div className="px-4 py-4 text-center">
+        <span className="mx-auto grid size-12 place-items-center rounded-full nova-soft">
+          <ShieldCheck className="size-6" />
         </span>
-        <h2 className="mt-3 text-lg font-semibold">{healthy ? "系统安全状态良好" : "有项目需要留意"}</h2>
-        <p className="text-sm text-muted">最后检查：今天 15:00 · 演示环境</p>
+        <h2 className="mt-2 text-[17px] font-semibold">安全中心</h2>
+        <p className="text-[13px] text-muted">接口待接入，不展示虚构「状态良好」。</p>
       </div>
       <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
         <Check label="账户安全" ok={flags.loginProtect} desc={flags.loginProtect ? "登录保护已开启" : "登录保护已关闭"} />
@@ -236,7 +248,8 @@ export function DevicesScreen() {
         </div>
       }
     >
-      <p className="px-4 py-3 text-sm text-muted">当前这台会保留。其他设备的会话会失效。</p>
+      <DemoBanner />
+      <p className="px-4 py-2 text-[13px] text-muted">本机会话。服务器设备列表接口待接入；关闭演示后只显示本机浏览器，没有虚构设备。</p>
       {devices.map((item) => (
         <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
           <div className="flex items-center justify-between">
@@ -260,7 +273,8 @@ export function AdminsScreen() {
   const [latest, setLatest] = useState<string | null>(null);
   return (
     <Screen title="管理员" onBack={back}>
-      <p className="px-4 py-3 text-sm text-muted">根管理员不写死在界面密钥里。邀请码一次性、可作废。</p>
+      <DemoBanner />
+      <DataHint>后端尚无管理员账号接口。这里只显示本机操作员 admin。邀请码功能在未打开演示时不会生成服务器账号。</DataHint>
       {admins.map((item) => (
         <article key={item.id} className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -300,6 +314,8 @@ export function CommunityScreen() {
   const boards = useAdmin((s) => s.boards);
   const addTopic = useAdmin((s) => s.addTopic);
   const toggleBoard = useAdmin((s) => s.toggleBoard);
+  const demoMode = useAdmin((s) => s.demoMode);
+  const communitiesNeedAuth = useAdmin((s) => !!s.connection.authRequired.communities);
   const [tab, setTab] = useState("topic");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -308,12 +324,14 @@ export function CommunityScreen() {
       title="社区管理"
       onBack={back}
       footer={
-        tab === "topic" ? (
-          <div className="border-t border-line bg-surface px-4 py-3 pb-safe">
-            <button type="button" className="h-11 w-full rounded-full bg-primary font-semibold text-on-primary" onClick={() => setOpen(true)}>
+        tab === "topic" && demoMode ? (
+          <div className="border-t border-line bg-surface px-4 py-2 pb-safe">
+            <button type="button" className="h-11 w-full rounded-full bg-primary text-[15px] font-semibold text-on-primary" onClick={() => setOpen(true)}>
               + 创建话题
             </button>
           </div>
+        ) : tab === "topic" ? (
+          <div className="border-t border-line bg-surface px-4 py-2 pb-safe text-center text-[12px] text-muted">创建话题接口待接入</div>
         ) : undefined
       }
     >
@@ -325,16 +343,19 @@ export function CommunityScreen() {
         ]}
         onChange={setTab}
       />
+      <DemoBanner />
+      {tab === "topic" && topics.length === 0 && <PendingApi name="社区列表（GET /api/communities）" needsAuth={communitiesNeedAuth} />}
+      {tab === "board" && boards.length === 0 && <PendingApi name="社区列表（GET /api/communities）" needsAuth={communitiesNeedAuth} />}
       {tab === "topic" &&
         topics.map((item) => (
-          <div key={item.id} className="flex items-center justify-between border-b border-line bg-surface px-4 py-4">
-            <span className="font-semibold">#{item.name}</span>
-            <span className="text-sm text-muted">{item.heat}</span>
+          <div key={item.id} className="flex items-center justify-between border-b border-line bg-surface px-4 py-2.5">
+            <span className="text-[15px] font-medium">#{item.name}</span>
+            <span className="text-[13px] text-muted">{item.heat}</span>
           </div>
         ))}
       {tab === "board" &&
         boards.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
+          <div key={item.id} className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5">
             <div className="min-w-0 flex-1">
               <div className="font-semibold">{item.name}</div>
               <div className="text-sm text-muted">{item.members}</div>
@@ -365,12 +386,43 @@ export function CommunityScreen() {
   );
 }
 
+function fmtEntValue(value: unknown): string {
+  if (value == null) return "—";
+  if (typeof value === "boolean") return value ? "有" : "无";
+  if (typeof value === "number" || typeof value === "string") return String(value);
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => `${k} ${v}`)
+      .join(" · ");
+  }
+  return String(value);
+}
+
+function readCatalog(catalog: unknown) {
+  if (!catalog || typeof catalog !== "object") return { plans: [] as Record<string, unknown>[], entitlements: [] as Record<string, unknown>[] };
+  const raw = catalog as Record<string, unknown>;
+  const root = (raw.plans ? raw : (raw.data as Record<string, unknown> | undefined) || raw) as Record<string, unknown>;
+  const plansObj = root.plans;
+  const plans = Array.isArray(plansObj)
+    ? (plansObj as Record<string, unknown>[])
+    : plansObj && typeof plansObj === "object"
+      ? (Object.values(plansObj) as Record<string, unknown>[])
+      : [];
+  const ents = root.entitlements;
+  return { plans, entitlements: Array.isArray(ents) ? (ents as Record<string, unknown>[]) : [] };
+}
+
 export function VipScreen() {
   const back = useAdmin((s) => s.back);
   const members = useAdmin((s) => s.members);
   const entitlements = useAdmin((s) => s.entitlements);
   const toggleEntitlement = useAdmin((s) => s.toggleEntitlement);
   const go = useAdmin((s) => s.go);
+  const demoMode = useAdmin((s) => s.demoMode);
+  const catalog = useAdmin((s) => s.connection.catalog);
+  const reachable = useAdmin((s) => s.connection.reachable);
+  const hasUserApi = useAdmin((s) => !!s.connection.available.adminUsers);
+  const parsed = readCatalog(catalog);
   const groups = {
     soon: members.filter((item) => vipPhase(item) === "soon"),
     active: members.filter((item) => vipPhase(item) === "active"),
@@ -378,28 +430,80 @@ export function VipScreen() {
   };
   return (
     <Screen title="会员权益" onBack={back}>
-      <p className="px-4 py-3 text-sm text-muted">
-        客户端不能自己把账号改成 VIP。支付未接入，只能由管理员手动开通、续期或撤销。
-      </p>
-      <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
-        {ENTITLEMENTS.map((item) => {
-          const on = entitlements[item.key] !== false;
-          return (
-            <div key={item.key} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold">{item.label}</div>
-                <div className="text-sm text-muted">Basic {item.basic} · VIP {item.vip}</div>
-              </div>
-              <button type="button" role="switch" aria-checked={on} aria-label={item.label} onClick={() => toggleEntitlement(item.key)} className={`h-7 w-12 shrink-0 rounded-full p-0.5 ${on ? "bg-primary" : "bg-line"}`}>
-                <span className={`block size-6 rounded-full bg-surface ${on ? "translate-x-5" : ""}`} />
-              </button>
+      <DemoBanner />
+      {parsed.plans.length > 0 ? (
+        <>
+          <p className="px-4 pt-2 pb-1.5 text-[12px] text-muted">以下套餐与权益来自后端 GET /api/vip/catalog，是真实目录。</p>
+          <div className="mx-4 mb-2 overflow-hidden rounded-card bg-surface shadow-card">
+            {parsed.plans.map((plan) => {
+              const prices = Array.isArray(plan.prices) ? (plan.prices as Record<string, unknown>[]) : [];
+              const purchase = plan.purchase && typeof plan.purchase === "object" ? (plan.purchase as Record<string, unknown>) : null;
+              return (
+                <div key={String(plan.id || plan.name)} className="border-b border-line px-3.5 py-2.5 last:border-b-0">
+                  <div className="text-[15px] font-medium">{String(plan.name || plan.id)}</div>
+                  {plan.tagline ? <div className="text-[13px] leading-5 text-muted">{String(plan.tagline)}</div> : null}
+                  {prices.length > 0 && (
+                    <div className="mt-1 text-[13px] text-fg">
+                      {prices.map((pr) => String(pr.label || `${pr.period} ${pr.amountCents}`)).join(" · ")}
+                    </div>
+                  )}
+                  {plan.priceNote ? <div className="mt-0.5 text-[12px] text-muted">{String(plan.priceNote)}</div> : null}
+                  {purchase && (
+                    <div className="mt-0.5 text-[12px] text-muted">
+                      {purchase.enabled ? String(purchase.label || "可购买") : String(purchase.label || purchase.reason || "暂未开放")}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {parsed.entitlements.length > 0 && (
+            <div className="mx-4 mb-3 overflow-hidden rounded-card bg-surface shadow-card">
+              {parsed.entitlements.map((item) => (
+                <div key={String(item.key)} className="border-b border-line px-3.5 py-2.5 last:border-b-0">
+                  <div className="text-[15px] font-medium">{String(item.title || item.label || item.key)}</div>
+                  <div className="text-[13px] text-muted">
+                    Basic {fmtEntValue(item.basic)} · VIP {fmtEntValue(item.vip)}
+                    {item.status ? ` · ${String(item.status)}` : ""}
+                  </div>
+                  {item.description ? <div className="mt-0.5 text-[12px] leading-4 text-muted">{String(item.description)}</div> : null}
+                </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
-      <Group title="即将到期" empty="10 天内没有到期账号" rows={groups.soon} onOpen={(id) => go("user", id)} />
-      <Group title="有效" empty="没有其他有效会员" rows={groups.active} onOpen={(id) => go("user", id)} />
-      <Group title="已过期" empty="没有过期记录" rows={groups.expired} onOpen={(id) => go("user", id)} />
+          )}
+        </>
+      ) : reachable ? (
+        <DataHint>已连接后端，但未能读取 /api/vip/catalog。</DataHint>
+      ) : (
+        <DataHint>未连接后端，无法读取 VIP 目录。公开预览无法访问你电脑上的服务。</DataHint>
+      )}
+      {demoMode && (
+        <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
+          {ENTITLEMENTS.map((item) => {
+            const on = entitlements[item.key] !== false;
+            return (
+              <div key={item.key} className="flex items-center gap-3 border-b border-line px-3.5 py-2.5 last:border-b-0">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[15px] font-medium">{item.label}</div>
+                  <div className="text-[13px] text-muted">Basic {item.basic} · VIP {item.vip}</div>
+                </div>
+                <button type="button" role="switch" aria-checked={on} aria-label={item.label} onClick={() => toggleEntitlement(item.key)} className={`h-7 w-11 shrink-0 rounded-full p-0.5 ${on ? "bg-primary" : "bg-line"}`}>
+                  <span className={`block size-6 rounded-full bg-surface ${on ? "translate-x-4" : ""}`} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {demoMode || hasUserApi ? (
+        <>
+          <Group title="即将到期" empty="10 天内没有到期账号" rows={groups.soon} onOpen={(id) => go("user", id)} />
+          <Group title="有效" empty="没有其他有效会员" rows={groups.active} onOpen={(id) => go("user", id)} />
+          <Group title="已过期" empty="没有过期记录" rows={groups.expired} onOpen={(id) => go("user", id)} />
+        </>
+      ) : (
+        <PendingApi name="会员账号列表（需用户列表接口）" />
+      )}
     </Screen>
   );
 }
@@ -459,7 +563,9 @@ export function AnnounceScreen() {
         </div>
       }
     >
-      <p className="px-4 py-3 text-sm text-muted">发布后出现在消息中心。撤回不会删除审计记录。外部推送通道未接。</p>
+      <DemoBanner />
+      <p className="px-4 py-2 text-[13px] text-muted">发布后出现在消息中心。服务器公告接口待接入。外部推送通道未接。</p>
+      {announcements.length === 0 && <PendingApi name="公告列表" />}
       {announcements.map((item) => (
         <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
           <div className="flex items-center justify-between gap-2">

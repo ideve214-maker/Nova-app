@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAdmin, type PostItem } from "@/lib/admin/store";
-import { Avatar, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
+import { Avatar, DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { mediaUrl } from "@/lib/admin/media";
 
 type ContentTab = "all" | "post" | "comment" | "report";
@@ -12,6 +12,9 @@ export function ContentScreen() {
   const back = useAdmin((s) => s.back);
   const go = useAdmin((s) => s.go);
   const setPostStatus = useAdmin((s) => s.setPostStatus);
+  const demoMode = useAdmin((s) => s.demoMode);
+  const hasContentApi = useAdmin((s) => !!s.connection.available.adminContent || !!s.connection.available.posts);
+  const postsNeedAuth = useAdmin((s) => !!s.connection.authRequired.posts);
   const [tab, setTab] = useState<ContentTab>("all");
   const reported = new Set(reports.filter((item) => item.status === "open" && item.postId).map((item) => item.postId));
   const list = posts.filter((item) => {
@@ -23,6 +26,7 @@ export function ContentScreen() {
 
   return (
     <Screen title="内容审核" onBack={back}>
+      <DemoBanner />
       <Seg
         value={tab}
         options={[
@@ -34,41 +38,41 @@ export function ContentScreen() {
         onChange={(id) => setTab(id as ContentTab)}
       />
       <div className="space-y-3 p-4">
-        {list.length === 0 && <p className="py-10 text-center text-sm text-muted">这个分类里没有内容</p>}
+        {list.length === 0 && (demoMode || hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi name="动态列表（GET /api/posts）" needsAuth={postsNeedAuth} />)}
         {list.map((post) => {
           const author = members.find((item) => item.id === post.authorId);
           return (
-            <article key={post.id} className="rounded-card bg-surface p-3 shadow-card">
-              <div className="flex gap-3">
+            <article key={post.id} className="rounded-card bg-surface p-2.5 shadow-card">
+              <div className="flex gap-2.5">
                 {post.image ? (
-                  <img src={mediaUrl(post.image) || post.image} alt="" className="size-20 rounded-2xl object-cover" />
+                  <img src={mediaUrl(post.image) || post.image} alt="" className="size-16 rounded-xl object-cover" />
                 ) : (
-                  <div className="grid size-20 place-items-center rounded-2xl bg-subtle text-sm text-muted">评论</div>
+                  <div className="grid size-16 place-items-center rounded-xl bg-subtle text-[12px] text-muted">评论</div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <h2 className="font-semibold">{post.title}</h2>
+                    <h2 className="text-[15px] font-medium">{post.title}</h2>
                     <Status status={post.status} />
                   </div>
-                  <button type="button" className="mt-1 flex items-center gap-2 text-sm text-muted" onClick={() => author && go("user", author.id)}>
+                  <button type="button" className="mt-1 flex items-center gap-2 text-[13px] text-muted" onClick={() => author && go("user", author.id)}>
                     <Avatar src={author?.avatar} name={author?.name ?? "?"} className="size-5" />
                     @{author?.name ?? "未知"} · {post.time}
                   </button>
-                  <p className="mt-1 text-sm text-muted">{post.excerpt}</p>
+                  <p className="mt-1 text-[13px] text-muted">{post.excerpt}</p>
                 </div>
               </div>
               {post.status === "pending" && (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" className="h-10 rounded-full nova-ok-soft font-semibold" onClick={() => setPostStatus(post.id, "approved")}>
+                <div className="mt-2.5 grid grid-cols-2 gap-2">
+                  <button type="button" className="h-11 rounded-full nova-ok-soft text-[15px] font-semibold" onClick={() => setPostStatus(post.id, "approved")}>
                     通过
                   </button>
-                  <button type="button" className="h-10 rounded-full nova-danger-soft font-semibold" onClick={() => setPostStatus(post.id, "removed")}>
+                  <button type="button" className="h-11 rounded-full nova-danger-soft text-[15px] font-semibold" onClick={() => setPostStatus(post.id, "removed")}>
                     删除
                   </button>
                 </div>
               )}
               {post.status !== "pending" && (
-                <button type="button" className="mt-3 h-10 w-full rounded-full bg-subtle text-sm font-semibold" onClick={() => setPostStatus(post.id, "pending")}>
+                <button type="button" className="mt-2.5 h-11 w-full rounded-full bg-subtle text-[13px] font-semibold" onClick={() => setPostStatus(post.id, "pending")}>
                   退回待审
                 </button>
               )}
@@ -92,6 +96,8 @@ export function ReportsScreen() {
   const reports = useAdmin((s) => s.reports);
   const back = useAdmin((s) => s.back);
   const resolveReport = useAdmin((s) => s.resolveReport);
+  const demoMode = useAdmin((s) => s.demoMode);
+  const hasReportApi = useAdmin((s) => !!s.connection.available.adminReports);
   const [tab, setTab] = useState<"open" | "done">("open");
   const [current, setCurrent] = useState<string | null>(null);
   const [choice, setChoice] = useState(resolutions[0]);
@@ -100,6 +106,7 @@ export function ReportsScreen() {
 
   return (
     <Screen title="举报处理" onBack={back}>
+      <DemoBanner />
       <Seg
         value={tab}
         options={[
@@ -109,12 +116,12 @@ export function ReportsScreen() {
         onChange={(id) => setTab(id as "open" | "done")}
       />
       <div className="space-y-3 p-4">
-        {list.length === 0 && <p className="py-10 text-center text-sm text-muted">没有{tab === "open" ? "待处理" : "已处理"}举报</p>}
+        {list.length === 0 && (demoMode || hasReportApi ? <p className="py-10 text-center text-[15px] text-muted">没有{tab === "open" ? "待处理" : "已处理"}举报</p> : <PendingApi name="举报队列" />)}
         {list.map((item) => (
-          <article key={item.id} className="rounded-card bg-surface p-4 shadow-card">
+          <article key={item.id} className="rounded-card bg-surface p-3 shadow-card">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-semibold">{item.title}</h2>
+                <h2 className="text-[15px] font-medium">{item.title}</h2>
                 <p className="mt-1 text-sm text-muted">举报人：{item.reporter}</p>
                 <p className="text-sm text-muted">{item.target}</p>
                 <p className="text-sm">理由：{item.reason}</p>
@@ -123,7 +130,7 @@ export function ReportsScreen() {
               </div>
             </div>
             {item.status === "open" && (
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
                 <button type="button" className="h-10 rounded-full bg-subtle font-semibold" onClick={() => setCurrent(item.id)}>
                   查看
                 </button>
