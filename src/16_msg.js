@@ -1,6 +1,6 @@
 /* NOVA V5 消息工具：消息 ID、置顶、@提醒（纯数据层，界面只读这里） */
 /* 私聊/群聊消息：[发送者,类型,时间,状态,文字,id]；社区频道消息：[发送者,时间,文字,id] */
-const msgs=(k,cid)=>(k=='cv'?D.m:D.cmsg)[cid]||[];
+const msgs=(k,cid)=>{if(k=='cv')return (typeof msgSrc==='function'?msgSrc(cid):D.m[cid])||[];return D.cmsg[cid]||[]};
 const mid=(k,m)=>k=='cv'?m[5]:m[3];
 const mtext=(k,m)=>{const x=k=='cv'?m[4]:m[2];return x&&typeof x==='object'?(typeof stkLabel==='function'?stkLabel(x):(x.glyph||'')+' '+(x.name||'')):x};
 const newId=()=>'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -15,7 +15,7 @@ function msgPerm(k,cid,act){
   if(k=='cv'){const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==cid);if(!c||!c.g)return false;return canG(gRole(c,'me'),act=='delMsg'?'pinMsg':act)}
   const c=cmOf(cid);return !!c&&!!c.j&&canC(c.r,act);
 }
-const pinned=(k,cid)=>(D.pm[cid]||[]).filter(id=>msgs(k,cid).some(m=>mid(k,m)==id));
+const pinned=(k,cid)=>{if(k=='cv'&&typeof usingNet==='function'&&usingNet()){const c=typeof cvSrc==='function'?cvSrc().find(x=>x.id==cid):null;const ids=[...new Set([...(c&&c.publicPins||[]),...(c&&c.personalPins||[])])];return ids.filter(id=>msgs(k,cid).some(m=>mid(k,m)==id))}return (D.pm[cid]||[]).filter(id=>msgs(k,cid).some(m=>mid(k,m)==id))};
 /* 把文字里的 @所有人 / @某人 渲染成高亮（先转义，再替换，防注入） */
 function fmt(t){
   const names=Object.keys(D.u).filter(i=>i!='notice').map(i=>P(i).n).sort((a,b)=>b.length-a.length).map(n=>n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));

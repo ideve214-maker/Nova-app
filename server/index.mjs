@@ -470,6 +470,23 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return chats.setConvPin(user, req.params.id, b || {});
     },
+
+    'POST /api/messages/:id/recall'(req) {
+      const {user} = auth(req);
+      const r = chats.recall(user, req.params.id);
+      audit(user.id, 'chat.recall', 'message:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/messages/:id/pin'(req, b) {
+      const {user} = auth(req);
+      const r = chats.pinMessage(user, req.params.id, b || {});
+      audit(user.id, 'chat.pin', 'message:' + req.params.id, ip(req), {kind: b && b.kind});
+      return r;
+    },
+    'POST /api/messages/:id/unpin'(req, b) {
+      const {user} = auth(req);
+      return chats.unpinMessage(user, req.params.id, b || {});
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 

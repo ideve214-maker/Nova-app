@@ -10,6 +10,8 @@ const CN_ROLE = Object.freeze({群主: 'owner', 管理员: 'admin', 成员: 'mem
 const NEED = Object.freeze({addMember: 2, kick: 2, setAdmin: 3, rename: 2, atAll: 2, pinMsg: 2});
 const MAX_GROUP = 50;
 const NAME_MAX = 20;
+const RECALL_MS = 2 * 60 * 1000; // 撤回时间窗：2 分钟
+const PUBLIC_PIN_MAX = 5;
 
 export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
@@ -36,16 +38,16 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
   const insMsg = hasMsg ? db.prepare(`INSERT INTO messages(id,conversation_id,author_id,kind,text,created_at,client_id) VALUES(?,?,?,?,?,?,?)`) : null;
   const msgById = hasMsg ? db.prepare('SELECT * FROM messages WHERE id=?') : null;
   const msgByClient = hasMsg ? db.prepare('SELECT * FROM messages WHERE conversation_id=? AND author_id=? AND client_id=?') : null;
-  const lastMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1`) : null;
-  const newestMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+  const lastMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at DESC, id DESC LIMIT 1`) : null;
+  const newestMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=?
     ORDER BY created_at DESC, id DESC LIMIT ?`) : null;
-  const olderMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+  const olderMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=?
     AND (created_at < ? OR (created_at = ? AND id < ?))
     ORDER BY created_at DESC, id DESC LIMIT ?`) : null;
-  const afterMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+  const afterMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=?
     AND (created_at > ? OR (created_at = ? AND id > ?))
     ORDER BY created_at ASC, id ASC LIMIT ?`) : null;
-  const afterById = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+  const afterById = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=?
     AND created_at >= (SELECT created_at FROM messages WHERE id=?)
     ORDER BY created_at ASC, id ASC LIMIT ?`) : null;
 
@@ -58,6 +60,17 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     AND (? IS NULL OR created_at > ? OR (created_at = ? AND id > ?))`) : null;
   const readersSql = hasRead ? db.prepare(`SELECT user_id, last_read_message_id, last_read_at FROM conversation_members
     WHERE conversation_id=? AND left_at IS NULL AND last_read_at IS NOT NULL`) : null;
+
+  const hasPin = (() => { try { db.prepare('SELECT 1 FROM message_pins LIMIT 1').get(); return true; } catch { return false; } })();
+  const insPin = hasPin ? db.prepare('INSERT INTO message_pins(conversation_id,message_id,kind,user_id,pinned_at,pinned_by) VALUES(?,?,?,?,?,?)') : null;
+  const delPinPub = hasPin ? db.prepare("DELETE FROM message_pins WHERE conversation_id=? AND message_id=? AND kind='public'") : null;
+  const delPinMe = hasPin ? db.prepare("DELETE FROM message_pins WHERE conversation_id=? AND message_id=? AND kind='personal' AND user_id=?") : null;
+  const pinsPub = hasPin ? db.prepare("SELECT * FROM message_pins WHERE conversation_id=? AND kind='public' ORDER BY pinned_at") : null;
+  const pinsMe = hasPin ? db.prepare("SELECT * FROM message_pins WHERE conversation_id=? AND kind='personal' AND user_id=? ORDER BY pinned_at") : null;
+  const nPinPub = hasPin ? db.prepare("SELECT COUNT(*) AS n FROM message_pins WHERE conversation_id=? AND kind='public'") : null;
+  const delMsg = hasMsg ? db.prepare('UPDATE messages SET deleted_at=? WHERE id=? AND conversation_id=? AND deleted_at IS NULL') : null;
+  const hasAt = (() => { try { db.prepare('SELECT at_all FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
+
 
 
 
@@ -121,6 +134,10 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
       out.muted = !!(hasRead && myMem.muted);
       out.pinned = !!(hasRead && myMem.pinned);
       out.unread = unreadOf(row.id, me.id, myMem);
+    }
+    if (pinsPub) {
+      out.publicPins = pinsPub.all(row.id).map(p => p.message_id);
+      out.personalPins = pinsMe.all(row.id, Number(me.id)).map(p => p.message_id);
     }
     return out;
   }
@@ -315,6 +332,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
       createdAt: row.created_at,
       mine: !!(me && Number(me.id) === Number(row.author_id)),
       clientId: row.client_id || undefined,
+      atAll: !!(hasAt && row.at_all),
       ...receiptOf(row, me),
     };
   }
@@ -339,6 +357,11 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     const text = String((body && body.text) != null ? body.text : '').trim();
     if (!len(text)) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
     if (vip) vip.requireTextLength(user, 'chat', text);
+    const wantAtAll = text.includes('@所有人');
+    if (wantAtAll && row.kind === 'group') {
+      const m = activeMem(id, user.id);
+      if ((ROLES[m.role] || 0) < NEED.atAll) throw new ApiError(403, 'AT_ALL_FORBIDDEN', '只有群主和管理员能@所有人');
+    }
     let clientId = body && body.clientId != null ? String(body.clientId).trim() : '';
     if (clientId) {
       if (clientId.length > 80) throw new ApiError(400, 'BAD_CLIENT_ID', 'clientId 过长');
@@ -349,7 +372,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
       }
     } else clientId = null;
     const mid = nidMsg(), t = now();
-    try { insMsg.run(mid, id, Number(user.id), 'text', text, t, clientId); }
+    try { insMsg.run(mid, id, Number(user.id), 'text', text, t, clientId); if (wantAtAll && hasAt) db.prepare('UPDATE messages SET at_all=1 WHERE id=?').run(mid); }
     catch (e) {
       if (clientId && /UNIQUE/i.test(String(e.message))) {
         const existed = msgByClient.get(id, Number(user.id), clientId);
@@ -462,6 +485,68 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     return {pinned: on};
   }
 
+
+  function recall(user, mid) {
+    const row = msgById && msgById.get(mid);
+    if (!row || row.deleted_at) {
+      // 已撤回：幂等返回
+      if (row && row.deleted_at) {
+        const cv = requireConv(row.conversation_id);
+        requireMem(cv, user);
+        if (Number(row.author_id) !== Number(user.id)) throw new ApiError(403, 'FORBIDDEN', '只能撤回自己的消息');
+        return {message: pubMsg(row, user), idempotent: true};
+      }
+      throw new ApiError(404, 'NOT_FOUND', '找不到这条消息');
+    }
+    const cv = requireConv(row.conversation_id);
+    requireMem(cv, user);
+    if (Number(row.author_id) !== Number(user.id)) throw new ApiError(403, 'FORBIDDEN', '只能撤回自己的消息');
+    if (now() - row.created_at > RECALL_MS) throw new ApiError(400, 'RECALL_EXPIRED', '已超过 2 分钟，不能撤回');
+    delMsg.run(now(), row.id, row.conversation_id);
+    const fresh = msgById.get(row.id);
+    emit(mems.all(cv.id).map(m => m.user_id), 'conversation.recall', {conversationId: cv.id, message: pubMsg(fresh, user)});
+    return {message: pubMsg(fresh, user)};
+  }
+  function pinMessage(user, mid, body) {
+    const row = msgById && msgById.get(mid);
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '找不到这条消息');
+    const cv = requireConv(row.conversation_id);
+    const m = requireMem(cv, user);
+    const kind = (body && body.kind) === 'personal' ? 'personal' : 'public';
+    if (kind === 'public') {
+      if (cv.kind === 'group') requireAct(m, 'pinMsg');
+      if (nPinPub.get(cv.id).n >= PUBLIC_PIN_MAX) {
+        // 已置顶同一条则幂等
+        const already = pinsPub.all(cv.id).some(p => p.message_id === mid);
+        if (!already) throw new ApiError(400, 'PIN_LIMIT', '公共置顶最多 5 条');
+      }
+      try { insPin.run(cv.id, mid, 'public', null, now(), Number(user.id)); }
+      catch (e) {
+        if (!/UNIQUE/i.test(String(e.message))) throw e;
+      }
+    } else {
+      try { insPin.run(cv.id, mid, 'personal', Number(user.id), now(), Number(user.id)); }
+      catch (e) {
+        if (!/UNIQUE/i.test(String(e.message))) throw e;
+      }
+    }
+    return {kind, messageId: mid, publicPins: pinsPub.all(cv.id).map(p => p.message_id), personalPins: pinsMe.all(cv.id, Number(user.id)).map(p => p.message_id)};
+  }
+  function unpinMessage(user, mid, body) {
+    const row = msgById && msgById.get(mid);
+    if (!row) throw new ApiError(404, 'NOT_FOUND', '找不到这条消息');
+    const cv = requireConv(row.conversation_id);
+    const m = requireMem(cv, user);
+    const kind = (body && body.kind) === 'personal' ? 'personal' : 'public';
+    if (kind === 'public') {
+      if (cv.kind === 'group') requireAct(m, 'pinMsg');
+      delPinPub.run(cv.id, mid);
+    } else {
+      delPinMe.run(cv.id, mid, Number(user.id));
+    }
+    return {kind, messageId: mid, publicPins: pinsPub.all(cv.id).map(p => p.message_id), personalPins: pinsMe.all(cv.id, Number(user.id)).map(p => p.message_id)};
+  }
+
   function attachMessages(api) { sendMsg = api.send; listMsg = api; }
   // 自挂：本模块已含消息
   listMsg = {last: lastOf, list: listMessages};
@@ -469,6 +554,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
     send, listMessages, pubMsg, markRead, setMute, setConvPin, unreadOf, receiptOf,
+    recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,
     ROLE_CN, ROLES, NEED, MAX_GROUP,

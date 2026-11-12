@@ -12,7 +12,7 @@ function adoptCv(c){
   return {
     id:c.id,g,n:title,mem:others.map(m=>String(m.id)),u:c.unread||0,mute:c.muted?1:0,pin:c.pinned?1:0,lastRead:c.lastReadMessageId||null,
     own:owner?(Number(owner.id)===Number(me)?'me':String(owner.id)):'',
-    adm,r:c.myRole||(my&&my.role)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:false
+    adm,r:c.myRole||(my&&my.role)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:false,publicPins:c.publicPins||[],personalPins:c.personalPins||[]
   };
 }
 function netCv(){return typeof usingNet==='function'&&usingNet()&&Array.isArray(S.conversations)}
@@ -101,7 +101,8 @@ async function sendNet(cid,text){
 
 function stopEvents(){if(S.evtAbort){try{S.evtAbort.abort()}catch(e){}S.evtAbort=null}S.evtOn=0}
 function applyEvent(ev,data){
-  if(ev==='conversation.message'&&data&&data.message){
+  if(ev==='conversation.recall'&&data&&data.message){const cid=data.conversationId||data.message.conversationId;const arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.message.id);if(i>=0){arr[i][4]='（已撤回）';arr[i].deleted=1}}if(typeof render==='function')render();return}
+if(ev==='conversation.message'&&data&&data.message){
     const cid=data.conversationId||data.message.conversationId;
     const m=adoptMsg(data.message);
     S.messages=S.messages||{};
