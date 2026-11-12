@@ -15,9 +15,11 @@ async function acc(n) {
   const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.test', password: 'Passw0rd123'});
   return {tok: r.j.token, id: r.j.user.id, name: u};
 }
+function befriend(a, b) { srv.friends.setAccepted(a.id, b.id); }
 
 test('单聊会话一对用户唯一；不能和自己聊；未加入者 404；退出后再开是同一会话', async () => {
   const a = await acc('da'), b = await acc('db'), c = await acc('dc');
+  befriend(a, b);
   const d1 = await call('POST', '/api/conversations', {kind: 'dm', userId: b.id}, a.tok);
   assert.equal(d1.s, 200, JSON.stringify(d1.j));
   assert.equal(d1.j.conversation.kind, 'dm');

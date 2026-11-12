@@ -15,9 +15,11 @@ async function acc(n) {
   const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.test', password: 'Passw0rd123'});
   return {tok: r.j.token, id: r.j.user.id};
 }
+function befriend(a, b) { srv.friends.setAccepted(a.id, b.id); }
 
 test('消息入库后才返回成功；非成员不能发或读；空文本拒绝', async () => {
   const a = await acc('ma'), b = await acc('mb'), c = await acc('mc');
+  befriend(a, b);
   const cv = (await call('POST', '/api/conversations', {kind: 'dm', userId: b.id}, a.tok)).j.conversation;
   const empty = await call('POST', '/api/conversations/' + cv.id + '/messages', {text: '  '}, a.tok);
   assert.equal(empty.s, 400);
@@ -50,6 +52,7 @@ test('历史按游标分页，顺序稳定，页面不重叠', async () => {
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   base = 'http://127.0.0.1:' + srv.address().port;
   const a2 = await acc('p2a'), b2 = await acc('p2b');
+  befriend(a2, b2);
   const cv = (await call('POST', '/api/conversations', {kind: 'dm', userId: b2.id}, a2.tok)).j.conversation;
   const ids = [];
   for (let i = 0; i < 7; i++) {

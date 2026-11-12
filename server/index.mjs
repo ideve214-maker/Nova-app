@@ -15,6 +15,7 @@ import {createComments} from './comments.mjs';
 import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
 import {createChats} from './chats.mjs';
+import {createFriends} from './friends.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -36,7 +37,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   posts.attach(comments);
   const follows = createFollows(db, {profile, vip, now});
   const communities = createCommunities(db, {profile, vip, now});
-  const chats = createChats(db, {profile, vip, now});
+  const friends = createFriends(db, {now});
+  const chats = createChats(db, {profile, vip, now, friends});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -504,7 +506,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends;
   return server;
 }
 

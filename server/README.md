@@ -1,4 +1,4 @@
-# NOVA 后端（M4.3.2）
+# NOVA 后端（M4.3.3）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -72,6 +72,7 @@
 | POST /api/conversations/:id/rename | 群聊改名 |
 | POST /api/conversations/:id/messages | 发送消息（入库后才成功） |
 | GET /api/conversations/:id/messages | 历史（cursor 更早，after 更新） |
+| （私聊门槛） | 非好友 403 `NOT_FRIENDS`；拉黑 403 `BLOCKED` |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
