@@ -134,7 +134,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/me/saved'(req) { const {user} = auth(req); return saved.list(user); },
     'POST /api/me/saved'(req, b) { const {user} = auth(req); const r = saved.add(user, b || {}); audit(user.id, 'saved.add', 'saved:' + r.item.id, ip(req), {kind: r.item.kind}); return r; },
     'POST /api/me/saved/remove'(req, b) { const {user} = auth(req); const r = saved.remove(user, b || {}); audit(user.id, 'saved.remove', 'saved:' + r.removed.id, ip(req)); return r; },
+    // 文本长度（M2.5.4）：前端提示与服务端限制必须一致。scope = post | chat | channel。
+    'POST /api/content/check'(req, b) {
+      const {user} = auth(req);
+      const scope = String(b.scope || ''), text = b.text;
+      return {ok: true, now: now(), ...vip.requireTextLength(user, scope, text)};
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
+
 
   };
 

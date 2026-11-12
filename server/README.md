@@ -1,4 +1,4 @@
-# NOVA 后端（M2.5.3）
+# NOVA 后端（M2.5.4）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -23,6 +23,7 @@
 | GET /api/me/saved | 我的个人收藏列表（含 count / limit / plan） |
 | POST /api/me/saved | 收藏一条（`kind`+`target`）；超额 403 `QUOTA_EXCEEDED`；重复幂等 |
 | POST /api/me/saved/remove | 取消收藏（`id` 或 `kind`+`target`）；不能删别人的 |
+| POST /api/content/check | 校验发帖/发言长度（`{scope,text}`）；超长 403 `TEXT_TOO_LONG` |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
@@ -54,3 +55,7 @@
 ## 个人收藏（M2.5.3）
 - 只扩展私人收藏额度，与群聊/社区公共置顶完全分开。公共置顶仍最多 5 条，且按角色授权。
 - 到期后内容保留；若已超过 Basic 的 20 条，需先取消收藏才能再新增。
+
+## 发帖长度（M2.5.4）
+- 上限来自权益配置，由 `requireTextLength` 在服务端执行；前端提示数字必须与之相同。
+- 计字方式：Unicode 码点（`[...s].length`），一个 emoji 算 1 字。

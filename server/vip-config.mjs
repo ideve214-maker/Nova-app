@@ -77,7 +77,7 @@ export const VIP_CONFIG = Object.freeze({
       basic: Object.freeze({post: 280, chat: 500, channel: 280}),
       vip: Object.freeze({post: 1000, chat: 1500, channel: 800}),
       scopeNames: Object.freeze({post: '动态', chat: '聊天消息', channel: '社区频道发言'}),
-      status: 'planned', phase: 'M2.5.4',
+      status: 'live', phase: 'M2.5.4',
       description: '适度提高单条文字上限；上限由服务端校验，不是无限制。',
       onExpire: '已发布的长内容保留；之后新发的内容按 Basic 上限。',
     }),

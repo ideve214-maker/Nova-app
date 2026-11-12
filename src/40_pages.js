@@ -1,7 +1,7 @@
 /* ---- pages ---- */
 const cmts=id=>{const all=D.c.filter(c=>c.p==id),top=all.filter(c=>!c.pa);return top.length?top.map(c=>ci(c,0)+all.filter(r=>r.pa==c.id).map(r=>ci(r,1)).join('')).join(''):'<p class="em">还没有评论</p>'};
 const ci=(c,s)=>`<div class="cm${s?' sub':''}">${av(c.a,s?28:34)}<div class="gr"><div class="cb"><b>${esc(P(c.a).n)}</b>${esc(c.x)}</div><small style="display:block;padding-left:4px">${c.t} · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button>${s?'':` · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>`}</small></div></div>`;
-const inbar=(k,ph,btn,v,extra='')=>`<div class="inrow">${extra}<input data-d="${k}" data-max="${k=='chin'?500:280}" placeholder="${ph}" autocomplete="off"><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`;
+const inbar=(k,ph,btn,v,extra='')=>`<div class="inrow">${extra}<input data-d="${k}" data-max="${k=='chin'?textLimit('chat'):k=='cmin'?textLimit('channel'):k=='cin'?280:textLimit('post')}" placeholder="${ph}" autocomplete="off"><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`;
 const pPost=id=>{const p=D.p.find(x=>x.id==id);if(!p)return sub('帖子')+'<p class="em">帖子不存在</p>';const rc=S.reply&&D.c.find(c=>c.id==S.reply);
 return `<div class="pg">${sub('帖子')}<div class="sc">${pc(p,1)}<div class="shd">评论</div>${cmts(id)}</div>${rc?`<div class="rt">回复 ${esc(P(rc.a).n)}<button class="lk" data-a="rpx">取消</button></div>`:''}${inbar('cin',rc?'写一条回复':'写一条评论','cs',id)}</div>`};
 const pUser=id=>`<div class="pg">${sub(esc(P(id).n))}<div class="sc">${prof(id)}</div></div>`;

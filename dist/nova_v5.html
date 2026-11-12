@@ -306,6 +306,18 @@ const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
 const vipTog=v=>vipToggle(v);
 const vipTheme=v=>{D.st.vt=v==='off'?0:1;T(v==='off'?'已切换为默认主题':'已使用香槟金主题')};
 
+/* 发帖/发言长度（M2.5.4）：登录后用服务端返回的当前额度；演示/离线保持原 Basic 上限（280/500/280），不改现有演示行为。 */
+const BASIC_TEXT={post:280,chat:500,channel:280};
+function textLimit(scope){
+  if(MODE==='account'&&VIP.me&&VIP.me.entitlements&&VIP.me.entitlements.longer_post_text){
+    const v=VIP.me.entitlements.longer_post_text.value;
+    if(v&&typeof v[scope]==='number')return v[scope]}
+  return BASIC_TEXT[scope]||280}
+async function checkText(scope,text){
+  if(MODE!=='account'||!NET||!SESSION){const mx=textLimit(scope);if(!ok(text,mx)){T((scope==='chat'?'消息':scope==='channel'?'发言':'动态')+'最多 '+mx+' 字');return false}return true}
+  const r=await api('POST','/api/content/check',{scope,text});
+  if(r.s!==200){T(errMsg(r,'内容太长'));return false}return true}
+
 /* ===== 14_saved.js ===== */
 /* 个人收藏（M2.5.3）。VIP 只增加你自己的私有收藏额度，不扩大群聊/社区公共置顶。
    已登录走服务端（额度由服务器按套餐执行）；演示只存在本机，按 Basic 20 条。 */
@@ -457,7 +469,7 @@ const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button cl
 /* ---- pages ---- */
 const cmts=id=>{const all=D.c.filter(c=>c.p==id),top=all.filter(c=>!c.pa);return top.length?top.map(c=>ci(c,0)+all.filter(r=>r.pa==c.id).map(r=>ci(r,1)).join('')).join(''):'<p class="em">还没有评论</p>'};
 const ci=(c,s)=>`<div class="cm${s?' sub':''}">${av(c.a,s?28:34)}<div class="gr"><div class="cb"><b>${esc(P(c.a).n)}</b>${esc(c.x)}</div><small style="display:block;padding-left:4px">${c.t} · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button>${s?'':` · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>`}</small></div></div>`;
-const inbar=(k,ph,btn,v,extra='')=>`<div class="inrow">${extra}<input data-d="${k}" data-max="${k=='chin'?500:280}" placeholder="${ph}" autocomplete="off"><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`;
+const inbar=(k,ph,btn,v,extra='')=>`<div class="inrow">${extra}<input data-d="${k}" data-max="${k=='chin'?textLimit('chat'):k=='cmin'?textLimit('channel'):k=='cin'?280:textLimit('post')}" placeholder="${ph}" autocomplete="off"><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`;
 const pPost=id=>{const p=D.p.find(x=>x.id==id);if(!p)return sub('帖子')+'<p class="em">帖子不存在</p>';const rc=S.reply&&D.c.find(c=>c.id==S.reply);
 return `<div class="pg">${sub('帖子')}<div class="sc">${pc(p,1)}<div class="shd">评论</div>${cmts(id)}</div>${rc?`<div class="rt">回复 ${esc(P(rc.a).n)}<button class="lk" data-a="rpx">取消</button></div>`:''}${inbar('cin',rc?'写一条回复':'写一条评论','cs',id)}</div>`};
 const pUser=id=>`<div class="pg">${sub(esc(P(id).n))}<div class="sc">${prof(id)}</div></div>`;
@@ -490,7 +502,7 @@ return U.length+Po.length+C.length?U.map(i=>`<div class="row" style="padding:8px
 const sheet=()=>{const s=S.sh;if(!s)return '';let h='';
 if(s.t=='rx')h=`<h3>表态</h3><div class="rxs">${E.map((e,i)=>`<button data-a="rxp" data-v="${s.id}|${i}" aria-label="${e}">${e}</button>`).join('')}</div>`;
 if(s.t=='more'){const p=D.p.find(x=>x.id==s.id);h=`<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="savp" data-v="${s.id}">${isSaved('post',s.id)?'取消收藏':'收藏（仅自己可见）'}</button><button class="mi" data-a="report">举报（仅演示）</button>${p&&p.a=='me'?`<button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
-if(s.t=='compose')h='<h3>发帖</h3><textarea class="fld" data-d="pin" data-max="280" data-af rows="5" placeholder="写点什么"></textarea><div class="fr"><span class="cn" data-cnt="pin"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pub" data-for="pin" disabled>发布</button></div>';
+if(s.t=='compose')h=`<h3>发帖</h3><textarea class="fld" data-d="pin" data-max="${textLimit('post')}" data-af rows="5" placeholder="写点什么"></textarea><div class="fr"><span class="cn" data-cnt="pin"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pub" data-for="pin" disabled>发布</button></div>`;
 if(s.t=='search')h=`<input class="fld" id="sq" data-af placeholder="搜索" value="${esc(S.sq)}"><div id="sr">${srch(S.sq)}</div>`;
 if(s.t=='notif')h='<h3>通知</h3>'+(D.n.length?D.n.map(n=>swrow(`data-a="nr" data-v="${n.id}"`,`<i class="${n.u?'':'z'}"></i><span class="gr"><b>${esc(n.x)}</b><small>${n.t}</small></span>`,[['nrtog',n.u?'标为已读':'标为未读','#2D88FF',n.id],['nrdel','删除','#D4655A',n.id]],'nr')).join(''):'<p class="em">没有通知</p>')+'<p class="lab" style="padding-top:8px">提示：通知可以左滑</p>';
 if(s.t=='leave')h=`<h3>退出这个社区？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="leave2" data-v="${s.id}">确定</button></div>`;
@@ -823,7 +835,7 @@ user:v=>{if(v=='me'){S.tab='me';S.st=[];S.sh=null}else A.go('user:'+v)},post:v=>
 rx:v=>{S.sh={t:'rx',id:v}},rxp:v=>{const[i,j]=v.split('|'),p=D.p.find(x=>x.id==i),k=+j;if(p.m==k){p.r[k]--;p.m=-1}else{if(p.m>=0)p.r[p.m]--;p.r[k]++;p.m=k}S.sh=null},
 more:v=>{S.sh={t:'more',id:v}},copy:v=>{try{navigator.clipboard.writeText(D.p.find(x=>x.id==v).x).catch(()=>{})}catch(e){}S.sh=null;T('已复制')},report:()=>{S.sh=null;T('已记录（仅演示，不会发送给任何人）')},
 delp:v=>{D.p=D.p.filter(p=>p.id!=v);D.c=D.c.filter(c=>c.p!=v);S.sh=null;if(S.st[S.st.length-1]=='post:'+v)S.st.pop();T('已删除')},
-compose:()=>{S.sh={t:'compose'}},pub:()=>{const x=(S.d.pin||'').trim();if(!ok(x,280))return;D.p.unshift({id:'p'+Date.now(),a:'me',t:'刚刚',x,r:[0,0,0,0,0,0],m:-1});S.d.pin='';S.sh=null;S.st=[];S.tab='home';T('已发布')},
+compose:()=>{S.sh={t:'compose'}},pub:()=>{const x=(S.d.pin||'').trim(),mx=textLimit('post');if(!ok(x,mx))return T('动态最多 '+mx+' 字');const go=()=>{D.p.unshift({id:'p'+Date.now(),a:'me',t:'刚刚',x,r:[0,0,0,0,0,0],m:-1});S.d.pin='';S.sh=null;S.st=[];S.tab='home';T('已发布')};if(MODE==='account'&&NET&&SESSION)return checkText('post',x).then(ok=>{if(ok)go()});go()},
 search:()=>{S.sh={t:'search'};S.sq=''},notif:()=>{S.sh={t:'notif'}},nr:v=>{D.n.find(n=>n.id==v).u=0},
 rp:v=>{S.reply=v},rpx:()=>{S.reply=null},cs:v=>{const x=(S.d.cin||'').trim();if(!ok(x,280))return;const c={id:'c'+Date.now(),p:v,pa:S.reply||0,a:'me',t:'刚刚',l:0,ml:0,x};S.reply?D.c.push(c):D.c.unshift(c);S.d.cin='';S.reply=null},
 cl:v=>{const c=D.c.find(x=>x.id==v);c.ml?(c.ml=0,c.l--):(c.ml=1,c.l++)},
@@ -831,11 +843,11 @@ fol:v=>{if(v=='me')return;const i=D.f.findIndex(e=>e[0]=='me'&&e[1]==v);i>=0?D.f
 fl:v=>A.go('fl:'+v.replace('|',':')),
 dm:v=>{let c=D.cv.find(x=>!x.g&&x.mem[0]==v);if(!c){c={id:'cv'+Date.now(),g:0,n:P(v).n,mem:[v],u:0};D.cv.unshift(c);D.m[c.id]=[]}S.tab='chat';S.st=['chat:'+c.id];c.u=0;c.hid=0},
 seg:v=>{S.cseg=v},conv:v=>{D.cv.find(c=>c.id==v).u=0;A.go('chat:'+v)},media:()=>T('演示中不可用'),
-send:v=>{const x=(S.d.chin||'').trim();if(!ok(x,500))return;if(x.includes('@所有人')&&(cvf(v).g?!msgPerm('cv',v,'atAll'):false))return T('只有群主和管理员能@所有人');(D.m[v]=D.m[v]||[]).push(['me','t','刚刚','已发送',x,newId()]);if(x.includes('@所有人')&&cvf(v).g)T('已@所有人：每位成员都会看到');const i=D.cv.findIndex(c=>c.id==v),c=D.cv.splice(i,1)[0];D.cv.unshift(c);S.d.chin=''},
+send:v=>{const x=(S.d.chin||'').trim(),mx=textLimit('chat');if(!ok(x,mx))return T('消息最多 '+mx+' 字');if(x.includes('@所有人')&&(cvf(v).g?!msgPerm('cv',v,'atAll'):false))return T('只有群主和管理员能@所有人');const go=()=>{(D.m[v]=D.m[v]||[]).push(['me','t','刚刚','已发送',x,newId()]);if(x.includes('@所有人')&&cvf(v).g)T('已@所有人：每位成员都会看到');const i=D.cv.findIndex(c=>c.id==v),c=D.cv.splice(i,1)[0];D.cv.unshift(c);S.d.chin=''};if(MODE==='account'&&NET&&SESSION)return checkText('chat',x).then(ok=>{if(ok)go()});go()},
 acc:v=>{const r=D.rq.find(x=>x.id==v);if(r.s!='p')return;r.s='a';const id='cv_'+v;D.cv.unshift({id,g:0,n:P(r.u).n,mem:[r.u],u:1});D.m[id]=[[r.u,'t',r.t,'已送达',r.x]]},rej:v=>{const r=D.rq.find(x=>x.id==v);if(r.s=='p')r.s='r'},
 cmseg:v=>{S.cs=v},cm:v=>A.go('cm:'+v),chan:v=>{const[c,h]=v.split('|');S.ch[c]=h},
 join:v=>{const c=D.cm.find(x=>x.id==v);if(!c.j){c.j=1;c.m++;c.r='成员'}T('已加入')},leave:v=>{S.sh={t:'leave',id:v}},leave2:v=>{const c=D.cm.find(x=>x.id==v);if(c.j&&c.r!='所有者'){c.j=0;c.m--;c.r=''}S.sh=null},
-cmsend:v=>{const[c,h]=v.split('|'),x=(S.d.cmin||'').trim();if(!ok(x,280))return;if(x.includes('@所有人')&&!msgPerm('ch',h,'atAll'))return T('只有所有者和管理员能@所有人');(D.cmsg[h]=D.cmsg[h]||[]).push(['me','刚刚',x,newId()]);if(x.includes('@所有人'))T('已@所有人：每位成员都会看到');S.d.cmin=''},
+cmsend:v=>{const[c,h]=v.split('|'),x=(S.d.cmin||'').trim(),mx=textLimit('channel');if(!ok(x,mx))return T('发言最多 '+mx+' 字');if(x.includes('@所有人')&&!msgPerm('ch',h,'atAll'))return T('只有所有者和管理员能@所有人');const go=()=>{(D.cmsg[h]=D.cmsg[h]||[]).push(['me','刚刚',x,newId()]);if(x.includes('@所有人'))T('已@所有人：每位成员都会看到');S.d.cmin=''};if(MODE==='account'&&NET&&SESSION)return checkText('channel',x).then(ok=>{if(ok)go()});go()},
 newcm:()=>{S.sh={t:'newcm'};S.d.cn='';S.d.cd=''},mkcm:()=>{const n=(S.d.cn||'').trim(),d=(S.d.cd||'').trim();if(len(n)<2||len(n)>20)return T('名称需要 2 到 20 个字');if(len(d)>80)return T('简介最多 80 字');const id='cm_'+Date.now(),g=id+'_g',a=id+'_a';D.cm.unshift({id,n,d,m:1,j:1,r:'所有者',ch:[[g,'大厅','文字'],[a,'公告','公告']]});D.cmsg[g]=[];D.cmsg[a]=[['notice','刚刚','公告：这是新建的演示社区。']];S.sh=null;S.cs='j';S.cq='';T('已创建')},
 edit:()=>{const u=P('me'),f=D.pf.me;S.d.en=u.n;S.d.eh=u.h;S.d.eb=u.b;S.d.eg=f.g;S.d.ebd=f.b;S.d.vbp=f.bp;S.d.vap=f.ap;S.d.vgp=f.gp;A.go('edit')},gen:v=>{S.d.eg=v},vis:v=>{S.d['v'+v]=S.d['v'+v]?0:1},mt:v=>{S.mt=v},cover:()=>{S.sh={t:'cover'}},setcv:v=>{D.pf.me.cv=+v;delete D.pf.me.bg},setav:v=>{D.u.me[3]=v},setbg:v=>{if(!BG.includes(v))return;D.pf.me.bg=v;D.pf.me.cv=BG.indexOf(v);T('已换成样板背景')},setph:v=>{if(!AVT.includes(v))return;D.pf.me.ph=v;T('已换成样板头像')},rstlook:()=>{delete D.pf.me.ph;delete D.pf.me.bg;T('已恢复默认样板')},cropx:()=>closeCrop(),cropok:()=>applyCrop(),ccov:v=>{const c=cmp(v);if(!c||!c.j||(c.r!=='所有者'&&c.r!=='管理员'))return T('没有权限');S.sh={t:'ccov',id:v}},cmbg:v=>{const i=v.indexOf('|');if(i<1)return;const id=v.slice(0,i),src=v.slice(i+1),c=cmp(id);if(!c||(c.r!=='所有者'&&c.r!=='管理员'))return T('没有权限');if(!BG.includes(src))return;c.bg=src;T('已换封面')},cmav:v=>{const i=v.indexOf('|');if(i<1)return;const id=v.slice(0,i),src=v.slice(i+1),c=cmp(id);if(!c||(c.r!=='所有者'&&c.r!=='管理员'))return T('没有权限');if(!AVT.includes(src))return;c.cp=src;T('已换社区头像')},dis:v=>{S.sh={t:'dis',id:v}},dis2:v=>{const c=D.cm.find(x=>x.id==v);if(c&&c.r=='所有者'){c.ch.forEach(h=>delete D.cmsg[h[0]]);D.cm=D.cm.filter(x=>x.id!=v);S.st=S.st.filter(p=>p!='cm:'+v);delete S.ch[v];T('社区已解散')}S.sh=null},
 saveedit:()=>{const n=(S.d.en||'').trim(),h=(S.d.eh||'').trim(),b=(S.d.eb||'').trim();if(len(n)<1||len(n)>20)return T('显示名需要 1 到 20 个字');if(!/^[a-z0-9_]{4,15}$/.test(h))return T('账号需要 4 到 15 位小写字母、数字或下划线');if(Object.keys(D.u).some(i=>i!='me'&&D.u[i][1]==h))return T('这个账号已被演示数据使用');if(len(b)>80)return T('简介最多 80 字');const bd=S.d.ebd||'';if(bd&&(isNaN(new Date(bd))||new Date(bd)>new Date()||age(bd)>120))return T('生日不正确');Object.assign(D.pf.me,{g:S.d.eg||'',b:bd,gp:S.d.vgp?1:0,bp:S.d.vbp?1:0,ap:S.d.vap?1:0});const u=D.u.me;u[0]=n;u[1]=h;u[2]=[...n][0];u[4]=b;S.st.pop();T('已保存')},

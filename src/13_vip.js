@@ -90,3 +90,15 @@ const vipOpen=()=>{S.sh=null;S.st.push('vip');loadVip().then(()=>render())};
 const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
 const vipTog=v=>vipToggle(v);
 const vipTheme=v=>{D.st.vt=v==='off'?0:1;T(v==='off'?'已切换为默认主题':'已使用香槟金主题')};
+
+/* 发帖/发言长度（M2.5.4）：登录后用服务端返回的当前额度；演示/离线保持原 Basic 上限（280/500/280），不改现有演示行为。 */
+const BASIC_TEXT={post:280,chat:500,channel:280};
+function textLimit(scope){
+  if(MODE==='account'&&VIP.me&&VIP.me.entitlements&&VIP.me.entitlements.longer_post_text){
+    const v=VIP.me.entitlements.longer_post_text.value;
+    if(v&&typeof v[scope]==='number')return v[scope]}
+  return BASIC_TEXT[scope]||280}
+async function checkText(scope,text){
+  if(MODE!=='account'||!NET||!SESSION){const mx=textLimit(scope);if(!ok(text,mx)){T((scope==='chat'?'消息':scope==='channel'?'发言':'动态')+'最多 '+mx+' 字');return false}return true}
+  const r=await api('POST','/api/content/check',{scope,text});
+  if(r.s!==200){T(errMsg(r,'内容太长'));return false}return true}
