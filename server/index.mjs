@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {openDb} from './db.mjs';
 import {hashPassword, verifyPassword, newToken, tokenHash} from './auth.mjs';
 import {createVip, VipError} from './vip.mjs';
+import {createSaved, PUBLIC_PIN_MAX} from './saved.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -19,6 +20,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const now = () => clock();
   const db = openDb(dbPath);
   const vip = createVip(db, {clock});
+  const saved = createSaved(db, {vip, now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at}; };
   const q = {
@@ -128,7 +130,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const key = String(b.key || '').trim();
       return {ok: true, now: now(), ...vip.requireEntitlement(user, key)};
     },
+    // 个人收藏（M2.5.3）：私有额度，服务端执行；与公共置顶无关。
+    'GET /api/me/saved'(req) { const {user} = auth(req); return saved.list(user); },
+    'POST /api/me/saved'(req, b) { const {user} = auth(req); const r = saved.add(user, b || {}); audit(user.id, 'saved.add', 'saved:' + r.item.id, ip(req), {kind: r.item.kind}); return r; },
+    'POST /api/me/saved/remove'(req, b) { const {user} = auth(req); const r = saved.remove(user, b || {}); audit(user.id, 'saved.remove', 'saved:' + r.removed.id, ip(req)); return r; },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
+
   };
 
   const root = dirname(fileURLToPath(import.meta.url));
@@ -170,7 +177,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip;
+  server.db = db; server.vip = vip; server.saved = saved;
   return server;
 }
 

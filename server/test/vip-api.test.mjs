@@ -32,7 +32,7 @@ test('目录公开可读：套餐、价格占位、权益表、到期规则，�
   assert.match(c.plans.vip.priceNote, /暂定/);
   assert.deepEqual(c.entitlements.map(e => e.key), Object.keys(C.entitlements));
   const saved = c.entitlements.find(e => e.key === 'personal_saved_items_plus');
-  assert.equal(saved.basic, 20); assert.equal(saved.vip, 100); assert.equal(saved.status, 'planned');
+  assert.equal(saved.basic, 20); assert.equal(saved.vip, 100); assert.equal(saved.status, 'live');
   assert.equal(c.expiry.soonDays, 3);
   assert.ok(c.alwaysFree.length >= 4);
   assert.ok(!JSON.stringify(c).includes('testGrantDays'), '不暴露内部测试授予天数');

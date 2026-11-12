@@ -68,7 +68,7 @@ export const VIP_CONFIG = Object.freeze({
       onExpire: '边框和装饰立即消失。',
     }),
     personal_saved_items_plus: Object.freeze({
-      title: '更多个人收藏', kind: 'quota', unit: '条', basic: 20, vip: 100, status: 'planned', phase: 'M2.5.3',
+      title: '更多个人收藏', kind: 'quota', unit: '条', basic: 20, vip: 100, status: 'live', phase: 'M2.5.3',
       description: '只增加你自己的私有收藏额度；群聊、社区的公共置顶不受影响。',
       onExpire: '已收藏的内容保留；超出基础额度后不能新增，可随时取消收藏腾出名额。',
     }),

@@ -168,7 +168,7 @@ cmsg:{ch_read_general:[['chen','1 小时前','今晚只读短句，不读长章�
 cv:[['cv_zhou',0,'周屿',['zhou'],1],['cv_chen',0,'陈晚',['chen'],0],['cv_read',1,'夜读角小组',['chen','su'],2],['cv_su',0,'苏小满',['su'],0],['cv_walk',1,'步行三人',['zhou','he'],0],['cv_he',0,'何川',['he'],0]].map(a=>({id:a[0],g:a[1],n:a[2],mem:a[3],u:a[4],own:a[1]?'me':''})),
 m:{cv_zhou:[['zhou','t','1 小时前','已读','沿河那段，你走了吗？'],['me','t','30 分钟前','已读','走到桥南，没有绕路。'],['zhou','t','12 分钟前','已送达','今晚的路灯那段，我走到了。']],cv_chen:[['chen','t','2 小时前','已读','短句比长章更适合今晚。'],['me','t','1 小时前','已读','那一行我留下了。'],['chen','i','1 小时前','已读','一张虚构的书页，没有真实图片。']],cv_read:[['su','t','昨天','已读','纸页的味道不用打分。'],['chen','t','昨天','已送达','@所有人 明天继续读短句。'],['me','v','昨天','已发送','0:12 的语音条，不能播放。']],cv_su:[['su','t','昨天','已读','三种味道都记下来了。'],['me','t','昨天','已读','车站那段我也很轻地写了。']],cv_walk:[['he','t','2 天前','已读','不剧透，只问路好不好走。'],['zhou','t','2 天前','已读','桥南不用绕。']],cv_he:[['he','t','3 天前','已读','我不剧透，只说门在对话里。'],['me','t','3 天前','已发送','那就停在门口。']]},
 rq:[['rq_jiang','jiang','想把第一条帖子的感受发给你。','昨天'],['rq_pei','pei','不是广告，只是打个招呼。','2 天前'],['rq_notice','notice','公告账号不能私聊，这条用来演示拒绝。','3 天前']].map(a=>({id:a[0],u:a[1],x:a[2],t:a[3],s:'p'}))});
-const up=s=>{s.ver=5;s.pin=s.pin||{};s.pm=s.pm||{};s.pf=s.pf||{me:{g:'',b:'',gp:1,bp:1,ap:1,cv:0}};s.st=s.st||{};s.st.sound=s.st.sound===0?0:1;s.st.haptic=s.st.haptic===0?0:1;s.cm.forEach(c=>{c.mb=c.mb||{}});return s};
+const up=s=>{s.ver=5;s.pin=s.pin||{};s.pm=s.pm||{};s.sv=s.sv||[];s.pf=s.pf||{me:{g:'',b:'',gp:1,bp:1,ap:1,cv:0}};s.st=s.st||{};s.st.sound=s.st.sound===0?0:1;s.st.haptic=s.st.haptic===0?0:1;s.cm.forEach(c=>{c.mb=c.mb||{}});return s};
 let MODE='boot',NET=false,SESSION=null;
 function dataKey(){return MODE==='account'&&SESSION&&SESSION.user?'nova_v5_u_'+SESSION.user.id:'nova_v5'}
 function readRaw(key){try{const raw=key==='nova_v5'?(localStorage.getItem('nova_v5')||localStorage.getItem('nova_v6')||localStorage.getItem('nova_v4')||localStorage.getItem('nova_v3')):localStorage.getItem(key);if(!raw)return null;const s=JSON.parse(raw);if(s&&s.ver>=3)return up(s)}catch(e){}return null}
@@ -186,7 +186,7 @@ function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
 function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
-function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;save();render();loadVip().then(()=>render())}
+function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved()]).then(()=>render())}
 async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
@@ -305,6 +305,49 @@ const vipOpen=()=>{S.sh=null;S.st.push('vip');loadVip().then(()=>render())};
 const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
 const vipTog=v=>vipToggle(v);
 const vipTheme=v=>{D.st.vt=v==='off'?0:1;T(v==='off'?'已切换为默认主题':'已使用香槟金主题')};
+
+/* ===== 14_saved.js ===== */
+/* 个人收藏（M2.5.3）。VIP 只增加你自己的私有收藏额度，不扩大群聊/社区公共置顶。
+   已登录走服务端（额度由服务器按套餐执行）；演示只存在本机，按 Basic 20 条。 */
+function savedLimit(){
+  if(MODE==='account'&&VIP.me&&VIP.me.entitlements&&VIP.me.entitlements.personal_saved_items_plus){
+    const v=VIP.me.entitlements.personal_saved_items_plus.value;if(typeof v==='number')return v}
+  return 20}
+function localSaved(){D.sv=D.sv||[];return D.sv}
+function savedItems(){return MODE==='account'&&S.saved&&S.saved.items?S.saved.items:localSaved()}
+function isSaved(kind,target){return savedItems().some(i=>i.kind===kind&&i.target===target)}
+async function loadSaved(){
+  if(MODE!=='account'||!NET||!SESSION){return}
+  const r=await api('GET','/api/me/saved');
+  if(r.s===200)S.saved={items:r.j.items,count:r.j.count,limit:r.j.limit,plan:r.j.plan}}
+async function saveItem(kind,target,title,excerpt){
+  if(MODE==='account'&&NET&&SESSION){
+    const r=await api('POST','/api/me/saved',{kind,target,title,excerpt});
+    if(r.s!==200){T(errMsg(r,'收藏失败'));return false}
+    if(!S.saved)S.saved={items:[],count:0,limit:savedLimit()};
+    if(!r.j.existed){S.saved.items.unshift(r.j.item);S.saved.count=r.j.count;S.saved.limit=r.j.limit}
+    T(r.j.existed?'已在收藏中':'已收藏');return true}
+  const a=localSaved();
+  if(a.some(i=>i.kind===kind&&i.target===target)){T('已在收藏中');return true}
+  if(a.length>=savedLimit()){T('个人收藏已达 '+savedLimit()+' 条上限。这是私人收藏，与公共置顶无关。');return false}
+  a.unshift({id:'s'+Date.now(),kind,target,title:title||'',excerpt:excerpt||'',createdAt:Date.now()});T('已收藏');return true}
+async function unsaveItem(kind,target,id){
+  if(MODE==='account'&&NET&&SESSION){
+    const r=await api('POST','/api/me/saved/remove',id?{id}:{kind,target});
+    if(r.s!==200){T(errMsg(r,'取消收藏失败'));return}
+    if(S.saved){S.saved.items=S.saved.items.filter(i=>i.id!==r.j.removed.id);S.saved.count=r.j.count}
+    T('已取消收藏');return}
+  D.sv=localSaved().filter(i=>id!=null&&id!==''?String(i.id)!==String(id):!(i.kind===kind&&i.target===target));T('已取消收藏')}
+function savp(v){const p=D.p.find(x=>x.id==v);S.sh=null;if(!p)return;if(isSaved('post',v))return unsaveItem('post',v);return saveItem('post',v,P(p.a).n,p.x)}
+function savm(v){const[k,cid,id]=v.split('|'),m=msgs(k,cid).find(x=>mid(k,x)==id);S.sh=null;if(!m)return;const tgt=cid+':'+id;if(isSaved('message',tgt))return unsaveItem('message',tgt);return saveItem('message',tgt,P(m[0]).n,String(mtext(k,m)||'').slice(0,80))}
+function unsav(v){const it=savedItems().find(i=>String(i.id)===String(v));if(it)return unsaveItem(it.kind,it.target,it.id);const i=String(v).indexOf('|');if(i<0)return;return unsaveItem(v.slice(0,i),v.slice(i+1))}
+const savedOpen=()=>{S.sh=null;S.st.push('saved');return MODE==='account'?loadSaved():Promise.resolve()};
+function pSaved(){
+  const lim=MODE==='account'&&S.saved&&typeof S.saved.limit==='number'?S.saved.limit:savedLimit(),items=savedItems(),n=items.length;
+  const rows=n?items.map(i=>`<div class="row" ${i.kind==='post'?'data-a="post" data-v="'+esc(i.target)+'"':''}><div class="gr"><b>${esc(i.title||i.target)}</b><small>${esc(i.excerpt||'')}</small></div><button class="pb sm s" data-a="unsav" data-v="${esc(String(i.id))}">取消收藏</button></div>`).join(''):'<p class="em" data-sv="empty">还没有收藏。帖子或消息的菜单里可以收藏，只你自己看得到。</p>';
+  const who=MODE==='account'?(S.saved&&S.saved.plan==='vip'?'NOVA VIP 额度':'Basic 额度'):'演示额度';
+  return `<div class="pg" id="savedp">${sub('我的收藏')}<div class="sc"><p class="hint" style="padding:12px 16px 0" data-svq="${n}/${lim}">${esc(who)}：${n} / ${lim} 条。这是你的私人收藏，不会出现在群聊或社区的公共置顶里。</p>${rows}</div></div>`}
+const savedRow=()=>`<button class="row" style="width:100%;text-align:left" data-a="saved" id="svrow"><div class="gr"><b>我的收藏</b><small>私人收藏，最多 ${savedLimit()} 条</small></div><small>›</small></button>`;
 
 /* ===== 15_perm.js ===== */
 /* NOVA V5 权限表（纯逻辑，无界面依赖，可在 node 里单测）。
@@ -436,9 +479,9 @@ return `<div class="pg">${sub('成员')}<div class="sc"><p style="padding:12px 1
 const INF={privacy:['隐私','主页公开范围还没接到服务器。邮箱在设置里默认打码。不要在演示聊天里写真实的隐私。'],security:['安全','密码在服务器上是加盐哈希，管理员也看不到原文。退出登录会使这台设备的令牌失效。私聊端到端加密还没接入。'],help:['帮助','这是给自己和朋友用的版本。登录后刷新仍会保持登录；「先用演示看看」和真实账号的内容分开存在这台设备。'],about:['关于','NOVA\n真实账号已接入（注册、登录、退出）。\n动态、社区和聊天内容仍在这台设备，按账号分开保存。\n图片视频、好友、私聊端到端加密在后面的步骤做。']};
 const pSet=()=>{const t=D.st.theme,r=D.st.rm,s=D.st.sound!==0,h=D.st.haptic!==0,acct=MODE==='account'&&SESSION&&SESSION.user,held=MODE==='demo'&&SESSION&&SESSION.user;
 const who=NET?(acct?`<div class="row"><div class="gr"><b>真实账号</b><small>@${esc(SESSION.user.username)} · ${esc(maskEmail(SESSION.user.email))}${SESSION.user.vip?' · VIP':''}</small></div><button class="pb sm" data-a="logout">退出</button></div><div class="row"><div class="gr"><b>切换到演示数据</b><small>和这个账号的本地内容分开保存，不会互相覆盖</small></div><button class="pb sm s" data-a="todemo">切换</button></div>`:`<div class="row"><div class="gr"><b>${held?'演示数据（登录还在）':'演示数据'}</b><small>${held?'@'+esc(SESSION.user.username)+' 还登录着，可以回去':'未登录。内容只存在这台设备'}</small></div><button class="pb sm" data-a="toacct">${held?'回到账号':'登录'}</button></div>`):`<div class="row"><div class="gr"><b>当前是离线演示</b><small>没有连上服务器，所以不能登录。数据只在这台设备。</small></div></div>`;
-return `<div class="pg">${sub('设置')}<div class="sc">${who}${vipRow()}<div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button></div></div><div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div>${['privacy','security','help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>NOVA</b><small style="display:block;margin-top:5px">${acct?'已登录真实账号。动态、社区和聊天仍在这台设备。':'演示数据只在这台设备。'}图片、视频、好友和私聊加密还没做。</small></div></div></div>`};
+return `<div class="pg">${sub('设置')}<div class="sc">${who}${vipRow()}${savedRow()}<div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button></div></div><div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div>${['privacy','security','help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>NOVA</b><small style="display:block;margin-top:5px">${acct?'已登录真实账号。动态、社区和聊天仍在这台设备。':'演示数据只在这台设备。'}图片、视频、好友和私聊加密还没做。</small></div></div></div>`};
 const pInfo=k=>`<div class="pg">${sub(INF[k][0])}<div class="sc"><p style="padding:16px;white-space:pre-line">${INF[k][1]}</p></div></div>`;
-const page=cur=>{const[t,a,b]=cur.split(':');return t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='vip'?pVip():t=='set'?pSet():pInfo(a)};
+const page=cur=>{const[t,a,b]=cur.split(':');return t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='vip'?pVip():t=='saved'?pSaved():t=='set'?pSet():pInfo(a)};
 
 /* ===== 50_sheets.js ===== */
 const srch=q=>{q=q.trim().toLowerCase();if(!q)return '<p class="em">搜索帖子、用户和社区</p>';
@@ -446,7 +489,7 @@ const U=Object.keys(D.u).filter(i=>(P(i).n+P(i).h).toLowerCase().includes(q)),Po
 return U.length+Po.length+C.length?U.map(i=>`<div class="row" style="padding:8px 0" data-a="user" data-v="${i}">${av(i,40)}<div class="gr"><b>${esc(P(i).n)}</b><small>@${P(i).h}</small></div></div>`).join('')+C.map(c=>`<div class="row" style="padding:8px 0" data-a="cm" data-v="${c.id}">${cmface(c,40)}<div class="gr"><b>${esc(c.n)}</b><small>社区 · ${esc(c.d)}</small></div></div>`).join('')+Po.map(p=>`<div class="row" style="padding:8px 0" data-a="post" data-v="${p.id}">${av(p.a,40)}<div class="gr"><b>${esc(P(p.a).n)}</b><small>${esc(p.x)}</small></div></div>`).join(''):'<p class="em">没有匹配结果</p>'};
 const sheet=()=>{const s=S.sh;if(!s)return '';let h='';
 if(s.t=='rx')h=`<h3>表态</h3><div class="rxs">${E.map((e,i)=>`<button data-a="rxp" data-v="${s.id}|${i}" aria-label="${e}">${e}</button>`).join('')}</div>`;
-if(s.t=='more'){const p=D.p.find(x=>x.id==s.id);h=`<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="report">举报（仅演示）</button>${p&&p.a=='me'?`<button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
+if(s.t=='more'){const p=D.p.find(x=>x.id==s.id);h=`<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="savp" data-v="${s.id}">${isSaved('post',s.id)?'取消收藏':'收藏（仅自己可见）'}</button><button class="mi" data-a="report">举报（仅演示）</button>${p&&p.a=='me'?`<button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
 if(s.t=='compose')h='<h3>发帖</h3><textarea class="fld" data-d="pin" data-max="280" data-af rows="5" placeholder="写点什么"></textarea><div class="fr"><span class="cn" data-cnt="pin"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pub" data-for="pin" disabled>发布</button></div>';
 if(s.t=='search')h=`<input class="fld" id="sq" data-af placeholder="搜索" value="${esc(S.sq)}"><div id="sr">${srch(S.sq)}</div>`;
 if(s.t=='notif')h='<h3>通知</h3>'+(D.n.length?D.n.map(n=>swrow(`data-a="nr" data-v="${n.id}"`,`<i class="${n.u?'':'z'}"></i><span class="gr"><b>${esc(n.x)}</b><small>${n.t}</small></span>`,[['nrtog',n.u?'标为已读':'标为未读','#2D88FF',n.id],['nrdel','删除','#D4655A',n.id]],'nr')).join(''):'<p class="em">没有通知</p>')+'<p class="lab" style="padding-top:8px">提示：通知可以左滑</p>';
@@ -469,7 +512,7 @@ if(s.t=='chmgr'){const c=cmp(s.id);h=`<h3>管理频道</h3>${c.ch.map((x,i)=>`<d
 if(s.t=='chren')h=`<h3>频道改名</h3><input class="fld" data-d="chn" data-af placeholder="频道名（1–12 字）"><div class="fr"><button class="pb s" data-a="chmgr" data-v="${s.cm}">返回</button><button class="pb" data-a="chren2" data-v="${s.cm}|${s.ch}">保存</button></div>`;
 if(s.t=='rmch'){const c=cmp(s.cm),x=c.ch.find(y=>y[0]==s.ch);h=`<h3>删除频道「${esc(x?x[1]:'')}」？</h3><p style="color:var(--t2);margin-bottom:8px">频道里的消息也会被删除，无法恢复。</p><div class="fr"><button class="pb s" data-a="chmgr" data-v="${s.cm}">取消</button><button class="pb d" data-a="rmch2" data-v="${s.cm}|${s.ch}">删除</button></div>`}
 if(s.t=='msg'){const[k,cid,id]=[s.k,s.cid,s.id],m=msgs(k,cid).find(x=>mid(k,x)==id);if(!m){h='<p class="em">消息不存在</p>'}else{const pn=(D.pm[cid]||[]).includes(id),own=m[0]=='me',del=own||msgPerm(k,cid,'delMsg');
- h=`<button class="mi" data-a="mcopy" data-v="${k}|${cid}|${id}">复制文字</button>${msgPerm(k,cid,'pinMsg')?`<button class="mi" data-a="${pn?'unpinm':'pinm'}" data-v="${k}|${cid}|${id}">${pn?'取消置顶':'置顶这条消息'}</button>`:''}${del?`<button class="mi dg" data-a="delmsg" data-v="${k}|${cid}|${id}">删除这条消息</button>`:''}`}}
+ h=`<button class="mi" data-a="mcopy" data-v="${k}|${cid}|${id}">复制文字</button><button class="mi" data-a="savm" data-v="${k}|${cid}|${id}">${isSaved('message',cid+':'+id)?'取消收藏':'收藏（仅自己可见）'}</button>${msgPerm(k,cid,'pinMsg')?`<button class="mi" data-a="${pn?'unpinm':'pinm'}" data-v="${k}|${cid}|${id}">${pn?'取消置顶':'置顶这条消息'}</button>`:''}${del?`<button class="mi dg" data-a="delmsg" data-v="${k}|${cid}|${id}">删除这条消息</button>`:''}`}}
 if(s.t=='ment'){const all=msgPerm(s.k,s.cid,'atAll'),L=s.k=='cv'?(D.cv.find(x=>x.id==s.cid).mem):Object.keys((cmOf(s.cid)||{mb:{}}).mb);
  h=`<h3>提及</h3><button class="nr" data-a="mins" data-v="${s.key}|@所有人"${all?'':' disabled'} style="opacity:${all?1:.45}"><span class="gr"><b>@所有人</b><small>${all?'群里每个人都会看到高亮提醒':'只有群主/管理员能@所有人'}</small></span></button>${L.map(i=>`<button class="nr" data-a="mins" data-v="${s.key}|@${esc(P(i).n)}">${av(i,32)}<span class="gr"><b>${esc(P(i).n)}</b></span></button>`).join('')}`}
 if(s.t=='dis')h=`<h3>解散这个社区？</h3><p style="color:var(--t2);margin-bottom:8px">解散后，频道和消息都会被删除，成员也无法再进入。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="dis2" data-v="${s.id}">确定解散</button></div>`;
@@ -828,7 +871,7 @@ gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.s
 theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
 
 /* ===== 80_events.js ===== */
-Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme});
+Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,saved:savedOpen,savp,savm,unsav});
 document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;const ret=f(el.dataset.v);S.bot=k=='cmsend';if(ret&&typeof ret.then==='function')ret.then(()=>render(),()=>render());else render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t)}else if(t.id=='sq'){S.sq=t.value;$('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&document.getElementById('gate')){const b=document.querySelector('#gate [data-a=authgo]');if(b)b.click();return}if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});

@@ -1,4 +1,4 @@
-# NOVA 后端（M2.5.2）
+# NOVA 后端（M2.5.3）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -20,6 +20,9 @@
 | GET /api/vip/me | 当前用户的 VIP 状态（plan/state/开始/到期/剩余天数）与每项权益取值；服务端按时间计算 |
 | POST /api/vip/test-toggle | 仅 `NOVA_ENV=development`：给自己开/关测试 VIP（`{on:true/false}`）；生产 403 `TEST_MODE_DISABLED`；不改动管理员/支付开通的正式 VIP（409） |
 | POST /api/vip/gate | 检查当前用户是否拥有某项权益（`{key}`）；flag 未开通/到期 403 `ENTITLEMENT_REQUIRED` |
+| GET /api/me/saved | 我的个人收藏列表（含 count / limit / plan） |
+| POST /api/me/saved | 收藏一条（`kind`+`target`）；超额 403 `QUOTA_EXCEEDED`；重复幂等 |
+| POST /api/me/saved/remove | 取消收藏（`id` 或 `kind`+`target`）；不能删别人的 |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
@@ -47,3 +50,7 @@
 ## 资料装饰（M2.5.2，前端）
 - 头像金边、主页装饰只看 `entitlements.profile_decoration.enabled`；VIP 标识只看 `entitlements.vip_badge.enabled`。到期后服务端不再返回有效状态，下一次渲染立即回落。
 - 「别人看到你的标识」要等 M4 把他人资料接到服务器。
+
+## 个人收藏（M2.5.3）
+- 只扩展私人收藏额度，与群聊/社区公共置顶完全分开。公共置顶仍最多 5 条，且按角色授权。
+- 到期后内容保留；若已超过 Basic 的 20 条，需先取消收藏才能再新增。
