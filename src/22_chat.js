@@ -10,7 +10,7 @@ function adoptCv(c){
   const title=g?(c.name||'群聊'):(others[0]?(others[0].displayName||others[0].username):'私聊');
   const adm=(c.members||[]).filter(m=>m.roleKey==='admin'||m.role==='管理员').map(m=>Number(m.id)===Number(me)?'me':String(m.id));
   return {
-    id:c.id,g,n:title,mem:others.map(m=>String(m.id)),u:c.unread||0,
+    id:c.id,g,n:title,mem:others.map(m=>String(m.id)),u:c.unread||0,mute:c.muted?1:0,pin:c.pinned?1:0,lastRead:c.lastReadMessageId||null,
     own:owner?(Number(owner.id)===Number(me)?'me':String(owner.id)):'',
     adm,r:c.myRole||(my&&my.role)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:false
   };
@@ -56,11 +56,18 @@ function adoptMsg(m){
   if(!m)return null;
   rememberAuthor(m.author);
   const me=SESSION&&SESSION.user&&m.author&&Number(SESSION.user.id)===Number(m.author.id);
-  return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?'已发送':'',m.deleted?'（已撤回）':m.text,m.id];
+  return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.deleted?'（已撤回）':m.text,m.id];
 }
 function msgSrc(id){
   if(typeof usingNet==='function'&&usingNet())return (S.messages&&S.messages[id])||[];
   return D.m[id]||[];
+}
+async function markConvRead(id){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION||!id)return;
+  const r=await api('POST','/api/conversations/'+id+'/read',{});
+  if(r.s===200&&Array.isArray(S.conversations)){
+    const c=S.conversations.find(x=>x.id==id);if(c){c.u=r.j.unread||0;c.lastRead=r.j.lastReadMessageId}
+  }
 }
 async function loadMessages(id,cursor){
   if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
