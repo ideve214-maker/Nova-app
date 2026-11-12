@@ -133,6 +133,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     if (!row || row.deleted_at) return null;
     const members = mems.all(row.id).map(m => ({
       ...authorOf(m.user_id), role: ROLE_CN[m.role], roleKey: m.role, joinedAt: m.joined_at,
+      nickname: m.nickname || null,
     }));
     const my = members.find(m => Number(m.id) === Number(me.id));
     const out = {
@@ -144,6 +145,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       members,
       myRole: my ? my.role : '',
       myRoleKey: my ? my.roleKey : '',
+      myNickname: my ? (my.nickname || null) : null,
       createdAt: row.created_at,
     };
     if (listMsg) {
@@ -352,6 +354,27 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return {conversation: pub(byId.get(id), user)};
   }
 
+  const setNick = db.prepare('UPDATE conversation_members SET nickname=? WHERE conversation_id=? AND user_id=?');
+  function setNickname(user, id, body) {
+    const row = requireConv(id);
+    if (row.kind !== 'group') throw new ApiError(400, 'NOT_GROUP', '只有群聊能设置本群昵称');
+    requireMem(row, user);
+    const nick = String((body && body.nickname) || '').trim();
+    if (len(nick) > 20) throw new ApiError(400, 'BAD_NICK', '昵称最多 20 个字');
+    setNick.run(nick || null, id, Number(user.id));
+    return {nickname: nick || null, conversation: pub(byId.get(id), user)};
+  }
+
+  function dissolve(user, id) {
+    const row = requireConv(id);
+    if (row.kind !== 'group') throw new ApiError(400, 'NOT_GROUP', '只有群聊能解散');
+    const m = requireMem(row, user);
+    if (m.role !== 'owner') throw new ApiError(403, 'FORBIDDEN', '只有群主能解散群聊');
+    const t = now();
+    for (const x of mems.all(id)) setLeft.run(t, id, x.user_id);
+    delCv.run(t, id);
+    return {dissolved: id};
+  }
 
   function quoteOf(row) {
     if (!hasReply || !row || !row.reply_to_id) return null;
@@ -836,7 +859,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return mems.all(id).map(m => Number(m.user_id));
   }
   return {
-    create, list, get, addMember, setMemberRole, kick, leave, rename,
+    create, list, get, addMember, setMemberRole, kick, leave, rename, setNickname, dissolve,
     send, listMessages, pubMsg, quoteOf, forward, react, messageOf, getMessageDraft, listMessageDrafts, putMessageDraft, clearMessageDraft, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,

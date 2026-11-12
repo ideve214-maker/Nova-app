@@ -26,7 +26,7 @@ function reportSheet(s){
     const list=(typeof msgSrc==='function'?msgSrc(cid):((S.messages&&S.messages[cid])||[])).slice(-30);
     const ids=S.rpids||[];
     pick=list.length
-      ?`<p class="lab">勾选要提交的消息（不会把整段会话交给管理员）</p>`+list.map(m=>{
+      ?`<p class="lab">${s.targetType==='conversation'&&(typeof cvf==='function'?cvf(s.conversationId||s.targetId):null)&&cvf(s.conversationId||s.targetId).g?'可勾选相关消息（选填，不勾选则举报整个群聊）':'勾选要提交的消息（不会把整段会话交给管理员）'}</p>`+list.map(m=>{
         const mid=m[5], tx=typeof m[4]==='string'?m[4]:'[内容]';
         const on=ids.map(String).includes(String(mid));
         return `<button class="nr" data-a="rptog" data-v="${esc(String(mid))}"><span class="gr"><b>${esc(String(tx).slice(0,80))}</b></span><span>${on?'☑':'☐'}</span></button>`;
@@ -57,14 +57,17 @@ function rpsubmit(){
   if(s.conversationId)body.context={conversationId:s.conversationId};
   if(s.targetType==='message'||s.targetType==='conversation'){
     body.messageIds=S.rpids||[];
-    if(!body.messageIds.length){T('请先勾选要提交的消息');return}
-    body.targetType=body.messageIds.length===1?'message':'conversation';
-    if(!body.targetId)body.targetId=body.messageIds[0];
-    // 加密消息：把本机解密出的明文作为用户提交的副本，服务端不会自己解开密文。
-    const cache=(typeof e2eePlainCache==='function'?e2eePlainCache():S.e2eePlain)||{};
-    const copies={};
-    for(const id of body.messageIds){if(cache[id]!=null&&typeof cache[id]==='string')copies[id]=cache[id]}
-    if(Object.keys(copies).length)body.messageCopies=copies;
+    if(!body.messageIds.length){
+      const cv=typeof cvf==='function'?cvf(s.conversationId||s.targetId):null;
+      if(s.targetType!=='conversation'||!(cv&&cv.g)){T('请先勾选要提交的消息');return}
+    }else{
+      body.targetType=body.messageIds.length===1?'message':'conversation';
+      if(!body.targetId)body.targetId=body.messageIds[0];
+      const cache=(typeof e2eePlainCache==='function'?e2eePlainCache():S.e2eePlain)||{};
+      const copies={};
+      for(const id of body.messageIds){if(cache[id]!=null&&typeof cache[id]==='string')copies[id]=cache[id]}
+      if(Object.keys(copies).length)body.messageCopies=copies;
+    }
   }
   return api('POST','/api/reports',body).then(r=>{
     if(r.s!==200){T(errMsg(r,'提交失败'));return}

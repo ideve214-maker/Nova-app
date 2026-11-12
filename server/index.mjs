@@ -589,6 +589,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return communities.get(user, req.params.id);
     },
+    'POST /api/communities/:id/edit'(req, b) {
+      const {user} = auth(req);
+      const r = communities.update(user, req.params.id, b || {});
+      audit(user.id, 'community.edit', 'community:' + req.params.id, ip(req));
+      return r;
+    },
     'POST /api/communities/:id/apply'(req) {
       const {user} = auth(req);
       return communities.apply(user, req.params.id);
@@ -747,6 +753,18 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       const r = chats.rename(user, req.params.id, b || {});
       audit(user.id, 'chat.rename', 'conversation:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/conversations/:id/nickname'(req, b) {
+      const {user} = auth(req);
+      const r = chats.setNickname(user, req.params.id, b || {});
+      audit(user.id, 'chat.nickname', 'conversation:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/conversations/:id/dissolve'(req, b) {
+      const {user} = auth(req);
+      const r = chats.dissolve(user, req.params.id, b || {});
+      audit(user.id, 'chat.dissolve', 'conversation:' + req.params.id, ip(req));
       return r;
     },
 

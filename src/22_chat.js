@@ -14,7 +14,7 @@ function adoptCv(c){
   return {
     id:c.id,g,n:title,mem:g?memAll:others.map(m=>String(m.id)),memberCount:memCount,members:c.members||[],u:c.unread||0,mute:c.muted?1:0,pin:c.pinned?1:0,lastRead:c.lastReadMessageId||null,
     own:owner?(Number(owner.id)===Number(me)?'me':String(owner.id)):'',
-    adm,r:c.myRole||(my&&my.role)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:c.kind==='dm',peerId:others[0]&&others[0].id,publicPins:c.publicPins||[],personalPins:c.personalPins||[]
+    adm,r:c.myRole||(my&&my.role)||'',myNickname:c.myNickname||(my&&my.nickname)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:c.kind==='dm',peerId:others[0]&&others[0].id,publicPins:c.publicPins||[],personalPins:c.personalPins||[]
   };
 }
 function netCv(){return typeof usingNet==='function'&&usingNet()&&Array.isArray(S.conversations)}

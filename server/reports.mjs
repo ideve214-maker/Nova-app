@@ -161,7 +161,20 @@ export function createReports(db, {now, notifications, profile} = {}) {
       const cvId = String(context.conversationId || (type === 'conversation' ? targetId : '') || '');
       // 私聊：只能提交用户勾选的 messageIds，且必须是自己所在会话里的消息。
       const ids = rawIds.length ? rawIds : (type === 'message' && targetId ? [targetId] : []);
-      if (!ids.length) throw new ApiError(400, 'BAD_MESSAGE_IDS', '私聊举报请勾选要提交的消息');
+      if (!ids.length) {
+        if (type === 'conversation' && cvId) {
+          const cv = cvBy.get(cvId);
+          if (!cv || cv.deleted_at) throw new ApiError(404, 'NOT_FOUND', '找不到会话');
+          // 单聊仍必须勾选消息，避免把整段私聊交给管理员；群聊允许举报整个会话。
+          if (cv.kind === 'group') {
+            if (!memGet.get(cvId, user.id)) throw new ApiError(403, 'FORBIDDEN', '只能举报自己所在的会话');
+            context.conversationId = cvId;
+            if (targetUserId == null) targetUserId = cv.owner_id || null;
+            return {type, targetId: cvId, targetUserId, messageIds: [], context};
+          }
+        }
+        throw new ApiError(400, 'BAD_MESSAGE_IDS', '私聊举报请勾选要提交的消息');
+      }
       let conv = cvId;
       for (const mid of ids) {
         const m = msgBy.get(mid);

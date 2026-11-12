@@ -103,6 +103,17 @@ export function createCommunities(db, {profile, vip, now}) {
     insCh.run(nid('ch'), id, '公告', 'announce', 1, 1, t);
     return {community: pubCm(byId.get(id), user)};
   }
+  const setInfo = db.prepare('UPDATE communities SET name=?, description=? WHERE id=? AND deleted_at IS NULL');
+  function update(user, id, body) {
+    const row = getVisible(user, id);
+    requireMem(row, user, 'editInfo');
+    const name = body && body.name != null ? String(body.name).trim() : row.name;
+    const description = body && body.description != null ? String(body.description).trim() : (row.description || '');
+    if (len(name) < 2 || len(name) > 20) throw new ApiError(400, 'BAD_NAME', '名称需要 2 到 20 个字');
+    if (len(description) > 80) throw new ApiError(400, 'BAD_DESC', '简介最多 80 字');
+    setInfo.run(name, description, id);
+    return {community: pubCm(byId.get(id), user)};
+  }
   function get(user, id) { return {community: pubCm(getVisible(user, id), user, {withMembers: true})}; }
   function list(user, q = {}) {
     if (q.mine === '1' || q.mine === 'true' || q.scope === 'joined') {
@@ -265,7 +276,7 @@ export function createCommunities(db, {profile, vip, now}) {
     return {deleted: id};
   }
   return {
-    create, get, list, join, apply, leave, members, setMemberRole, kick,
+    create, update, get, list, join, apply, leave, members, setMemberRole, kick,
     addChannel, renameChannel, removeChannel, postMessage, listMessages,
     invite, listInvites, revokeInvite, joinByCode, dissolve, getVisible, ROLE_CN, roleOf,
   };
