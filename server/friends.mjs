@@ -9,6 +9,7 @@ export function createFriends(db, {now, profile} = {}) {
   const blkGet = db.prepare('SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?');
   const insBlk = db.prepare('INSERT OR IGNORE INTO blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)');
   const delBlk = db.prepare('DELETE FROM blocks WHERE blocker_id=? AND blocked_id=?');
+  const listBlk = db.prepare('SELECT blocked_id, created_at FROM blocks WHERE blocker_id=? ORDER BY created_at DESC');
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
   const hasReq = (() => { try { db.prepare('SELECT requested_by FROM friendships LIMIT 1').get(); return true; } catch { return false; } })();
   const upsertReq = hasReq ? db.prepare(`INSERT INTO friendships(user_lo,user_hi,status,created_at,updated_at,requested_by) VALUES(?,?,?,?,?,?)
@@ -58,6 +59,15 @@ export function createFriends(db, {now, profile} = {}) {
     if (prev) emit([a, b], 'friend.removed', {userId: b, by: authorOf(a), reason: 'blocked'});
   }
   function unblock(a, b) { delBlk.run(Number(a), Number(b)); }
+  function listBlocked(user) {
+    return {
+      blocks: listBlk.all(Number(user.id)).map(r => ({
+        userId: Number(r.blocked_id),
+        user: authorOf(r.blocked_id),
+        createdAt: r.created_at,
+      })),
+    };
+  }
 
   function requireUser(id) {
     const u = userBy.get(Number(id));
@@ -210,7 +220,7 @@ export function createFriends(db, {now, profile} = {}) {
   }
 
   return {
-    areFriends, setAccepted, remove, isBlocked, block, unblock, enforce: true,
+    areFriends, setAccepted, remove, isBlocked, block, unblock, listBlocked, enforce: true,
     request, accept, decline, cancel, unfriend, list, listRequests, statusWith, attach, pub,
   };
 }

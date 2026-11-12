@@ -212,7 +212,7 @@ function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
 function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
-function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve(),typeof loadFollows==='function'?loadFollows():Promise.resolve(),typeof loadCommunities==='function'?loadCommunities():Promise.resolve(),typeof loadConversations==='function'?loadConversations():Promise.resolve(),typeof loadNotifications==='function'?loadNotifications():Promise.resolve(),typeof loadFriends==='function'?loadFriends():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}if(typeof startEvents==='function')startEvents();render()})}
+function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve(),typeof loadFollows==='function'?loadFollows():Promise.resolve(),typeof loadCommunities==='function'?loadCommunities():Promise.resolve(),typeof loadConversations==='function'?loadConversations():Promise.resolve(),typeof loadNotifications==='function'?loadNotifications():Promise.resolve(),typeof loadFriends==='function'?loadFriends():Promise.resolve(),typeof loadBlocks==='function'?loadBlocks():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}if(typeof startEvents==='function')startEvents();render()})}
 async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(apiUrl(path),{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
@@ -948,6 +948,115 @@ function loadUserCard(id){
   });
 }
 
+/* ===== 25_safety.js ===== */
+/* M4.8 用户端举报与拉黑：登录后走真实接口。私聊只提交用户勾选的消息。 */
+const REPORT_REASONS=[['spam','垃圾广告'],['harassment','骚扰辱骂'],['abuse','人身攻击'],['illegal','违法违规'],['other','其他']];
+
+function loadBlocks(){
+  if(typeof usingNet!=='function'||!usingNet())return Promise.resolve();
+  return api('GET','/api/blocks').then(r=>{
+    S.blocks=(r.s===200&&r.j&&r.j.blocks)?r.j.blocks:[];
+  });
+}
+function isBlockedUser(id){
+  return !!(S.blocks||[]).some(x=>String(x.userId)===String(id));
+}
+
+function reportOpen(opts){
+  S.sh={t:'report',targetType:opts.targetType,targetId:opts.targetId,targetUserId:opts.targetUserId,conversationId:opts.conversationId||null};
+  S.d.rpreason=S.d.rpreason||'spam';
+  S.d.rpdetail=S.d.rpdetail||'';
+  S.rpids=Array.isArray(opts.messageIds)?opts.messageIds.slice():(opts.messageId?[opts.messageId]:[]);
+}
+
+function reportSheet(s){
+  const reasons=REPORT_REASONS.map(([k,l])=>`<button class="pb sm${(S.d.rpreason||'spam')===k?'':' s'}" data-a="rpreason" data-v="${k}">${l}</button>`).join('');
+  let pick='';
+  if(s.targetType==='message'||s.targetType==='conversation'){
+    const cid=s.conversationId||s.targetId;
+    const list=(typeof msgSrc==='function'?msgSrc(cid):((S.messages&&S.messages[cid])||[])).slice(-30);
+    const ids=S.rpids||[];
+    pick=list.length
+      ?`<p class="lab">勾选要提交的消息（不会把整段会话交给管理员）</p>`+list.map(m=>{
+        const mid=m[5], tx=typeof m[4]==='string'?m[4]:'[内容]';
+        const on=ids.map(String).includes(String(mid));
+        return `<button class="nr" data-a="rptog" data-v="${esc(String(mid))}"><span class="gr"><b>${esc(String(tx).slice(0,80))}</b></span><span>${on?'☑':'☐'}</span></button>`;
+      }).join('')
+      :'<p class="em">当前会话还没有可勾选的消息</p>';
+  }
+  return `<h3>举报</h3><p class="lab" style="margin-bottom:8px">选择原因，可附简短说明。提交后进入管理端队列。</p><div class="sw" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">${reasons}</div><textarea class="fld" data-d="rpdetail" data-max="200" rows="3" placeholder="补充说明（选填）"></textarea>${pick}<div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="rpsubmit">提交</button></div>`;
+}
+
+function rpreason(v){S.d.rpreason=v;if(typeof render==='function')render()}
+function rptog(v){
+  S.rpids=S.rpids||[];
+  const i=S.rpids.map(String).indexOf(String(v));
+  if(i>=0)S.rpids.splice(i,1);else S.rpids.push(v);
+  if(typeof render==='function')render();
+}
+function rpsubmit(){
+  const s=S.sh;
+  if(!s||s.t!=='report')return;
+  const reason=S.d.rpreason||'spam';
+  const label=(REPORT_REASONS.find(x=>x[0]===reason)||[reason,reason])[1];
+  const detail=(S.d.rpdetail||'').trim();
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION){
+    S.sh=null;T('已记录（仅演示，不会发送给任何人）');return;
+  }
+  const body={targetType:s.targetType,targetId:s.targetId,reason:label,detail};
+  if(s.targetUserId)body.targetUserId=Number(s.targetUserId);
+  if(s.conversationId)body.context={conversationId:s.conversationId};
+  if(s.targetType==='message'||s.targetType==='conversation'){
+    body.messageIds=S.rpids||[];
+    if(!body.messageIds.length){T('请先勾选要提交的消息');return}
+    body.targetType=body.messageIds.length===1?'message':'conversation';
+    if(!body.targetId)body.targetId=body.messageIds[0];
+  }
+  return api('POST','/api/reports',body).then(r=>{
+    if(r.s!==200){T(errMsg(r,'提交失败'));return}
+    S.sh=null;T('已提交，管理员会处理并通知你');
+  });
+}
+
+function blockUser(v){
+  const id=Number(v);
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION){T('演示模式不能拉黑');return}
+  return api('POST','/api/blocks',{userId:id}).then(r=>{
+    if(r.s!==200){T(errMsg(r,'无法拉黑'));return}
+    T('已拉黑。双方不再是好友，也不能再发私聊。');
+    S.sh=null;
+    return Promise.all([
+      typeof loadBlocks==='function'?loadBlocks():null,
+      typeof loadFriends==='function'?loadFriends():null,
+    ]).then(()=>{if(typeof render==='function')render()});
+  });
+}
+function unblockUser(v){
+  const id=Number(v);
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
+  return api('POST','/api/blocks/remove',{userId:id}).then(r=>{
+    if(r.s!==200){T(errMsg(r,'无法取消拉黑'));return}
+    T('已取消拉黑');
+    S.sh=null;
+    return typeof loadBlocks==='function'?loadBlocks().then(()=>{if(typeof render==='function')render()}):null;
+  });
+}
+function blockAsk(v){S.sh={t:'blockq',id:v}}
+function blockSheet(s){
+  return `<h3>拉黑这个用户？</h3><p style="color:var(--t2);margin-bottom:8px">拉黑后双方不再是好友，也不能再发私聊。此前的聊天记录仍在。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="block2" data-v="${s.id}">拉黑</button></div>`;
+}
+function safetyBtns(id){
+  if(!id||id==='me'||id==='notice')return '';
+  if(typeof usingNet!=='function'||!usingNet())return '';
+  if(SESSION&&SESSION.user&&String(SESSION.user.id)===String(id))return '';
+  const blocked=isBlockedUser(id);
+  const rp=`<button class="pb s" data-a="reportu" data-v="${id}">举报</button>`;
+  const blk=blocked
+    ?`<button class="pb s" data-a="unblock" data-v="${id}">取消拉黑</button>`
+    :`<button class="pb s" data-a="blockq" data-v="${id}">拉黑</button>`;
+  return rp+blk;
+}
+
 /* ===== 30_tabs.js ===== */
 /* ---- tabs ---- */
 const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
@@ -977,7 +1086,7 @@ const prof=id=>{const u=P(id),me=id=='me',n=k=>{if(typeof usingNet==='function'&
 const bio=`<div class="card" style="padding:12px 16px"><b style="font-size:17px">简介</b><p style="margin-top:6px">${esc(u.b)}</p></div>`;
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">编辑</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
 const dec=me&&typeof vipDecoOn==='function'&&vipDecoOn();
-return `<div class="cvr${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="NOVA VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>'+(MODE==='account'?'<button class="pb s" data-a="vip">会员中心</button>':''):`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${typeof friendBtns==='function'?friendBtns(id):''}${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
+return `<div class="cvr${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="NOVA VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>'+(MODE==='account'?'<button class="pb s" data-a="vip">会员中心</button>':''):`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${typeof friendBtns==='function'?friendBtns(id):''}${typeof safetyBtns==='function'?safetyBtns(id):''}${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
 const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
 
 /* ===== 40_pages.js ===== */
@@ -1028,7 +1137,7 @@ const U=Object.keys(D.u).filter(i=>(P(i).n+P(i).h).toLowerCase().includes(q)),Po
 return U.length+Po.length+C.length?U.map(i=>`<div class="row" style="padding:8px 0" data-a="user" data-v="${i}">${av(i,40)}<div class="gr"><b>${esc(P(i).n)}</b><small>@${P(i).h}</small></div></div>`).join('')+C.map(c=>`<div class="row" style="padding:8px 0" data-a="cm" data-v="${c.id}">${cmface(c,40)}<div class="gr"><b>${esc(c.n)}</b><small>社区 · ${esc(c.d)}</small></div></div>`).join('')+Po.map(p=>`<div class="row" style="padding:8px 0" data-a="post" data-v="${p.id}">${av(p.a,40)}<div class="gr"><b>${esc(P(p.a).n)}</b><small>${esc(p.x)}</small></div></div>`).join(''):'<p class="em">没有匹配结果</p>'};
 const sheet=()=>{const s=S.sh;if(!s)return '';let h='';
 if(s.t=='rx')h=`<h3>表态</h3><div class="rxs">${E.map((e,i)=>`<button data-a="rxp" data-v="${s.id}|${i}" aria-label="${e}">${e}</button>`).join('')}</div>`;
-if(s.t=='more'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);h=`<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="savp" data-v="${s.id}">${isSaved('post',s.id)?'取消收藏':'收藏（仅自己可见）'}</button><button class="mi" data-a="report">举报（仅演示）</button>${p&&p.a=='me'?`<button class="mi" data-a="edp" data-v="${s.id}">编辑</button><button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
+if(s.t=='more'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);h=`<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="savp" data-v="${s.id}">${isSaved('post',s.id)?'取消收藏':'收藏（仅自己可见）'}</button><button class="mi" data-a="reportp" data-v="${s.id}">举报</button>${p&&p.a=='me'?`<button class="mi" data-a="edp" data-v="${s.id}">编辑</button><button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
 if(s.t=='edp'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);S.d.ep=p?p.x:'';h=`<h3>编辑动态</h3><textarea class="fld" data-d="ep" data-max="${textLimit('post')}" data-af rows="5"></textarea><div class="fr"><span class="cn" data-cnt="ep"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="savep" data-v="${s.id}" data-for="ep">保存</button></div>`}
 if(s.t=='compose')h=`<h3>发帖</h3><textarea class="fld" data-d="pin" data-max="${textLimit('post')}" data-af rows="5" placeholder="写点什么"></textarea><div class="fr"><span class="cn" data-cnt="pin"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pub" data-for="pin" disabled>发布</button></div>`;
 if(s.t=='search')h=`<input class="fld" id="sq" data-af placeholder="搜索" value="${esc(S.sq)}"><div id="sr">${srch(S.sq)}</div>`;
@@ -1036,7 +1145,7 @@ if(s.t=='notif')h='<h3>通知</h3>'+((typeof nSrc==='function'?nSrc():D.n).lengt
 if(s.t=='leave')h=`<h3>退出这个社区？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="leave2" data-v="${s.id}">确定</button></div>`;
 if(s.t=='resetq')h='<h3>重置当前数据？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="reset">确定</button></div>';
 if(s.t=='newcm')h='<h3>创建社区</h3><span class="lab">名称（2–20 字）</span><input class="fld" data-d="cn" data-af><span class="lab">简介（最多 80 字，可空）</span><input class="fld" data-d="cd"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="mkcm">创建</button></div>';
-if(s.t=='cvm'){const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==s.id);h=`<h3>${esc(c.n)}</h3><button class="mi" data-a="cvpin" data-v="${c.id}">${c.pin?'取消置顶':'置顶'}</button><button class="mi" data-a="cvmute" data-v="${c.id}">${c.mute?'取消静音':'静音'}</button><button class="mi" data-a="cvhide" data-v="${c.id}">隐藏会话</button>${c.g?`<button class="mi" data-a="ginfo" data-v="${c.id}">群聊信息</button>`:`<button class="mi dg" data-a="cvdel" data-v="${c.id}">删除会话</button>`}`}
+if(s.t=='cvm'){const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==s.id);h=`<h3>${esc(c.n)}</h3><button class="mi" data-a="cvpin" data-v="${c.id}">${c.pin?'取消置顶':'置顶'}</button><button class="mi" data-a="cvmute" data-v="${c.id}">${c.mute?'取消静音':'静音'}</button><button class="mi" data-a="cvhide" data-v="${c.id}">隐藏会话</button>${c.g?`<button class="mi" data-a="ginfo" data-v="${c.id}">群聊信息</button>`:`<button class="mi dg" data-a="cvdel" data-v="${c.id}">删除会话</button>`}<button class="mi" data-a="reportcv" data-v="${c.id}">举报会话</button>`}
 if(s.t=='cvdel')h=`<h3>删除这个会话？</h3><p style="color:var(--t2);margin-bottom:8px">消息记录会被清除，只影响你这一侧。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="cvdel2" data-v="${s.id}">删除</button></div>`;
 if(s.t=='grn')h=`<h3>修改群名</h3><input class="fld" data-d="gn" data-af placeholder="群名（1–20 字）"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="grn2" data-v="${s.id}">保存</button></div>`;
 if(s.t=='gav')h=`<h3>群头像</h3><p class="lab">选一张样板，或从相册、文件上传后再裁成圆形。</p>${lookPicks([PH.group,...AVT],'gset',s.id)}${filePick('gav',s.id,'从相册或文件选择')}<div class="fr"><button class="pb" data-a="x">完成</button></div>`;
@@ -1052,13 +1161,15 @@ if(s.t=='chmgr'){const c=cmp(s.id);h=`<h3>管理频道</h3>${c.ch.map((x,i)=>`<d
 if(s.t=='chren')h=`<h3>频道改名</h3><input class="fld" data-d="chn" data-af placeholder="频道名（1–12 字）"><div class="fr"><button class="pb s" data-a="chmgr" data-v="${s.cm}">返回</button><button class="pb" data-a="chren2" data-v="${s.cm}|${s.ch}">保存</button></div>`;
 if(s.t=='rmch'){const c=cmp(s.cm),x=c.ch.find(y=>y[0]==s.ch);h=`<h3>删除频道「${esc(x?x[1]:'')}」？</h3><p style="color:var(--t2);margin-bottom:8px">频道里的消息也会被删除，无法恢复。</p><div class="fr"><button class="pb s" data-a="chmgr" data-v="${s.cm}">取消</button><button class="pb d" data-a="rmch2" data-v="${s.cm}|${s.ch}">删除</button></div>`}
 if(s.t=='msg'){const[k,cid,id]=[s.k,s.cid,s.id],m=msgs(k,cid).find(x=>mid(k,x)==id);if(!m){h='<p class="em">消息不存在</p>'}else{const pn=(D.pm[cid]||[]).includes(id),own=m[0]=='me',del=own||msgPerm(k,cid,'delMsg');
- h=`<button class="mi" data-a="mcopy" data-v="${k}|${cid}|${id}">复制文字</button><button class="mi" data-a="savm" data-v="${k}|${cid}|${id}">${isSaved('message',cid+':'+id)?'取消收藏':'收藏（仅自己可见）'}</button>${msgPerm(k,cid,'pinMsg')?`<button class="mi" data-a="${pn?'unpinm':'pinm'}" data-v="${k}|${cid}|${id}">${pn?'取消置顶':'置顶这条消息'}</button>`:''}${del?`<button class="mi dg" data-a="delmsg" data-v="${k}|${cid}|${id}">删除这条消息</button>`:''}`}}
+ h=`<button class="mi" data-a="mcopy" data-v="${k}|${cid}|${id}">复制文字</button><button class="mi" data-a="savm" data-v="${k}|${cid}|${id}">${isSaved('message',cid+':'+id)?'取消收藏':'收藏（仅自己可见）'}</button>${msgPerm(k,cid,'pinMsg')?`<button class="mi" data-a="${pn?'unpinm':'pinm'}" data-v="${k}|${cid}|${id}">${pn?'取消置顶':'置顶这条消息'}</button>`:''}${del?`<button class="mi dg" data-a="delmsg" data-v="${k}|${cid}|${id}">删除这条消息</button>`:''}<button class="mi" data-a="reportm" data-v="${k}|${cid}|${id}">举报这条消息</button>`}}
 if(s.t=='ment'){const all=msgPerm(s.k,s.cid,'atAll'),L=s.k=='cv'?((typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==s.cid).mem):Object.keys((cmOf(s.cid)||{mb:{}}).mb);
  h=`<h3>提及</h3><button class="nr" data-a="mins" data-v="${s.key}|@所有人"${all?'':' disabled'} style="opacity:${all?1:.45}"><span class="gr"><b>@所有人</b><small>${all?'群里每个人都会看到高亮提醒':'只有群主/管理员能@所有人'}</small></span></button>${L.map(i=>`<button class="nr" data-a="mins" data-v="${s.key}|@${esc(P(i).n)}">${av(i,32)}<span class="gr"><b>${esc(P(i).n)}</b></span></button>`).join('')}`}
 if(s.t=='stk'){const packs=stkPacks();h=`<h3>表情贴纸</h3>`+packs.map(pk=>`<div class="shd" data-pack="${esc(pk.id)}">${esc(pk.title)}${pk.premium?' <span class="tag">VIP</span>':''}</div>`+(pk.premium&&!pk.usable?`<p class="stklok" data-stk-lock="${esc(pk.id)}">开通 NOVA VIP 后可使用。已发出的贴纸所有人都能看见，免费用户可以继续用常用表情交流。</p>`:'')+`<div class="stkgrid" data-pack="${esc(pk.id)}">${pk.items.map(it=>`<button ${pk.premium&&!pk.usable?'disabled':'data-a="stkuse" data-v="'+pk.id+'|'+it.id+'"'} aria-label="${esc(it.name)}" title="${esc(it.name)}">${it.glyph}</button>`).join('')}</div>`).join('')+`<p class="lab">已发出的贴纸所有人可见。专属包内容为原创 Unicode 白名单。</p>`}
 if(s.t=='revothers')h=`<h3>退出其他设备？</h3><p style="color:var(--t2);margin-bottom:8px">其他设备的登录将立即失效，当前这台设备保持登录。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="revothers">退出其他设备</button></div>`;
 if(s.t=='cminv'){const invs=S.d.cminvs||[];h=`<h3>邀请码</h3>${invs.length?invs.map(i=>`<div class="nr"><span class="gr"><b>${esc(i.code)}</b><small>${i.revoked?'已撤销':(i.uses||0)+'/'+(i.maxUses||'∞')+' 次'}${i.expiresAt?' · 到期 '+new Date(i.expiresAt).toLocaleDateString():''}</small></span>${i.revoked?'':`<button class="pb sm d" data-a="rvinv" data-v="${s.id}|${i.id}">撤销</button>`}</div>`).join(''):'<p class="em">还没有邀请码</p>'}<div class="fr"><button class="pb s" data-a="x">关闭</button><button class="pb" data-a="mkinv" data-v="${s.id}">生成邀请码</button></div>`}
 if(s.t=='dis')h=`<h3>解散这个社区？</h3><p style="color:var(--t2);margin-bottom:8px">解散后，频道和消息都会被删除，成员也无法再进入。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="dis2" data-v="${s.id}">确定解散</button></div>`;
+if(s.t=='report'&&typeof reportSheet==='function')h=reportSheet(s);
+if(s.t=='blockq'&&typeof blockSheet==='function')h=blockSheet(s);
 return `<div class="ov" data-a="x"></div><div class="pn" role="dialog">${h}</div>`};
 
 /* ===== 60_render.js ===== */
@@ -1413,7 +1524,7 @@ gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.s
 theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
 
 /* ===== 80_events.js ===== */
-Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,retryconnect,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen});
+Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,retryconnect,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen,rpreason,rptog,rpsubmit,reportp:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'post',targetId:v})},reportu:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'user',targetId:v,targetUserId:v})},reportcv:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'conversation',targetId:v,conversationId:v})},reportm:v=>{const p=String(v).split('|');const cid=p[1],mid=p[2];if(typeof reportOpen==='function')reportOpen({targetType:'message',targetId:mid,conversationId:cid,messageIds:[mid]})},blockq:blockAsk,block2:blockUser,unblock:unblockUser});
 document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;const ret=f(el.dataset.v);S.bot=k=='cmsend';if(ret&&typeof ret.then==='function')ret.then(()=>render(),()=>render());else render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t)}else if(t.id=='sq'){S.sq=t.value;if(typeof usingNet==='function'&&usingNet()&&typeof loadSearch==='function'){loadSearch(t.value).then(()=>{const el=$('#sr');if(el)el.innerHTML=srch(S.sq)})}else $('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&document.getElementById('gate')){const b=document.querySelector('#gate [data-a=authgo]');if(b)b.click();return}if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});

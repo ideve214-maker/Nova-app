@@ -684,6 +684,39 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return search.search(user, req.query || {});
     },
+    'POST /api/blocks'(req, b) {
+      const {user} = auth(req);
+      const id = Number((b || {}).userId || (b || {}).id);
+      if (!Number.isInteger(id)) throw bad('BAD_USER', '请指定用户', 400);
+      if (id === Number(user.id)) throw bad('BAD_USER', '不能拉黑自己', 400);
+      const u = q.userBy.get(id);
+      if (!u || (u.status && u.status !== 'active' && u.status !== 'banned')) throw bad('NOT_FOUND', '用户不存在', 404);
+      if (u.status === 'deleted') throw bad('NOT_FOUND', '用户不存在', 404);
+      friends.block(user.id, id);
+      audit(user.id, 'block.add', 'user:' + id, ip(req));
+      return {blocked: true, userId: id};
+    },
+    'POST /api/blocks/remove'(req, b) {
+      const {user} = auth(req);
+      const id = Number((b || {}).userId || (b || {}).id);
+      if (!Number.isInteger(id)) throw bad('BAD_USER', '请指定用户', 400);
+      friends.unblock(user.id, id);
+      audit(user.id, 'block.remove', 'user:' + id, ip(req));
+      return {blocked: false, userId: id};
+    },
+    'POST /api/blocks/unblock'(req, b) {
+      const {user} = auth(req);
+      const id = Number((b || {}).userId || (b || {}).id);
+      if (!Number.isInteger(id)) throw bad('BAD_USER', '请指定用户', 400);
+      friends.unblock(user.id, id);
+      audit(user.id, 'block.remove', 'user:' + id, ip(req));
+      return {blocked: false, userId: id};
+    },
+    'GET /api/blocks'(req) {
+      const {user} = auth(req);
+      return friends.listBlocked(user);
+    },
+
     'POST /api/reports'(req, b) {
       const {user} = auth(req);
       const r = reports.submit(user, b || {});

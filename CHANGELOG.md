@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.8 · 用户端举报与拉黑（2026-11-12）
+- 动态、用户主页、会话和单条消息均可举报；登录后提交到 `POST /api/reports`，进入管理端队列。私聊只提交用户勾选的消息。
+- 公开拉黑接口：`POST /api/blocks`、`POST /api/blocks/remove`（别名 `/unblock`）、`GET /api/blocks`。拉黑同时解除好友并阻断私聊，历史保留。用户主页有「举报」「拉黑」。
+- 演示模式仍只在本机提示，不会发到服务器。
+
 ## V7 M3.5 · 平台管理员与举报队列（2026-11-12）
 - **管理员鉴权：** 与普通用户分表、分令牌。`POST /api/admin/auth/login`（接受 `username` / `account`）、`GET /api/admin/me`、`POST /api/admin/auth/logout`。全部 `/api/admin/*` 需管理员 Bearer；普通用户令牌 403。
 - **创建第一个管理员（无内置默认密码）：**

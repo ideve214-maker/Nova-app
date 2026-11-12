@@ -161,6 +161,9 @@ NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost NOVA_ENV=production npm
 | POST `/api/admin/auth/login` | 管理员登录（`username` 或 `account` + `password`），返回 `token`（`na_` 前缀）与 `admin` |
 | GET `/api/admin/me` | 当前管理员（需管理员 Bearer） |
 | POST `/api/admin/auth/logout` | 注销当前管理员令牌 |
+| POST `/api/blocks` | 拉黑（同时解除好友） |
+| POST `/api/blocks/remove` | 取消拉黑（`/api/blocks/unblock` 同义） |
+| GET `/api/blocks` | 我拉黑的人 |
 | POST `/api/reports` | 用户提交举报（需用户登录）；私聊须勾选 `messageIds` |
 | GET `/api/admin/reports` | 举报队列（`status`、`targetType`、`cursor`） |
 | GET `/api/admin/reports/:id` | 详情；私聊只返回勾选消息；访问写审计 |
