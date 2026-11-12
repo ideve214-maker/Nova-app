@@ -15,6 +15,7 @@ import {createPolls} from './polls.mjs';
 import {createHashtags} from './hashtags.mjs';
 import {createSchedule} from './schedule.mjs';
 import {createBlockwords} from './blockwords.mjs';
+import {createPresence} from './presence.mjs';
 import {createComments} from './comments.mjs';
 import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
@@ -100,7 +101,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     }
   };
   const blockwords = createBlockwords(db, {now});
+  const presence = createPresence(db, {now, friends, events, chats: null});
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
+  presence.attach({chats, events, friends});
   posts.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
   comments.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
   hashtags.attach({blockwords});
@@ -637,6 +640,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       });
       res.write(': ok\n\n');
       events.subscribe(user, res, {lastId});
+      presence.onConnect(user);
     },
 
     'POST /api/conversations/:id/read'(req, b) {
@@ -1031,6 +1035,29 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       };
     },
 
+    'GET /api/me/presence'(req) {
+      const {user} = auth(req);
+      return {presence: presence.mine(user)};
+    },
+    'PUT /api/me/presence'(req, b) {
+      const {user} = auth(req);
+      return {presence: presence.save(user, b || {})};
+    },
+    'POST /api/me/presence/ping'(req) {
+      const {user} = auth(req);
+      return {presence: presence.ping(user)};
+    },
+    'GET /api/users/:id/presence'(req) {
+      const {user} = auth(req);
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) throw bad('BAD_USER', '请指定用户', 400);
+      if (!q.userBy.get(id)) throw bad('NOT_FOUND', '用户不存在', 404);
+      return {presence: presence.viewFor(user, id)};
+    },
+    'POST /api/conversations/:id/typing'(req, b) {
+      const {user} = auth(req);
+      return presence.typing(user, req.params.id, b || {});
+    },
     'GET /api/me/blockwords'(req) {
       const {user} = auth(req);
       return blockwords.listPersonal(user);
@@ -1288,7 +1315,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

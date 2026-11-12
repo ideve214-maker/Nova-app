@@ -815,12 +815,16 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return {message: pubMsg(msgById.get(sent.message.id), user)};
   }
 
+  function memberIds(id) {
+    requireConv(id);
+    return mems.all(id).map(m => Number(m.user_id));
+  }
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
     send, listMessages, pubMsg, quoteOf, forward, react, messageOf, getMessageDraft, listMessageDrafts, putMessageDraft, clearMessageDraft, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
-    requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,
+    requireConv, requireMem, memberIds, activeMem, authorOf, checkDmGate, pub,
     ROLE_CN, ROLES, NEED, MAX_GROUP,
     // 供测试与后续步骤使用
     _byId: byId, _mems: mems,

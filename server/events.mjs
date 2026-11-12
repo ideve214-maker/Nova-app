@@ -27,6 +27,17 @@ export function createEvents(db, {now, maxPerUser = 4, heartbeatMs = 15000} = {}
     }
   }
 
+  function publishLive(userIds, type, payload) {
+    // 仅推给当前在线连接，不写入 chat_events，因此重连不会重放。
+    const ids = [...new Set((userIds || []).map(Number).filter(n => Number.isInteger(n) && n > 0))];
+    const obj = typeof payload === 'string' ? (() => { try { return JSON.parse(payload); } catch { return {raw: payload}; } })() : payload;
+    for (const uid of ids) {
+      const set = clients.get(uid);
+      if (!set) continue;
+      for (const c of set) write(c.res, 'live', type, obj);
+    }
+  }
+
   function connectionCount(user) {
     const set = clients.get(Number(user.id));
     return set ? set.size : 0;
@@ -75,5 +86,5 @@ export function createEvents(db, {now, maxPerUser = 4, heartbeatMs = 15000} = {}
     clients.clear();
   }
 
-  return {publish, subscribe, closeAll, clients, maxPerUser, heartbeatMs, connectionCount, assertCanSubscribe};
+  return {publish, publishLive, subscribe, closeAll, clients, maxPerUser, heartbeatMs, connectionCount, assertCanSubscribe};
 }
