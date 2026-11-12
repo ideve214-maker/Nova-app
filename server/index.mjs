@@ -589,7 +589,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return communities.get(user, req.params.id);
     },
-    'POST /api/communities/:id/join'(req, b) {
+    'POST /api/communities/:id/apply'(req) {
+      const {user} = auth(req);
+      return communities.apply(user, req.params.id);
+    },
+        'POST /api/communities/:id/join'(req, b) {
       const {user} = auth(req);
       const r = communities.join(user, req.params.id, b || {});
       audit(user.id, 'community.join', 'community:' + req.params.id, ip(req));

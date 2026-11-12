@@ -22,4 +22,4 @@ function readRaw(key){try{const raw=key==='nova_v5'?(localStorage.getItem('nova_
 function load(){const d=readRaw(dataKey());if(d)return d;const n=up(D0());n.pm={cv_read:['cv_read_1'],ch_read_ann:['ch_read_ann_0']};if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)n.st.rm=1;return n}
 let D=up(D0());
 function save(){if(MODE==='boot'||MODE==='gate'||MODE==='offline')return;try{localStorage.setItem(dataKey(),JSON.stringify(D))}catch(e){}}
-const S={pi:{},tab:'home',feed:'rec',st:[],sh:null,reply:null,cs:'j',cseg:'in',ch:{},d:{},cq:'',sq:'',xq:'',gp:[],auth:{pane:'login',err:'',busy:0}};
+const S={pi:{},tab:'home',feed:'rec',st:[],sh:null,reply:null,cs:'d',cseg:'in',ch:{},d:{},cq:'',sq:'',xq:'',gp:[],auth:{pane:'login',err:'',busy:0}};

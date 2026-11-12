@@ -263,4 +263,27 @@ html.has-safe-area .ios-sb{display:none}
 
 .mrcard{background:var(--sf);border-bottom:8px solid var(--bg)}
 .mrcard .gr b{font-size:15px}
+
+/* 社区双列卡片 */
+.ggrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 12px 20px}
+.gcard{background:var(--s2);border-radius:var(--r-lg,18px);overflow:hidden;display:flex;flex-direction:column;text-align:left;min-width:0}
+.gcover{height:110px;background:var(--s3) center/cover no-repeat}
+.gbody{padding:8px 10px 10px;display:flex;flex-direction:column;gap:4px;flex:1}
+.gbody b{font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.gbody small{font-size:11px;color:var(--t2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gbody .pb{width:100%;margin-top:6px;height:var(--btn-h-sm,32px);font-size:13px}
+/* 好友请求卡片 */
+.freq{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--sf);border-bottom:.5px solid var(--ln)}
+.freq .acts{display:flex;gap:6px;flex:none}
+/* 个人主页：封面 + 左侧重叠头像 */
+.cvr.tall{height:180px;position:relative}
+.pf.ovl{text-align:left;padding:0 16px 16px;position:relative;background:var(--sf)}
+.avw.ovl{position:relative;width:88px;height:88px;margin:-44px 0 8px;border-radius:50%;border:4px solid var(--sf);background:var(--sf);display:grid;place-items:center}
+.pf.ovl h2{font-size:22px;margin:0}
+.pf.ovl .handle{color:var(--t2);font-size:14px}
+.pf.ovl .bio{margin:6px 0 10px;font-size:14px;color:var(--tx)}
+.pf.ovl .sts{justify-content:flex-start;gap:12px;margin-bottom:12px}
+.pf.ovl .fr{justify-content:stretch}
+.panel-sheet .mi{height:48px}
+
 </style></head><body>

@@ -71,6 +71,7 @@ export function createCommunities(db, {profile, vip, now}) {
     const channels = (joined || row.visibility === 'public') ? chs.all(row.id).map(pubCh) : [];
     const out = {
       id: row.id, name: row.name, description: row.description, visibility: row.visibility,
+      joinStatus: (m && m.status === 'active') ? 'joined' : (m && m.status === 'pending') ? 'pending' : 'none',
       owner: authorOf(row.owner_id), memberCount: nMem.get(row.id).n,
       joined, banned, role: joined ? ROLE_CN[m.role] : '', roleKey: joined ? m.role : '',
       channels, createdAt: row.created_at,
@@ -124,6 +125,17 @@ export function createCommunities(db, {profile, vip, now}) {
     }
     insMem.run(id, user.id, 'member', 'active', now());
     return {community: pubCm(byId.get(id), user), already: false};
+  }
+  function apply(user, id) {
+    const row = byId.get(id);
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+    const m = mem.get(id, user.id);
+    if (m && m.status === 'banned') throw new ApiError(403, 'BANNED', '你已被这个社区封禁');
+    if (m && m.status === 'active') return {community: pubCm(row, user), already: true, pending: false};
+    if (row.visibility !== 'private') return join(user, id);
+    if (m && m.status === 'pending') return {community: pubCm(row, user), already: true, pending: true};
+    insMem.run(id, user.id, 'member', 'pending', now());
+    return {community: pubCm(byId.get(id), user), already: false, pending: true};
   }
   function leave(user, id) {
     const row = getVisible(user, id);
@@ -253,7 +265,7 @@ export function createCommunities(db, {profile, vip, now}) {
     return {deleted: id};
   }
   return {
-    create, get, list, join, leave, members, setMemberRole, kick,
+    create, get, list, join, apply, leave, members, setMemberRole, kick,
     addChannel, renameChannel, removeChannel, postMessage, listMessages,
     invite, listInvites, revokeInvite, joinByCode, dissolve, getVisible, ROLE_CN, roleOf,
   };
