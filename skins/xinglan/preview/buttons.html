@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>星澜 Xinglan · 按键样式表</title>
+<style>
+/* ============================================================
+   NOVA 用户端主题提案 v1  ·  星澜 Xinglan
+   夜色靛紫，星光微澜。深色为默认；浅色与 VIP 香槟金为变体。
+   本文件是设计令牌源。已同步写入副本 src/00_head.html。
+   ============================================================ */
+
+:root {
+  /* —— 表面 —— */
+  --cv: #06070D;          /* 窗外画布，比应用底更深的墨色 */
+  --bg: #0A0C14;          /* 应用底：带蓝的夜空黑 */
+  --sf: #131622;          /* 顶栏、卡片、底栏 */
+  --s2: #1B1F2E;          /* 输入、次级块、未选按钮 */
+  --s3: #252A3C;          /* 悬停抬升 */
+
+  /* —— 文字 —— */
+  --tx: #F4F6FC;          /* 主文字 */
+  --t2: #9AA3B8;          /* 次要 */
+  --t3: #6B7388;          /* 弱提示、占位 */
+
+  /* —— 线条 —— */
+  --ln: #2A3044;
+  --ln2: rgba(255, 255, 255, 0.06);
+
+  /* —— 品牌主色（长春花靛紫） —— */
+  --ac: #6E8BFF;
+  --ac-hover: #8BA3FF;
+  --ac-pressed: #5A75EE;
+  --ac-soft: rgba(110, 139, 255, 0.16);
+  --ac-grad: linear-gradient(180deg, #8BA3FF 0%, #6E8BFF 48%, #5B74F2 100%);
+  --onac: #FFFFFF;
+
+  /* —— 语义 —— */
+  --dg: #E5726A;          /* 危险 / 未读 */
+  --dg-hover: #F0857E;
+  --dg-pressed: #D45A52;
+  --dg-soft: rgba(229, 114, 106, 0.16);
+  --dg-grad: linear-gradient(180deg, #F0857E 0%, #E5726A 55%, #D45A52 100%);
+  --ok: #4ECDC4;          /* 成功 / 在线，极光青绿 */
+  --warn: #E8A03A;        /* 警告 / 静音左滑 */
+  --vip: #D4B06A;         /* 香槟金 */
+  --vip-grad: linear-gradient(135deg, #F0D9A0 0%, #D4B06A 55%, #C49A50 100%);
+  --onvip: #1A1408;
+
+  /* —— 圆角 —— */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+  --r-btn: 14px;          /* 主/次按钮：圆角方，不再用全胶囊 */
+
+  /* —— 阴影 —— */
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --sh-md: 0 8px 28px rgba(0, 0, 0, 0.40);
+  --sh-sheet: 0 -8px 32px rgba(0, 0, 0, 0.45);
+  --sh-btn: 0 4px 14px rgba(110, 139, 255, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --sh-dg: 0 4px 14px rgba(229, 114, 106, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+
+  /* —— 动效 —— */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 0.18s;
+
+  /* —— 字体 —— */
+  --font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+  --tracking-brand: 0.06em;
+  --tracking-btn: 0.02em;
+
+  color-scheme: dark;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* —— 浅色 —— */
+:root[data-theme="light"] {
+  --cv: #E6E8F2;
+  --bg: #F3F4F9;
+  --sf: #FFFFFF;
+  --s2: #EEEFF5;
+  --s3: #E3E5EF;
+  --tx: #13151C;
+  --t2: #5C6478;
+  --t3: #8B91A3;
+  --ln: #E0E3EC;
+  --ln2: rgba(19, 21, 28, 0.06);
+  --ac: #4F6EF7;
+  --ac-hover: #6B86FF;
+  --ac-pressed: #3D58E0;
+  --ac-soft: rgba(79, 110, 247, 0.12);
+  --ac-grad: linear-gradient(180deg, #6B86FF 0%, #4F6EF7 50%, #3D58E0 100%);
+  --onac: #FFFFFF;
+  --dg: #C44840;
+  --dg-hover: #D45A52;
+  --dg-pressed: #A83A34;
+  --dg-soft: rgba(196, 72, 64, 0.12);
+  --dg-grad: linear-gradient(180deg, #D45A52 0%, #C44840 55%, #A83A34 100%);
+  --ok: #1FA89F;
+  --warn: #C4841A;
+  --vip: #8B6E32;
+  --vip-grad: linear-gradient(135deg, #E8D190 0%, #C4A056 55%, #8B6E32 100%);
+  --onvip: #1A1408;
+  --sh-sm: 0 1px 2px rgba(16, 20, 40, 0.06);
+  --sh-md: 0 8px 24px rgba(16, 20, 40, 0.08);
+  --sh-sheet: 0 -8px 32px rgba(16, 20, 40, 0.10);
+  --sh-btn: 0 4px 14px rgba(79, 110, 247, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  --sh-dg: 0 4px 14px rgba(196, 72, 64, 0.22);
+  color-scheme: light;
+}
+
+/* —— VIP 香槟金（仅服务端确认有效时由脚本写 data-vip=gold） —— */
+:root[data-theme="dark"][data-vip="gold"],
+:root[data-theme="dark"] .gpv.g {
+  --ac: #E2C07A;
+  --ac-hover: #F0D9A0;
+  --ac-pressed: #C4A056;
+  --ac-soft: rgba(226, 192, 122, 0.16);
+  --ac-grad: linear-gradient(180deg, #F0D9A0 0%, #E2C07A 48%, #C4A056 100%);
+  --onac: #1A1408;
+  --vip: #E2C07A;
+  --ln: #3A3426;
+  --sh-btn: 0 4px 14px rgba(226, 192, 122, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+:root[data-theme="light"][data-vip="gold"],
+:root[data-theme="light"] .gpv.g {
+  --ac: #8B6E32;
+  --ac-hover: #A68540;
+  --ac-pressed: #6E5424;
+  --ac-soft: rgba(139, 110, 50, 0.14);
+  --ac-grad: linear-gradient(180deg, #A68540 0%, #8B6E32 50%, #6E5424 100%);
+  --onac: #FFFFFF;
+  --vip: #8B6E32;
+  --ln: #E4DFD3;
+  --sh-btn: 0 4px 14px rgba(139, 110, 50, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* 会员中心「默认」预览卡：强制回到非金主色 */
+:root[data-theme="dark"] .gpv.n {
+  --ac: #6E8BFF;
+  --ac-hover: #8BA3FF;
+  --ac-pressed: #5A75EE;
+  --ac-soft: rgba(110, 139, 255, 0.16);
+  --ac-grad: linear-gradient(180deg, #8BA3FF 0%, #6E8BFF 48%, #5B74F2 100%);
+  --onac: #FFFFFF;
+  --vip: #D4B06A;
+  --ln: #2A3044;
+}
+:root[data-theme="light"] .gpv.n {
+  --ac: #4F6EF7;
+  --ac-hover: #6B86FF;
+  --ac-pressed: #3D58E0;
+  --ac-soft: rgba(79, 110, 247, 0.12);
+  --ac-grad: linear-gradient(180deg, #6B86FF 0%, #4F6EF7 50%, #3D58E0 100%);
+  --onac: #FFFFFF;
+  --vip: #8B6E32;
+  --ln: #E0E3EC;
+}
+
+/* —— 按钮状态约定（实现见 00_head.html 组件样式） ——
+   主按钮  .pb        默认：ac-grad + sh-btn
+                      悬停：ac-hover 提亮
+                      按下：scale(.97) + ac-pressed，阴影收起
+                      禁用：opacity .4，无阴影
+   次按钮  .pb.s      默认：s2 底 + ln 边
+                      悬停：s3
+                      按下：scale(.97)
+                      禁用：opacity .4
+   幽灵    .lk / .pb.g 默认：透明，ac 文字
+                      悬停：ac-soft 底
+                      按下：ac-soft 加深
+                      禁用：opacity .4
+   危险    .pb.d      默认：dg-grad + sh-dg
+                      悬停：dg-hover
+                      按下：dg-pressed + scale(.97)
+                      禁用：opacity .4
+   图标    .ib        默认：透明圆角方
+                      悬停：ac-soft，图标变 ac
+                      按下：scale(.9)
+                      禁用：opacity .4
+*/
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font:var(--font);background:#08090F;color:var(--tx);
+  -webkit-font-smoothing:antialiased;
+  padding:36px 40px 48px;
+}
+.board{max-width:1100px;margin:0 auto}
+.hero{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;gap:24px}
+.hero h1{
+  font-size:36px;font-weight:800;letter-spacing:.08em;
+  background:linear-gradient(135deg, var(--ac-hover) 0%, var(--ac) 52%, var(--ac-pressed) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+}
+.hero .sub{color:var(--t2);font-size:14px;margin-top:6px;letter-spacing:.02em;max-width:520px;line-height:1.55}
+.badge{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ac);background:var(--ac-soft);padding:5px 10px;border-radius:999px}
+
+section{margin-bottom:32px}
+section>h2{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:12px}
+
+/* palette */
+.swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:10px}
+.sw{border-radius:14px;overflow:hidden;border:1px solid var(--ln);background:var(--sf)}
+.sw .chip{height:56px}
+.sw figcaption{padding:8px 8px 10px;font-size:11px;line-height:1.35}
+.sw .name{color:var(--tx);font-weight:700;display:block}
+.sw .hex{color:var(--t3);font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+/* buttons */
+.grid{display:grid;grid-template-columns:140px repeat(4,1fr);gap:10px 12px;align-items:center}
+.grid .hd{font-size:12px;color:var(--t3);font-weight:600;text-align:center}
+.grid .lab{font-size:13px;font-weight:700;color:var(--t2)}
+.cell{display:flex;justify-content:center;align-items:center;min-height:64px;background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:10px}
+
+.pb{
+  height:44px;padding:0 20px;border-radius:14px;
+  background:var(--ac-grad);color:var(--onac);font-weight:700;
+  letter-spacing:.02em;box-shadow:var(--sh-btn);border:0;font:inherit;cursor:default;
+  white-space:nowrap;
+}
+.pb.s{background:var(--s2);color:var(--tx);box-shadow:none;border:1px solid var(--ln)}
+.pb.d{background:var(--dg-grad);box-shadow:var(--sh-dg)}
+.pb.g{background:transparent;color:var(--ac);box-shadow:none;border:1px solid color-mix(in srgb, var(--ac) 45%, transparent)}
+.pb.sm{height:36px;padding:0 14px;font-size:14px}
+.pb.is-hover{filter:brightness(1.08)}
+.pb.s.is-hover{background:var(--s3);filter:none}
+.pb.g.is-hover{background:var(--ac-soft)}
+.pb.is-pressed{transform:scale(.97);box-shadow:none;filter:brightness(.95)}
+.pb.s.is-pressed{background:var(--s3);filter:none}
+.pb.is-disabled,.pb:disabled{opacity:.4;box-shadow:none;filter:none}
+
+.ib{
+  width:44px;height:44px;display:grid;place-items:center;
+  border-radius:12px;color:var(--t2);background:transparent;border:0;
+}
+.ib svg{width:24px;height:24px;fill:currentColor}
+.ib.is-hover{background:var(--ac-soft);color:var(--ac)}
+.ib.is-pressed{transform:scale(.9);background:var(--s2)}
+.ib.is-disabled{opacity:.4}
+
+/* extras */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:16px 18px}
+.panel h3{font-size:14px;font-weight:700;margin-bottom:12px}
+.demo{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+nav.demo-nav{
+  display:flex;height:60px;background:var(--sf);border:1px solid var(--ln);
+  border-radius:16px;overflow:hidden;width:100%;
+}
+nav.demo-nav button{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;font-size:11px;letter-spacing:.04em;color:var(--t3);position:relative;background:none;border:0;font:inherit;color:var(--t3);
+}
+nav.demo-nav button{font-size:11px;letter-spacing:.04em}
+nav.demo-nav button.on{color:var(--ac);font-weight:700}
+nav.demo-nav svg{width:22px;height:22px;fill:currentColor;z-index:1;position:relative}
+nav.demo-nav button.on::before{
+  content:"";position:absolute;top:5px;left:50%;transform:translateX(-50%);
+  width:52px;height:28px;border-radius:14px;background:var(--ac-soft);
+}
+
+.seg{display:flex;background:var(--sf);border:1px solid var(--ln);border-radius:14px;overflow:hidden;width:100%}
+.seg button{flex:1;height:44px;font-weight:600;color:var(--t2);position:relative;background:none;border:0;font:inherit}
+.seg .on{color:var(--ac)}
+.seg .on:after{content:"";position:absolute;left:30%;right:30%;bottom:6px;height:2.5px;border-radius:999px;background:var(--ac);box-shadow:0 0 8px color-mix(in srgb, var(--ac) 55%, transparent)}
+
+.swa-demo{display:flex;height:56px;border-radius:12px;overflow:hidden}
+.swa-demo button{width:80px;color:#fff;font-weight:600;font-size:14px;border:0}
+
+.vip{display:inline-block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.4px;line-height:1;padding:3px 7px;border-radius:7px;background:var(--vip-grad);color:var(--onvip);vertical-align:2px}
+.fld{height:44px;background:var(--s2);border-radius:14px;padding:0 14px;border:1px solid transparent;color:var(--tx);width:200px;font:inherit}
+.fld:focus,.fld.is-focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-soft);outline:0}
+.tag{font-size:12px;padding:3px 8px;border-radius:10px;background:var(--s2);color:var(--t2);border:1px solid var(--ln)}
+.chs button{height:36px;padding:0 14px;border-radius:999px;background:var(--s2);color:var(--t2);font-weight:600;font-size:14px;border:1px solid transparent}
+.chs .on{background:var(--ac-grad);color:var(--onac);box-shadow:var(--sh-btn)}
+
+.bub{padding:9px 13px;border-radius:18px 18px 18px 6px;background:var(--s2);max-width:220px;font-size:14px}
+.bub.me{background:var(--ac-grad);color:var(--onac);border-radius:18px 18px 6px 18px;box-shadow:0 2px 8px color-mix(in srgb, var(--ac) 28%, transparent)}
+
+.foot{margin-top:8px;color:var(--t3);font-size:12px;letter-spacing:.02em}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="hero">
+    <div>
+      <div class="badge">NOVA · Theme v1</div>
+      <h1>星澜 Xinglan</h1>
+      <p class="sub">夜色靛紫，星光微澜。主色长春花蓝 #6E8BFF，按钮 14px 圆角方，带淡淡光晕。下面是全部按键种类与四种状态，供你先看主题。</p>
+    </div>
+    <div style="text-align:right;color:var(--t3);font-size:12px;line-height:1.6">深色为默认<br>浅色与香槟金为变体<br>提案仅此一套</div>
+  </div>
+
+  <section>
+    <h2>调色板 Palette</h2>
+    <div class="swatches">
+      <figure class="sw"><div class="chip" style="background:#06070D"></div><figcaption><span class="name">画布 cv</span><span class="hex">#06070D</span></figcaption></figure>
+      <figure class="sw"><div class="chip" style="background:#0A0C14"></div><figcaption><span class="name">应用底 bg</span><span class="hex">#0A0C14</span></figcaption></figure>
+      <figure class="sw"><div class="chip" style="background:#131622"></div><figcaption><span class="name">表面 sf</span><span class="hex">#131622</span></figcaption></figure>
+      <figure class="sw"><div class="chip" style="background:#1B1F2E"></div><figcaption><span class="name">次级 s2</span><span class="hex">#1B1F2E</span></figcaption></figure>
+      <figure class="sw"><div class="chip" style="background:#6E8BFF"></div><figcaption><span class="name">主色 ac</span><span class="hex">#6E8BFF</span></figcaption></figure>
+      <figure class="sw"><div class="chip" style="background:#E5726A"></div><figcaption><span class="name">危险 dg</span><span class="hex">#E5726A</span></figcaption></figure>
+      <figure class="sw"><div class="chip" style="background:#4ECDC4"></div><figcaption><span class="name">成功 ok</span><span class="hex">#4ECDC4</span></figcaption></figure>
+      <figure class="sw"><div class="chip" style="background:#D4B06A"></div><figcaption><span class="name">VIP 金</span><span class="hex">#D4B06A</span></figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>按键种类 × 状态</h2>
+    <div class="grid">
+      <div></div>
+      <div class="hd">默认 Default</div>
+      <div class="hd">悬停 Hover</div>
+      <div class="hd">按下 Pressed</div>
+      <div class="hd">禁用 Disabled</div>
+
+      <div class="lab">主按钮 Primary</div>
+      <div class="cell"><button class="pb">开通会员</button></div>
+      <div class="cell"><button class="pb is-hover">开通会员</button></div>
+      <div class="cell"><button class="pb is-pressed">开通会员</button></div>
+      <div class="cell"><button class="pb is-disabled">开通会员</button></div>
+
+      <div class="lab">次按钮 Secondary</div>
+      <div class="cell"><button class="pb s">取消</button></div>
+      <div class="cell"><button class="pb s is-hover">取消</button></div>
+      <div class="cell"><button class="pb s is-pressed">取消</button></div>
+      <div class="cell"><button class="pb s is-disabled">取消</button></div>
+
+      <div class="lab">幽灵 Ghost</div>
+      <div class="cell"><button class="pb g">去注册</button></div>
+      <div class="cell"><button class="pb g is-hover">去注册</button></div>
+      <div class="cell"><button class="pb g is-pressed">去注册</button></div>
+      <div class="cell"><button class="pb g is-disabled">去注册</button></div>
+
+      <div class="lab">危险 Danger</div>
+      <div class="cell"><button class="pb d">删除会话</button></div>
+      <div class="cell"><button class="pb d is-hover">删除会话</button></div>
+      <div class="cell"><button class="pb d is-pressed">删除会话</button></div>
+      <div class="cell"><button class="pb d is-disabled">删除会话</button></div>
+
+      <div class="lab">小尺寸 Small</div>
+      <div class="cell"><button class="pb sm">接受</button></div>
+      <div class="cell"><button class="pb sm s">拒绝</button></div>
+      <div class="cell"><button class="pb sm d">拉黑</button></div>
+      <div class="cell"><button class="pb sm s is-disabled">已加入</button></div>
+
+      <div class="lab">图标 Icon</div>
+      <div class="cell"><button class="ib" aria-label="搜索">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button></div>
+      <div class="cell"><button class="ib is-hover" aria-label="搜索">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button></div>
+      <div class="cell"><button class="ib is-pressed" aria-label="搜索">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button></div>
+      <div class="cell"><button class="ib is-disabled" aria-label="搜索">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button></div>
+    </div>
+  </section>
+
+  <div class="row2">
+    <section>
+      <h2>底栏与分段</h2>
+      <div class="panel">
+        <h3>底部导航 · 选中胶囊</h3>
+        <nav class="demo-nav">
+          <button class="on">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>首页
+          </button>
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>社区
+          </button>
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>聊天
+          </button>
+          <button>
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>我的
+          </button>
+        </nav>
+        <h3 style="margin-top:16px">分段 Segment</h3>
+        <div class="seg">
+          <button class="on">关注</button>
+          <button>推荐</button>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>其它控件</h2>
+      <div class="panel">
+        <h3>左滑操作</h3>
+        <div class="swa-demo">
+          <button style="background:#6E8BFF">置顶</button>
+          <button style="background:#E8A03A">静音</button>
+          <button style="background:#6B7388">隐藏</button>
+          <button style="background:#E5726A">删除</button>
+        </div>
+        <h3 style="margin-top:16px">频道芯片 · 输入 · 徽标 · 气泡</h3>
+        <div class="demo chs">
+          <button class="on"># 大厅</button>
+          <button>📢 公告</button>
+          <span class="tag">群聊</span>
+          <i class="vip">VIP</i>
+          <input class="fld is-focus" value="输入消息" readonly>
+        </div>
+        <div class="demo" style="margin-top:14px">
+          <div class="bub">沿河的路灯坏了两盏，步道反而更好走。</div>
+          <div class="bub me">那就先折在这里。</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="foot">星澜 Xinglan · 主题提案 v1 · 圆角按钮 14px · 主色 #6E8BFF · VIP #D4B06A · 原仓库未改动</p>
+</div>
+</body>
+</html>

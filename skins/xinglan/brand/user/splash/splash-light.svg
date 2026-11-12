@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1170 2532" width="1170" height="2532" role="img" aria-label="NOVA 启动屏">
+  <title>NOVA 启动屏 · 星澜 · light</title>
+  <defs>
+    <linearGradient id="sul-bg" x1="585" y1="0" x2="585" y2="2532" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E6E8F2"/>
+      <stop offset=".45" stop-color="#F3F4F9"/>
+      <stop offset="1" stop-color="#E6E8F2"/>
+    </linearGradient>
+    <radialGradient id="sul-glow" cx="50%" cy="38%" r="50%">
+      <stop offset="0" stop-color="#6E8BFF" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#6E8BFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1170" height="2532" fill="url(#sul-bg)"/>
+  <rect width="1170" height="2532" fill="url(#sul-glow)"/>
+  <circle cx="778.1" cy="1448.1" r="0.97" fill="#4F6EF7" opacity="0.56"/>
+<circle cx="469.0" cy="1817.5" r="0.76" fill="#4F6EF7" opacity="0.34"/>
+<circle cx="324.6" cy="533.9" r="0.79" fill="#4F6EF7" opacity="0.41"/>
+<circle cx="157.3" cy="647.3" r="0.78" fill="#4F6EF7" opacity="0.59"/>
+<circle cx="259.8" cy="203.4" r="0.68" fill="#4F6EF7" opacity="0.58"/>
+<circle cx="463.5" cy="1358.4" r="1.22" fill="#4F6EF7" opacity="0.50"/>
+<circle cx="148.3" cy="1348.9" r="1.18" fill="#4F6EF7" opacity="0.49"/>
+<circle cx="757.5" cy="601.2" r="1.32" fill="#4F6EF7" opacity="0.75"/>
+<circle cx="903.2" cy="1742.7" r="0.71" fill="#4F6EF7" opacity="0.58"/>
+<circle cx="837.2" cy="1477.0" r="0.85" fill="#4F6EF7" opacity="0.33"/>
+<circle cx="722.7" cy="262.4" r="1.13" fill="#4F6EF7" opacity="0.25"/>
+<circle cx="535.4" cy="916.2" r="0.61" fill="#4F6EF7" opacity="0.54"/>
+  <g transform="translate(585 1000) scale(9.6) translate(-32 -30)">
+    <g id="sul-mark" fill-rule="evenodd">
+  <defs>
+    <linearGradient id="sul-star" x1="32" y1="2" x2="32" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0F3FF"/>
+      <stop offset=".35" stop-color="#C5D0FF"/>
+      <stop offset=".75" stop-color="#8BA3FF"/>
+      <stop offset="1" stop-color="#5B74F2"/>
+    </linearGradient>
+    <linearGradient id="sul-wave" x1="6" y1="48" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ECDC4"/>
+      <stop offset=".5" stop-color="#6E8BFF"/>
+      <stop offset="1" stop-color="#A8BAFF"/>
+    </linearGradient>
+  </defs>
+  <!-- main 4-point nova -->
+  <path fill="url(#sul-star)" d="M32 2.8
+    C33.35 16.4 36.1 22.7 48.2 25.15
+    C36.1 27.6 33.35 33.9 32 47.5
+    C30.65 33.9 27.9 27.6 15.8 25.15
+    C27.9 22.7 30.65 16.4 32 2.8Z"/>
+  <!-- diagonal inner spark, forming an 8-point nova -->
+  <path fill="url(#sul-star)" opacity=".92" transform="rotate(45 32 25.15)" d="M32 12.2
+    C32.7 18.5 34.4 21.7 41.2 23.15
+    C34.4 24.6 32.7 27.8 32 34.1
+    C31.3 27.8 29.6 24.6 22.8 23.15
+    C29.6 21.7 31.3 18.5 32 12.2Z"/>
+  <!-- star dust -->
+  <circle cx="11.5" cy="12.5" r="1.2" fill="#A8BAFF" opacity=".9"/>
+  <circle cx="53" cy="11" r=".85" fill="#F0F3FF" opacity=".95"/>
+  <circle cx="54.5" cy="21.5" r="1.05" fill="#6E8BFF" opacity=".8"/>
+  <circle cx="9.5" cy="23" r=".7" fill="#4ECDC4" opacity=".75"/>
+  <!-- double tide -->
+  <path fill="none" stroke="url(#sul-wave)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+        d="M7.5 48.2c6.8-5.6 13-5.6 19.6 0s13 5.6 19.6 0 10.2-5.3 11.3-5"/>
+  <path fill="none" stroke="url(#sul-wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55"
+        d="M11.5 55.4c5.7-4.3 11.4-4.3 17.1 0s11.4 4.3 17.1 0 8.6-4.1 9.6-3.9"/>
+</g>
+  </g>
+  <g transform="translate(403.83 1460.00) scale(0.110000 -0.110000)"><path fill="#13151C" d="M91 0H232V297C232 382 219 475 213 555H218L293 396L506 0H657V741H517V445C517 361 529 263 537 186H532L457 346L242 741H91Z" transform="translate(0 0)"/><path fill="#13151C" d="M385 -14C581 -14 716 133 716 374C716 614 581 754 385 754C189 754 54 614 54 374C54 133 189 -14 385 -14ZM385 114C275 114 206 216 206 374C206 532 275 627 385 627C495 627 565 532 565 374C565 216 495 114 385 114Z" transform="translate(889.0 0)"/><path fill="#13151C" d="M221 0H398L624 741H474L378 380C355 298 339 224 315 141H310C287 224 271 298 248 380L151 741H-5Z" transform="translate(1799.0 0)"/><path fill="#13151C" d="M-4 0H146L198 190H437L489 0H645L408 741H233ZM230 305 252 386C274 463 295 547 315 628H319C341 549 361 463 384 386L406 305Z" transform="translate(2558.0 0)"/></g>
+  <g transform="translate(478.30 1536.00) scale(0.028000 -0.028000)"><path fill="#5C6478" d="M274 586H718V532H274ZM274 723H718V671H274ZM156 814V441H203C166 363 103 286 36 236C65 220 114 183 137 162C167 189 199 224 229 262H442V201H183V107H442V39H59V-64H944V39H566V107H835V201H566V262H880V362H566V423H442V362H296C307 380 316 399 325 417L242 441H842V814Z" transform="translate(0 0)"/><path fill="#5C6478" d="M290 784C340 740 399 678 426 637L510 702C482 745 420 803 369 843ZM496 389C507 354 518 310 523 281L570 295C566 324 554 367 542 401ZM72 747C123 709 187 654 216 617L290 693C259 729 192 780 142 815ZM25 484C79 450 150 398 183 364L251 446C215 479 143 527 89 557ZM48 7 148 -51C187 44 229 160 262 264L173 323C136 209 85 84 48 7ZM422 485V201H516C476 154 426 109 380 83C400 67 428 37 441 16C482 45 527 90 565 139V-29H658V140C702 103 745 63 769 33L825 94C799 124 752 165 706 201H793V485H662V531H799V610H662V669H567V610H417V531H567V485ZM276 626V-87H380V626ZM533 806V706H834V28C834 13 829 9 815 8C800 8 752 7 707 10C721 -15 734 -60 738 -86C811 -86 859 -85 892 -68C924 -52 934 -24 934 28V806ZM488 416H576V270H488ZM679 402C673 372 658 326 647 296L687 282C698 308 710 343 723 378V270H647V416H723V387Z" transform="translate(1180.0 0)"/></g>
+  <g transform="translate(559.16 1534.00) scale(0.022000 -0.022000)"><path fill="#5C6478" d="M15 0H171L250 164C268 202 285 241 304 286H308C329 241 348 202 366 164L449 0H613L405 375L600 741H444L374 587C358 553 342 517 324 471H320C298 517 283 553 265 587L191 741H26L222 381Z" transform="translate(0 0)"/><path fill="#5C6478" d="M91 0H239V741H91Z" transform="translate(907.0 0)"/><path fill="#5C6478" d="M91 0H232V297C232 382 219 475 213 555H218L293 396L506 0H657V741H517V445C517 361 529 263 537 186H532L457 346L242 741H91Z" transform="translate(1517.0 0)"/><path fill="#5C6478" d="M409 -14C511 -14 599 25 650 75V409H386V288H517V142C497 124 460 114 425 114C279 114 206 211 206 372C206 531 290 627 414 627C480 627 522 600 559 565L638 659C590 708 516 754 409 754C212 754 54 611 54 367C54 120 208 -14 409 -14Z" transform="translate(2546.0 0)"/><path fill="#5C6478" d="M91 0H540V124H239V741H91Z" transform="translate(3543.0 0)"/><path fill="#5C6478" d="M-4 0H146L198 190H437L489 0H645L408 741H233ZM230 305 252 386C274 463 295 547 315 628H319C341 549 361 463 384 386L406 305Z" transform="translate(4401.0 0)"/><path fill="#5C6478" d="M91 0H232V297C232 382 219 475 213 555H218L293 396L506 0H657V741H517V445C517 361 529 263 537 186H532L457 346L242 741H91Z" transform="translate(5322.0 0)"/></g>
+  
+  
+  <g fill="none" stroke="#4F6EF7" stroke-linecap="round" opacity="0.3">
+    <path stroke-width="3" d="M-20 2280c180-90 320-90 500 0s320 90 500 0 280-90 320-80"/>
+    <path stroke-width="2" opacity=".6" d="M-20 2340c180-80 320-80 500 0s320 80 500 0 280-80 320-72"/>
+    <path stroke-width="1.5" opacity=".4" d="M-20 2396c180-70 320-70 500 0s320 70 500 0 280-70 320-64"/>
+  </g>
+</svg>

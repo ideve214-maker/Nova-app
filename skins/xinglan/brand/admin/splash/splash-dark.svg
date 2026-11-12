@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1170 2532" width="1170" height="2532" role="img" aria-label="NOVA 管理端 启动屏">
+  <title>NOVA 管理端 启动屏 · 星澜 · dark</title>
+  <defs>
+    <linearGradient id="sad-bg" x1="585" y1="0" x2="585" y2="2532" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06070D"/>
+      <stop offset=".45" stop-color="#0A0C14"/>
+      <stop offset="1" stop-color="#06070D"/>
+    </linearGradient>
+    <radialGradient id="sad-glow" cx="50%" cy="38%" r="50%">
+      <stop offset="0" stop-color="#6E8BFF" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#6E8BFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1170" height="2532" fill="url(#sad-bg)"/>
+  <rect width="1170" height="2532" fill="url(#sad-glow)"/>
+  <circle cx="533.1" cy="1055.7" r="1.89" fill="#8BA3FF" opacity="0.53"/>
+<circle cx="593.5" cy="1103.8" r="0.78" fill="#8BA3FF" opacity="0.56"/>
+<circle cx="726.6" cy="1462.2" r="0.64" fill="#8BA3FF" opacity="0.43"/>
+<circle cx="138.8" cy="1491.2" r="1.54" fill="#8BA3FF" opacity="0.28"/>
+<circle cx="1110.6" cy="1761.6" r="1.48" fill="#8BA3FF" opacity="0.62"/>
+<circle cx="211.7" cy="106.1" r="1.29" fill="#8BA3FF" opacity="0.29"/>
+<circle cx="247.3" cy="501.7" r="0.55" fill="#8BA3FF" opacity="0.53"/>
+<circle cx="520.2" cy="1548.4" r="1.28" fill="#8BA3FF" opacity="0.63"/>
+<circle cx="584.8" cy="1234.6" r="1.19" fill="#8BA3FF" opacity="0.42"/>
+<circle cx="1127.4" cy="1815.5" r="1.76" fill="#8BA3FF" opacity="0.67"/>
+<circle cx="383.7" cy="480.3" r="0.93" fill="#8BA3FF" opacity="0.29"/>
+<circle cx="875.3" cy="777.9" r="1.77" fill="#8BA3FF" opacity="0.48"/>
+<circle cx="1084.3" cy="1556.9" r="0.50" fill="#8BA3FF" opacity="0.38"/>
+<circle cx="1032.2" cy="899.2" r="1.97" fill="#8BA3FF" opacity="0.49"/>
+<circle cx="119.6" cy="1177.1" r="1.67" fill="#8BA3FF" opacity="0.41"/>
+<circle cx="135.0" cy="659.7" r="1.95" fill="#8BA3FF" opacity="0.70"/>
+<circle cx="168.6" cy="509.5" r="0.65" fill="#8BA3FF" opacity="0.29"/>
+<circle cx="908.8" cy="389.7" r="1.34" fill="#8BA3FF" opacity="0.52"/>
+<circle cx="247.8" cy="1355.7" r="0.70" fill="#8BA3FF" opacity="0.64"/>
+<circle cx="167.0" cy="813.4" r="0.82" fill="#8BA3FF" opacity="0.41"/>
+<circle cx="1098.3" cy="1480.3" r="0.96" fill="#8BA3FF" opacity="0.78"/>
+<circle cx="269.7" cy="767.2" r="1.78" fill="#8BA3FF" opacity="0.64"/>
+<circle cx="149.4" cy="1804.4" r="0.82" fill="#8BA3FF" opacity="0.40"/>
+<circle cx="882.2" cy="653.4" r="0.94" fill="#8BA3FF" opacity="0.29"/>
+  <g transform="translate(585 1000) scale(9.6) translate(-32 -30)">
+    <g id="sad-mark" fill-rule="evenodd">
+  <defs>
+    <linearGradient id="sad-star" x1="32" y1="2" x2="32" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0F3FF"/>
+      <stop offset=".35" stop-color="#C5D0FF"/>
+      <stop offset=".75" stop-color="#8BA3FF"/>
+      <stop offset="1" stop-color="#5B74F2"/>
+    </linearGradient>
+    <linearGradient id="sad-wave" x1="6" y1="48" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ECDC4"/>
+      <stop offset=".5" stop-color="#6E8BFF"/>
+      <stop offset="1" stop-color="#A8BAFF"/>
+    </linearGradient>
+  </defs>
+  <!-- main 4-point nova -->
+  <path fill="url(#sad-star)" d="M32 2.8
+    C33.35 16.4 36.1 22.7 48.2 25.15
+    C36.1 27.6 33.35 33.9 32 47.5
+    C30.65 33.9 27.9 27.6 15.8 25.15
+    C27.9 22.7 30.65 16.4 32 2.8Z"/>
+  <!-- diagonal inner spark, forming an 8-point nova -->
+  <path fill="url(#sad-star)" opacity=".92" transform="rotate(45 32 25.15)" d="M32 12.2
+    C32.7 18.5 34.4 21.7 41.2 23.15
+    C34.4 24.6 32.7 27.8 32 34.1
+    C31.3 27.8 29.6 24.6 22.8 23.15
+    C29.6 21.7 31.3 18.5 32 12.2Z"/>
+  <!-- star dust -->
+  <circle cx="11.5" cy="12.5" r="1.2" fill="#A8BAFF" opacity=".9"/>
+  <circle cx="53" cy="11" r=".85" fill="#F0F3FF" opacity=".95"/>
+  <circle cx="54.5" cy="21.5" r="1.05" fill="#6E8BFF" opacity=".8"/>
+  <circle cx="9.5" cy="23" r=".7" fill="#4ECDC4" opacity=".75"/>
+  <!-- double tide -->
+  <path fill="none" stroke="url(#sad-wave)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+        d="M7.5 48.2c6.8-5.6 13-5.6 19.6 0s13 5.6 19.6 0 10.2-5.3 11.3-5"/>
+  <path fill="none" stroke="url(#sad-wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55"
+        d="M11.5 55.4c5.7-4.3 11.4-4.3 17.1 0s11.4 4.3 17.1 0 8.6-4.1 9.6-3.9"/>
+</g>
+  </g>
+  <g transform="translate(403.83 1460.00) scale(0.110000 -0.110000)"><path fill="#F4F6FC" d="M91 0H232V297C232 382 219 475 213 555H218L293 396L506 0H657V741H517V445C517 361 529 263 537 186H532L457 346L242 741H91Z" transform="translate(0 0)"/><path fill="#F4F6FC" d="M385 -14C581 -14 716 133 716 374C716 614 581 754 385 754C189 754 54 614 54 374C54 133 189 -14 385 -14ZM385 114C275 114 206 216 206 374C206 532 275 627 385 627C495 627 565 532 565 374C565 216 495 114 385 114Z" transform="translate(889.0 0)"/><path fill="#F4F6FC" d="M221 0H398L624 741H474L378 380C355 298 339 224 315 141H310C287 224 271 298 248 380L151 741H-5Z" transform="translate(1799.0 0)"/><path fill="#F4F6FC" d="M-4 0H146L198 190H437L489 0H645L408 741H233ZM230 305 252 386C274 463 295 547 315 628H319C341 549 361 463 384 386L406 305Z" transform="translate(2558.0 0)"/></g>
+  <g transform="translate(478.30 1536.00) scale(0.028000 -0.028000)"><path fill="#9AA3B8" d="M274 586H718V532H274ZM274 723H718V671H274ZM156 814V441H203C166 363 103 286 36 236C65 220 114 183 137 162C167 189 199 224 229 262H442V201H183V107H442V39H59V-64H944V39H566V107H835V201H566V262H880V362H566V423H442V362H296C307 380 316 399 325 417L242 441H842V814Z" transform="translate(0 0)"/><path fill="#9AA3B8" d="M290 784C340 740 399 678 426 637L510 702C482 745 420 803 369 843ZM496 389C507 354 518 310 523 281L570 295C566 324 554 367 542 401ZM72 747C123 709 187 654 216 617L290 693C259 729 192 780 142 815ZM25 484C79 450 150 398 183 364L251 446C215 479 143 527 89 557ZM48 7 148 -51C187 44 229 160 262 264L173 323C136 209 85 84 48 7ZM422 485V201H516C476 154 426 109 380 83C400 67 428 37 441 16C482 45 527 90 565 139V-29H658V140C702 103 745 63 769 33L825 94C799 124 752 165 706 201H793V485H662V531H799V610H662V669H567V610H417V531H567V485ZM276 626V-87H380V626ZM533 806V706H834V28C834 13 829 9 815 8C800 8 752 7 707 10C721 -15 734 -60 738 -86C811 -86 859 -85 892 -68C924 -52 934 -24 934 28V806ZM488 416H576V270H488ZM679 402C673 372 658 326 647 296L687 282C698 308 710 343 723 378V270H647V416H723V387Z" transform="translate(1180.0 0)"/></g>
+  <g transform="translate(559.16 1534.00) scale(0.022000 -0.022000)"><path fill="#9AA3B8" d="M15 0H171L250 164C268 202 285 241 304 286H308C329 241 348 202 366 164L449 0H613L405 375L600 741H444L374 587C358 553 342 517 324 471H320C298 517 283 553 265 587L191 741H26L222 381Z" transform="translate(0 0)"/><path fill="#9AA3B8" d="M91 0H239V741H91Z" transform="translate(907.0 0)"/><path fill="#9AA3B8" d="M91 0H232V297C232 382 219 475 213 555H218L293 396L506 0H657V741H517V445C517 361 529 263 537 186H532L457 346L242 741H91Z" transform="translate(1517.0 0)"/><path fill="#9AA3B8" d="M409 -14C511 -14 599 25 650 75V409H386V288H517V142C497 124 460 114 425 114C279 114 206 211 206 372C206 531 290 627 414 627C480 627 522 600 559 565L638 659C590 708 516 754 409 754C212 754 54 611 54 367C54 120 208 -14 409 -14Z" transform="translate(2546.0 0)"/><path fill="#9AA3B8" d="M91 0H540V124H239V741H91Z" transform="translate(3543.0 0)"/><path fill="#9AA3B8" d="M-4 0H146L198 190H437L489 0H645L408 741H233ZM230 305 252 386C274 463 295 547 315 628H319C341 549 361 463 384 386L406 305Z" transform="translate(4401.0 0)"/><path fill="#9AA3B8" d="M91 0H232V297C232 382 219 475 213 555H218L293 396L506 0H657V741H517V445C517 361 529 263 537 186H532L457 346L242 741H91Z" transform="translate(5322.0 0)"/></g>
+  
+  <defs>
+    <linearGradient id="sad-pill" x1="314.91999999999996" y1="1614.304" x2="314.91999999999996" y2="1807.776" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8BA3FF"/>
+      <stop offset=".45" stop-color="#6E8BFF"/>
+      <stop offset="1" stop-color="#4A63E8"/>
+    </linearGradient>
+  </defs>
+  <rect x="314.9" y="1614.3" width="540.2" height="193.5" rx="96.7"
+        fill="url(#sad-pill)" filter=""/>
+  <rect x="314.9" y="1614.3" width="540.2" height="73.5" rx="96.7"
+        fill="#FFFFFF" opacity=".10"/>
+  <!-- gold hairline around the pill -->
+  <rect x="314.9" y="1614.3" width="540.2" height="193.5" rx="96.7"
+        fill="none" stroke="#E2C07A" stroke-width="3"/>
+  <g transform="translate(383.34 1760.00) scale(0.128000 -0.128000)"><path fill="#FFFFFF" d="M194 439V-91H316V-64H741V-90H860V169H316V215H807V439ZM741 25H316V81H741ZM421 627C430 610 440 590 448 571H74V395H189V481H810V395H932V571H569C559 596 543 625 528 648ZM316 353H690V300H316ZM161 857C134 774 85 687 28 633C57 620 108 595 132 579C161 610 190 651 215 696H251C276 659 301 616 311 587L413 624C404 643 389 670 371 696H495V778H256C264 797 271 816 278 835ZM591 857C572 786 536 714 490 668C517 656 567 631 589 615C609 638 629 665 646 696H685C716 659 747 614 759 584L858 629C849 648 832 672 813 696H952V778H686C694 797 700 817 706 836Z" transform="translate(0 0)"/><path fill="#FFFFFF" d="M514 527H617V442H514ZM718 527H816V442H718ZM514 706H617V622H514ZM718 706H816V622H718ZM329 51V-58H975V51H729V146H941V254H729V340H931V807H405V340H606V254H399V146H606V51ZM24 124 51 2C147 33 268 73 379 111L358 225L261 194V394H351V504H261V681H368V792H36V681H146V504H45V394H146V159Z" transform="translate(1080.0 0)"/><path fill="#FFFFFF" d="M65 510C81 405 95 268 95 177L188 193C186 285 171 419 154 526ZM392 326V-89H499V226H550V-82H640V226H694V-81H785V-7C797 -32 807 -67 810 -92C853 -92 886 -90 912 -75C938 -59 944 -33 944 11V326H701L726 388H963V494H370V388H591L579 326ZM785 226H839V12C839 4 837 1 829 1L785 2ZM405 801V544H932V801H817V647H721V846H606V647H515V801ZM132 811C153 769 176 714 188 674H41V564H379V674H224L296 698C284 738 258 796 233 840ZM259 531C252 418 234 260 214 156C145 141 80 128 29 119L54 1C149 23 268 51 381 80L368 190L303 176C323 274 345 405 360 516Z" transform="translate(2160.0 0)"/></g>
+
+  
+  <g fill="none" stroke="#6E8BFF" stroke-linecap="round" opacity="0.45">
+    <path stroke-width="3" d="M-20 2280c180-90 320-90 500 0s320 90 500 0 280-90 320-80"/>
+    <path stroke-width="2" opacity=".6" d="M-20 2340c180-80 320-80 500 0s320 80 500 0 280-80 320-72"/>
+    <path stroke-width="1.5" opacity=".4" d="M-20 2396c180-70 320-70 500 0s320 70 500 0 280-70 320-64"/>
+  </g>
+</svg>

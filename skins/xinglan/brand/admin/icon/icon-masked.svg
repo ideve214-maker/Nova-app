@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="am-mask"><rect width="1024" height="1024" rx="228" ry="228"/></clipPath>
+  </defs>
+  <g clip-path="url(#am-mask)">
+    
+  <title>NOVA 管理端图标 · 星澜</title>
+  <defs>
+    <linearGradient id="ia-bg" x1="160" y1="0" x2="900" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1C2750"/>
+      <stop offset=".42" stop-color="#0E1328"/>
+      <stop offset="1" stop-color="#06070D"/>
+    </linearGradient>
+    <radialGradient id="ia-glow" cx="50%" cy="28%" r="58%">
+      <stop offset="0" stop-color="#6E8BFF" stop-opacity=".48"/>
+      <stop offset=".55" stop-color="#6E8BFF" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#6E8BFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ia-ban" x1="0" y1="724" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8BA3FF"/>
+      <stop offset=".35" stop-color="#6E8BFF"/>
+      <stop offset="1" stop-color="#4A63E8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#ia-bg)"/>
+  <rect width="1024" height="1024" fill="url(#ia-glow)"/>
+  <!-- mark shifted up, slightly smaller, to leave room for the banner -->
+  <g transform="translate(512 390) scale(8.6) translate(-32 -28)">
+    <g id="ia-mark" fill-rule="evenodd">
+  <defs>
+    <linearGradient id="ia-star" x1="32" y1="2" x2="32" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0F3FF"/>
+      <stop offset=".35" stop-color="#C5D0FF"/>
+      <stop offset=".75" stop-color="#8BA3FF"/>
+      <stop offset="1" stop-color="#5B74F2"/>
+    </linearGradient>
+    <linearGradient id="ia-wave" x1="6" y1="48" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ECDC4"/>
+      <stop offset=".5" stop-color="#6E8BFF"/>
+      <stop offset="1" stop-color="#A8BAFF"/>
+    </linearGradient>
+  </defs>
+  <!-- main 4-point nova -->
+  <path fill="url(#ia-star)" d="M32 2.8
+    C33.35 16.4 36.1 22.7 48.2 25.15
+    C36.1 27.6 33.35 33.9 32 47.5
+    C30.65 33.9 27.9 27.6 15.8 25.15
+    C27.9 22.7 30.65 16.4 32 2.8Z"/>
+  <!-- diagonal inner spark, forming an 8-point nova -->
+  <path fill="url(#ia-star)" opacity=".92" transform="rotate(45 32 25.15)" d="M32 12.2
+    C32.7 18.5 34.4 21.7 41.2 23.15
+    C34.4 24.6 32.7 27.8 32 34.1
+    C31.3 27.8 29.6 24.6 22.8 23.15
+    C29.6 21.7 31.3 18.5 32 12.2Z"/>
+  <!-- star dust -->
+  <circle cx="11.5" cy="12.5" r="1.2" fill="#A8BAFF" opacity=".9"/>
+  <circle cx="53" cy="11" r=".85" fill="#F0F3FF" opacity=".95"/>
+  <circle cx="54.5" cy="21.5" r="1.05" fill="#6E8BFF" opacity=".8"/>
+  <circle cx="9.5" cy="23" r=".7" fill="#4ECDC4" opacity=".75"/>
+  <!-- double tide -->
+  <path fill="none" stroke="url(#ia-wave)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+        d="M7.5 48.2c6.8-5.6 13-5.6 19.6 0s13 5.6 19.6 0 10.2-5.3 11.3-5"/>
+  <path fill="none" stroke="url(#ia-wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55"
+        d="M11.5 55.4c5.7-4.3 11.4-4.3 17.1 0s11.4 4.3 17.1 0 8.6-4.1 9.6-3.9"/>
+</g>
+  </g>
+  <!-- gold hairline separating the banner -->
+  <rect x="0" y="716" width="1024" height="8" fill="#E2C07A"/>
+  <rect x="0" y="724" width="1024" height="300" fill="url(#ia-ban)"/>
+  <!-- subtle top highlight on the banner -->
+  <rect x="0" y="724" width="1024" height="70" fill="#FFFFFF" opacity=".10"/>
+  <g transform="translate(199.07 956.24) scale(0.215000 -0.215000)"><path fill="#FFFFFF" d="M194 439V-91H316V-64H741V-90H860V169H316V215H807V439ZM741 25H316V81H741ZM421 627C430 610 440 590 448 571H74V395H189V481H810V395H932V571H569C559 596 543 625 528 648ZM316 353H690V300H316ZM161 857C134 774 85 687 28 633C57 620 108 595 132 579C161 610 190 651 215 696H251C276 659 301 616 311 587L413 624C404 643 389 670 371 696H495V778H256C264 797 271 816 278 835ZM591 857C572 786 536 714 490 668C517 656 567 631 589 615C609 638 629 665 646 696H685C716 659 747 614 759 584L858 629C849 648 832 672 813 696H952V778H686C694 797 700 817 706 836Z" transform="translate(0 0)"/><path fill="#FFFFFF" d="M514 527H617V442H514ZM718 527H816V442H718ZM514 706H617V622H514ZM718 706H816V622H718ZM329 51V-58H975V51H729V146H941V254H729V340H931V807H405V340H606V254H399V146H606V51ZM24 124 51 2C147 33 268 73 379 111L358 225L261 194V394H351V504H261V681H368V792H36V681H146V504H45V394H146V159Z" transform="translate(960.0 0)"/><path fill="#FFFFFF" d="M65 510C81 405 95 268 95 177L188 193C186 285 171 419 154 526ZM392 326V-89H499V226H550V-82H640V226H694V-81H785V-7C797 -32 807 -67 810 -92C853 -92 886 -90 912 -75C938 -59 944 -33 944 11V326H701L726 388H963V494H370V388H591L579 326ZM785 226H839V12C839 4 837 1 829 1L785 2ZM405 801V544H932V801H817V647H721V846H606V647H515V801ZM132 811C153 769 176 714 188 674H41V564H379V674H224L296 698C284 738 258 796 233 840ZM259 531C252 418 234 260 214 156C145 141 80 128 29 119L54 1C149 23 268 51 381 80L368 190L303 176C323 274 345 405 360 516Z" transform="translate(1920.0 0)"/></g>
+
+  </g>
+</svg>
