@@ -2,6 +2,16 @@
 // 判断 VIP 是否有效只看 users.vip_until 与「当前时间」，客户端传来的任何字段都不参与。
 import {VIP_CONFIG, valueOf, DAY_MS} from './vip-config.mjs';
 
+/** 权益检查失败。HTTP 层按 e.s / e.code / e.message / e.extra 返回，不要只靠前端隐藏按钮。 */
+export class VipError extends Error {
+  constructor(status, code, message, extra = {}) {
+    super(message);
+    this.s = status;
+    this.code = code;
+    this.extra = extra;
+  }
+}
+
 export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
   const now = () => clock();
   const lastEvent = db.prepare('SELECT action, source FROM vip_events WHERE user_id=? ORDER BY id DESC LIMIT 1');
@@ -79,5 +89,64 @@ export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
     };
   }
 
-  return {config, now, status, entitlements, has, limit, catalog, lastEvent, grant, revoke};
+
+  /** 统一权益检查：flag 未开通 / 已到期一律抛 403 ENTITLEMENT_REQUIRED（带升级说明）。
+      quota 类返回当前额度（Basic 也有免费额度，不会因「不是 VIP」被拒，超额由 requireQuota 处理）。
+      判断只看服务端状态，与客户端传来的字段无关。 */
+  function requireEntitlement(user, key, at = now()) {
+    const e = config.entitlements[key];
+    if (!e) throw new VipError(400, 'UNKNOWN_ENTITLEMENT', '未知权益', {entitlement: key});
+    const st = status(user, at), ent = entitlements(user, at)[key];
+    if (e.kind === 'flag' && !ent.enabled) {
+      throw new VipError(403, 'ENTITLEMENT_REQUIRED',
+        `这项功能需要 NOVA VIP。开通后即可使用「${e.title}」。`,
+        {entitlement: key, plan: st.plan, state: st.state, upgrade: true});
+    }
+    if (e.kind === 'quota' && ent.value === null) {
+      throw new VipError(403, 'ENTITLEMENT_UNAVAILABLE', `「${e.title}」尚未开放。`, {entitlement: key, plan: st.plan});
+    }
+    return {key, kind: e.kind, title: e.title, plan: st.plan, state: st.state, active: st.active, value: ent.value, enabled: ent.enabled};
+  }
+
+  /** 数量额度：used+add 超过当前套餐上限则 403 QUOTA_EXCEEDED。已有内容不受影响，本函数只拦「新增」。 */
+  function requireQuota(user, key, {used = 0, add = 1, scope, at} = {}) {
+    const r = requireEntitlement(user, key, at);
+    const e = config.entitlements[key];
+    if (e.kind !== 'quota') throw new VipError(400, 'NOT_A_QUOTA', '此项不是数量额度', {entitlement: key});
+    const lim = scope !== undefined ? limit(user, key, scope, at) : r.value;
+    if (typeof lim !== 'number') throw new VipError(400, 'BAD_SCOPE', '未知的额度范围', {entitlement: key, scope});
+    const u = Number(used) || 0, a = Number(add) || 0;
+    if (u + a > lim) {
+      const unit = e.unit || '';
+      const vipLim = scope !== undefined ? valueOf(key, 'vip', scope, config) : e.vip;
+      const msg = r.plan === 'vip'
+        ? `「${e.title}」已达 ${lim} ${unit}上限。`.replace(' 上限', '上限')
+        : `「${e.title}」已达 ${lim} ${unit}上限（Basic）。升级 VIP 可至 ${vipLim} ${unit}。`.replace(' 上限', '上限');
+      throw new VipError(403, 'QUOTA_EXCEEDED', msg.trim(),
+        {entitlement: key, plan: r.plan, state: r.state, used: u, add: a, limit: lim, upgrade: r.plan !== 'vip'});
+    }
+    return {...r, used: u, add: a, limit: lim, remaining: lim - u, scope};
+  }
+
+  /** 文本长度：与前端 len() 相同，按 Unicode 码点计数。空内容 400；超限 403 TEXT_TOO_LONG。 */
+  function requireTextLength(user, scope, text, at = now()) {
+    if (!['post', 'chat', 'channel'].includes(scope)) throw new VipError(400, 'BAD_SCOPE', '请指定发帖、聊天或频道发言', {scope});
+    if (typeof text !== 'string') throw new VipError(400, 'BAD_REQUEST', '请输入文字');
+    const n = [...text].length;
+    if (n < 1) throw new VipError(400, 'EMPTY_TEXT', '内容不能为空');
+    const r = requireEntitlement(user, 'longer_post_text', at);
+    const lim = limit(user, 'longer_post_text', scope, at);
+    if (n > lim) {
+      const name = (config.entitlements.longer_post_text.scopeNames || {})[scope] || scope;
+      const vipLim = valueOf('longer_post_text', 'vip', scope, config);
+      const msg = r.plan === 'vip'
+        ? `${name}最多 ${lim} 字，当前 ${n} 字。`
+        : `${name}最多 ${lim} 字（Basic），当前 ${n} 字。升级 VIP 可到 ${vipLim} 字。`;
+      throw new VipError(403, 'TEXT_TOO_LONG', msg,
+        {entitlement: 'longer_post_text', scope, plan: r.plan, state: r.state, length: n, limit: lim, upgrade: r.plan !== 'vip'});
+    }
+    return {...r, scope, length: n, limit: lim};
+  }
+
+  return {config, now, status, entitlements, has, limit, requireEntitlement, requireQuota, requireTextLength, catalog, lastEvent, grant, revoke};
 }

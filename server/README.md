@@ -1,4 +1,4 @@
-# NOVA 后端（M2.4.7）
+# NOVA 后端（M2.5.1）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -19,6 +19,7 @@
 | GET /api/vip/catalog | 公开：套餐、价格占位、权益表、到期规则（无需登录） |
 | GET /api/vip/me | 当前用户的 VIP 状态（plan/state/开始/到期/剩余天数）与每项权益取值；服务端按时间计算 |
 | POST /api/vip/test-toggle | 仅 `NOVA_ENV=development`：给自己开/关测试 VIP（`{on:true/false}`）；生产 403 `TEST_MODE_DISABLED`；不改动管理员/支付开通的正式 VIP（409） |
+| POST /api/vip/gate | 检查当前用户是否拥有某项权益（`{key}`）；flag 未开通/到期 403 `ENTITLEMENT_REQUIRED` |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
@@ -38,3 +39,7 @@
 ## 香槟金主题（M2.4.5，前端）
 - 页面根元素 `data-vip=gold` 即启用；由前端按 `/api/vip/me` 的 `vip.active` 和 `entitlements.profile_theme_gold.enabled` 设置，到期后服务端不再返回有效状态，主题随之回落。
 - 本机偏好 `D.st.vt===0` 只能关闭金色，不能开启。配色变量在 `src/00_head.html` 顶部（`--ac`、`--onac`、`--vip`、`--ln`）。
+
+## 权益检查（M2.5.1）
+- 所有 VIP 专属接口必须调用 `vip.requireEntitlement`（或 `requireQuota` / `requireTextLength`），只靠前端隐藏按钮不算鉴权。
+- 错误：`ENTITLEMENT_REQUIRED`（403，需升级）、`QUOTA_EXCEEDED`（403，超额）、`TEXT_TOO_LONG`（403，超长）。到期由服务端按时间自动回落，无需额外操作。

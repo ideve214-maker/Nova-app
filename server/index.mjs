@@ -5,7 +5,7 @@ import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {openDb} from './db.mjs';
 import {hashPassword, verifyPassword, newToken, tokenHash} from './auth.mjs';
-import {createVip} from './vip.mjs';
+import {createVip, VipError} from './vip.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -122,6 +122,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const u = q.userBy.get(user.id);
       return {now: now(), vip: vip.status(u), entitlements: vip.entitlements(u)};
     },
+    // 统一权益检查入口：只返回调用者自己的结果。flag 未开通/到期 403；不能靠隐藏按钮绕过。
+    'POST /api/vip/gate'(req, b) {
+      const {user} = auth(req);
+      const key = String(b.key || '').trim();
+      return {ok: true, now: now(), ...vip.requireEntitlement(user, key)};
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
   };
 
@@ -159,7 +165,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         if (b === null || typeof b !== 'object') throw bad('BAD_JSON', '请求格式不正确');
         send(200, {ok: true, ...fn(req, b)});
       } catch (e) {
-        if (e instanceof HttpError) send(e.s, {error: {code: e.code, message: e.message}});
+        if (e instanceof HttpError || e instanceof VipError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
         else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
       }
     });
