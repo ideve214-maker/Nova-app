@@ -12,7 +12,9 @@ concurrency:
 jobs:
   build-ipa:
     name: IPA (${{ matrix.ipa }})
-    runs-on: macos-latest
+    # macos-latest (macos-26 arm64) is capacity-constrained and cancels
+    # queued jobs after ~15 minutes with no runner. macos-15 is reliable.
+    runs-on: macos-15
     timeout-minutes: 45
     strategy:
       fail-fast: false
