@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## V7 0.7.0-m6.1 · 安全核心与生产运维备忘（2026-11-12）
+
+- **安全核心（前一提交起）：** 输入校验与 XSS 纯文本保存、SQL 参数化与失败迁移回滚、上传魔数校验、严格限流与 `GET /api/admin/security/events`、登录锁定退避、可选 HttpOnly Cookie + CSRF（Bearer / 管理员 `na_` 不变）、禁止令牌进 URL、安全响应头、可信代理、日志脱敏、敏感管理读取审计、`/api/health` 探测数据库、账号注销与申诉、VACUUM INTO 备份。
+- **部署备忘：** `.env.example` 列出服务端读取的全部环境变量（仅占位，无真实密钥）；默认面向阿里云香港 + nginx 反代 127.0.0.1:8787 + 库路径 `/opt/nova/data/nova.db`，`NOVA_TRUST_PROXY=1`，CORS 须含管理端 Origin、`capacitor://localhost`、`http://localhost`。当前 80 端口为 HTTP，示例中 `NOVA_HSTS` 与 `NOVA_COOKIE_SECURE` 保持关闭，配好 HTTPS 后再开。
+- **备份：** `scripts/backup.sh` / `npm run backup` 用 `VACUUM INTO` 做一致性快照，默认保留 14 份；恢复脚本先停 systemd 再换文件。说明与 nginx、systemd、管理员创建、更新/回滚、`journalctl` 见 `docs/OPS.md`。
+
 ## V7 0.7.0-m5.1 · M5 消息与社区增强、楼中楼、真实数据与管理端补强（2026-11-12）
 
 本版把 M5（消息回复/转发/反应/收藏/草稿、投票、话题、定时发布、屏蔽词、在线与输入中、多设备同步策略、数据导出）与用户/管理端后续需求一并纳入。VIP 价格为月度 ¥9.9（30 天）、年度 ¥99（365 天），文案不再写「暂定」。`POST /api/admin/payments/:id/refund` 幂等扣回**本笔订单**对应的 VIP 天数，成功（含第二次）返回 `vipRevoked:true`、`daysSubtracted`，并写 `admin.payment.refund` 审计。
