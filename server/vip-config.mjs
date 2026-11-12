@@ -3,7 +3,7 @@
 // 产品原则（来自 M2.3 调研与负责人决定）：
 //   · 安全、隐私、基本聊天、好友、举报/拉黑、内容治理不收费，不出现在权益表里；
 //   · VIP 只扩展个性化和适度便利额度；不卖曝光、推荐、聊天优先级，也不因 VIP 获得社区/群管理权限；
-//   · 价格只是占位，支付未接入。
+//   · 价格仍是占位（「暂定」）；开通走人工收款码，管理员核对后生效。
 
 const DAY = 864e5;
 
@@ -117,7 +117,7 @@ export function validateConfig(cfg = VIP_CONFIG) {
   const vip = cfg.plans && cfg.plans.vip;
   if (vip) {
     if (!vip.priceNote) add('vip 套餐必须带价格暂定说明');
-    if (!vip.purchase || vip.purchase.enabled !== false) add('支付未接入：purchase.enabled 必须为 false');
+    if (!vip.purchase || typeof vip.purchase.enabled !== 'boolean') add('vip 套餐必须有 purchase.enabled（布尔值）');
     for (const p of vip.prices || []) if (!(Number.isInteger(p.amountCents) && p.amountCents > 0 && p.label)) add('价格项不合法：' + JSON.stringify(p));
   }
   const keys = entitlementKeys(cfg);

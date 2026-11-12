@@ -23,6 +23,8 @@ import {createSearch} from './search.mjs';
 import {createAdmins} from './admin.mjs';
 import {createReports} from './reports.mjs';
 import {createE2ee, safetyNumber} from './e2ee.mjs';
+import {createPay} from './pay.mjs';
+import {createAdminOps} from './admin-ops.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 
@@ -36,7 +38,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   env = process.env.NOVA_ENV || 'production', vipTestToggle = process.env.NOVA_VIP_TEST_TOGGLE !== '0',
   mediaDir, mediaScan, eventsOpts = {},
   adminUsername = process.env.NOVA_ADMIN_USERNAME,
-  adminPassword = process.env.NOVA_ADMIN_PASSWORD} = {}) {
+  adminPassword = process.env.NOVA_ADMIN_PASSWORD,
+  payEnv = process.env, payDir} = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
   // CORS：未设置或 * 时与原先一致（允许任意来源）。逗号分隔白名单只回显匹配的 Origin。
@@ -119,6 +122,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     delSid: db.prepare('DELETE FROM sessions WHERE public_id=? AND user_id=? AND token_hash<>?'),
   };
   const audit = (actor, action, target, ip, detail) => q.audit.run(now(), actor || null, action, target || null, ip || null, detail ? JSON.stringify(detail) : null);
+  const payRoot = payDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/pay');
+  const pay = createPay(db, {now, vip, audit, dataDir: payRoot, env: payEnv || process.env});
+  const adminOps = createAdminOps(db, {now, vip, profile, pay, audit});
   const srvPostAuthor = (postId) => {
     const r = db.prepare('SELECT author_id FROM posts WHERE id=? AND deleted_at IS NULL').get(postId);
     return r ? r.author_id : null;
@@ -253,7 +259,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return {privacy: prv};
     },
     // ---- VIP（M2.4.2）----
-    'GET /api/vip/catalog'() { return vip.catalog({testToggle: {enabled: testToggleOn}}); },
+    'GET /api/vip/catalog'() {
+      const c = vip.catalog({testToggle: {enabled: testToggleOn}});
+      c.plans.vip.purchase = pay.purchaseInfo();
+      c.pay = pay.publicConfig();
+      return c;
+    },
     'GET /api/vip/me'(req) {
       const {user} = auth(req);
       return {now: now(), vip: vip.status(user), entitlements: vip.entitlements(user)};
@@ -784,6 +795,110 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return {audits, nextCursor: more ? slice[slice.length - 1].id : null};
     },
 
+    'GET /api/admin/users'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.listUsers(req.query || {});
+    },
+    'GET /api/admin/users/:id'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.oneUser(req.params.id);
+    },
+    'POST /api/admin/users/:id/ban'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.ban(admin, req.params.id, b || {});
+    },
+    'POST /api/admin/users/:id/unban'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.unban(admin, req.params.id, b || {});
+    },
+    'POST /api/admin/users/:id/reset-password'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.resetPassword(admin, req.params.id, b || {});
+    },
+    'POST /api/admin/vip/grant'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.grantVip(admin, b || {});
+    },
+    'POST /api/admin/vip/revoke'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.revokeVip(admin, b || {});
+    },
+    'GET /api/admin/content'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.listContent(req.query || {});
+    },
+    'GET /api/admin/content/:type/:id'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.getContent(req.params.type, req.params.id);
+    },
+    'POST /api/admin/content/:type/:id/delete'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.hideContent(admin, req.params.type, req.params.id, b || {});
+    },
+    'POST /api/admin/content/:type/:id/restore'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.restoreContent(admin, req.params.type, req.params.id, b || {});
+    },
+    'GET /api/admin/stats'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.stats();
+    },
+    'GET /api/admin/announcements'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.listAnnouncements(req.query || {});
+    },
+    'POST /api/admin/announcements'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.addAnnouncement(admin, b || {});
+    },
+    'POST /api/admin/announcements/:id/delete'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.removeAnnouncement(admin, req.params.id);
+    },
+    'GET /api/admin/payments'(req) {
+      const {admin} = adminAuth(req);
+      return pay.adminList(req.query || {});
+    },
+    'GET /api/admin/payments/:id'(req) {
+      const {admin} = adminAuth(req);
+      return pay.getFor(admin, req.params.id, {admin: true});
+    },
+    'POST /api/admin/payments/:id/confirm'(req, b) {
+      const {admin} = adminAuth(req);
+      return pay.confirm(admin, req.params.id, b || {});
+    },
+    'POST /api/admin/payments/:id/reject'(req, b) {
+      const {admin} = adminAuth(req);
+      return pay.reject(admin, req.params.id, b || {});
+    },
+    'POST /api/admin/payments/:id/refund'(req, b) {
+      const {admin} = adminAuth(req);
+      return pay.refund(admin, req.params.id, b || {});
+    },
+
+    'GET /api/pay/config'() { return pay.publicConfig(); },
+    'GET /api/pay/methods'() { return pay.publicConfig(); },
+    'POST /api/pay/orders'(req, b) {
+      const {user} = auth(req);
+      return pay.create(user, b || {});
+    },
+    'GET /api/pay/orders'(req) {
+      const {user} = auth(req);
+      return pay.listFor(user, req.query || {});
+    },
+    'GET /api/pay/orders/:id'(req) {
+      const {user} = auth(req);
+      return pay.getFor(user, req.params.id);
+    },
+    'POST /api/pay/orders/:id/paid'(req, b) {
+      const {user} = auth(req);
+      return pay.markPaid(user, req.params.id, b || {});
+    },
+    'POST /api/pay/webhook/:provider'(req, b) {
+      const raw = req.rawBody || Buffer.from(JSON.stringify(b || {}));
+      return pay.webhook(req.params.provider, raw, req.headers || {}, b || {});
+    },
+
     'POST /api/e2ee/keys'(req, b) {
       const {user} = auth(req);
       const r = e2ee.upload(user, b || {});
@@ -913,6 +1028,51 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
       return;
     }
+    const payQr = /^\/api\/pay\/qr\/(wechat|alipay)$/.exec(path);
+    if (req.method === 'GET' && payQr) {
+      try {
+        const m = pay.methods().find(x => x.id === payQr[1]);
+        if (m && m.source === 'url') {
+          res.writeHead(302, {...h, Location: m.qrUrl});
+          return res.end();
+        }
+        const f = pay.qrFile(payQr[1]);
+        res.writeHead(200, {
+          ...h,
+          'Content-Type': f.mime,
+          'Content-Length': f.buf.length,
+          'Cache-Control': 'public, max-age=300',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        return res.end(f.buf);
+      } catch (e) {
+        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        return;
+      }
+    }
+    const payRcpt = /^\/api\/admin\/payments\/([^/]+)\/receipt$/.exec(path);
+    if (req.method === 'GET' && payRcpt) {
+      try {
+        const {admin} = adminAuth(req);
+        const got = pay.getFor(admin, decodeURIComponent(payRcpt[1]), {admin: true});
+        const row = pay.get(got.order.id);
+        const f = pay.receiptFile(row);
+        res.writeHead(200, {
+          ...corsHeaders(req),
+          'Content-Type': f.mime,
+          'Content-Length': f.buf.length,
+          'Content-Disposition': 'inline; filename="' + String(f.name || 'receipt').replace(/["\\]/g, '') + '"',
+          'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        return res.end(f.buf);
+      } catch (e) {
+        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        return;
+      }
+    }
     const found = findRoute(req.method, path);
     if (!found) return send(404, {error: {code: 'NOT_FOUND', message: '接口不存在'}});
     const fn = found.fn; req.params = found.params;
@@ -925,12 +1085,15 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return;
     }
     let size = 0; const chunks = [];
-    const bodyLimit = (req.method === 'POST' && path === '/api/media') ? 100 * 1024 * 1024 : 1e6;
+    const bodyLimit = (req.method === 'POST' && path === '/api/media') ? 100 * 1024 * 1024
+      : (req.method === 'POST' && /\/api\/pay\/orders\/[^/]+\/paid$/.test(path)) ? 8 * 1024 * 1024
+      : 1e6;
     req.on('data', c => { size += c.length; if (size > bodyLimit) { send(413, {error: {code: 'TOO_LARGE', message: '请求过大'}}); req.destroy(); } else chunks.push(c); });
     req.on('end', () => {
       try {
         let b = {};
         const raw = chunks.length ? Buffer.concat(chunks) : Buffer.alloc(0);
+        req.rawBody = raw;
         const ct = String(req.headers['content-type'] || '');
         if (path === '/api/media' && req.method === 'POST' && raw.length && !ct.includes('application/json')) {
           b = {_buffer: raw, name: decodeURIComponent(String(req.headers['x-file-name'] || 'file')), mime: ct.split(';')[0] || 'application/octet-stream'};
@@ -945,7 +1108,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps;
   return server;
 }
 

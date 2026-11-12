@@ -12,3 +12,7 @@ data/
 *.db
 *.db-wal
 *.db-shm
+
+# 未遮罩的个人收款码原图不得入库或打包
+**/alipay.jpg
+**/wechat.jpg
