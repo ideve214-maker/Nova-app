@@ -54,12 +54,85 @@ function vipStatusCard(){
     expired:['VIP 已过期','已于 '+(v.expiredAt?vipDate(v.expiredAt):'—')+' 回到 Basic。你发过、收藏过的内容都还在。'],
     revoked:['VIP 已被撤销','已回到 Basic，你的内容都还在。如有疑问请联系管理员。']}[v.state]||['当前套餐：Basic',''];
   return `<div class="card vp" data-vs="${esc(v.state)}"><b>${esc(T[0])}</b><small>${esc(T[1])}</small></div>`}
-/* 开通按钮（M2.4.6）：支付未接入，永远是不可点的占位。没有 data-a、没有链接、没有表单，点了不会发任何请求，也不会出现「成功」。
-   文字来自服务端目录的 purchase.label，目录缺失时仍按「暂未开放」显示。 */
-const vipBuy=v=>`<button type="button" class="pb off" id="vbuy" disabled aria-disabled="true">${esc(v.purchase&&v.purchase.enabled===false&&v.purchase.label?v.purchase.label:'暂未开放')}</button>`;
+/* 开通：目录 purchase.enabled 为真时展示扫码开通；否则仍是禁用占位。
+   不会声称付款即到账或「已开通成功」——状态以服务端订单为准，开通需管理员核对。 */
+function vipBuy(v){
+  if(!(v.purchase&&v.purchase.enabled)){
+    return `<button type="button" class="pb off" id="vbuy" disabled aria-disabled="true">${esc(v.purchase&&v.purchase.label?v.purchase.label:'暂未开放')}</button>`;
+  }
+  return `<div class="vbuys" id="vbuybox">${(v.prices||[]).map(p=>`<button type="button" class="pb" id="vbuy-${esc(p.period)}" data-a="vipbuy" data-v="${esc(p.period)}">开通 ${esc(p.label)}</button>`).join('')}</div>`;
+}
+function vipPayStatus(s){
+  return {pending:'待付款',awaiting_review:'等待管理员核对',paid:'已开通',rejected:'已拒绝',expired:'已过期',refunded:'已退款'}[s]||s;
+}
+function vipOrderCard(o){
+  if(!o)return '';
+  const st=o.status,qr=(st==='pending'||st==='awaiting_review')&&o.qrUrl?`<img class="vqr" id="vpayqr" src="${esc(o.qrUrl)}" alt="${esc(o.methodName||'')}收款码" width="220" height="220">`:'';
+  const shot=st==='pending'?`<label class="vshot">可选：上传付款截图（JPG/PNG/WebP，最大 5 MB）<input type="file" id="vpayshot" accept="image/jpeg,image/png,image/webp"></label><button type="button" class="pb" id="vpaygo" data-a="vippaid">我已付款</button>`:'';
+  const rej=o.rejectReason?`<p class="vpn">拒绝原因：${esc(o.rejectReason)}</p>`:'';
+  const inst=o.instructions?`<p>${esc(o.instructions)}</p>`:(o.methodNote?`<p>${esc(o.methodNote)}</p>`:'');
+  return `<div class="vpay" id="vpay" data-oid="${esc(o.id)}" data-os="${esc(st)}"><b>订单 ${esc(o.code)}</b><div class="vcode" id="vpaycode">${esc(o.code)}</div><p>金额 ${esc(o.amountLabel)} · ${esc(o.methodName||o.method||'')} · ${esc(vipPayStatus(st))}</p>${inst}${qr}${shot}${rej}<button type="button" class="pb s" data-a="vipord">刷新订单状态</button><button type="button" class="pb s" data-a="vippayclose">关闭</button></div>`;
+}
+function vipMethodPick(c,period){
+  const methods=(c.pay&&c.pay.methods||[]).filter(m=>m.enabled);
+  if(!methods.length)return `<p class="vpn">当前没有可用的收款方式。</p>`;
+  const price=(c.plans.vip.prices||[]).find(p=>p.period===period);
+  return `<div class="vpay" id="vpaypick" data-period="${esc(period)}"><b>选择付款方式</b><p>套餐：${esc(price?price.label:period)}。生成订单后请扫码转账，并在备注中填写订单码。开通需管理员核对，不会自动扣款或立刻到账。</p><div class="vbuys">${methods.map(m=>`<button type="button" class="pb" data-a="vipmethod" data-v="${esc(period)}|${esc(m.id)}">${esc(m.name)}</button>`).join('')}</div><button type="button" class="pb s" data-a="vippayclose">取消</button></div>`;
+}
 function vipPlans(c){
-  const b=c.plans.basic,v=c.plans.vip;
-  return `<div class="plans"><div class="plan" data-plan="basic"><b>${esc(b.name)}</b><div class="pp">免费</div><small>${esc(b.tagline)}</small></div><div class="plan v" data-plan="vip"><b>${esc(v.name)}</b><div class="pp">${v.prices.map(p=>esc(p.label)).join('<br>')}</div><small>${esc(v.tagline)}</small>${vipBuy(v)}</div></div><p class="vpn">${esc(v.priceNote)} ${esc(v.purchase?v.purchase.reason+'，现在不能购买，也不会产生任何订单或扣款。':'')}</p>`}
+  const b=c.plans.basic,v=c.plans.vip,on=v.purchase&&v.purchase.enabled;
+  const note=on
+    ? `${v.priceNote||''} ${v.purchase.reason||''}`
+    : `${v.priceNote||''} ${v.purchase?v.purchase.reason+'，现在不能购买，也不会产生任何订单或扣款。':''}`;
+  const pick=VIP.pick&&VIP.pick.period&&!VIP.order?vipMethodPick(c,VIP.pick.period):'';
+  const orders=(VIP.orders&&VIP.orders.length&&!VIP.order)?`<div class="vpay" id="vpaylist"><b>我的订单</b>${VIP.orders.map(o=>`<button type="button" class="row" data-a="vipshow" data-v="${esc(o.id)}"><div class="gr"><b>${esc(o.code)}</b><small>${esc(o.amountLabel)} · ${esc(vipPayStatus(o.status))}</small></div></button>`).join('')}</div>`:'';
+  return `<div class="plans"><div class="plan" data-plan="basic"><b>${esc(b.name)}</b><div class="pp">免费</div><small>${esc(b.tagline)}</small></div><div class="plan v" data-plan="vip"><b>${esc(v.name)}</b><div class="pp">${v.prices.map(p=>esc(p.label)).join('<br>')}</div><small>${esc(v.tagline)}</small>${vipBuy(v)}</div></div>${pick}${vipOrderCard(VIP.order)}${orders}<p class="vpn">${esc(note)}</p>`;
+}
+async function loadPayOrders(){
+  if(MODE!=='account'||!SESSION||!NET)return;
+  const r=await api('GET','/api/pay/orders');
+  if(r.s===200)VIP.orders=r.j.orders||[];
+}
+async function vipBuyGo(period){
+  if(MODE!=='account'){T('请先登录');return}
+  VIP.pick={period};VIP.order=null;render();
+}
+async function vipMethodGo(v){
+  const[period,method]=String(v).split('|');
+  if(!period||!method)return;
+  const r=await api('POST','/api/pay/orders',{period,method,provider:'manual_qr'});
+  if(r.s!==200){T(errMsg(r,'下单失败'));return}
+  VIP.order=r.j.order;VIP.pick=null;
+  await loadPayOrders();render();
+}
+async function vipPaidGo(){
+  if(!VIP.order)return;
+  let body={};
+  const f=document.getElementById('vpayshot');
+  if(f&&f.files&&f.files[0]){
+    const file=f.files[0];
+    if(file.size>5*1024*1024){T('截图不能超过 5 MB');return}
+    const okType=/^image\/(jpeg|jpg|png|webp)$/i.test(file.type);
+    if(!okType){T('截图只接受 JPG、PNG 或 WebP');return}
+    const data=await new Promise((res,rej)=>{const rd=new FileReader();rd.onload=()=>{const s=String(rd.result||'');const i=s.indexOf(',');res(i>=0?s.slice(i+1):s)};rd.onerror=rej;rd.readAsDataURL(file)});
+    body.receipt={mime:file.type,name:file.name,data};
+  }
+  const r=await api('POST','/api/pay/orders/'+VIP.order.id+'/paid',body);
+  if(r.s!==200){T(errMsg(r,'提交失败'));return}
+  VIP.order=r.j.order;await loadPayOrders();T('已提交，等待管理员核对。不会立刻开通。');render();
+}
+async function vipOrdGo(){
+  if(!VIP.order)return;
+  const r=await api('GET','/api/pay/orders/'+VIP.order.id);
+  if(r.s!==200){T(errMsg(r,'读取订单失败'));return}
+  VIP.order=r.j.order;await loadVip();await loadPayOrders();render();
+}
+async function vipShowGo(id){
+  const r=await api('GET','/api/pay/orders/'+id);
+  if(r.s!==200){T(errMsg(r,'读取订单失败'));return}
+  VIP.order=r.j.order;VIP.pick=null;render();
+}
+const vipPayClose=()=>{VIP.order=null;VIP.pick=null;render()};
 function vipCompare(c){
   return `<div class="shd">权益对比</div>`+c.entitlements.map(e=>`<div class="ent" data-ent="${esc(e.key)}"><div class="et"><b>${esc(e.title)}</b>${e.status==='live'?'':'<span class="tag">即将推出</span>'}<small>${esc(e.description)}</small></div><div class="ev"><span data-p="basic"><i>Basic</i>${esc(vipFmt(e,'basic'))}</span><span class="v" data-p="vip"><i>VIP</i>${esc(vipFmt(e,'vip'))}</span></div></div>`).join('')}
 function vipRules(c){
@@ -86,7 +159,7 @@ const pVip=()=>{
 const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip;
   const t=MODE!=='account'?'登录后查看会员状态':!v?'Basic · 免费':v.active?'NOVA VIP · 剩余 '+v.daysLeft+' 天':'Basic · 免费';
   return `<button class="row" style="width:100%;text-align:left" data-a="vip"><div class="gr"><b>会员中心</b><small>${esc(t)}</small></div><small>›</small></button>`};
-const vipOpen=()=>{S.sh=null;S.st.push('vip');loadVip().then(()=>render())};
+const vipOpen=()=>{S.sh=null;S.st.push('vip');Promise.all([loadVip(),loadPayOrders()]).then(()=>render())};
 const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
 const vipTog=v=>vipToggle(v);
 const vipTheme=v=>{D.st.vt=v==='off'?0:1;T(v==='off'?'已切换为默认主题':'已使用香槟金主题')};
