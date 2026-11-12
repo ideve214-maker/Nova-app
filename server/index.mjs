@@ -19,6 +19,7 @@ import {createFriends} from './friends.mjs';
 import {createEvents} from './events.mjs';
 import {createMedia} from './media.mjs';
 import {createNotifications} from './notifications.mjs';
+import {createSearch} from './search.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 
@@ -65,6 +66,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   };
   const chats = createChats(db, {profile, vip, now, friends, media, onEvent});
   notifications = createNotifications(db, {now, profile, vip, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
+  const search = createSearch(db, {profile, vip, now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -586,6 +588,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return notifications.unread(user);
     },
+
+    'GET /api/search'(req) {
+      const {user} = auth(req);
+      return search.search(user, req.query || {});
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -697,7 +704,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search;
   return server;
 }
 

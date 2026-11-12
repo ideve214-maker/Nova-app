@@ -17,3 +17,13 @@ async function markNotifRead(id){
   else await api('POST','/api/notifications/read-all',{});
   return loadNotifications();
 }
+
+async function loadSearch(q){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
+  q=String(q||'').trim();
+  if(!q){S.search=null;return}
+  const r=await api('GET','/api/search?q='+encodeURIComponent(q));
+  if(r.s!==200){S.search={err:errMsg(r,'搜索失败')};return}
+  (r.j.users||[]).forEach(rememberAuthor);
+  S.search=r.j;
+}
