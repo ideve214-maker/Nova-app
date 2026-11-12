@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAdmin } from "@/lib/admin/store";
 import { Field, inputClass, PrimaryButton } from "./ui";
-import { type EndpointMap } from "@/lib/admin/backend";
+import { builtInApiBase, type EndpointMap } from "@/lib/admin/backend";
 
 export function ServerPanel({ onDone }: { onDone?: () => void }) {
   const connection = useAdmin((s) => s.connection);
@@ -42,15 +42,17 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
     <div>
       <p className="mb-3 text-[13px] leading-5 text-muted">
         填写用户端后端地址（例如 <code className="text-[12px]">http://192.168.1.8:8787</code>
-        ）。用本仓库 <code className="text-[12px]">preview:admin</code> 打开时可以留空，会把{" "}
-        <code className="text-[12px]">/api</code> 反代到本机 8787。公开预览（如 tiiny）无法访问你电脑上的后端，页面会如实显示「未连接」，不会填入虚构数字。
+        ）。优先级：这里保存的地址（本机记住）&gt; 打包时的{" "}
+        <code className="text-[12px]">VITE_NOVA_API_BASE</code>
+        {builtInApiBase() ? `（当前为 ${builtInApiBase()}）` : "（当前未设置）"}
+        &gt; 普通网页的同源。Capacitor App 没有同源后端，若前两项都为空请在此填写。留空并保存表示清除覆盖、改用打包默认或同源。
       </p>
       <Field label="接口根地址">
         <input
           className={inputClass}
           value={base}
           onChange={(e) => setBase(e.target.value)}
-          placeholder="留空 = 当前网站同源"
+          placeholder="留空 = 打包默认或网页同源"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}

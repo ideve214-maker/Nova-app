@@ -1,22 +1,44 @@
 #!/usr/bin/env node
 /**
- * Turn dist-spa/spa.html + its JS/CSS assets into one self-contained HTML file
- * that works on iPhone file preview (file://) because nothing is loaded from a sibling path.
+ * After Vite writes dist-spa/ (multi-file: HTML + ./assets, base="./"):
+ *   1. Ensure dist-spa/index.html is the MULTI-FILE shell (Capacitor webDir).
+ *   2. Also emit dist-spa/NOVA_Admin.html — a single inlined file for file:// / 分享。
+ * Never overwrite index.html with the inlined bundle.
  */
-import { readFileSync, writeFileSync, readdirSync, mkdirSync, copyFileSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, copyFileSync, statSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dir = join(root, "dist-spa");
-const srcHtml = ["spa.html", "index.html"]
+
+function isFile(p) {
+  try { return statSync(p).isFile(); } catch { return false; }
+}
+
+// Vite may emit spa.html (input name) or index.html.
+const viteHtml = ["spa.html", "index.html"]
   .map((n) => join(dir, n))
-  .find((p) => {
-    try { return statSync(p).isFile(); } catch { return false; }
-  });
-if (!srcHtml) {
-  console.error("dist-spa/spa.html 不存在，请先运行 SPA 构建。");
+  .find((p) => isFile(p) && !isInlined(p));
+
+function isInlined(p) {
+  try {
+    const s = readFileSync(p, "utf8");
+    // Inlined file has the bundle inside a <script> and is several MB.
+    return s.length > 200_000 || /<script type="module">\s*\n/.test(s);
+  } catch {
+    return false;
+  }
+}
+
+if (!viteHtml) {
+  console.error("dist-spa 里没有多文件版 HTML（spa.html / 未内联的 index.html）。请先运行 Vite SPA 构建。");
   process.exit(1);
+}
+
+const multi = join(dir, "index.html");
+if (resolve(viteHtml) !== resolve(multi)) {
+  copyFileSync(viteHtml, multi);
 }
 
 function readAsset(urlPath) {
@@ -25,7 +47,7 @@ function readAsset(urlPath) {
   return readFileSync(file, "utf8");
 }
 
-let html = readFileSync(srcHtml, "utf8");
+let html = readFileSync(viteHtml, "utf8");
 
 // Drop modulepreload / icon links that would 404 on file://
 html = html.replace(/<link[^>]+rel="modulepreload"[^>]*>/gi, "");
@@ -52,6 +74,5 @@ html = html.replace(/<script([^>]*?)src="([^"]+)"([^>]*)><\/script>/gi, (full, a
 
 const out = join(dir, "NOVA_Admin.html");
 writeFileSync(out, html);
-// also as index.html so a static server can serve it at /
-writeFileSync(join(dir, "index.html"), html);
-console.log(`Wrote ${out} (${(html.length / 1024 / 1024).toFixed(2)} MB)`);
+console.log(`Multi-file (Capacitor webDir): ${multi}`);
+console.log(`Single-file: ${out} (${(html.length / 1024 / 1024).toFixed(2)} MB)`);

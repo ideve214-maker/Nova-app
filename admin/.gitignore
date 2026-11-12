@@ -4,3 +4,7 @@ dist/
 .tanstack/
 *.log
 .DS_Store
+
+.env.production
+.env.local
+.env.*.local

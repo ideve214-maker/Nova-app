@@ -17,19 +17,23 @@ export function LoginScreen() {
 
   function submitPassword(event: FormEvent) {
     event.preventDefault();
-    const message = attemptLogin(account, password);
+    const message = attemptLogin(account, password, remember);
     if (message) {
       setError(message);
       return;
     }
-    if (!remember) sessionStorage.setItem("nova-admin-session", "1");
     setError("");
   }
 
   return (
     <div
-      className="nova-login flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto px-5 pb-safe text-on-primary"
-      style={{ paddingTop: "max(12px, env(safe-area-inset-top, 0px))" }}
+      className="nova-login flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto text-on-primary"
+      style={{
+        paddingTop: "max(12px, var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(12px, var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))",
+        paddingLeft: "max(1.25rem, var(--nova-safe-left, 0px), env(safe-area-inset-left, 0px))",
+        paddingRight: "max(1.25rem, var(--nova-safe-right, 0px), env(safe-area-inset-right, 0px))",
+      }}
     >
       <div className="flex flex-1 flex-col items-center pt-4">
         <span className="grid size-[52px] place-items-center rounded-[14px] bg-surface/15">

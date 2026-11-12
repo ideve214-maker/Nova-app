@@ -10,6 +10,7 @@ import {
   type ConnectionStatus,
   type EndpointMap,
 } from "./backend";
+import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
 
 export type { ConnectionStatus } from "./backend";
 
@@ -508,6 +509,7 @@ function entitlementMap() {
 
 type Persisted = {
   authed: boolean;
+  rememberLogin: boolean;
   password: string;
   demoMode: boolean;
   members: Member[];
@@ -539,7 +541,7 @@ export type AdminState = Persisted & {
   go: (name: PageName, userId?: string) => void;
   back: () => void;
   tab: (name: PageName) => void;
-  attemptLogin: (account: string, password: string) => string | null;
+  attemptLogin: (account: string, password: string, remember?: boolean) => string | null;
   confirmTotp: (code: string) => string | null;
   logout: () => void;
   changePassword: (current: string, next: string) => string | null;
@@ -571,6 +573,7 @@ export type AdminState = Persisted & {
 
 const emptyPersisted = (): Persisted => ({
   authed: false,
+  rememberLogin: true,
   password: "nova1234",
   demoMode: false,
   members: [],
@@ -597,6 +600,7 @@ const emptyPersisted = (): Persisted => ({
 
 const demoPersisted = (): Persisted => ({
   authed: false,
+  rememberLogin: true,
   password: "nova1234",
   demoMode: true,
   members: seedMembers,
@@ -665,8 +669,19 @@ function restoreLocal(): Partial<Persisted> {
     const raw = localStorage.getItem(KEY);
     if (!raw) return {};
     const data = JSON.parse(raw) as Partial<Persisted>;
+    let authed = !!data.authed;
+    const rememberLogin = data.rememberLogin !== false;
+    if (authed && !rememberLogin) {
+      try {
+        if (sessionStorage.getItem("nova-admin-session") !== "1") authed = false;
+      } catch {
+        authed = false;
+      }
+    }
     return {
       ...data,
+      authed,
+      rememberLogin,
       demoMode: !!data.demoMode,
       // 未打开演示时不要把上次残留的虚构列表带回来
       ...(!data.demoMode
@@ -713,15 +728,23 @@ export const useAdmin = create<AdminState>((set, get) => ({
     get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "后端已通，管理接口仍待接入，列表保持为空") : "后端不可达，列表保持为空（未打开演示模式）");
     return status;
   },
-  go: (name, userId) => set((s) => ({ history: [...s.history, s.nav], nav: { name, userId } })),
-  back: () =>
+  go: (name, userId) => {
+    set((s) => ({ history: [...s.history, s.nav], nav: { name, userId } }));
+    writeHash({ name, userId });
+  },
+  back: () => {
     set((s) => {
       const history = [...s.history];
       const prev = history.pop();
       return { history, nav: prev ?? { name: "home" } };
-    }),
-  tab: (name) => set({ nav: { name }, history: [] }),
-  attemptLogin: (account, password) => {
+    });
+    writeHash(useAdmin.getState().nav);
+  },
+  tab: (name) => {
+    set({ nav: { name }, history: [] });
+    writeHash({ name });
+  },
+  attemptLogin: (account, password, remember = true) => {
     const s = get();
     if (s.lockedUntil > Date.now()) return "登录已暂时锁定，请稍后再试";
     if (account.trim().toLowerCase() !== "admin" || password !== s.password) {
@@ -737,28 +760,40 @@ export const useAdmin = create<AdminState>((set, get) => ({
       });
       return locked ? "连续失败 5 次，已锁定 30 秒" : "账号或密码不正确";
     }
+    try {
+      if (remember) sessionStorage.removeItem("nova-admin-session");
+      else sessionStorage.setItem("nova-admin-session", "1");
+    } catch {
+      /* ignore */
+    }
+    const initial = remember ? (readInitialNav() || { name: "home" as const }) : { name: "home" as const };
+    const nav = initial.name === "home" || !remember ? { name: "home" as const } : initial;
     set((s) =>
       withAudit(s, { kind: "security", action: "管理员登录", target: "admin · 本机口令（后端无管理鉴权）" }, {
         authed: true,
+        rememberLogin: remember,
         failedLogins: 0,
         lockedUntil: 0,
-        nav: { name: "home" },
+        nav,
         history: [],
       }),
     );
+    writeHash(nav);
     return null;
   },
   confirmTotp: (_code) => {
     return "当前无二次验证；请使用本机账号密码直接登录";
   },
-  logout: () =>
+  logout: () => {
     set((s) =>
       withAudit(s, { kind: "security", action: "退出登录", target: "admin" }, {
         authed: false,
         nav: { name: "home" },
         history: [],
       }),
-    ),
+    );
+    writeHash({ name: "home" });
+  },
   changePassword: (current, next) => {
     const s = get();
     if (current !== s.password) return "当前密码不正确";
@@ -1192,6 +1227,7 @@ function startPersisting() {
   persistUnsub = useAdmin.subscribe((state) => {
     const slice: Persisted = {
       authed: state.authed,
+      rememberLogin: state.rememberLogin,
       password: state.password,
       demoMode: state.demoMode,
       members: state.members,
@@ -1225,7 +1261,17 @@ export function hydrateAdmin() {
     // 先立刻离开启动画面，再在后台探测后端。绝不为了网络而卡住星星页。
     try {
       const restored = restoreLocal();
-      useAdmin.setState({ ...restored, booted: true, bootError: null });
+      const fromHash = restored.authed ? readInitialNav() : null;
+      const nav = fromHash && fromHash.name !== "home" ? fromHash : restored.authed ? (fromHash || useAdmin.getState().nav) : { name: "home" as const };
+      useAdmin.setState({ ...restored, nav, booted: true, bootError: null });
+      if (restored.authed) writeHash(nav);
+      startHashListener((next) => {
+        if (isWritingHash()) return;
+        const s = useAdmin.getState();
+        if (!s.authed) return;
+        if (s.nav.name === next.name && s.nav.userId === next.userId) return;
+        useAdmin.setState({ nav: { name: next.name, userId: next.userId }, history: s.history });
+      });
     } catch (err) {
       useAdmin.setState({
         booted: true,

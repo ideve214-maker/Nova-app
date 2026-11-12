@@ -42,7 +42,7 @@
 ```bash
 cd admin          # 或本项目根目录
 npm ci
-npm run build:spa           # 生成 dist-spa/NOVA_Admin.html（给 iPhone 用的单文件）
+npm run build:spa           # 生成 dist-spa/（Capacitor webDir：index.html + assets）以及单文件 NOVA_Admin.html
 npm run preview:admin       # 本地 http://127.0.0.1:4173/ ，并把 /api 反代到用户端后端
 ```
 
@@ -54,7 +54,7 @@ npm run build && npm run preview   # 8081
 npm run test:admin          # 适配层单测
 ```
 
-把 `dist-spa/NOVA_Admin.html` 发到手机后，用 Safari 打开即可。不要用只能「看一眼」而不能跑脚本的文件预览器。
+`dist-spa/` 是多文件静态包（`index.html` + `assets/`，资源路径为相对路径 `./`，hash 路由 `#/users`），可作为 Capacitor 的 `webDir`，离线也能打开。同时会生成单文件 `dist-spa/NOVA_Admin.html`，方便用 Safari 打开或分享。不要用只能「看一眼」而不能跑脚本的文件预览器。
 
 ---
 
@@ -76,7 +76,7 @@ npm run test:admin          # 适配层单测
 
 | 能力 | 说明 |
 |---|---|
-| 可配置根地址 | 存在浏览器 localStorage（`nova-admin-api-config-v1`），设置页可改 |
+| 可配置根地址 | 优先级：设置页保存到 localStorage（`nova-admin-api-config-v1`）> 打包时的 `VITE_NOVA_API_BASE` > 普通网页同源。Capacitor 下没有同源后端 |
 | 路径对照表 | 默认表在 `DEFAULT_ENDPOINT_MAP`；设置页「高级」可用 JSON 覆盖，例如 `{"adminUsers":"/api/v2/admin/users"}` |
 | 路径别名 | 主路径 404 时自动试一组常见备用路径 |
 | 版本检测 | 读 `X-Nova-Version` / `X-Api-Version` 响应头，或 JSON 里的 `version` / `apiVersion` 等；当前 M2.6 的 `/api/health` 只有 `{status,time}`，会显示「健康检查正常，未声明版本号」 |
@@ -103,7 +103,10 @@ src/lib/admin/backend.ts 后端适配层
 src/spa-main.tsx        单文件 / 静态预览的入口（不走服务端渲染）
 spa.html                带启动保护的静态壳
 scripts/preview-server.mjs  预览服务（静态页 + /api 反代）
-dist-spa/NOVA_Admin.html    构建后的单文件
+dist-spa/                   Capacitor webDir：index.html + assets/（相对路径）
+dist-spa/NOVA_Admin.html    构建后的单文件（额外产物）
+capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未安装 iOS 平台）
+.env.production.example     打包默认后端地址的示例（生产域名未定）
 ```
 
 环境变量（预览服务）：
@@ -144,3 +147,33 @@ dist-spa/NOVA_Admin.html    构建后的单文件
 - 底栏按 iOS 约 49px + Home Indicator
 - 禁止横向溢出
 - 保留紫色 / 星星品牌
+
+## 7. Capacitor / TestFlight 打包说明
+
+管理端 SPA **不依赖 SSR**：入口是 `src/spa-main.tsx`，`npm run build:spa` 产出纯静态文件。
+
+```bash
+# 可选：先填写生产后端，再构建（域名未定时可先留空，用户在 App 里「设置服务器」填写）
+cp .env.production.example .env.production
+# 编辑 .env.production：
+#   VITE_NOVA_API_BASE=https://api.example.com
+npm run build:spa
+# 得到：
+#   dist-spa/index.html      ← Capacitor 打开的页面（相对路径引用 ./assets/*）
+#   dist-spa/assets/         ← JS / CSS
+#   dist-spa/NOVA_Admin.html ← 单文件版，不是 webDir 的入口
+```
+
+`capacitor.config.ts` 已写好占位：`appId: "com.nova.admin"`，`webDir: "dist-spa"`，iOS `contentInset: "never"`（刘海和 Home Indicator 由页面的 `viewport-fit=cover` 与 `env(safe-area-inset-*)` 处理）。**本仓库没有执行 `npx cap add ios`，也不包含 ios/ 工程**；以后在本机包装时再安装 Capacitor 与 iOS 平台，把 `dist-spa` 指过去即可。
+
+路由使用 hash（`#/`、`#/users`、`#/user/:id`），在 `capacitor://` 或离线 WebView 里刷新不会 404。
+
+登录状态写在本机 `localStorage`（键 `nova-admin-v2` 的 `authed`）。默认「记住登录」；取消勾选则只在本次会话有效。这是本机操作员口令，不是服务器账号。
+
+接口根地址优先级：
+
+1. 用户在「设置服务器」保存的值（localStorage，可随时改）
+2. 构建时的 `VITE_NOVA_API_BASE`（见 `.env.production.example`，**不要把未定的真实域名写进仓库**）
+3. 普通 http(s) 网页的同源（本地 `preview:admin` 反代时有用）
+
+在 TestFlight 的 App 里，若 1 和 2 都为空，页面会提示未连接，请用户自己填写可访问的后端地址。

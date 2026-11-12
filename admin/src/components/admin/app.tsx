@@ -59,7 +59,7 @@ export function AdminApp() {
   if (!booted) {
     return (
       <Frame>
-        <div className="nova-login grid flex-1 place-items-center px-6 text-on-primary" style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <div className="nova-login grid flex-1 place-items-center px-6 text-on-primary" style={{ paddingTop: "max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))", paddingBottom: "max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex flex-col items-center text-center">
             <StarMark className="size-9" />
             <p className="mt-4 text-[15px] text-on-primary/85">正在进入 NOVA 管理端…</p>
@@ -135,7 +135,7 @@ export function AdminApp() {
         </nav>
       )}
       {toast && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center px-6">
+        <div className="nova-toast pointer-events-none absolute inset-x-0 z-40 flex justify-center px-6">
           <div className="rounded-full bg-ink px-3.5 py-1.5 text-[13px] text-on-primary shadow-card">{toast}</div>
         </div>
       )}

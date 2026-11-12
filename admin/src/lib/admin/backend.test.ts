@@ -8,6 +8,7 @@ import {
   pick,
   joinUrl,
   pathTemplate,
+  resolveBase,
 } from "./backend.ts";
 
 describe("pick / joinUrl / pathTemplate", () => {
@@ -96,5 +97,17 @@ describe("mapCatalogEntitlements", () => {
     );
     assert.equal(mapped["badge.vip"], true);
     assert.equal(mapped["quota.save"], true);
+  });
+});
+
+describe("resolveBase priority", () => {
+  it("uses an explicit non-empty user override first", () => {
+    assert.equal(resolveBase("https://user.example/api/", "https://env.example"), "https://user.example/api");
+  });
+  it("falls through empty override to VITE default", () => {
+    assert.equal(resolveBase("", "https://env.example/"), "https://env.example");
+  });
+  it("returns empty when nothing is set and there is no window (native / node)", () => {
+    assert.equal(resolveBase("", ""), "");
   });
 });

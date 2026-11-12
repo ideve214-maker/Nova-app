@@ -40,16 +40,18 @@ export function TopBar({
   right?: ReactNode;
 }) {
   return (
-    <header className="flex h-11 shrink-0 items-center gap-0.5 border-b border-line bg-surface px-1 pt-safe">
-      {onBack ? (
-        <button type="button" onClick={onBack} className="grid size-11 place-items-center rounded-full" aria-label="返回">
-          <ChevronLeft className="size-5" />
-        </button>
-      ) : (
-        <span className="w-2" />
-      )}
-      <h1 className={cn("min-w-0 flex-1 truncate text-[17px] font-semibold", onBack && "text-center")}>{title}</h1>
-      <div className="flex min-w-11 items-center justify-end">{right}</div>
+    <header className="nova-topbar shrink-0 border-b border-line bg-surface">
+      <div className="flex h-11 items-center gap-0.5">
+        {onBack ? (
+          <button type="button" onClick={onBack} className="grid size-11 place-items-center rounded-full" aria-label="返回">
+            <ChevronLeft className="size-5" />
+          </button>
+        ) : (
+          <span className="w-2" />
+        )}
+        <h1 className={cn("min-w-0 flex-1 truncate text-[17px] font-semibold", onBack && "text-center")}>{title}</h1>
+        <div className="flex min-w-11 items-center justify-end">{right}</div>
+      </div>
     </header>
   );
 }
@@ -155,7 +157,7 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[85dvh] w-full max-w-[430px] overflow-y-auto rounded-t-2xl bg-surface px-4 pb-safe pt-3 shadow-card"
+        className="nova-sheet max-h-[85dvh] w-full max-w-[430px] overflow-y-auto rounded-t-2xl bg-surface pt-3 shadow-card"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-2 flex items-center justify-between">

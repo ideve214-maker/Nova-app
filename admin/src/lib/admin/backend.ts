@@ -142,14 +142,44 @@ export function saveConfig(patch: Partial<ApiConfig>) {
   return next;
 }
 
-export function resolveBase(baseUrl?: string) {
-  const raw = (baseUrl ?? loadConfig().baseUrl).trim();
-  if (!raw) {
-    if (typeof window === "undefined") return "";
-    if (window.location.protocol === "file:") return "";
+/**
+ * 打包时写入的默认接口根地址（VITE_NOVA_API_BASE）。未设置则为空字符串。
+ * 优先级见 resolveBase：用户在「设置服务器」里保存的地址 > 此值 > 网页同源。
+ */
+export function builtInApiBase(): string {
+  try {
+    const meta = import.meta as ImportMeta & { env?: { VITE_NOVA_API_BASE?: string } };
+    const v = meta.env && meta.env.VITE_NOVA_API_BASE;
+    return typeof v === "string" ? v.trim().replace(/\/+$/, "") : "";
+  } catch {
+    return "";
+  }
+}
+
+export function isNativeShell(): boolean {
+  if (typeof window === "undefined") return false;
+  const proto = window.location.protocol;
+  if (proto === "capacitor:" || proto === "ionic:" || proto === "file:") return true;
+  const cap = (window as unknown as { Capacitor?: unknown }).Capacitor;
+  return typeof cap !== "undefined" && cap !== null;
+}
+
+/**
+ * 解析接口根地址。
+ * 优先级：用户传入 / localStorage「设置服务器」覆盖（非空）> VITE_NOVA_API_BASE > http(s) 网页同源。
+ * Capacitor / file:// 没有可用的「同源后端」，未配置时返回空字符串。
+ */
+export function resolveBase(baseUrl?: string, envBase?: string) {
+  const user = (baseUrl !== undefined ? baseUrl : loadConfig().baseUrl).trim().replace(/\/+$/, "");
+  if (user) return user;
+  const builtIn = (envBase !== undefined ? envBase : builtInApiBase()).trim().replace(/\/+$/, "");
+  if (builtIn) return builtIn;
+  if (typeof window === "undefined") return "";
+  if (isNativeShell()) return "";
+  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
     return window.location.origin;
   }
-  return raw.replace(/\/+$/, "");
+  return "";
 }
 
 export function joinUrl(base: string, path: string) {
