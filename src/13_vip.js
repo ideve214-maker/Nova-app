@@ -50,9 +50,12 @@ function vipStatusCard(){
     expired:['VIP 已过期','已于 '+(v.expiredAt?vipDate(v.expiredAt):'—')+' 回到 Basic。你发过、收藏过的内容都还在。'],
     revoked:['VIP 已被撤销','已回到 Basic，你的内容都还在。如有疑问请联系管理员。']}[v.state]||['当前套餐：Basic',''];
   return `<div class="card vp" data-vs="${esc(v.state)}"><b>${esc(T[0])}</b><small>${esc(T[1])}</small></div>`}
+/* 开通按钮（M2.4.6）：支付未接入，永远是不可点的占位。没有 data-a、没有链接、没有表单，点了不会发任何请求，也不会出现「成功」。
+   文字来自服务端目录的 purchase.label，目录缺失时仍按「暂未开放」显示。 */
+const vipBuy=v=>`<button type="button" class="pb off" id="vbuy" disabled aria-disabled="true">${esc(v.purchase&&v.purchase.enabled===false&&v.purchase.label?v.purchase.label:'暂未开放')}</button>`;
 function vipPlans(c){
   const b=c.plans.basic,v=c.plans.vip;
-  return `<div class="plans"><div class="plan" data-plan="basic"><b>${esc(b.name)}</b><div class="pp">免费</div><small>${esc(b.tagline)}</small></div><div class="plan v" data-plan="vip"><b>${esc(v.name)}</b><div class="pp">${v.prices.map(p=>esc(p.label)).join('<br>')}</div><small>${esc(v.tagline)}</small></div></div><p class="vpn">${esc(v.priceNote)}</p>`}
+  return `<div class="plans"><div class="plan" data-plan="basic"><b>${esc(b.name)}</b><div class="pp">免费</div><small>${esc(b.tagline)}</small></div><div class="plan v" data-plan="vip"><b>${esc(v.name)}</b><div class="pp">${v.prices.map(p=>esc(p.label)).join('<br>')}</div><small>${esc(v.tagline)}</small>${vipBuy(v)}</div></div><p class="vpn">${esc(v.priceNote)} ${esc(v.purchase?v.purchase.reason+'，现在不能购买，也不会产生任何订单或扣款。':'')}</p>`}
 function vipCompare(c){
   return `<div class="shd">权益对比</div>`+c.entitlements.map(e=>`<div class="ent" data-ent="${esc(e.key)}"><div class="et"><b>${esc(e.title)}</b>${e.status==='live'?'':'<span class="tag">即将推出</span>'}<small>${esc(e.description)}</small></div><div class="ev"><span data-p="basic"><i>Basic</i>${esc(vipFmt(e,'basic'))}</span><span class="v" data-p="vip"><i>VIP</i>${esc(vipFmt(e,'vip'))}</span></div></div>`).join('')}
 function vipRules(c){
