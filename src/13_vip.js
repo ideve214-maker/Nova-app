@@ -2,6 +2,8 @@
    数据全部来自服务端：/api/vip/catalog（公开目录）和 /api/vip/me（登录后）。
    这里只缓存服务端返回的结果用于显示；客户端既不保存也不能设置 VIP 身份。 */
 const VIP={cat:null,me:null,busy:0,err:''};
+/* 会员标识：只表示订阅状态，不是实名认证。 */
+const vipBadge=()=>'<i class="vip" role="img" aria-label="NOVA VIP 会员">VIP</i>';
 const pad2=n=>String(n).padStart(2,'0');
 const vipDate=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())};
 /* 把「权益在某套餐下的取值」写成人能读的文字；数字都来自服务端目录。 */
@@ -21,6 +23,22 @@ async function loadVip(){
 }
 /* 服务端说你是 VIP，个人资料里的标识才亮；到期回落后同样由服务端结果驱动。 */
 function syncVipUser(){if(MODE==='account'&&D&&D.u&&D.u.me)D.u.me[5]=VIP.me&&VIP.me.vip.active?1:0}
+/* 香槟金主题（M2.4.5）：是否启用只看服务端返回的状态与权益（VIP 有效 + profile_theme_gold 开启），再加上本机的「不想用」偏好 D.st.vt===0。
+   偏好只能关掉主题，不能打开：客户端无法凭自己的数据获得 VIP 外观。到期后服务端不再返回有效状态，下一次读取/刷新即回落默认主题，偏好保留。 */
+function vipThemeOn(){
+  if(MODE!=='account'||!VIP.me||!VIP.me.vip||!VIP.me.vip.active)return false;
+  const e=VIP.me.entitlements&&VIP.me.entitlements.profile_theme_gold;
+  return !!(e&&e.enabled)&&!(D&&D.st&&D.st.vt===0)}
+function applyVipTheme(on){const r=document.documentElement;if(on)r.dataset.vip='gold';else delete r.dataset.vip}
+/* 会员中心里的「主题与标识」：左右两张资料预览（普通 / 香槟金），VIP 有效时多一组切换按钮。预览是静态示意，不是购买入口。 */
+function vipThemeCard(c){
+  if(MODE!=='account')return '';
+  const ent=c.entitlements.find(e=>e.key==='profile_theme_gold');if(!ent)return '';
+  const act=!!(VIP.me&&VIP.me.vip.active),on=vipThemeOn(),me=P('me');
+  const pv=(k,t)=>`<div class="gpv ${k}" data-pv="${k==='g'?'gold':'basic'}" role="group" aria-label="${t}预览"><div class="gh">${av('me',36)}<div class="gn"><b>${esc(me.n)}${k==='g'?' '+vipBadge():''}</b><small>@${esc(me.h)}</small></div></div><div class="gl">查看全部</div><div class="gb" aria-hidden="true">编辑资料</div><small class="gc">${t}</small></div>`;
+  const note=!VIP.me?'':act?(on?'当前正在使用香槟金主题。':'你选择了默认主题，VIP 有效期内可随时切回香槟金。'):'预览仅作示意。VIP 有效期内自动使用香槟金主题。';
+  const btns=act?`<div class="vtb"><button class="pb${on?'':' s'}" data-a="vtheme" data-v="gold" aria-pressed="${on}">香槟金</button><button class="pb${on?' s':''}" data-a="vtheme" data-v="off" aria-pressed="${!on}">默认</button></div>`:'';
+  return `<div class="shd">主题与标识</div><div class="vtn" style="padding-top:0;border-bottom:0">${esc(ent.description)}</div><div class="gpvs" id="vtheme">${pv('n','普通主题')}${pv('g','香槟金主题')}</div>${btns}<div class="vtn" data-vt="${on?'gold':'default'}">${esc(note)} 到期后：${esc(ent.onExpire)}</div>`}
 function vipStatusCard(){
   if(MODE!=='account')return `<div class="card vp" data-vs="anon"><b>登录后查看你的会员状态</b><small>会员状态保存在服务器上，由服务器判断，不能在本机修改。</small></div>`;
   const m=VIP.me;if(!m)return `<div class="card vp" data-vs="loading"><b>正在读取会员状态…</b></div>`;
@@ -55,7 +73,7 @@ const pVip=()=>{
   const c=VIP.cat;let body;
   if(!NET)body='<div class="card vp"><b>没有连上服务器</b><small>会员信息保存在服务器上。离线演示模式下无法读取。</small></div>';
   else if(!c)body=VIP.err?`<div class="card vp"><div class="err" role="alert">${esc(VIP.err)}</div><button class="pb" data-a="vipretry">重试</button></div>`:'<p class="em" data-vs="loading">正在读取会员信息…</p>';
-  else body=vipStatusCard()+vipTestBox(c)+(VIP.err?`<div class="err" role="alert" style="margin:8px 16px">${esc(VIP.err)}</div>`:'')+vipPlans(c)+vipCompare(c)+vipRules(c);
+  else body=vipStatusCard()+vipTestBox(c)+vipThemeCard(c)+(VIP.err?`<div class="err" role="alert" style="margin:8px 16px">${esc(VIP.err)}</div>`:'')+vipPlans(c)+vipCompare(c)+vipRules(c);
   return `<div class="pg" id="vipc">${sub('会员中心')}<div class="sc">${body}</div></div>`};
 /* 设置页里的入口行 */
 const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip;
@@ -64,3 +82,4 @@ const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip
 const vipOpen=()=>{S.sh=null;S.st.push('vip');loadVip().then(()=>render())};
 const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
 const vipTog=v=>vipToggle(v);
+const vipTheme=v=>{D.st.vt=v==='off'?0:1;T(v==='off'?'已切换为默认主题':'已使用香槟金主题')};

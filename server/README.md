@@ -1,4 +1,4 @@
-# NOVA 后端（M2.4）
+# NOVA 后端（M2.4.5）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -34,3 +34,7 @@
 - `state`：`none` 未开通 · `active` 有效 · `expiring` 有效但 3 天内到期 · `expired` 已过期 · `revoked` 已被撤销。
 - 权益与额度的唯一配置在 `server/vip-config.mjs`；`docs/spec/09_VIP权益与额度.md` 由它生成。
 - 迁移 `002_vip.sql` 增加 `vip_since`、`vip_source`、`vip_events`。
+
+## 香槟金主题（M2.4.5，前端）
+- 页面根元素 `data-vip=gold` 即启用；由前端按 `/api/vip/me` 的 `vip.active` 和 `entitlements.profile_theme_gold.enabled` 设置，到期后服务端不再返回有效状态，主题随之回落。
+- 本机偏好 `D.st.vt===0` 只能关闭金色，不能开启。配色变量在 `src/00_head.html` 顶部（`--ac`、`--onac`、`--vip`、`--ln`）。

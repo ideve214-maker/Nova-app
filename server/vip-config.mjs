@@ -58,7 +58,7 @@ export const VIP_CONFIG = Object.freeze({
       onExpire: '标识立即消失。',
     }),
     profile_theme_gold: Object.freeze({
-      title: '香槟金主题', kind: 'flag', basic: false, vip: true, status: 'planned', phase: 'M2.4.5',
+      title: '香槟金主题', kind: 'flag', basic: false, vip: true, status: 'live', phase: 'M2.4.5',
       description: '整套香槟金配色，深色与浅色模式都有，可随时切回默认。',
       onExpire: '立即恢复默认主题；你的偏好会保留，续订后自动恢复。',
     }),
