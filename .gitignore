@@ -6,3 +6,9 @@ backup/*.db
 *.db-shm
 node_modules/
 .DS_Store
+
+# 本地媒体文件（M4.5）
+data/
+*.db
+*.db-wal
+*.db-shm

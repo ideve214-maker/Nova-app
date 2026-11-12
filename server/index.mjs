@@ -17,6 +17,9 @@ import {createCommunities} from './communities.mjs';
 import {createChats} from './chats.mjs';
 import {createFriends} from './friends.mjs';
 import {createEvents} from './events.mjs';
+import {createMedia} from './media.mjs';
+import {mkdirSync} from 'node:fs';
+import {join as pathJoin} from 'node:path';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -25,7 +28,8 @@ const bad = (code, msg, s = 400) => new HttpError(s, code, msg);
 // clock 仅用于测试注入固定时间；生产一律用系统时间。
 // env：只有严格等于 'development' 才会开启 VIP 测试切换（默认 production）；任何拼写变体都按生产处理。
 export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*', clock = Date.now,
-  env = process.env.NOVA_ENV || 'production', vipTestToggle = process.env.NOVA_VIP_TEST_TOGGLE !== '0'} = {}) {
+  env = process.env.NOVA_ENV || 'production', vipTestToggle = process.env.NOVA_VIP_TEST_TOGGLE !== '0',
+  mediaDir, mediaScan} = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
   const db = openDb(dbPath);
@@ -40,7 +44,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const communities = createCommunities(db, {profile, vip, now});
   const friends = createFriends(db, {now});
   const events = createEvents(db, {now});
-  const chats = createChats(db, {profile, vip, now, friends, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
+  const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
+  const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan});
+  const chats = createChats(db, {profile, vip, now, friends, media, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -487,6 +493,35 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return chats.unpinMessage(user, req.params.id, b || {});
     },
+
+    'POST /api/media'(req, b) {
+      const {user} = auth(req);
+      const buf = b && b._buffer;
+      const name = (b && (b.name || b.filename)) || 'file';
+      const mime = (b && (b.mime || b.type)) || 'application/octet-stream';
+      const data = buf || (b && b.data ? Buffer.from(b.data, 'base64') : null);
+      const r = media.upload(user, {buffer: data, mime, name, kind: b && b.kind});
+      audit(user.id, 'media.upload', 'media:' + r.media.id, ip(req), {kind: r.media.kind, size: r.media.size});
+      return r;
+    },
+    'GET /api/media/usage'(req) {
+      const {user} = auth(req);
+      return {usage: media.usage(user)};
+    },
+    'GET /api/media/:id'(req) {
+      const {user} = auth(req);
+      return media.get(user, req.params.id);
+    },
+    'POST /api/media/:id/ticket'(req) {
+      const {user} = auth(req);
+      return media.ticket(user, req.params.id);
+    },
+    'POST /api/media/:id/delete'(req) {
+      const {user} = auth(req);
+      const r = media.remove(user, req.params.id);
+      audit(user.id, 'media.delete', 'media:' + req.params.id, ip(req));
+      return r;
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -553,12 +588,44 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
       return;
     }
+    const mediaFile = /^\/api\/media\/([^/]+)\/(file|preview)$/.exec(path);
+    if (req.method === 'GET' && mediaFile) {
+      try {
+        if (req.query.token || req.query.access_token || req.query.authorization) throw bad('TOKEN_IN_URL', '不要把访问令牌放在 URL 里', 400);
+        const mid = decodeURIComponent(mediaFile[1]);
+        const preview = mediaFile[2] === 'preview';
+        const who = req.query.ticket ? {ticket: req.query.ticket} : auth(req).user;
+        const f = media.fileOf(who, mid, {preview});
+        const data = readFileSync(f.path);
+        res.writeHead(200, {
+          'Access-Control-Allow-Origin': corsOrigin,
+          'Content-Type': f.mime,
+          'Content-Length': data.length,
+          'Content-Disposition': (preview ? 'inline' : 'inline') + '; filename="' + (f.name || 'file').replace(/["\\]/g, '') + '"',
+          'Cache-Control': 'private, max-age=60',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        return res.end(data);
+      } catch (e) {
+        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+      }
+      return;
+    }
     let size = 0; const chunks = [];
-    req.on('data', c => { size += c.length; if (size > 1e6) { send(413, {error: {code: 'TOO_LARGE', message: '请求过大'}}); req.destroy(); } else chunks.push(c); });
+    const bodyLimit = (req.method === 'POST' && path === '/api/media') ? 100 * 1024 * 1024 : 1e6;
+    req.on('data', c => { size += c.length; if (size > bodyLimit) { send(413, {error: {code: 'TOO_LARGE', message: '请求过大'}}); req.destroy(); } else chunks.push(c); });
     req.on('end', () => {
       try {
-        let b = {}; if (chunks.length) { try { b = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw bad('BAD_JSON', '请求格式不正确'); } }
-        if (b === null || typeof b !== 'object') throw bad('BAD_JSON', '请求格式不正确');
+        let b = {};
+        const raw = chunks.length ? Buffer.concat(chunks) : Buffer.alloc(0);
+        const ct = String(req.headers['content-type'] || '');
+        if (path === '/api/media' && req.method === 'POST' && raw.length && !ct.includes('application/json')) {
+          b = {_buffer: raw, name: decodeURIComponent(String(req.headers['x-file-name'] || 'file')), mime: ct.split(';')[0] || 'application/octet-stream'};
+        } else if (raw.length) {
+          try { b = JSON.parse(raw.toString('utf8')); } catch { throw bad('BAD_JSON', '请求格式不正确'); }
+          if (b === null || typeof b !== 'object') throw bad('BAD_JSON', '请求格式不正确');
+        }
         send(200, {ok: true, ...fn(req, b)});
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
@@ -566,7 +633,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media;
   return server;
 }
 

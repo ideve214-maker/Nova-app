@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.5.1 · 媒体存储方案与元数据表（2026-11-12）
+- 选定**本地磁盘**存储（`NOVA_MEDIA_DIR` 或 `data/media/`）：本环境没有可用的对象存储凭证，不假装已经接到云。文件名随机，不对外暴露磁盘路径。
+- `media` 表与 `messages` 分离：上传只产生媒体记录，不自动发消息。`POST /api/media`（JSON base64 或原始字节 + `X-File-Name`），`GET /api/media/:id` 元数据。
+- 测试：新增服务端 1 项。
+
 ## V7 M4.4.6 · 静音（2026-11-12）
 - `POST /api/conversations/:id/mute` `{mute:true|false}` 为用户级状态，不影响对方，也不影响消息入库和未读计数。
 - 测试：新增服务端 1 项。
