@@ -7,6 +7,7 @@
 //   <script>window.NOVA_API_BASE='https://api.example.com';window.NOVA_DISABLE_DEMO=true;</script>
 // window 上已有的值优先（构建注入用 ||，不会覆盖页面里先写的配置）。
 import fs from 'node:fs';
+import {vodozemacIife} from './embed-vodozemac.mjs';
 
 export function parseBuildOpts(argv = process.argv.slice(2), env = process.env) {
   const get = (flag, envKey) => {
@@ -27,7 +28,8 @@ export function build({apiBase = '', disableDemo = false, destDir} = {}) {
   const dir = new URL('../src/', import.meta.url);
   const files = fs.readdirSync(dir).sort();
   const head = files.filter(f => f.endsWith('.html')).map(f => fs.readFileSync(new URL(f, dir), 'utf8')).join('');
-  const js = files.filter(f => f.endsWith('.js')).map(f => `/* ===== ${f} ===== */\n` + fs.readFileSync(new URL(f, dir), 'utf8')).join('\n');
+  const appJs = files.filter(f => f.endsWith('.js')).map(f => `/* ===== ${f} ===== */\n` + fs.readFileSync(new URL(f, dir), 'utf8')).join('\n');
+  const js = vodozemacIife() + '\n' + appJs;
   const cfg = [];
   cfg.push('/* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */');
   if (apiBase) cfg.push('window.NOVA_API_BASE = window.NOVA_API_BASE || ' + JSON.stringify(apiBase) + ';');

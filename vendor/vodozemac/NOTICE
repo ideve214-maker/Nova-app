@@ -1,0 +1,11 @@
+vodozemac WASM bindings, vendored for offline builds.
+
+- Package: @kinsh/vodozemac-wasm 0.4.2
+- License: Apache-2.0
+- Source: https://github.com/Meneleus/vodozemac-bindings
+- Cryptography: vodozemac (Matrix.org Foundation, Apache-2.0)
+  https://github.com/matrix-org/vodozemac
+- Original Olm WASM bindings: dTelecom/vodozemac-wasm (Apache-2.0)
+
+This is a wasm-bindgen wrapper around the official vodozemac crate
+(Olm Double Ratchet). NOVA does not implement the ratchet itself.
