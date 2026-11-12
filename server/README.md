@@ -1,10 +1,68 @@
 # NOVA 后端（M4.7）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
-环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
+环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`（未设置仍是 `*`；可写逗号分隔白名单，如 `capacitor://localhost,https://localhost`，只回显匹配的 Origin）、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
 测试：`npm run test:server`（账号接口） · `npm run test:ui`（浏览器走一遍注册登录） · `npm run test:web`（旧的本地 HTML 演示测试）
 
 打开 `http://主机:端口/` 就是用户端。同一个服务提供网页和接口。
+
+## 部署到 Capacitor（客户端与 API 不同源）
+
+前端是单个 `dist/nova_v5.html`，可直接打进 iOS 壳（本地资产）。API 在另一域名时，请同时配置下面三项。
+
+### 1. 客户端 API 基址 `window.NOVA_API_BASE`
+
+空、未定义，或空字符串 = **同源**（现在的默认，浏览器测试不用改）。
+所有客户端请求（`api()` 助手、`GET /api/health`、`POST /api/auth/logout`、`POST /api/media` 上传、SSE `GET /api/events`）都经 `apiUrl()` 加上这个前缀。不要在源码里再写死 `fetch('/api/...')`。
+
+设置方式（任选，页面里先写的值优先）：
+
+```html
+<!-- 打进壳的 HTML 里、主脚本之前 -->
+<script>
+  window.NOVA_API_BASE = 'https://api.example.com';  // 不要末尾斜杠，有也会被去掉
+</script>
+```
+
+或构建时注入：
+
+```bash
+node scripts/build.mjs --api-base=https://api.example.com
+# 等价：NOVA_API_BASE=https://api.example.com node scripts/build.mjs
+```
+
+### 2. 服务端 CORS：`NOVA_CORS_ORIGIN`
+
+- **未设置**：与原来一样，响应 `Access-Control-Allow-Origin: *`。
+- **逗号分隔白名单**：例如 `NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost`。请求的 `Origin` 在名单里时原样回显，不在则不回显（浏览器会拦截）。比较是精确字符串匹配（含协议和端口）。
+- 预检 `OPTIONS` 返回 204，允许方法 `GET, POST, OPTIONS`，允许头 `Authorization, Content-Type, X-File-Name`（媒体上传用）、以及 `Last-Event-ID`。
+- SSE（`GET /api/events`）和媒体文件/预览响应同样带上述 CORS 头。
+
+```bash
+NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost npm run server
+```
+
+代码里也可 `createApp({corsOrigin: 'capacitor://localhost,https://localhost'})`。
+
+### 3. 生产构建关闭本机演示：`window.NOVA_DISABLE_DEMO`
+
+默认仍保留演示（`file://` 自动化测试、离线双击会进演示）。生产壳请关掉：
+
+```html
+<script>window.NOVA_DISABLE_DEMO = true;</script>
+```
+
+或 `node scripts/build.mjs --disable-demo`（`NOVA_DISABLE_DEMO=1`）。
+
+开启后：`/api/health` 失败或超过 2 秒**不会**掉进演示数据；页面显示「无法连接服务器」和「重试」。登录页不再有「先用演示看看」，设置里也不再有「切换到演示数据」。
+
+典型生产构建：
+
+```bash
+node scripts/build.mjs --api-base=https://api.example.com --disable-demo
+NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost NOVA_ENV=production npm run server
+```
+
 
 ## 已完成接口
 | 方法 路径 | 说明 |

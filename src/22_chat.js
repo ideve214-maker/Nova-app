@@ -145,7 +145,7 @@ async function startEvents(){
         if(cur&&String(cur).startsWith('chat:'))await catchUpMessages(String(cur).slice(5));
         const headers={Authorization:'Bearer '+SESSION.token,Accept:'text/event-stream'};
         if(S.lastEventId)headers['Last-Event-ID']=String(S.lastEventId);
-        const r=await fetch('/api/events',{headers,signal:ac.signal});
+        const r=await fetch(apiUrl('/api/events'),{headers,signal:ac.signal});
         if(r.status!==200){await new Promise(ok=>setTimeout(ok,3000));continue}
         const reader=r.body.getReader(),dec=new TextDecoder();
         let buf='';

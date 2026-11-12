@@ -34,6 +34,24 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   mediaDir, mediaScan} = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
+  // CORS：未设置或 * 时与原先一致（允许任意来源）。逗号分隔白名单只回显匹配的 Origin。
+  function corsHeaders(req) {
+    const out = {
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name, Last-Event-ID, Last-Event-Id',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    };
+    const raw = (corsOrigin == null || String(corsOrigin).trim() === '') ? '*' : String(corsOrigin).trim();
+    if (raw === '*') {
+      out['Access-Control-Allow-Origin'] = '*';
+      return out;
+    }
+    const list = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const origin = req && req.headers && (req.headers.origin || req.headers.Origin);
+    out['Vary'] = 'Origin';
+    if (origin && list.includes(origin)) out['Access-Control-Allow-Origin'] = origin;
+    return out;
+  }
+
   const db = openDb(dbPath);
   const vip = createVip(db, {clock});
   const saved = createSaved(db, {vip, now});
@@ -499,8 +517,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       const lastId = req.headers['last-event-id'] || q.after || '';
       res.writeHead(200, {
-        'Access-Control-Allow-Origin': corsOrigin,
-        'Access-Control-Allow-Headers': 'Authorization, Content-Type, Last-Event-ID, Last-Event-Id',
+        ...corsHeaders(req),
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
@@ -624,7 +641,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const root = dirname(fileURLToPath(import.meta.url));
   const assetRoot = join(root, '../assets');
   const server = http.createServer((req, res) => {
-    const h = {'Access-Control-Allow-Origin': corsOrigin, 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Last-Event-ID, Last-Event-Id', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    const h = {...corsHeaders(req),
       'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8'};
     const send = (s, o) => { res.writeHead(s, h); res.end(JSON.stringify(o)); };
     if (req.method === 'OPTIONS') { res.writeHead(204, h); return res.end(); }
@@ -658,7 +675,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         const f = media.fileOf(who, mid, {preview});
         const data = readFileSync(f.path);
         res.writeHead(200, {
-          'Access-Control-Allow-Origin': corsOrigin,
+          ...corsHeaders(req),
           'Content-Type': f.mime,
           'Content-Length': data.length,
           'Content-Disposition': (preview ? 'inline' : 'inline') + '; filename="' + (f.name || 'file').replace(/["\\]/g, '') + '"',

@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## DEPLOY · Capacitor / 跨域部署支持（2026-11-12）
+- **客户端 API 基址**：`window.NOVA_API_BASE`（空或未设 = 同源，行为与原来一致）。`api()`、`/api/health`、`/api/auth/logout`、媒体上传、SSE `/api/events` 全部经 `apiUrl()` 拼接。构建：`node scripts/build.mjs --api-base=https://api.example.com`（或环境变量 `NOVA_API_BASE`）；也可在主脚本前放 `<script>window.NOVA_API_BASE='https://api.example.com'</script>`，页面里已有的值不被覆盖。
+- **CORS 白名单**：`NOVA_CORS_ORIGIN` 支持逗号分隔（如 `capacitor://localhost,https://localhost`），只回显匹配的 `Origin`。预检 OPTIONS 允许 `Authorization`、`Content-Type`、`X-File-Name`，方法 GET/POST。SSE 与媒体文件响应同样带 CORS 头。未设置时仍是 `*`，与原来一致。
+- **关闭本机演示**：`window.NOVA_DISABLE_DEMO = true` 或 `node scripts/build.mjs --disable-demo`（`NOVA_DISABLE_DEMO=1`）。开启后，`/api/health` 失败或超过 2 秒不得掉进演示，改为「无法连接服务器 / 重试」。登录页与设置里的演示入口一并隐藏。
+- 测试：服务端 CORS + 构建注入 + 浏览器跨源与关闭演示。
+
 ## V7 M4 · 同步既有账号模式 UI（2026-11-12）
 - 演示社区频道名仍限 12 字（与既有演示测试一致）；账号/服务端仍是 1–20。
 - 收藏入口按联网动态查找帖子，不再只查演示 `D.p`。

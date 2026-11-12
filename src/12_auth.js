@@ -1,5 +1,26 @@
 /* 账号会话。演示数据键 nova_v5；每个真实账号单独键 nova_v5_u_<id>，互不覆盖。
-   用 file:// 打开（自动化测试、离线双击）时不连服务器，直接进演示。 */
+   用 file:// 打开（自动化测试、离线双击）时不连服务器，直接进演示。
+   生产打包可设 window.NOVA_DISABLE_DEMO：连不上服务器时不再掉进演示，而是提示重试。
+   window.NOVA_API_BASE 为跨域/Capacitor 的 API 根（空或未设 = 同源）。 */
+function apiBase(){
+  try{
+    const b=typeof window!=='undefined'?window.NOVA_API_BASE:undefined;
+    if(b==null||b==='')return '';
+    return String(b).replace(/\/+$/,'');
+  }catch(e){return ''}
+}
+function apiUrl(path){
+  const p=String(path||'');
+  if(/^[a-z][a-z0-9+.-]*:/i.test(p))return p;
+  return apiBase()+p;
+}
+function demoDisabled(){
+  try{
+    const v=typeof window!=='undefined'?window.NOVA_DISABLE_DEMO:undefined;
+    return v===true||v===1||v==='1'||v==='true'||v==='on';
+  }catch(e){return false}
+}
+
 const SK_SESS='nova_session';
 function readTok(){try{const o=JSON.parse(localStorage.getItem(SK_SESS)||'');return o&&o.token||''}catch(e){return ''}}
 function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
@@ -7,13 +28,16 @@ function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
 function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve(),typeof loadFollows==='function'?loadFollows():Promise.resolve(),typeof loadCommunities==='function'?loadCommunities():Promise.resolve(),typeof loadConversations==='function'?loadConversations():Promise.resolve(),typeof loadNotifications==='function'?loadNotifications():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}if(typeof startEvents==='function')startEvents();render()})}
-async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
+async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(apiUrl(path),{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
+function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">NOVA</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
+function retryconnect(){return bootNet()}
 function gateView(){const reg=S.auth.pane==='reg',busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}</div>`:'';
 const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button></p>`;
 const join=`<label class="lab">用户名</label><input class="fld" data-d="ru" autocomplete="username" placeholder="3–20 位文字、数字或下划线" data-af ${busy?'disabled':''}><label class="lab">邮箱</label><input class="fld" data-d="re" type="email" autocomplete="email" placeholder="name@example.com" ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="rpw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" ${busy?'disabled':''}><label class="lab">再输入一次</label><input class="fld" data-d="rpw2" type="password" autocomplete="new-password" placeholder="再输入一次密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'注册中…':'注册并进入'}</button><p class="hint">已有账号？ <button class="lk" data-a="authpane" data-v="login" ${busy?'disabled':''}>去登录</button></p>`;
-return `<div class="pg" id="gate"><div class="top"><h1 class="br">NOVA</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码不会以明文保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}<button class="pb s" style="width:100%" data-a="authdemo" ${busy?'disabled':''}>先用演示看看</button><p class="hint">演示内容只留在这台设备，和真实账号的内容分开存，不会互相覆盖。</p></div></div>`}
+const demoBtn=demoDisabled()?'':`<button class="pb s" style="width:100%" data-a="authdemo" ${busy?'disabled':''}>先用演示看看</button><p class="hint">演示内容只留在这台设备，和真实账号的内容分开存，不会互相覆盖。</p>`;
+return `<div class="pg" id="gate"><div class="top"><h1 class="br">NOVA</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码不会以明文保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
 function modeChip(){if(!NET||MODE==='boot'||MODE==='gate')return '';if(MODE==='account'&&SESSION&&SESSION.user)return `<div class="ban ok"><b>已登录 ${esc(SESSION.user.username)}</b>动态和聊天还在这台设备，换账号不会串数据。</div>`;return `<div class="ban"><b>演示模式</b>这些内容只在这台设备。 <button class="lk" data-a="toacct" style="color:var(--ac)">${SESSION&&SESSION.user?'回到账号':'登录'}</button></div>`}
 function authpane(v){S.auth.pane=v==='reg'?'reg':'login';S.auth.err=''}
 async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.auth.err='';
@@ -25,9 +49,9 @@ async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.au
   if(password!==p2){S.auth.err='两次输入的密码不一致';return}
   S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'注册失败');return}
   S.d.rpw='';S.d.rpw2='';enterAccount(r.j.user,r.j.token)}
-function authdemo(){if(S.auth.busy)return;localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('演示数据只存在这台设备')}
-function logout(){if(typeof stopEvents==='function')stopEvents();const tok=SESSION&&SESSION.token;VIP.me=null;if(MODE==='account')save();clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':'demo';if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch('/api/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
-function todemo(){if(MODE==='account')save();localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('已切换到本机演示数据')}
+function authdemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(S.auth.busy)return;localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('演示数据只存在这台设备')}
+function logout(){if(typeof stopEvents==='function')stopEvents();const tok=SESSION&&SESSION.token;VIP.me=null;if(MODE==='account')save();clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':(demoDisabled()?'offline':'demo');if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch(apiUrl('/api/auth/logout'),{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+function todemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(MODE==='account')save();localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('已切换到本机演示数据')}
 async function toacct(){if(MODE!=='gate')save();const tok=readTok();localStorage.setItem('nova_mode','account');if(!tok){MODE='gate';S.auth={pane:'login',err:'',busy:0};S.st=[];S.sh=null;return}const me=await api('GET','/api/me',null,tok);if(me.s!==200){clearTok();MODE='gate';S.auth={pane:'login',err:'登录已过期，请重新登录',busy:0};S.st=[];return}enterAccount(me.j.user,tok)}
-async function bootNet(){MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch('/api/health',{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){MODE='demo';D=load();render();return}const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()}
-function boot(){if(location.protocol==='file:'){NET=false;MODE='demo';D=load();render();return}bootNet()}
+async function bootNet(){MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch(apiUrl('/api/health'),{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){if(demoDisabled()){MODE='offline';render();return}MODE='demo';D=load();render();return}const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'&&!demoDisabled()){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()}
+function boot(){if(location.protocol==='file:'&&!demoDisabled()&&!apiBase()){NET=false;MODE='demo';D=load();render();return}bootNet()}
