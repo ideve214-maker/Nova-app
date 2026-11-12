@@ -54,6 +54,11 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminChannelMessages: "/api/admin/channels/:id/messages",
   adminBlockwords: "/api/admin/blockwords",
   adminBlockwordDelete: "/api/admin/blockwords/:id/delete",
+  adminSecurityEvents: "/api/admin/security/events",
+  adminAppeals: "/api/admin/appeals",
+  adminAppeal: "/api/admin/appeals/:id",
+  adminAppealDecision: "/api/admin/appeals/:id/decision",
+  adminMetrics: "/api/admin/metrics",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",
@@ -94,6 +99,11 @@ export const ENDPOINT_ALIASES: Partial<Record<EndpointName, string[]>> = {
   adminChannelMessages: ["/api/admin/channels/:id/messages"],
   adminBlockwords: ["/api/admin/blockwords", "/api/admin/block-words"],
   adminBlockwordDelete: ["/api/admin/blockwords/:id/delete"],
+  adminSecurityEvents: ["/api/admin/security/events", "/api/admin/security-events"],
+  adminAppeals: ["/api/admin/appeals"],
+  adminAppeal: ["/api/admin/appeals/:id"],
+  adminAppealDecision: ["/api/admin/appeals/:id/decision"],
+  adminMetrics: ["/api/admin/metrics", "/api/metrics"],
   adminVipGrant: ["/api/admin/vip/grant", "/api/admin/vip"],
   adminVipRevoke: ["/api/admin/vip/revoke"],
   posts: ["/api/posts"],
@@ -359,16 +369,34 @@ export async function apiRequest(
 
 export function detectVersion(json: unknown, headers: Record<string, string> = {}): string | null {
   const header = headers["x-nova-version"] || headers["x-api-version"] || headers["x-app-version"];
-  if (header) return header;
-  if (!json || typeof json !== "object") return null;
-  const o = json as Record<string, unknown>;
-  for (const key of ["version", "apiVersion", "api_version", "appVersion", "build", "release", "name"]) {
-    const v = o[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number") return String(v);
+  let version: string | null = header && header.trim() ? header.trim() : null;
+  let commit: string | null = null;
+  if (json && typeof json === "object") {
+    const o = json as Record<string, unknown>;
+    if (!version) {
+      for (const key of ["version", "apiVersion", "api_version", "appVersion", "build", "release", "name"]) {
+        const v = o[key];
+        if (typeof v === "string" && v.trim()) {
+          version = v.trim();
+          break;
+        }
+        if (typeof v === "number") {
+          version = String(v);
+          break;
+        }
+      }
+    }
+    const c = o.commit ?? o.gitCommit ?? o.git_commit ?? o.sha;
+    if (typeof c === "string" && c.trim()) commit = c.trim().slice(0, 7);
   }
-  // 健康检查是 {status:'ok', time}（M2–M4 均如此），没有版本号。
-  if (o.status === "ok" && "time" in o) return "NOVA 用户端后端（/api/health 正常，未声明版本号）";
+  if (version && commit && !version.includes(commit)) return `${version} · ${commit}`;
+  if (version) return version;
+  if (commit) return commit;
+  if (json && typeof json === "object") {
+    const o = json as Record<string, unknown>;
+    // 健康检查是 {status:'ok', time}（M2–M4 均如此），没有版本号。
+    if (o.status === "ok" && "time" in o) return "NOVA 用户端后端（/api/health 正常，未声明版本号）";
+  }
   return null;
 }
 
@@ -397,7 +425,7 @@ export function pick(obj: unknown, ...keys: string[]): unknown {
 export function extractList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (!isRecord(data)) return [];
-  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records", "orders", "payments", "audits", "announcements", "reports", "posts", "comments", "communities", "blockwords", "messages", "channels"]) {
+  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records", "orders", "payments", "audits", "announcements", "reports", "posts", "comments", "communities", "blockwords", "messages", "channels", "events", "appeals"]) {
     const v = data[key];
     if (Array.isArray(v)) return v;
     if (isRecord(v) && Array.isArray(v.items)) return v.items;
@@ -585,6 +613,8 @@ const PROBE_GET: EndpointName[] = [
   "adminPayments",
   "adminCommunities",
   "adminBlockwords",
+  "adminSecurityEvents",
+  "adminAppeals",
 ];
 
 const QUICK_PROBE: EndpointName[] = ["stickers", "posts", "communities", "notifications"];
@@ -669,6 +699,33 @@ export function readErrorMessage(json: unknown, fallback: string): string {
   if (isRecord(err) && typeof err.message === "string") return err.message;
   if (typeof json.message === "string") return json.message;
   return fallback;
+}
+
+/** 从错误体或 Retry-After 头读取秒数。 */
+export function readRetryAfter(json: unknown, headers: Record<string, string> = {}): number | null {
+  const header = headers["retry-after"] || headers["Retry-After"];
+  if (header && /^\d+(\.\d+)?$/.test(header.trim())) {
+    const n = Number(header.trim());
+    if (Number.isFinite(n) && n >= 0) return Math.ceil(n);
+  }
+  const rec = isRecord(json) ? json : null;
+  const err = rec && isRecord(rec.error) ? rec.error : rec;
+  if (!err) return null;
+  const v = err.retryAfter ?? err.retry_after ?? err.retryAfterSeconds;
+  if (typeof v === "number" && Number.isFinite(v) && v >= 0) return Math.ceil(v);
+  if (typeof v === "string" && /^\d+(\.\d+)?$/.test(v.trim())) return Math.ceil(Number(v.trim()));
+  return null;
+}
+
+/** 登录锁定 / 限流：优先展示服务器原文，必要时补上重试等待时间。 */
+export function formatLockoutMessage(json: unknown, headers: Record<string, string> = {}, fallback = "尝试次数过多，请稍后再试"): string {
+  const msg = readErrorMessage(json, fallback);
+  const retry = readRetryAfter(json, headers);
+  if (retry != null && retry > 0 && !/\d+\s*(秒|分钟|小时)/.test(msg)) {
+    const pretty = retry >= 60 ? `${Math.ceil(retry / 60)} 分钟` : `${retry} 秒`;
+    return `${msg}（请 ${pretty}后再试）`;
+  }
+  return msg;
 }
 
 
@@ -1248,5 +1305,68 @@ export function mapRemoteBlockword(raw: unknown): MappedBlockword | null {
     createdAt: asTime(pick(raw, "createdAtUtc", "createdAt", "created_at")),
     createdBy: asString(pick(raw, "createdBy", "created_by")),
     scope: asString(pick(raw, "scope"), "platform"),
+  };
+}
+
+export type MappedSecurityEvent = {
+  id: string;
+  kind: string;
+  severity: string;
+  ip: string;
+  actorId: string;
+  path: string;
+  time: string;
+  detail: string;
+};
+
+export function mapRemoteSecurityEvent(raw: unknown): MappedSecurityEvent | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id"));
+  if (!id) return null;
+  const detail = pick(raw, "detail");
+  let detailText = "";
+  if (typeof detail === "string") detailText = detail;
+  else if (detail != null) {
+    try { detailText = JSON.stringify(detail); } catch { detailText = String(detail); }
+  }
+  return {
+    id,
+    kind: asString(pick(raw, "kind"), "event"),
+    severity: asString(pick(raw, "severity"), "info"),
+    ip: asString(pick(raw, "ip")),
+    actorId: asString(pick(raw, "actorId", "actor_id")),
+    path: asString(pick(raw, "path")),
+    time: asTime(pick(raw, "createdAtUtc", "time", "at", "createdAt", "created_at")),
+    detail: detailText,
+  };
+}
+
+export type MappedAppeal = {
+  id: string;
+  userId: string;
+  kind: string;
+  body: string;
+  related: string;
+  status: string;
+  createdAt: string;
+  decidedAt: string;
+  decisionNote: string;
+};
+
+export function mapRemoteAppeal(raw: unknown): MappedAppeal | null {
+  const src = isRecord(raw) && isRecord(raw.appeal) ? raw.appeal : raw;
+  if (!isRecord(src)) return null;
+  const id = asString(pick(src, "id"));
+  if (!id) return null;
+  return {
+    id,
+    userId: asString(pick(src, "userId", "user_id")),
+    kind: asString(pick(src, "kind"), "other"),
+    body: asString(pick(src, "body", "reason", "text")),
+    related: asString(pick(src, "related", "reportId", "target")),
+    status: asString(pick(src, "status"), "pending"),
+    createdAt: asTime(pick(src, "createdAtUtc", "createdAt", "created_at")),
+    decidedAt: asTime(pick(src, "decidedAtUtc", "decidedAt", "decided_at")),
+    decisionNote: asString(pick(src, "decisionNote", "decision_note", "note", "reason")),
   };
 }

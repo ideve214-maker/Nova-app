@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import {
   detectVersion,
   extractList,
+  formatLockoutMessage,
+  readRetryAfter,
+  mapRemoteAppeal,
+  mapRemoteSecurityEvent,
   mapCatalogEntitlements,
   mapRemoteUser,
   mapRemotePayment,
@@ -49,6 +53,54 @@ describe("detectVersion", () => {
     assert.equal(detectVersion({ version: "m3.2" }, {}), "m3.2");
     assert.match(detectVersion({ status: "ok", time: 1 }, {}) || "", /未声明版本号/);
     assert.equal(detectVersion({ status: "fail" }, {}), null);
+  });
+  it("appends a short commit when /api/version provides one", () => {
+    assert.equal(detectVersion({ version: "0.7.0-m6.1", commit: "27d1595abcdef" }, {}), "0.7.0-m6.1 · 27d1595");
+    assert.equal(detectVersion({ version: "0.7.0-m6.1" }, {}), "0.7.0-m6.1");
+  });
+});
+
+describe("lockout message", () => {
+  it("keeps the server message and only appends retry-after when missing", () => {
+    assert.equal(
+      formatLockoutMessage({ error: { code: "LOCKED", message: "尝试次数过多，请 15 分钟后再试" } }, {}),
+      "尝试次数过多，请 15 分钟后再试",
+    );
+    assert.equal(
+      formatLockoutMessage({ error: { code: "RATE_LIMIT", message: "请求过于频繁，请稍后再试", retryAfter: 12 } }, {}),
+      "请求过于频繁，请稍后再试（请 12 秒后再试）",
+    );
+    assert.equal(readRetryAfter({}, { "retry-after": "90" }), 90);
+  });
+});
+
+describe("map security events and appeals", () => {
+  it("maps event fields and UTC time", () => {
+    const ev = mapRemoteSecurityEvent({
+      id: "3", kind: "rate_limit", severity: "warn", ip: "127.0.0.1",
+      actorId: null, path: "/api/admin/auth/login", at: 1_700_000_000_000,
+      detail: { bucket: "login", count: 8 },
+    });
+    assert.ok(ev);
+    assert.equal(ev!.kind, "rate_limit");
+    assert.equal(ev!.ip, "127.0.0.1");
+    assert.match(ev!.detail, /login/);
+    assert.ok(ev!.time);
+  });
+  it("maps appeal wrapper and decision fields", () => {
+    const a = mapRemoteAppeal({
+      appeal: {
+        id: "ap_1", userId: 9, kind: "ban", body: "请解封", related: null,
+        status: "pending", createdAt: 1_700_000_000_000, decidedAt: null, decisionNote: null,
+      },
+    });
+    assert.ok(a);
+    assert.equal(a!.id, "ap_1");
+    assert.equal(a!.userId, "9");
+    assert.equal(a!.status, "pending");
+    assert.equal(a!.body, "请解封");
+    assert.ok(a!.createdAt);
+    assert.equal(a!.decidedAt, "");
   });
 });
 

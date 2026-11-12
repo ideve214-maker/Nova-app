@@ -35,7 +35,9 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
   { name: "announce", label: "公告通知", desc: "发布、编辑、撤回", icon: Megaphone },
   { name: "settings", label: "系统设置", desc: "开关与服务器", icon: Settings },
   { name: "audit", label: "审计日志", desc: "操作可追溯", icon: ScrollText },
-  { name: "security", label: "安全中心", desc: "设备、邀请、权限", icon: ShieldCheck },
+  { name: "events", label: "安全事件", desc: "限流与异常", icon: ShieldCheck },
+  { name: "appeals", label: "申诉处理", desc: "通过或驳回", icon: Flag },
+  { name: "security", label: "安全中心", desc: "设备、邀请、权限", icon: KeyRound },
 ];
 
 export function HomeScreen() {
@@ -238,6 +240,7 @@ export function MeScreen() {
   const logout = useAdmin((s) => s.logout);
   const adminProfile = useAdmin((s) => s.adminProfile);
   const adminName = useAdmin((s) => s.adminName);
+  const detectedVersion = useAdmin((s) => s.connection.detectedVersion);
   const [theme, setThemeMode] = useState<ThemeMode>(() => (typeof window === "undefined" ? "system" : getStoredTheme()));
   return (
     <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-3">
@@ -261,7 +264,9 @@ export function MeScreen() {
       </DataHint>
       <div className="mx-4 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
         <RowLink icon={<CreditCard className="size-4" />} title="付款审核" desc="收款码人工核对" onClick={() => go("payments")} extra={<ChevronRight className="size-4 text-muted" />} />
-        <RowLink icon={<ShieldCheck className="size-4" />} title="安全设置" desc="登录保护说明" onClick={() => go("security")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<ShieldCheck className="size-4" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<Flag className="size-4" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<KeyRound className="size-4" />} title="安全设置" desc="登录保护说明" onClick={() => go("security")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-4" />} title="审计日志" onClick={() => go("audit")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>
       <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface px-3.5 py-3 shadow-card">
@@ -283,6 +288,9 @@ export function MeScreen() {
           ))}
         </div>
       </div>
+      {detectedVersion && (
+        <p className="mt-3 px-4 text-center text-[12px] text-muted">后端 {detectedVersion}</p>
+      )}
       <div className="mx-4 mt-3">
         <button type="button" onClick={() => void logout()} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-[16px] font-semibold text-danger shadow-card">
           <LogOut className="size-4" />

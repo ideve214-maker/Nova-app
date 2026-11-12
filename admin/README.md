@@ -1,4 +1,4 @@
-# NOVA 管理端（v6 · 星澜 Xinglan · 对接后端 0.7.0-m5.1）
+# NOVA 管理端（v7 · 星澜 Xinglan · 对接后端 0.7.0-m6.1）
 
 这是 NOVA 社区的**管理端**网页 / Capacitor App。它连到用户端的同一套后端，用真实管理员账号和真实数据。
 
@@ -9,7 +9,7 @@
   密码须 8–128 位且同时包含字母和数字。
 - 登录成功后得到 `na_` 前缀令牌，之后所有管理请求带 `Authorization: Bearer na_…`。
 - 令牌保存在本机（默认「记住登录」）；接口返回 401 会回到登录页。
-- 没有二次验证，也没有「本机口令」兜底。
+- 没有二次验证，也没有「本机口令」兜底。连续登录失败会被服务器锁定（约 5 次后锁定 15 分钟），登录页会展示服务器返回的提示和等待时间。
 
 **数据全部来自真实后端。** 未接入或为空时显示空状态或「—」，不会填入虚构数字。公开预览若访问不到后端，会如实显示未连接。
 
@@ -61,7 +61,7 @@ npm run test:admin          # 适配层单测
 
 ## 3. 和用户端后端怎么联通（适配未来版本）
 
-当前对接用户端后端 **0.7.0-m5.1**。管理端接口包括：登录、用户、封禁、重置密码、VIP、内容（含嵌套评论）、付款（退款会返回 `vipRevoked`）、公告（编辑 / 撤回）、社区、频道消息、屏蔽词、审计（含 IP）、统计、举报。路径仍集中在 `DEFAULT_ENDPOINT_MAP`，设置页可用 JSON 覆盖，主路径 404 时试别名。
+当前对接用户端后端 **0.7.0-m6.1**。管理端接口包括：登录（连续失败会锁定，界面展示服务器的提示和 Retry-After）、用户、封禁、重置密码、VIP、内容（含嵌套评论）、付款（退款会返回 `vipRevoked`）、公告（编辑 / 撤回）、社区、频道消息、屏蔽词、安全事件、申诉处理、审计（含 IP）、统计、举报。`GET /api/version` 与 `/api/health` 会返回 `version` 和 `commit`，在「我的」和系统设置中显示。路径仍集中在 `DEFAULT_ENDPOINT_MAP`，设置页可用 JSON 覆盖，主路径 404 时试别名。
 
 ### 使用步骤
 
@@ -131,9 +131,9 @@ resources/                   星澜 App 图标 1024 与深/浅启动屏，供 @c
 - `NOVA_API` 默认 `http://127.0.0.1:8787`
 
 
-## 5. 数据从哪来（0.7.0-m5.1）
+## 5. 数据从哪来（0.7.0-m6.1）
 
-管理端对接用户端后端 **0.7.0-m5.1**（副本在 `nova-v7-m51/`，**不要改** `/workspace/nova/src/NOVA_V7` 或 Bob 的用户端仓库）。所有下表数据都是真实接口，没有虚构数字。时间字段优先用 `createdAtUtc`（ISO UTC），在设备本地时区显示。
+管理端对接用户端后端 **0.7.0-m6.1**（副本在 `nova-v7-m61/`，**不要改** `/workspace/nova/src/NOVA_V7` 或 Bob 的用户端仓库）。所有下表数据都是真实接口，没有虚构数字。时间字段优先用 `createdAtUtc`（ISO UTC），在设备本地时区显示。
 
 | 数据 | 接口 |
 |---|---|
@@ -150,11 +150,13 @@ resources/                   星澜 App 图标 1024 与深/浅启动屏，供 @c
 | 社区 | `GET /api/admin/communities`、`GET /api/admin/communities/:id`（真实 `memberCount`、成员、频道及消息数）；`GET /api/admin/channels/:id/messages` |
 | 屏蔽词 | `GET/POST /api/admin/blockwords`（平台规则）；`POST /api/admin/blockwords/:id/delete` |
 | 举报 | `GET /api/admin/reports`；`POST /api/admin/reports/:id/decision` `{action: resolve\|reject\|review, note}` |
-| 健康检查、VIP 目录 | `GET /api/health`、`GET /api/vip/catalog`（公开） |
+| 安全事件 | `GET /api/admin/security/events`（限流 / 异常，支持 `kind`、`cursor`） |
+| 申诉处理 | `GET /api/admin/appeals`、`GET /api/admin/appeals/:id`；`POST /api/admin/appeals/:id/decision` `{action: accept\|reject, note}`（通过封禁申诉时后端会解封该用户） |
+| 健康检查、版本、VIP 目录 | `GET /api/health`、`GET /api/version`（含 `version`、`commit`）、`GET /api/vip/catalog`（公开） |
 
 付款说明：用户扫个人微信 / 支付宝收款码，转账备注订单码（NV + 6 位）。价格每月 ¥9.9（30 天）、每年 ¥99（365 天）。确认开通前用户须先点「我已付款」（否则 409 `NOT_CLAIMED`）。
 
-**退款与 VIP：** m5.1 的 `POST /api/admin/payments/:id/refund` 会撤销该订单开通的 VIP，响应 `vipRevoked: true`（重复退款也是 true，幂等）。管理端只在 `vipRevoked` 为 false 时提示去用户详情手动撤销。
+**退款与 VIP：** m6.1 的 `POST /api/admin/payments/:id/refund` 会撤销该订单开通的 VIP，响应 `vipRevoked: true`（重复退款也是 true，幂等）。管理端只在 `vipRevoked` 为 false 时提示去用户详情手动撤销。
 
 管理员不能在管理端直接创建用户（无此接口），请用户在用户端自行注册。编辑用户资料、发帖/评论开关、站内通知尚无管理接口，页面已标明「未接入」，不会假装已写入服务器。
 

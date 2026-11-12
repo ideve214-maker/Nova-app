@@ -83,6 +83,7 @@ export function SettingsScreen() {
   const flags = useAdmin((s) => s.flags);
   const toggleFlag = useAdmin((s) => s.toggleFlag);
   const go = useAdmin((s) => s.go);
+  const detectedVersion = useAdmin((s) => s.connection.detectedVersion);
   const [server, setServer] = useState(false);
   return (
     <Screen title="系统设置" onBack={back}>
@@ -92,7 +93,10 @@ export function SettingsScreen() {
         <RowLink icon={<SlidersHorizontal className="size-5" />} title="权益开关" desc="套餐能力由配置控制" onClick={() => go("vip")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-5" />} title="内容规则" desc="举报、删除和审计都留记录" onClick={() => go("reports")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Server className="size-5" />} title="服务器配置" desc="与用户端共用后端" onClick={() => setServer(true)} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<ShieldCheck className="size-5" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<Bell className="size-5" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>
+      {detectedVersion && <p className="px-4 pt-3 text-[12px] text-muted">后端 {detectedVersion}</p>}
       <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface px-4 shadow-card">
         {flagRows.map((item) => (
           <div key={item.key} className="flex items-center gap-3 border-b border-line py-3 last:border-b-0">
@@ -183,6 +187,8 @@ export function SecurityScreen() {
         </button>
       </div>
       <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
+        <RowLink icon={<ShieldCheck className="size-5" />} title="安全事件" desc="限流与异常记录" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<Bell className="size-5" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Bell className="size-5" />} title="登录设备" onClick={() => go("devices")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<LockKeyhole className="size-5" />} title="管理员与邀请码" onClick={() => go("admins")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>

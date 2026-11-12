@@ -30,4 +30,10 @@ describe("hash routing", () => {
     assert.equal(navToHash({ name: "blockwords" }), "#/blockwords");
     assert.deepEqual(hashToNav("#/blockwords"), { name: "blockwords" });
   });
+  it("maps security events and appeals", () => {
+    assert.equal(navToHash({ name: "events" }), "#/events");
+    assert.deepEqual(hashToNav("#/events"), { name: "events" });
+    assert.equal(navToHash({ name: "appeals" }), "#/appeals");
+    assert.deepEqual(hashToNav("#/appeals"), { name: "appeals" });
+  });
 });

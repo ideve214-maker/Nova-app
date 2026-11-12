@@ -17,6 +17,8 @@ import {
   type MappedBlockword,
   type MappedChannelMessage,
   type MappedChannel,
+  type MappedAppeal,
+  type MappedSecurityEvent,
   formatAdminTime,
 } from "./backend";
 import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
@@ -59,7 +61,9 @@ export type PageName =
   | "payments"
   | "communities"
   | "channel"
-  | "blockwords";
+  | "blockwords"
+  | "events"
+  | "appeals";
 
 export type Nav = { name: PageName; userId?: string; channelId?: string };
 
@@ -262,6 +266,8 @@ export type AdminState = Persisted & {
   channelMessages: MappedChannelMessage[];
   channelInfo: MappedChannel | null;
   blockwords: MappedBlockword[];
+  securityEvents: MappedSecurityEvent[];
+  appeals: MappedAppeal[];
   attemptLogin: (account: string, password: string, remember?: boolean) => Promise<string | null>;
   confirmTotp: (code: string) => string | null;
   logout: () => Promise<void>;
@@ -299,6 +305,9 @@ export type AdminState = Persisted & {
   refreshBlockwords: () => Promise<void>;
   addBlockword: (word: string, note?: string) => Promise<string | null>;
   deleteBlockword: (id: string) => Promise<string | null>;
+  refreshSecurityEvents: (opts?: { kind?: string }) => Promise<void>;
+  refreshAppeals: (opts?: { status?: string }) => Promise<void>;
+  decideAppeal: (id: string, action: "accept" | "reject", note?: string) => Promise<string | null>;
   openContentItem: (type: "post" | "comment", id: string) => Promise<import("./backend").MappedContent | null>;
   toggleEntitlement: (key: string) => void;
   addTopic: (name: string) => void;
@@ -503,6 +512,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
   channelMessages: [],
   channelInfo: null,
   blockwords: [],
+  securityEvents: [],
+  appeals: [],
   nav: { name: "home" },
   history: [],
   toast: null,
@@ -538,19 +549,25 @@ export const useAdmin = create<AdminState>((set, get) => ({
   },
   attemptLogin: async (account, password, remember = true) => {
     const s = get();
-    if (s.lockedUntil > Date.now()) return "登录已暂时锁定，请稍后再试";
+    if (s.lockedUntil > Date.now()) {
+      const sec = Math.max(1, Math.ceil((s.lockedUntil - Date.now()) / 1000));
+      const pretty = sec >= 60 ? `${Math.ceil(sec / 60)} 分钟` : `${sec} 秒`;
+      return `尝试次数过多，请 ${pretty} 后再试`;
+    }
     const name = account.trim();
     if (!name || !password) return "请输入管理员账号和密码";
     const result = await remote.remoteLogin(name, password);
     if (!result.ok) {
-      const failedLogins = s.failedLogins + 1;
-      const locked = failedLogins >= 5;
+      const retryMs = result.retryAfter != null && result.retryAfter > 0 ? result.retryAfter * 1000 : 0;
+      const serverLock = result.status === 429 || result.status === 423 || retryMs > 0;
+      const failedLogins = serverLock ? s.failedLogins : s.failedLogins + 1;
+      const localLock = !serverLock && failedLogins >= 5;
       set({
-        failedLogins: locked ? 0 : failedLogins,
-        lockedUntil: locked ? Date.now() + 30_000 : 0,
+        failedLogins: localLock ? 0 : failedLogins,
+        lockedUntil: retryMs > 0 ? Date.now() + retryMs : localLock ? Date.now() + 30_000 : s.lockedUntil,
       });
-      if (result.status === 429) return result.error;
-      return locked ? "连续失败 5 次，已锁定 30 秒" : result.error;
+      if (serverLock) return result.error;
+      return localLock ? "连续失败 5 次，已锁定 30 秒" : result.error;
     }
     saveConfig({ token: result.data.token });
     try {
@@ -1022,6 +1039,34 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set((s) => ({ blockwords: s.blockwords.filter((item) => item.id !== id) }));
     get().flash("已删除屏蔽词");
     void get().refreshAudit();
+    return null;
+  },
+  refreshSecurityEvents: async (opts) => {
+    const result = await remote.remoteSecurityEvents({ limit: 80, kind: opts?.kind || undefined });
+    if (!result.ok) return;
+    set({ securityEvents: result.data });
+  },
+  refreshAppeals: async (opts) => {
+    const result = await remote.remoteAppeals({ limit: 80, status: opts?.status && opts.status !== "all" ? opts.status : undefined });
+    if (!result.ok) return;
+    set({ appeals: result.data });
+  },
+  decideAppeal: async (id, action, note) => {
+    const result = await remote.remoteDecideAppeal(id, action, note);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => {
+      const i = s.appeals.findIndex((a) => a.id === id);
+      const next = s.appeals.slice();
+      if (i < 0) next.unshift(result.data);
+      else next[i] = result.data;
+      return { appeals: next };
+    });
+    get().flash(action === "accept" ? "已通过该申诉" : "已驳回该申诉");
+    void get().refreshAudit();
+    if (action === "accept") void get().refreshUsers();
     return null;
   },
   openContentItem: async (type, id) => {

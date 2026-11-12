@@ -8,6 +8,7 @@ import { UserScreen, UsersScreen } from "./people";
 import { ContentScreen, ReportsScreen } from "./queue";
 import { PaymentsScreen } from "./payments";
 import { BlockwordsScreen } from "./blockwords";
+import { AppealsScreen, EventsScreen } from "./appeals";
 import { ChannelMessagesScreen, CommunitiesScreen, CommunityDetailScreen } from "./communities";
 import {
   AdminsScreen,
@@ -119,7 +120,8 @@ export function AdminApp() {
         {name === "settings" && <SettingsScreen />}
         {name === "audit" && <AuditScreen />}
         {name === "security" && <SecurityScreen />}
-        
+        {name === "events" && <EventsScreen />}
+        {name === "appeals" && <AppealsScreen />}
         {name === "vip" && <VipScreen />}
         {name === "announce" && <AnnounceScreen />}
         {name === "devices" && <DevicesScreen />}

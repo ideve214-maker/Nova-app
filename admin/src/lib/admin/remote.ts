@@ -1,5 +1,5 @@
 /**
- * 管理端对 0.7.0-m5.1 后端的实际调用。
+ * 管理端对 0.7.0-m6.1 后端的实际调用。
  * 路径仍走 backend.ts 的对照表与别名，便于以后换版本。
  */
 import {
@@ -18,8 +18,12 @@ import {
   mapRemoteChannel,
   mapRemoteChannelMessage,
   mapRemoteCommunity,
+  mapRemoteAppeal,
+  mapRemoteSecurityEvent,
   pickToken,
   readErrorMessage,
+  formatLockoutMessage,
+  readRetryAfter,
   saveConfig,
   unwrapUser,
   type MappedAdmin,
@@ -34,15 +38,22 @@ import {
   type MappedPayment,
   type MappedReport,
   type MappedStats,
+  type MappedAppeal,
+  type MappedSecurityEvent,
   type RequestResult,
 } from "./backend";
 
-export type RemoteError = { ok: false; error: string; status: number; json: unknown };
+export type RemoteError = { ok: false; error: string; status: number; json: unknown; retryAfter?: number | null };
 export type RemoteOk<T> = { ok: true; data: T; json: unknown; status: number };
 export type Remote<T> = RemoteOk<T> | RemoteError;
 
 function fail(res: RequestResult, fallback: string): RemoteError {
-  return { ok: false, error: readErrorMessage(res.json, res.error || fallback), status: res.status, json: res.json };
+  const retryAfter = readRetryAfter(res.json, res.headers);
+  const locked = res.status === 429 || res.status === 423 || retryAfter != null;
+  const error = locked
+    ? formatLockoutMessage(res.json, res.headers, res.error || fallback)
+    : readErrorMessage(res.json, res.error || fallback);
+  return { ok: false, error, status: res.status, json: res.json, retryAfter };
 }
 
 function ok<T>(res: RequestResult, data: T): RemoteOk<T> {
@@ -389,4 +400,37 @@ export async function remoteDeleteBlockword(id: string): Promise<Remote<{ remove
   const res = await apiRequest("adminBlockwordDelete", { method: "POST", params: { id }, body: {}, timeoutMs: 8000 });
   if (!res.ok) return fail(res, "删除屏蔽词失败");
   return ok(res, { removed: id });
+}
+
+export async function remoteSecurityEvents(query?: Record<string, string | number | undefined>): Promise<Remote<MappedSecurityEvent[]>> {
+  const res = await apiRequest("adminSecurityEvents", { query, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法读取安全事件");
+  return ok(res, extractList(res.json).map(mapRemoteSecurityEvent).filter((x): x is MappedSecurityEvent => !!x));
+}
+
+export async function remoteAppeals(query?: Record<string, string | number | undefined>): Promise<Remote<MappedAppeal[]>> {
+  const res = await apiRequest("adminAppeals", { query, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法读取申诉");
+  return ok(res, extractList(res.json).map(mapRemoteAppeal).filter((x): x is MappedAppeal => !!x));
+}
+
+export async function remoteAppeal(id: string): Promise<Remote<MappedAppeal>> {
+  const res = await apiRequest("adminAppeal", { params: { id }, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法读取该申诉");
+  const item = mapRemoteAppeal(res.json);
+  if (!item) return { ok: false, error: "服务器未返回申诉", status: res.status, json: res.json };
+  return ok(res, item);
+}
+
+export async function remoteDecideAppeal(id: string, action: "accept" | "reject", note?: string): Promise<Remote<MappedAppeal>> {
+  const res = await apiRequest("adminAppealDecision", {
+    method: "POST",
+    params: { id },
+    body: { action, note: note || undefined, reason: note || undefined },
+    timeoutMs: 8000,
+  });
+  if (!res.ok) return fail(res, "处理申诉失败");
+  const item = mapRemoteAppeal(res.json);
+  if (!item) return { ok: false, error: "服务器未返回处理结果", status: res.status, json: res.json };
+  return ok(res, item);
 }

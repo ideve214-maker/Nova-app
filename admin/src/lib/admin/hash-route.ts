@@ -20,6 +20,8 @@ export const PAGE_NAMES = [
   "communities",
   "channel",
   "blockwords",
+  "events",
+  "appeals",
 ] as const;
 
 export type HashPageName = (typeof PAGE_NAMES)[number];

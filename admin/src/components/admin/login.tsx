@@ -93,7 +93,11 @@ export function LoginScreen() {
               记住登录
             </label>
           </div>
-          {error && <p className="mb-2.5 text-center text-[13px] text-danger">{error}</p>}
+          {error && (
+            <p className={`mb-2.5 rounded-[14px] px-3 py-2 text-center text-[13px] leading-5 ${/锁定|过于频繁|后再试/.test(error) ? "bg-[color:var(--nova-warn-soft,rgba(255,180,80,0.16))] text-warn" : "text-danger"}`}>
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={busy}
