@@ -268,3 +268,46 @@ async function doForward(dest,srcId,srcCid){
   }
   if(typeof loadConversations==='function')await loadConversations();
 }
+
+function draftKey(){const id=(SESSION&&SESSION.user&&SESSION.user.id)||(D&&D.u&&D.u.me&&D.u.me[0])||'guest';return 'nova_drafts_v1_'+id}
+function loadLocalDrafts(){try{return JSON.parse(localStorage.getItem(draftKey())||'{}')||{}}catch(e){return {}}}
+function storeLocalDraft(cid,text,replyToId){const all=loadLocalDrafts();if(!String(text||'').trim())delete all[cid];else all[cid]={text,replyToId:replyToId||null,updatedAt:Date.now()};try{localStorage.setItem(draftKey(),JSON.stringify(all))}catch(e){}}
+function localDraftOf(cid){return loadLocalDrafts()[cid]||null}
+let _draftTimer=null,_draftCid=null;
+function persistChatDraft(cid,immediate){
+  if(!cid)return;
+  const text=(S.d&&S.d.chin)||'';
+  const replyToId=S.replyTo&&S.replyTo.cid==cid?S.replyTo.id:null;
+  S.drafts=S.drafts||{};
+  if(!String(text).trim()){delete S.drafts[cid];storeLocalDraft(cid,'')}
+  else{S.drafts[cid]={text,replyToId};storeLocalDraft(cid,text,replyToId)}
+  const go=()=>{_draftTimer=null;if(typeof usingNet==='function'&&usingNet()&&SESSION)api('PUT','/api/conversations/'+cid+'/draft',{text,replyToId})};
+  if(immediate){if(_draftTimer)clearTimeout(_draftTimer);go()}
+  else{if(_draftTimer)clearTimeout(_draftTimer);_draftTimer=setTimeout(go,400)}
+}
+function applyDraft(cid){
+  S.drafts=S.drafts||{};
+  const mem=S.drafts[cid];
+  const loc=localDraftOf(cid);
+  const pick=mem||loc;
+  S.d=S.d||{};
+  S.d.chin=pick&&pick.text||'';
+  if(pick&&pick.replyToId)S.replyTo={k:'cv',cid,id:pick.replyToId,preview:''};
+  else if(S.replyTo&&S.replyTo.cid==cid&&!(pick&&pick.replyToId))S.replyTo=null;
+  const fill=()=>{const i=document.querySelector('[data-d=chin]');if(i)i.value=S.d.chin||''};
+  if(typeof usingNet==='function'&&usingNet()&&SESSION){
+    return api('GET','/api/conversations/'+cid+'/draft').then(r=>{
+      if(r.s===200&&r.j.draft&&r.j.draft.text){
+        const srv=r.j.draft;
+        const newer=!pick||(srv.updatedAt&&pick.updatedAt&&srv.updatedAt>=pick.updatedAt)||!pick.updatedAt;
+        if(newer){S.d.chin=srv.text;S.drafts[cid]={text:srv.text,replyToId:srv.replyToId,updatedAt:srv.updatedAt};storeLocalDraft(cid,srv.text,srv.replyToId);if(srv.replyToId)S.replyTo={k:'cv',cid,id:srv.replyToId,preview:''}}
+      }
+      fill();
+    }).catch(()=>fill());
+  }
+  fill();
+}
+function clearChatDraft(cid){
+  S.drafts=S.drafts||{};delete S.drafts[cid];storeLocalDraft(cid,'');
+  if(typeof usingNet==='function'&&usingNet()&&SESSION)api('DELETE','/api/conversations/'+cid+'/draft');
+}

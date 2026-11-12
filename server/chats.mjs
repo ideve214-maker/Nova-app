@@ -83,6 +83,12 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   const delRx = hasRx ? db.prepare('DELETE FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?') : null;
   const getRx = hasRx ? db.prepare('SELECT * FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?') : null;
   const listRx = hasRx ? db.prepare('SELECT emoji, user_id FROM message_reactions WHERE message_id=? ORDER BY created_at, emoji') : null;
+  const hasDraft = (() => { try { db.prepare('SELECT 1 FROM message_drafts LIMIT 1').get(); return true; } catch { return false; } })();
+  const getDraft = hasDraft ? db.prepare('SELECT * FROM message_drafts WHERE user_id=? AND conversation_id=?') : null;
+  const listDrafts = hasDraft ? db.prepare('SELECT * FROM message_drafts WHERE user_id=? ORDER BY updated_at DESC') : null;
+  const upsDraft = hasDraft ? db.prepare('INSERT INTO message_drafts(user_id,conversation_id,text,reply_to_id,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id,conversation_id) DO UPDATE SET text=excluded.text, reply_to_id=excluded.reply_to_id, updated_at=excluded.updated_at') : null;
+  const delDraft = hasDraft ? db.prepare('DELETE FROM message_drafts WHERE user_id=? AND conversation_id=?') : null;
+
 
 
 
@@ -717,6 +723,39 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return {message: msg, emoji, added: true, already: false};
   }
 
+
+  function pubDraft(r) {
+    if (!r) return {text: '', replyToId: null, updatedAt: null, empty: true};
+    return {conversationId: r.conversation_id, text: r.text || '', replyToId: r.reply_to_id || null, updatedAt: r.updated_at, empty: !(r.text && String(r.text).length)};
+  }
+  function getMessageDraft(user, cid) {
+    const cv = requireConv(cid);
+    requireMem(cv, user);
+    if (!hasDraft) return {draft: pubDraft(null), conversationId: cv.id};
+    return {draft: pubDraft(getDraft.get(Number(user.id), cv.id)), conversationId: cv.id};
+  }
+  function listMessageDrafts(user) {
+    if (!hasDraft) return {drafts: []};
+    return {drafts: listDrafts.all(Number(user.id)).map(pubDraft)};
+  }
+  function putMessageDraft(user, cid, body = {}) {
+    const cv = requireConv(cid);
+    requireMem(cv, user);
+    if (!hasDraft) throw new ApiError(503, 'NO_DRAFTS', '草稿尚未就绪');
+    const text = String(body.text == null ? '' : body.text);
+    if ([...text].length > 4000) throw new ApiError(400, 'TOO_LONG', '草稿过长');
+    const replyToId = body.replyToId ? String(body.replyToId) : null;
+    if (!text.trim()) {
+      delDraft.run(Number(user.id), cv.id);
+      return {draft: pubDraft(null), conversationId: cv.id, cleared: true};
+    }
+    upsDraft.run(Number(user.id), cv.id, text, replyToId, now());
+    return {draft: pubDraft(getDraft.get(Number(user.id), cv.id)), conversationId: cv.id, cleared: false};
+  }
+  function clearMessageDraft(user, cid) {
+    return putMessageDraft(user, cid, {text: ''});
+  }
+
   function messageOf(user, mid, {allowMissing = false} = {}) {
     const row = msgById.get(String(mid));
     if (!row) {
@@ -772,7 +811,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
 
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
-    send, listMessages, pubMsg, quoteOf, forward, react, messageOf, markRead, setMute, setConvPin, unreadOf, receiptOf,
+    send, listMessages, pubMsg, quoteOf, forward, react, messageOf, getMessageDraft, listMessageDrafts, putMessageDraft, clearMessageDraft, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,

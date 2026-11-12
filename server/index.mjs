@@ -636,6 +636,22 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(user.id, 'chat.recall', 'message:' + req.params.id, ip(req));
       return r;
     },
+    'GET /api/drafts'(req) {
+      const {user} = auth(req);
+      return chats.listMessageDrafts(user);
+    },
+    'GET /api/conversations/:id/draft'(req) {
+      const {user} = auth(req);
+      return chats.getMessageDraft(user, req.params.id);
+    },
+    'PUT /api/conversations/:id/draft'(req, b) {
+      const {user} = auth(req);
+      return chats.putMessageDraft(user, req.params.id, b || {});
+    },
+    'DELETE /api/conversations/:id/draft'(req) {
+      const {user} = auth(req);
+      return chats.clearMessageDraft(user, req.params.id);
+    },
     'POST /api/messages/:id/save'(req, b) {
       const {user} = auth(req);
       const mid = req.params.id;
