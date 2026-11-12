@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {startServer, openPage, register, launch} from './ui-helpers.mjs';
+import {Account} from './vodo.mjs';
 
 let browser;
 const SHOT = new URL('../../screenshots/', import.meta.url).pathname;
@@ -20,6 +21,14 @@ async function ensureDm(p, S) {
   const j = await r.json();
   if (!j.user) throw new Error('register friend failed: ' + JSON.stringify(j));
   S.srv.friends.setAccepted(Number(me.id), Number(j.user.id));
+  // 好友也要有设备公钥，否则用户端 1:1 不会降级为明文，贴纸发不出去。
+  const acc = new Account();
+  acc.generateOneTimeKeys(8);
+  acc.generateFallbackKey();
+  const idk = JSON.parse(acc.identityKeys());
+  const otks = JSON.parse(acc.oneTimeKeys());
+  const fb = Object.entries(JSON.parse(acc.fallbackKey()).curve25519 || {})[0];
+  await fetch(S.base + '/api/e2ee/keys', {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + j.token}, body: JSON.stringify({deviceId: 'dv_friendui0001', identityKey: idk, oneTimeKeys: otks, fallbackKey: fb ? {keyId: fb[0], key: fb[1]} : undefined})});
   const cv = await fetch(S.base + '/api/conversations', {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + me.tok}, body: JSON.stringify({kind: 'dm', userId: j.user.id})});
   const cj = await cv.json();
   if (!cj.conversation) throw new Error('create dm failed: ' + cv.status + ' ' + JSON.stringify(cj));
