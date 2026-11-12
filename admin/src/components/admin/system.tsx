@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { Bell, ChevronRight, LockKeyhole, Megaphone, ScrollText, Server, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import {
@@ -16,55 +16,36 @@ import { ServerPanel } from "./server-panel";
 
 export function StatsScreen() {
   const back = useAdmin((s) => s.back);
-  const members = useAdmin((s) => s.members);
-  const posts = useAdmin((s) => s.posts);
+  const stats = useAdmin((s) => s.stats);
+  const refreshStats = useAdmin((s) => s.refreshStats);
   const demoMode = useAdmin((s) => s.demoMode);
-  const hasStats = useAdmin((s) => !!s.connection.available.adminStats);
-  const [period, setPeriod] = useState<"7" | "30" | "90">("7");
-  const data = period === "7" ? TREND_7 : period === "30" ? TREND_30 : TREND_90;
-  const added = data.reduce((sum, item) => sum + item.added, 0);
-  const active = data[data.length - 1]?.active ?? 0;
+  const hasStats = useAdmin((s) => !!s.connection.available.adminStats || !!s.stats);
+  useEffect(() => { void refreshStats(); }, [refreshStats]);
+
   return (
     <Screen title="数据统计" onBack={back}>
       <DemoBanner />
-      {!demoMode && !hasStats ? (
+      {!demoMode && !hasStats && !stats ? (
         <PendingApi name="管理统计（GET /api/admin/stats）" />
+      ) : !stats && !demoMode ? (
+        <p className="px-4 py-10 text-center text-[15px] text-muted">暂无统计</p>
       ) : (
         <>
-          <div className="flex gap-2 bg-surface px-4 py-2">
-            {(
-              [
-                ["7", "近 7 天"],
-                ["30", "近 30 天"],
-                ["90", "近 90 天"],
-              ] as const
-            ).map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setPeriod(id)} className={`h-9 flex-1 rounded-full text-[13px] font-semibold ${period === id ? "bg-primary text-on-primary" : "bg-subtle text-muted"}`}>
-                {label}
-              </button>
-            ))}
-          </div>
           <div className="grid grid-cols-2 gap-2.5 p-3">
-            <Card label="新增用户" value={added.toLocaleString("zh-CN")} delta={demoMode ? "演示" : ""} />
-            <Card label="活跃用户" value={active.toLocaleString("zh-CN")} delta={demoMode ? "演示" : ""} />
+            <Card label="总用户" value={String(stats?.usersTotal ?? 0)} delta="" />
+            <Card label="正常账号" value={String(stats?.usersActive ?? 0)} delta="" />
+            <Card label="封禁" value={String(stats?.usersBanned ?? 0)} delta="" />
+            <Card label="VIP" value={String(stats?.usersVip ?? 0)} delta="" />
           </div>
-          <div className="mx-4 rounded-card bg-surface p-3 shadow-card">
-            <h2 className="mb-2 text-[15px] font-semibold">用户增长趋势</h2>
-            <div className="h-36">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data}>
-                  <XAxis dataKey="d" tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => [String(value), "新增"]} contentStyle={{ borderRadius: 10, border: "1px solid var(--color-line)", fontSize: 12 }} />
-                  <Bar dataKey="added" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
+            <Info label="可见帖子" value={String(stats?.postsVisible ?? 0)} hint="GET /api/admin/stats" />
+            <Info label="已删帖子" value={String(stats?.postsRemoved ?? 0)} />
+            <Info label="可见评论" value={String(stats?.commentsVisible ?? 0)} />
+            <Info label="待处理举报" value={String(stats?.reportsPending ?? 0)} />
+            <Info label="待付款订单" value={String(stats?.paymentsPending ?? 0)} />
+            <Info label="待审核付款" value={String(stats?.paymentsReview ?? 0)} />
           </div>
-          <div className="mx-4 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
-            <Info label="帖子" value={String(posts.filter((item) => item.kind === "post").length)} hint={demoMode ? "演示队列" : "来自已接入接口"} />
-            <Info label="待审核" value={String(posts.filter((item) => item.status === "pending").length)} />
-            <Info label="账号" value={String(members.length)} />
-          </div>
+          <p className="px-4 py-3 text-[12px] text-muted">后端目前不提供按日趋势，这里只展示当前真实汇总，没有虚构折线。</p>
         </>
       )}
     </Screen>
@@ -139,7 +120,9 @@ export function SettingsScreen() {
 export function AuditScreen() {
   const back = useAdmin((s) => s.back);
   const audits = useAdmin((s) => s.audits);
+  const refreshAudit = useAdmin((s) => s.refreshAudit);
   const [tab, setTab] = useState("all");
+  useEffect(() => { void refreshAudit(); }, [refreshAudit]);
   const list = audits.filter((item) => tab === "all" || item.kind === tab);
   return (
     <Screen title="审计日志" onBack={back}>
@@ -153,8 +136,8 @@ export function AuditScreen() {
         onChange={setTab}
       />
       <DemoBanner />
-      <p className="px-4 py-2 text-[12px] text-muted">本机操作会记在这里。服务器审计接口待接入；关闭演示后只显示本次本机操作，没有虚构历史。</p>
-      {list.length === 0 && <EmptyState title="暂无审计记录" hint="登录、改口令等本机操作会出现在这里。" />}
+      <p className="px-4 py-2 text-[12px] text-muted">来自 GET /api/admin/audit 的真实记录。</p>
+      {list.length === 0 && <EmptyState title="暂无审计记录" hint="登录、封禁、开通 VIP、审核付款等操作会出现在这里。" />}
       {list.map((item) => (
         <article key={item.id} className="flex gap-3 border-b border-line bg-surface px-4 py-3">
           <span className={`mt-1 grid size-9 place-items-center rounded-2xl ${item.kind === "security" ? "nova-warn-soft" : "nova-soft"}`}>
@@ -180,7 +163,7 @@ export function SecurityScreen() {
   return (
     <Screen title="安全中心" onBack={back}>
       <DemoBanner />
-      <DataHint>后端尚无安全管理状态接口。下面不是服务器体检结果，本机口令与设备仅供操作员使用。</DataHint>
+      <DataHint>下面不是服务器体检结果。管理员口令由 admin-cli 管理。付款走人工核对，见「付款审核」。</DataHint>
       <div className="px-4 py-4 text-center">
         <span className="mx-auto grid size-12 place-items-center rounded-full nova-soft">
           <ShieldCheck className="size-6" />
@@ -212,7 +195,7 @@ export function SecurityScreen() {
           <li>管理员口令只留在本机，不回读用户原密码。</li>
           <li>邮箱默认脱敏，完整查看会写审计。</li>
           <li>邀请码一次性，根管理员不能在这里被撤销。</li>
-          <li>支付未接入，没有收款入口。</li>
+          <li>用户付款为个人收款码人工核对：月卡 ¥9.9 / 30 天，年卡 ¥99 / 365 天。</li>
         </ul>
         <PrimaryButton onClick={() => setReport(false)}>关闭</PrimaryButton>
       </Sheet>
@@ -537,11 +520,14 @@ export function AnnounceScreen() {
   const back = useAdmin((s) => s.back);
   const announcements = useAdmin((s) => s.announcements);
   const saveAnnouncement = useAdmin((s) => s.saveAnnouncement);
-  const setAnnouncement = useAdmin((s) => s.setAnnouncement);
+  const deleteAnnouncement = useAdmin((s) => s.deleteAnnouncement);
+  const refreshAnnouncements = useAdmin((s) => s.refreshAnnouncements);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [editing, setEditing] = useState<string | undefined>(undefined);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { void refreshAnnouncements(); }, [refreshAnnouncements]);
   return (
     <Screen
       title="公告通知"
@@ -552,26 +538,26 @@ export function AnnounceScreen() {
             type="button"
             className="h-11 w-full rounded-full bg-primary font-semibold text-on-primary"
             onClick={() => {
-              setEditing(undefined);
               setTitle("");
               setBody("");
+              setError("");
               setOpen(true);
             }}
           >
-            新建公告
+            发布公告
           </button>
         </div>
       }
     >
       <DemoBanner />
-      <p className="px-4 py-2 text-[13px] text-muted">发布后出现在消息中心。服务器公告接口待接入。外部推送通道未接。</p>
-      {announcements.length === 0 && <PendingApi name="公告列表" />}
+      <p className="px-4 py-2 text-[13px] text-muted">发布即生效。后端不支持编辑或撤回，需要撤下请删除。外部推送通道未接。</p>
+      {announcements.length === 0 && <EmptyState title="暂无公告" hint="点下方按钮发布第一条。" />}
       {announcements.map((item) => (
         <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-semibold">{item.title}</h2>
-            <Pill tone={item.status === "published" ? "ok" : item.status === "draft" ? "warn" : "muted"}>
-              {item.status === "published" ? "已发布" : item.status === "draft" ? "草稿" : "已撤回"}
+            <Pill tone={item.status === "published" ? "ok" : "muted"}>
+              {item.status === "published" ? "已发布" : "未发布"}
             </Pill>
           </div>
           <p className="mt-1 text-sm text-muted">{item.body}</p>
@@ -579,43 +565,34 @@ export function AnnounceScreen() {
           <div className="mt-2 flex gap-2">
             <button
               type="button"
-              className="h-9 rounded-full bg-subtle px-3 text-sm"
-              onClick={() => {
-                setEditing(item.id);
-                setTitle(item.title);
-                setBody(item.body);
-                setOpen(true);
-              }}
+              className="h-9 rounded-full nova-danger-soft px-3 text-sm font-semibold"
+              onClick={() => void deleteAnnouncement(item.id)}
             >
-              编辑
+              删除
             </button>
-            {item.status !== "published" && (
-              <button type="button" className="h-9 rounded-full nova-ok-soft px-3 text-sm font-semibold" onClick={() => setAnnouncement(item.id, "published")}>
-                发布
-              </button>
-            )}
-            {item.status === "published" && (
-              <button type="button" className="h-9 rounded-full nova-danger-soft px-3 text-sm font-semibold" onClick={() => setAnnouncement(item.id, "withdrawn")}>
-                撤回
-              </button>
-            )}
           </div>
         </article>
       ))}
-      <Sheet open={open} title={editing ? "编辑公告" : "新建公告"} onClose={() => setOpen(false)}>
+      <Sheet open={open} title="发布公告" onClose={() => setOpen(false)}>
         <Field label="标题">
-          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="标题" />
         </Field>
         <Field label="正文">
-          <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 outline-none" value={body} onChange={(e) => setBody(e.target.value)} />
+          <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 text-[16px] outline-none" value={body} onChange={(e) => setBody(e.target.value)} placeholder="正文" />
         </Field>
+        {error && <p className="mb-2 text-sm text-danger">{error}</p>}
         <PrimaryButton
+          disabled={busy}
           onClick={() => {
-            saveAnnouncement({ id: editing, title, body });
-            setOpen(false);
+            setBusy(true);
+            void saveAnnouncement({ title, body }).then((msg) => {
+              setBusy(false);
+              setError(msg ?? "");
+              if (!msg) setOpen(false);
+            });
           }}
         >
-          保存草稿
+          {busy ? "正在发布…" : "发布"}
         </PrimaryButton>
       </Sheet>
     </Screen>

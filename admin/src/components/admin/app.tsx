@@ -6,6 +6,7 @@ import { LoginScreen } from "./login";
 import { HomeScreen, ManageScreen, MeScreen, MessagesScreen } from "./browse";
 import { UserScreen, UsersScreen } from "./people";
 import { ContentScreen, ReportsScreen } from "./queue";
+import { PaymentsScreen } from "./payments";
 import {
   AdminsScreen,
   AnnounceScreen,
@@ -104,6 +105,7 @@ export function AdminApp() {
         {name === "users" && <UsersScreen />}
         {name === "user" && <UserScreen />}
         {name === "content" && <ContentScreen />}
+        {name === "payments" && <PaymentsScreen />}
         {name === "reports" && <ReportsScreen />}
         {name === "stats" && <StatsScreen />}
         {name === "settings" && <SettingsScreen />}

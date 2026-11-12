@@ -32,7 +32,20 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminContent: "/api/admin/content",
   adminAudit: "/api/admin/audit",
   adminAnnouncements: "/api/admin/announcements",
+  adminAnnouncementDelete: "/api/admin/announcements/:id/delete",
   adminStats: "/api/admin/stats",
+  adminLogout: "/api/admin/auth/logout",
+  adminContentItem: "/api/admin/content/:type/:id",
+  adminContentDelete: "/api/admin/content/:type/:id/delete",
+  adminContentRestore: "/api/admin/content/:type/:id/restore",
+  adminPayments: "/api/admin/payments",
+  adminPayment: "/api/admin/payments/:id",
+  adminPaymentConfirm: "/api/admin/payments/:id/confirm",
+  adminPaymentReject: "/api/admin/payments/:id/reject",
+  adminPaymentRefund: "/api/admin/payments/:id/refund",
+  adminPaymentReceipt: "/api/admin/payments/:id/receipt",
+  adminReport: "/api/admin/reports/:id",
+  adminReportDecision: "/api/admin/reports/:id/decision",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",
@@ -55,6 +68,16 @@ export const ENDPOINT_ALIASES: Partial<Record<EndpointName, string[]>> = {
   adminAudit: ["/api/admin/audit", "/api/audit", "/api/admin/logs"],
   adminStats: ["/api/admin/stats", "/api/stats", "/api/admin/overview"],
   adminAnnouncements: ["/api/admin/announcements", "/api/announcements"],
+  adminAnnouncementDelete: ["/api/admin/announcements/:id/delete"],
+  adminLogout: ["/api/admin/auth/logout", "/api/admin/logout"],
+  adminContentDelete: ["/api/admin/content/:type/:id/delete", "/api/admin/posts/:id/delete"],
+  adminContentRestore: ["/api/admin/content/:type/:id/restore"],
+  adminPayments: ["/api/admin/payments", "/api/admin/orders", "/api/admin/pay"],
+  adminPayment: ["/api/admin/payments/:id"],
+  adminPaymentConfirm: ["/api/admin/payments/:id/confirm"],
+  adminPaymentReject: ["/api/admin/payments/:id/reject"],
+  adminPaymentRefund: ["/api/admin/payments/:id/refund"],
+  adminPaymentReceipt: ["/api/admin/payments/:id/receipt"],
   adminVipGrant: ["/api/admin/vip/grant", "/api/admin/vip"],
   adminVipRevoke: ["/api/admin/vip/revoke"],
   posts: ["/api/posts"],
@@ -222,6 +245,27 @@ function parseJsonSafe(text: string): unknown {
   }
 }
 
+let unauthorizedHandler: ((result: RequestResult) => void) | null = null;
+
+/** 注册 401 处理（例如清掉令牌并回到登录页）。登录接口本身的 401（口令错误）不会触发。 */
+export function setUnauthorizedHandler(fn: ((result: RequestResult) => void) | null) {
+  unauthorizedHandler = fn;
+}
+
+function maybeUnauthorized(name: EndpointName, token: string, result: RequestResult) {
+  // 只有管理接口的 401 才算会话过期。用管理员令牌去探用户接口（帖子、社区等）也会 401，不能因此退出。
+  if (!String(name).startsWith("admin")) return;
+  if (name === "adminLogin") return;
+  if (!token) return;
+  if (result.status === 401 && unauthorizedHandler) {
+    try {
+      unauthorizedHandler(result);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export async function apiRequest(
   name: EndpointName,
   options: {
@@ -286,7 +330,10 @@ export async function apiRequest(
       }
       last = { ok: res.ok, status: res.status, path, url, json, headers: hdrs };
       // 404 → try the next alias; any other response is "this is the path".
-      if (res.status !== 404) return last;
+      if (res.status !== 404) {
+        maybeUnauthorized(name, token, last);
+        return last;
+      }
     } catch (err) {
       const message = err instanceof Error ? (err.name === "AbortError" ? "连接超时" : err.message) : "网络错误";
       last = { ok: false, status: 0, path, url, json: null, headers: {}, error: message };
@@ -294,6 +341,7 @@ export async function apiRequest(
       if (timer) clearTimeout(timer);
     }
   }
+  if (last) maybeUnauthorized(name, token, last);
   return last ?? { ok: false, status: 0, path: "", url: "", json: null, headers: {}, error: "没有可尝试的路径" };
 }
 
@@ -337,7 +385,7 @@ export function pick(obj: unknown, ...keys: string[]): unknown {
 export function extractList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (!isRecord(data)) return [];
-  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records"]) {
+  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records", "orders", "payments", "audits", "announcements", "reports", "posts", "comments"]) {
     const v = data[key];
     if (Array.isArray(v)) return v;
     if (isRecord(v) && Array.isArray(v.items)) return v.items;
@@ -391,6 +439,8 @@ export type MappedMember = {
   canPost: boolean;
   canComment: boolean;
   tempCode: string | null;
+  mustChangePw: boolean;
+  username: string;
 };
 
 export function mapRemoteUser(raw: unknown): MappedMember | null {
@@ -425,7 +475,10 @@ export function mapRemoteUser(raw: unknown): MappedMember | null {
     posts: Number(pick(raw, "posts", "postCount", "postsCount") ?? 0) || 0,
     canPost: pick(raw, "canPost", "permissions.post") === false ? false : true,
     canComment: pick(raw, "canComment", "permissions.comment") === false ? false : true,
-    tempCode: asString(pick(raw, "tempCode", "temp_code", "resetCode")) || null,
+    tempCode:
+      asString(pick(raw, "temporaryPassword", "temporary_password", "tempCode", "temp_code", "resetCode")) || null,
+    mustChangePw: raw.mustChangePw === true || raw.must_change_pw === true,
+    username: asString(pick(raw, "username", "userName", "account"), ""),
   };
 }
 
@@ -486,6 +539,7 @@ const PROBE_GET: EndpointName[] = [
   "adminContent",
   "adminAudit",
   "adminAnnouncements",
+  "adminPayments",
 ];
 
 const QUICK_PROBE: EndpointName[] = ["stickers", "posts", "communities", "notifications"];
@@ -552,10 +606,13 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
     status.message = `已连接${status.detectedVersion ? " · " + status.detectedVersion : ""}。发现 ${adminKeys.length} 个管理接口，将优先用服务器数据；其余显示「接口待接入」，不用虚构数字。`;
   } else {
     status.mode = "degraded";
-    const gatedNote = gated.length
-      ? `已探测到需登录的用户接口（${gated.join("、")}），管理端没有管理员令牌，不会代用户拉取，相关列表保持为空。`
-      : "";
-    status.message = `后端已连通${status.detectedVersion ? "（" + status.detectedVersion + "）" : ""}。管理专用接口（用户列表、封禁、全站统计、管理员登录等）尚未提供。${gatedNote}VIP 目录${status.catalog ? "已从服务器读取" : "未能读取"}。公开接口（如健康检查、VIP 目录、表情包）会展示真实数据。不用虚构数字。`;
+    const adminGated = gated.filter((k) => k.startsWith("admin"));
+    const gatedNote = adminGated.length
+      ? "管理接口已存在，请先登录管理员账号。"
+      : gated.length
+        ? `已探测到需登录的接口（${gated.join("、")}）。`
+        : "";
+    status.message = `后端已连通${status.detectedVersion ? "（" + status.detectedVersion + "）" : ""}。${gatedNote || "管理专用接口尚未对当前会话开放。"}VIP 目录${status.catalog ? "已从服务器读取" : "未能读取"}。不用虚构数字。`;
   }
   return status;
 }
@@ -567,4 +624,423 @@ export function readErrorMessage(json: unknown, fallback: string): string {
   if (isRecord(err) && typeof err.message === "string") return err.message;
   if (typeof json.message === "string") return json.message;
   return fallback;
+}
+
+
+export const VIP_PRICES = [
+  { period: "month", days: 30, amountCents: 990, label: "¥9.9/月" },
+  { period: "year", days: 365, amountCents: 9900, label: "¥99/年" },
+] as const;
+
+export type MappedAdmin = {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  lastLoginAt: string;
+  expiresAt: number | null;
+};
+
+export function mapRemoteAdmin(raw: unknown): MappedAdmin | null {
+  const src = isRecord(raw) && isRecord(raw.admin) ? raw.admin : raw;
+  if (!isRecord(src)) return null;
+  const id = asString(pick(src, "id", "adminId", "admin_id"));
+  const username = asString(pick(src, "username", "name", "account"));
+  if (!id && !username) return null;
+  const expires = pick(raw, "expiresAt", "expires_at");
+  return {
+    id: id || username,
+    username: username || id,
+    email: asString(pick(src, "email")),
+    role: asString(pick(src, "role"), "admin"),
+    status: asString(pick(src, "status"), "active"),
+    createdAt: asTime(pick(src, "createdAt", "created_at")),
+    lastLoginAt: asTime(pick(src, "lastLoginAt", "last_login_at")),
+    expiresAt: typeof expires === "number" ? expires : expires ? Number(expires) || null : null,
+  };
+}
+
+export function pickToken(raw: unknown): string {
+  if (!isRecord(raw)) return "";
+  const t = pick(raw, "token", "accessToken", "access_token", "adminToken");
+  return typeof t === "string" ? t.trim() : "";
+}
+
+export type MappedContent = {
+  id: string;
+  type: "post" | "comment";
+  title: string;
+  text: string;
+  authorId: string;
+  authorName: string;
+  time: string;
+  status: "approved" | "removed";
+  image: string;
+  postId: string;
+  adminReason: string;
+  adminHidden: boolean;
+};
+
+export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" = "post"): MappedContent | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id", "postId", "commentId", "contentId"));
+  if (!id) return null;
+  const typeRaw = asString(pick(raw, "type", "kind"), fallbackType).toLowerCase();
+  const type: "post" | "comment" = typeRaw === "comment" ? "comment" : "post";
+  const author = isRecord(raw.author) ? raw.author : {};
+  const deleted = raw.deleted === true || raw.status === "removed" || raw.status === "deleted" || !!pick(raw, "deletedAt", "deleted_at");
+  const text = asString(pick(raw, "text", "body", "content", "excerpt"));
+  return {
+    id,
+    type,
+    title: asString(pick(raw, "title"), text.slice(0, 40) || (type === "comment" ? "评论" : "动态")),
+    text,
+    authorId: asString(pick(raw, "authorId", "author_id", "userId") ?? pick(author, "id")),
+    authorName: asString(pick(raw, "authorName") ?? pick(author, "displayName", "username", "name"), "未知"),
+    time: asTime(pick(raw, "createdAt", "created_at", "time")),
+    status: deleted ? "removed" : "approved",
+    image: asString(pick(raw, "image", "imageUrl", "cover")),
+    postId: asString(pick(raw, "postId", "post_id")),
+    adminReason: asString(pick(raw, "adminReason", "admin_reason", "reason")),
+    adminHidden: raw.adminHidden === true || raw.admin_hidden === true,
+  };
+}
+
+export type PaymentStatus = "pending" | "awaiting_review" | "paid" | "rejected" | "expired" | "refunded" | "unknown";
+
+export type MappedPayment = {
+  id: string;
+  code: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  provider: string;
+  method: string;
+  methodName: string;
+  period: string;
+  plan: string;
+  amountCents: number;
+  amountLabel: string;
+  currency: string;
+  status: PaymentStatus;
+  note: string;
+  rejectReason: string;
+  expiresAt: string;
+  createdAt: string;
+  paidAt: string;
+  hasReceipt: boolean;
+  receiptUrl: string;
+  receiptMime: string;
+  receiptName: string;
+  days: number;
+  vipUntil: string;
+  vipEventId: string;
+  reviewedBy: string;
+  events: unknown[];
+  rawUserVipUntil: number | null;
+};
+
+const PAY_STATUSES: PaymentStatus[] = ["pending", "awaiting_review", "paid", "rejected", "expired", "refunded"];
+
+export function mapRemotePayment(raw: unknown): MappedPayment | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id", "orderId", "order_id"));
+  if (!id) return null;
+  const user = isRecord(raw.user) ? raw.user : {};
+  const statusRaw = asString(pick(raw, "status"), "unknown");
+  const status = (PAY_STATUSES as string[]).includes(statusRaw) ? (statusRaw as PaymentStatus) : "unknown";
+  const cents = Number(pick(raw, "amountCents", "amount_cents", "amount") ?? 0) || 0;
+  const period = asString(pick(raw, "period"), "");
+  const price = VIP_PRICES.find((p) => p.period === period);
+  return {
+    id,
+    code: asString(pick(raw, "code", "orderCode", "noteCode")),
+    userId: asString(pick(raw, "userId", "user_id") ?? pick(user, "id")),
+    userName: asString(pick(user, "displayName", "username", "name"), asString(pick(raw, "userName"))),
+    userEmail: asString(pick(user, "email")),
+    provider: asString(pick(raw, "provider")),
+    method: asString(pick(raw, "method")),
+    methodName: asString(pick(raw, "methodName"), asString(pick(raw, "method"))),
+    period,
+    plan: asString(pick(raw, "plan"), "vip"),
+    amountCents: cents,
+    amountLabel: asString(pick(raw, "amountLabel"), price ? price.label : cents ? `¥${(cents / 100).toFixed(1)}` : ""),
+    currency: asString(pick(raw, "currency"), "CNY"),
+    status,
+    note: asString(pick(raw, "note")),
+    rejectReason: asString(pick(raw, "rejectReason", "reject_reason", "reason")),
+    expiresAt: asTime(pick(raw, "expiresAt", "expires_at")),
+    createdAt: asTime(pick(raw, "createdAt", "created_at")),
+    paidAt: asTime(pick(raw, "paidAt", "paid_at")),
+    hasReceipt: raw.hasReceipt === true || !!pick(raw, "receiptUrl", "receipt_url", "receiptPath"),
+    receiptUrl: asString(pick(raw, "receiptUrl", "receipt_url")),
+    receiptMime: asString(pick(raw, "receiptMime", "receipt_mime")),
+    receiptName: asString(pick(raw, "receiptName", "receipt_name")),
+    days: Number(pick(raw, "days") ?? (price ? price.days : 0)) || 0,
+    vipUntil: asTime(pick(raw, "vipUntil", "vip_until")),
+    vipEventId: asString(pick(raw, "vipEventId", "vip_event_id")),
+    reviewedBy: asString(pick(raw, "reviewedBy", "reviewed_by")),
+    events: Array.isArray(raw.events) ? raw.events : [],
+    rawUserVipUntil: asVipUntil(pick(user, "vipUntil", "vip_until")),
+  };
+}
+
+export type MappedAudit = {
+  id: string;
+  kind: "admin" | "security";
+  action: string;
+  target: string;
+  time: string;
+  ip: string;
+  actorId: string;
+  detail: unknown;
+};
+
+export function mapRemoteAudit(raw: unknown): MappedAudit | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id"));
+  if (!id) return null;
+  const kindRaw = asString(pick(raw, "kind"), "");
+  const action = asString(pick(raw, "action", "event", "type"));
+  const kind: "admin" | "security" =
+    kindRaw === "admin" || action.startsWith("admin.") ? "admin" : "security";
+  return {
+    id,
+    kind,
+    action: action || "操作",
+    target: asString(pick(raw, "target", "resource")),
+    time: asTime(pick(raw, "time", "at", "createdAt", "created_at")),
+    ip: asString(pick(raw, "ip")),
+    actorId: asString(pick(raw, "actorId", "actor_id")),
+    detail: pick(raw, "detail") ?? null,
+  };
+}
+
+export type MappedAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  published: boolean;
+  time: string;
+};
+
+export function mapRemoteAnnouncement(raw: unknown): MappedAnnouncement | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id"));
+  if (!id) return null;
+  return {
+    id,
+    title: asString(pick(raw, "title")),
+    body: asString(pick(raw, "body", "content", "text")),
+    published: raw.published !== false && raw.status !== "draft" && raw.status !== "withdrawn",
+    time: asTime(pick(raw, "createdAt", "created_at", "time", "updatedAt")),
+  };
+}
+
+export type MappedStats = {
+  usersTotal: number;
+  usersActive: number;
+  usersBanned: number;
+  usersVip: number;
+  postsVisible: number;
+  postsRemoved: number;
+  commentsVisible: number;
+  reportsPending: number;
+  paymentsPending: number;
+  paymentsReview: number;
+};
+
+export function mapRemoteStats(raw: unknown): MappedStats | null {
+  if (!isRecord(raw)) return null;
+  const users = isRecord(raw.users) ? raw.users : raw;
+  const posts = isRecord(raw.posts) ? raw.posts : {};
+  const comments = isRecord(raw.comments) ? raw.comments : {};
+  const reports = isRecord(raw.reports) ? raw.reports : {};
+  const payments = isRecord(raw.payments) ? raw.payments : {};
+  const num = (...keys: string[]) => {
+    for (const src of [raw, users, posts, comments, reports, payments]) {
+      const v = pick(src, ...keys);
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+    }
+    return 0;
+  };
+  // 至少要能认出其中一个已知字段，避免把完全无关的对象当成统计。
+  if (
+    pick(users, "total", "users.total") == null &&
+    pick(raw, "users") == null &&
+    pick(posts, "visible") == null &&
+    pick(raw, "posts") == null
+  ) {
+    if (typeof raw.users !== "object" && typeof raw.posts !== "object") return null;
+  }
+  const n = (obj: Record<string, unknown>, ...keys: string[]) => {
+    const v = pick(obj, ...keys);
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+  };
+  return {
+    usersTotal: n(users, "total"),
+    usersActive: n(users, "active"),
+    usersBanned: n(users, "banned"),
+    usersVip: n(users, "vip"),
+    postsVisible: n(posts, "visible"),
+    postsRemoved: n(posts, "removed", "hidden"),
+    commentsVisible: n(comments, "visible"),
+    reportsPending: n(reports, "pending"),
+    paymentsPending: n(payments, "pending"),
+    paymentsReview: n(payments, "awaitingReview", "awaiting_review"),
+  };
+}
+
+export type MappedReport = {
+  id: string;
+  title: string;
+  reason: string;
+  reporter: string;
+  target: string;
+  time: string;
+  status: "open" | "done";
+  resolution?: string;
+  postId?: string;
+  userId?: string;
+};
+
+export function mapRemoteReport(raw: unknown): MappedReport | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id"));
+  if (!id) return null;
+  const reporter = isRecord(raw.reporter) ? raw.reporter : {};
+  const queue = asString(pick(raw, "queueStatus", "queue_status"), "");
+  const st = asString(pick(raw, "status"), "pending");
+  const done = queue === "done" || st === "resolved" || st === "rejected" || st === "done";
+  const decision = isRecord(raw.decision) ? raw.decision : {};
+  const targetType = asString(pick(raw, "targetType", "target_type"));
+  const targetId = asString(pick(raw, "targetId", "target_id"));
+  return {
+    id,
+    title: asString(pick(raw, "title"), "举报"),
+    reason: asString(pick(raw, "reason", "detail")),
+    reporter: asString(pick(reporter, "displayName", "username", "name"), asString(pick(raw, "reporter"))),
+    target: asString(pick(raw, "target"), targetType && targetId ? `${targetType}:${targetId}` : ""),
+    time: asTime(pick(raw, "time", "createdAt", "created_at")),
+    status: done ? "done" : "open",
+    resolution: asString(pick(decision, "resolution", "note") ?? pick(raw, "resolution")) || undefined,
+    postId: targetType === "post" ? targetId : undefined,
+    userId: asString(pick(raw, "targetUserId", "target_user_id", "userId")) || undefined,
+  };
+}
+
+export type BinaryResult = {
+  ok: boolean;
+  status: number;
+  path: string;
+  url: string;
+  blob: Blob | null;
+  mime: string;
+  error?: string;
+};
+
+/** 拉取需鉴权的二进制（付款截图）。401 同样会触发未授权处理。 */
+export async function apiBinary(
+  name: EndpointName,
+  options: {
+    params?: Record<string, string>;
+    query?: Record<string, string | number | undefined>;
+    baseUrl?: string;
+    token?: string;
+    timeoutMs?: number;
+  } = {},
+): Promise<BinaryResult> {
+  const cfg = loadConfig();
+  const base = resolveBase(options.baseUrl ?? cfg.baseUrl);
+  const token = options.token ?? cfg.token;
+  const timeoutMs = options.timeoutMs ?? Math.max(cfg.timeoutMs, 15000);
+  if (!base) {
+    return { ok: false, status: 0, path: DEFAULT_ENDPOINT_MAP[name], url: "", blob: null, mime: "", error: "未配置接口地址" };
+  }
+  let last: BinaryResult | null = null;
+  for (const template of pathsFor(name, cfg.endpoints)) {
+    const path = pathTemplate(template, options.params);
+    let url = joinUrl(base, path);
+    if (options.query) {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(options.query)) {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
+      }
+      const s = qs.toString();
+      if (s) url += (url.includes("?") ? "&" : "?") + s;
+    }
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : 0;
+    try {
+      const headers: Record<string, string> = { Accept: "image/*,application/octet-stream,application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers,
+        signal: controller ? controller.signal : undefined,
+        credentials: "omit",
+      });
+      const ct = res.headers.get("content-type") || "";
+      if (res.status === 401) {
+        const text = await res.text();
+        const json = parseJsonSafe(text);
+        maybeUnauthorized(name, token, { ok: false, status: 401, path, url, json, headers: {}, error: readErrorMessage(json, "登录已过期") });
+        return { ok: false, status: 401, path, url, blob: null, mime: ct, error: readErrorMessage(json, "登录已过期，请重新登录") };
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        const json = parseJsonSafe(text);
+        last = { ok: false, status: res.status, path, url, blob: null, mime: ct, error: readErrorMessage(json, "无法获取文件") };
+        if (res.status !== 404) return last;
+        continue;
+      }
+      if (ct.includes("json") || ct.includes("text/html")) {
+        last = { ok: false, status: 404, path, url, blob: null, mime: ct, error: "响应不是图片" };
+        continue;
+      }
+      const buf = await res.arrayBuffer();
+      const mime = ct.split(";")[0] || "application/octet-stream";
+      return { ok: true, status: res.status, path, url, blob: new Blob([buf], { type: mime }), mime };
+    } catch (err) {
+      const message = err instanceof Error ? (err.name === "AbortError" ? "连接超时" : err.message) : "网络错误";
+      last = { ok: false, status: 0, path, url, blob: null, mime: "", error: message };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  return last ?? { ok: false, status: 0, path: "", url: "", blob: null, mime: "", error: "没有可尝试的路径" };
+}
+
+export function unwrapUser(json: unknown): unknown {
+  if (!isRecord(json)) return json;
+  if (isRecord(json.user)) return json.user;
+  return json;
+}
+
+export function paymentStatusLabel(status: PaymentStatus | string): string {
+  switch (status) {
+    case "pending":
+      return "待付款";
+    case "awaiting_review":
+      return "待审核";
+    case "paid":
+      return "已开通";
+    case "rejected":
+      return "已拒绝";
+    case "expired":
+      return "已过期";
+    case "refunded":
+      return "已退款";
+    default:
+      return String(status || "未知");
+  }
+}
+
+export function formatCents(cents: number, currency = "CNY"): string {
+  if (!Number.isFinite(cents)) return "";
+  const n = cents / 100;
+  const prefix = currency === "CNY" || currency === "RMB" ? "¥" : "";
+  return prefix + (Number.isInteger(n) ? String(n) : n.toFixed(1));
 }

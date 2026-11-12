@@ -5,10 +5,18 @@ import {
   extractList,
   mapCatalogEntitlements,
   mapRemoteUser,
+  mapRemotePayment,
+  mapRemoteContent,
+  mapRemoteStats,
+  mapRemoteAudit,
+  mapRemoteAnnouncement,
+  paymentStatusLabel,
   pick,
   joinUrl,
   pathTemplate,
   resolveBase,
+  pickToken,
+  mapRemoteAdmin,
 } from "./backend.ts";
 
 describe("pick / joinUrl / pathTemplate", () => {
@@ -109,5 +117,80 @@ describe("resolveBase priority", () => {
   });
   it("returns empty when nothing is set and there is no window (native / node)", () => {
     assert.equal(resolveBase("", ""), "");
+  });
+});
+
+
+describe("m4.12 admin mappers", () => {
+  it("maps a payment order and receipt fields", () => {
+    const p = mapRemotePayment({
+      id: "pay_1",
+      code: "NVABC123",
+      userId: 9,
+      method: "wechat",
+      methodName: "微信支付",
+      period: "month",
+      amountCents: 990,
+      amountLabel: "¥9.9/月",
+      status: "awaiting_review",
+      hasReceipt: true,
+      receiptUrl: "/api/admin/payments/pay_1/receipt",
+      days: 30,
+      user: { id: 9, username: "alice", displayName: "Alice", vipUntil: 1800000000000 },
+    });
+    assert.ok(p);
+    assert.equal(p!.code, "NVABC123");
+    assert.equal(p!.status, "awaiting_review");
+    assert.equal(p!.amountCents, 990);
+    assert.equal(p!.days, 30);
+    assert.equal(p!.hasReceipt, true);
+    assert.equal(p!.userName, "Alice");
+    assert.equal(paymentStatusLabel("awaiting_review"), "待审核");
+  });
+  it("maps content and stats from m4.12 shapes", () => {
+    const c = mapRemoteContent({
+      id: "po_1",
+      type: "post",
+      text: "hello world",
+      title: "hello",
+      authorId: 1,
+      author: { id: 1, username: "alice", displayName: "Alice" },
+      createdAt: 1700000000000,
+      status: "approved",
+      deleted: false,
+    });
+    assert.ok(c);
+    assert.equal(c!.type, "post");
+    assert.equal(c!.status, "approved");
+    assert.equal(c!.authorName, "Alice");
+    const s = mapRemoteStats({
+      users: { total: 3, active: 2, banned: 1, vip: 1 },
+      posts: { visible: 4, removed: 1 },
+      comments: { visible: 7 },
+      reports: { pending: 2 },
+      payments: { pending: 1, awaitingReview: 3 },
+    });
+    assert.ok(s);
+    assert.equal(s!.usersTotal, 3);
+    assert.equal(s!.paymentsReview, 3);
+    assert.equal(s!.postsRemoved, 1);
+  });
+  it("maps audit, announcement, login token", () => {
+    const a = mapRemoteAudit({ id: 8, action: "admin.user.ban", target: "user:1", at: 1700000000000, ip: "127.0.0.1", actorId: 1 });
+    assert.ok(a);
+    assert.equal(a!.kind, "admin");
+    assert.equal(a!.action, "admin.user.ban");
+    const n = mapRemoteAnnouncement({ id: 2, title: "守则", body: "友善", published: 1, createdAt: 1700000000000 });
+    assert.ok(n);
+    assert.equal(n!.published, true);
+    const login = { ok: true, admin: { id: 1, username: "admin", role: "admin", status: "active" }, token: "na_abc", expiresAt: 1 };
+    assert.equal(pickToken(login), "na_abc");
+    const admin = mapRemoteAdmin(login);
+    assert.equal(admin!.username, "admin");
+  });
+  it("maps temporaryPassword onto tempCode and mustChangePw", () => {
+    const u = mapRemoteUser({ id: 2, username: "zhou", temporaryPassword: "Tmpabc1a", mustChangePw: true, status: "active" });
+    assert.equal(u!.tempCode, "Tmpabc1a");
+    assert.equal(u!.mustChangePw, true);
   });
 });

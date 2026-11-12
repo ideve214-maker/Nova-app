@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   BarChart3,
   Bell,
   ChevronRight,
+  CreditCard,
   Crown,
   Flag,
   Hash,
@@ -23,11 +24,12 @@ import { ConnectionBadge } from "./server-panel";
 const modules: { name: PageName; label: string; desc: string; icon: typeof Users }[] = [
   { name: "users", label: "用户管理", desc: "查看、封禁、重置", icon: Users },
   { name: "content", label: "内容审核", desc: "帖子与评论", icon: Bell },
+  { name: "payments", label: "付款审核", desc: "收款码人工核对", icon: CreditCard },
   { name: "reports", label: "举报处理", desc: "待处理队列", icon: Flag },
   { name: "community", label: "社区管理", desc: "话题与版块", icon: Hash },
   { name: "vip", label: "会员权益", desc: "目录、开通、续期", icon: Crown },
   { name: "stats", label: "数据统计", desc: "用户与内容", icon: BarChart3 },
-  { name: "announce", label: "公告通知", desc: "草稿、发布、撤回", icon: Megaphone },
+  { name: "announce", label: "公告通知", desc: "发布与删除", icon: Megaphone },
   { name: "settings", label: "系统设置", desc: "开关与服务器", icon: Settings },
   { name: "audit", label: "审计日志", desc: "操作可追溯", icon: ScrollText },
   { name: "security", label: "安全中心", desc: "设备、邀请、权限", icon: ShieldCheck },
@@ -38,15 +40,21 @@ export function HomeScreen() {
   const members = useAdmin((s) => s.members);
   const posts = useAdmin((s) => s.posts);
   const reports = useAdmin((s) => s.reports);
+  const liveStats = useAdmin((s) => s.stats);
   const demoMode = useAdmin((s) => s.demoMode);
   const connection = useAdmin((s) => s.connection);
-  const stats = overviewOf(members, posts);
-  const openReports = reports.filter((item) => item.status === "open").length;
-  const pending = posts.filter((item) => item.status === "pending").length;
-  const hasUserApi = !!connection.available.adminUsers;
-  const hasStatsApi = !!connection.available.adminStats;
-  const showCounts = demoMode || hasUserApi || hasStatsApi;
+  const refreshStats = useAdmin((s) => s.refreshStats);
+  const local = overviewOf(members, posts);
+  const stats = liveStats
+    ? { users: liveStats.usersTotal, active: liveStats.usersActive, posts: liveStats.postsVisible }
+    : local;
+  const openReports = liveStats ? liveStats.reportsPending : reports.filter((item) => item.status === "open").length;
+  const pendingPay = liveStats ? liveStats.paymentsReview : 0;
+  const hasUserApi = !!connection.available.adminUsers || !!connection.available.adminStats;
+  const hasStatsApi = !!connection.available.adminStats || !!liveStats;
+  const showCounts = demoMode || hasUserApi || hasStatsApi || !!liveStats;
   const dash = "—";
+  useEffect(() => { if (!demoMode) void refreshStats(); }, [demoMode, refreshStats]);
 
   return (
     <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-3">
@@ -77,11 +85,11 @@ export function HomeScreen() {
         </div>
       </div>
 
-      {!demoMode && !hasStatsApi && (
+      {!demoMode && !hasStatsApi && !liveStats && (
         <DataHint>
           {connection.reachable
-            ? "没有管理统计接口。动态、社区等用户接口需登录，管理端没有管理员令牌，不会代拉，这里不展示虚构数字。"
-            : "未连接后端，无法读取统计。公开预览无法访问你电脑上的服务。数字显示为 —，不是 0，也不是演示数据。"}
+            ? "还没有读到管理统计。登录后会从 GET /api/admin/stats 拉取真实数字。"
+            : "未连接后端，无法读取统计。数字显示为 —，不是 0，也不是演示数据。"}
         </DataHint>
       )}
 
@@ -114,7 +122,7 @@ export function HomeScreen() {
 
       <div className="mx-4 mt-2 grid grid-cols-4 gap-1">
         <Shortcut label="用户管理" badge={showCounts && members.length ? String(members.length) : undefined} onClick={() => go("users")} icon={<Users className="size-4" />} />
-        <Shortcut label="内容审核" badge={showCounts && pending ? String(pending) : undefined} onClick={() => go("content")} icon={<Bell className="size-4" />} />
+        <Shortcut label="付款审核" badge={showCounts && pendingPay ? String(pendingPay) : undefined} onClick={() => go("payments")} icon={<CreditCard className="size-4" />} />
         <Shortcut label="举报处理" badge={showCounts && openReports ? String(openReports) : undefined} onClick={() => go("reports")} icon={<Flag className="size-4" />} />
         <Shortcut label="系统设置" onClick={() => go("settings")} icon={<Settings className="size-4" />} />
       </div>
@@ -160,8 +168,8 @@ function Shortcut({
 export function ManageScreen() {
   const go = useAdmin((s) => s.go);
   const demoMode = useAdmin((s) => s.demoMode);
-  const pending = useAdmin((s) => s.posts.filter((item) => item.status === "pending").length);
-  const openReports = useAdmin((s) => s.reports.filter((item) => item.status === "open").length);
+  const pending = useAdmin((s) => s.stats?.paymentsReview || 0);
+  const openReports = useAdmin((s) => s.stats?.reportsPending || s.reports.filter((item) => item.status === "open").length);
   return (
     <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
       <header className="px-4 pb-1.5 pt-safe">
@@ -172,7 +180,7 @@ export function ManageScreen() {
       <div className="mx-4 mb-3 overflow-hidden rounded-card bg-surface shadow-card">
         {modules.map((item) => {
           const Icon = item.icon;
-          const extra = demoMode ? (item.name === "content" ? pending : item.name === "reports" ? openReports : 0) : 0;
+          const extra = item.name === "payments" ? pending : item.name === "reports" ? openReports : 0;
           return (
             <RowLink
               key={item.name}
@@ -249,13 +257,8 @@ export function MessagesScreen() {
 export function MeScreen() {
   const go = useAdmin((s) => s.go);
   const logout = useAdmin((s) => s.logout);
-  const demoMode = useAdmin((s) => s.demoMode);
-  const setDemoMode = useAdmin((s) => s.setDemoMode);
-  const [open, setOpen] = useState(false);
-  const changePassword = useAdmin((s) => s.changePassword);
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [error, setError] = useState("");
+  const adminProfile = useAdmin((s) => s.adminProfile);
+  const adminName = useAdmin((s) => s.adminName);
   return (
     <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-3">
       <header className="px-4 pb-2 pt-safe">
@@ -266,67 +269,27 @@ export function MeScreen() {
           <StarMark className="size-5" />
         </span>
         <div className="min-w-0">
-          <div className="text-[16px] font-semibold">管理员</div>
-          <div className="text-[13px] text-muted">admin · 本机操作员</div>
+          <div className="text-[16px] font-semibold">{adminProfile?.username || adminName || "管理员"}</div>
+          <div className="text-[13px] text-muted">{adminProfile?.role || "admin"} · 服务器账号</div>
           <div className="mt-1">
             <ConnectionBadge />
           </div>
         </div>
       </div>
       <DataHint>
-        登录使用本机口令，因为 M2.6 后端没有管理端鉴权（/api/admin/auth 等尚未实现）。修改密码只保存在这台设备上。
+        已用服务器管理员账号登录，请求会带 na_ 令牌。口令由运营用 admin-cli 管理，这里不能改。401 会回到登录页。
       </DataHint>
-      <div className="mx-4 mt-2 flex items-center justify-between rounded-card bg-surface px-3.5 py-2.5 shadow-card">
-        <div className="min-w-0 pr-3">
-          <div className="text-[15px] font-medium">演示模式</div>
-          <div className="text-[12px] leading-4 text-muted">默认关闭。打开后用本地虚构数据预览界面，并在各页标明。</div>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={demoMode}
-          aria-label="演示模式"
-          onClick={() => setDemoMode(!demoMode)}
-          className={`h-7 w-11 shrink-0 rounded-full p-0.5 ${demoMode ? "bg-warn" : "bg-line"}`}
-        >
-          <span className={`block size-6 rounded-full bg-surface transition-transform ${demoMode ? "translate-x-4" : ""}`} />
-        </button>
-      </div>
       <div className="mx-4 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
-        <RowLink icon={<KeyRound className="size-4" />} title="修改本机口令" desc="不展示、不回读原密码" onClick={() => setOpen(true)} extra={<ChevronRight className="size-4 text-muted" />} />
-        <RowLink icon={<ShieldCheck className="size-4" />} title="安全设置" desc="登录保护与邀请" onClick={() => go("security")} extra={<ChevronRight className="size-4 text-muted" />} />
-        <RowLink icon={<Smartphone className="size-4" />} title="登录设备" desc="本机会话" onClick={() => go("devices")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<CreditCard className="size-4" />} title="付款审核" desc="收款码人工核对" onClick={() => go("payments")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<ShieldCheck className="size-4" />} title="安全设置" desc="登录保护说明" onClick={() => go("security")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-4" />} title="审计日志" onClick={() => go("audit")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>
       <div className="mx-4 mt-3">
-        <button type="button" onClick={logout} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-[16px] font-semibold text-danger shadow-card">
+        <button type="button" onClick={() => void logout()} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-[16px] font-semibold text-danger shadow-card">
           <LogOut className="size-4" />
           退出登录
         </button>
       </div>
-      {open && (
-        <div className="mx-4 mt-3 rounded-card bg-surface p-3 shadow-card">
-          <h2 className="mb-2 text-[15px] font-semibold">修改本机口令</h2>
-          <input className="mb-2 h-11 w-full rounded-xl border border-line bg-subtle px-3 text-[16px]" type="password" placeholder="当前密码" value={current} onChange={(e) => setCurrent(e.target.value)} />
-          <input className="mb-2 h-11 w-full rounded-xl border border-line bg-subtle px-3 text-[16px]" type="password" placeholder="新密码，至少 8 位" value={next} onChange={(e) => setNext(e.target.value)} />
-          {error && <p className="mb-2 text-[13px] text-danger">{error}</p>}
-          <button
-            type="button"
-            className="h-11 w-full rounded-full bg-primary text-[16px] font-semibold text-on-primary"
-            onClick={() => {
-              const message = changePassword(current, next);
-              setError(message ?? "");
-              if (!message) {
-                setOpen(false);
-                setCurrent("");
-                setNext("");
-              }
-            }}
-          >
-            保存
-          </button>
-        </div>
-      )}
     </section>
   );
 }

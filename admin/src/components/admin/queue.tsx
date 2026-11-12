@@ -1,91 +1,148 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAdmin, type PostItem } from "@/lib/admin/store";
 import { Avatar, DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { mediaUrl } from "@/lib/admin/media";
 
-type ContentTab = "all" | "post" | "comment" | "report";
 
 export function ContentScreen() {
   const posts = useAdmin((s) => s.posts);
   const members = useAdmin((s) => s.members);
-  const reports = useAdmin((s) => s.reports);
   const back = useAdmin((s) => s.back);
   const go = useAdmin((s) => s.go);
-  const setPostStatus = useAdmin((s) => s.setPostStatus);
-  const demoMode = useAdmin((s) => s.demoMode);
-  const hasContentApi = useAdmin((s) => !!s.connection.available.adminContent || !!s.connection.available.posts);
-  const postsNeedAuth = useAdmin((s) => !!s.connection.authRequired.posts);
-  const [tab, setTab] = useState<ContentTab>("all");
-  const reported = new Set(reports.filter((item) => item.status === "open" && item.postId).map((item) => item.postId));
+  const hideContent = useAdmin((s) => s.hideContent);
+  const restoreContent = useAdmin((s) => s.restoreContent);
+  const refreshContent = useAdmin((s) => s.refreshContent);
+  const hasContentApi = useAdmin((s) => !!s.connection.available.adminContent || s.authed);
+  const [kind, setKind] = useState<"all" | "post" | "comment">("all");
+  const [status, setStatus] = useState<"all" | "visible" | "removed">("all");
+  const [reasonFor, setReasonFor] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void refreshContent({ type: kind, status });
+  }, [kind, status, refreshContent]);
+
   const list = posts.filter((item) => {
-    if (tab === "post") return item.kind === "post";
-    if (tab === "comment") return item.kind === "comment";
-    if (tab === "report") return reported.has(item.id);
+    if (kind !== "all" && item.kind !== kind) return false;
+    if (status === "removed" && item.status !== "removed") return false;
+    if (status === "visible" && item.status === "removed") return false;
     return true;
   });
+  const target = posts.find((p) => p.id === reasonFor);
 
   return (
     <Screen title="内容审核" onBack={back}>
-      <DemoBanner />
       <Seg
-        value={tab}
+        value={kind}
         options={[
           { id: "all", label: "全部" },
           { id: "post", label: "帖子" },
           { id: "comment", label: "评论" },
-          { id: "report", label: "举报" },
         ]}
-        onChange={(id) => setTab(id as ContentTab)}
+        onChange={(id) => setKind(id as typeof kind)}
       />
+      <div className="flex gap-2 bg-surface px-4 pb-2">
+        {([
+          ["all", "不限"],
+          ["visible", "可见"],
+          ["removed", "已删除"],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setStatus(id)}
+            className={`h-8 flex-1 rounded-full text-[13px] font-semibold ${status === id ? "bg-primary text-on-primary" : "bg-subtle text-muted"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="space-y-3 p-4">
-        {list.length === 0 && (demoMode || hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi name="动态列表（GET /api/posts）" needsAuth={postsNeedAuth} />)}
+        {list.length === 0 && (hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi name="内容列表（GET /api/admin/content）" />)}
         {list.map((post) => {
           const author = members.find((item) => item.id === post.authorId);
+          const name = post.authorName || author?.name || "未知";
           return (
-            <article key={post.id} className="rounded-card bg-surface p-2.5 shadow-card">
+            <article key={post.kind + ":" + post.id} className="rounded-card bg-surface p-2.5 shadow-card">
               <div className="flex gap-2.5">
                 {post.image ? (
-                  <img src={mediaUrl(post.image) || post.image} alt="" className="size-16 rounded-xl object-cover" />
+                  <img src={post.image} alt="" className="size-16 rounded-xl object-cover" />
                 ) : (
-                  <div className="grid size-16 place-items-center rounded-xl bg-subtle text-[12px] text-muted">评论</div>
+                  <div className="grid size-16 place-items-center rounded-xl bg-subtle text-[12px] text-muted">{post.kind === "comment" ? "评论" : "帖子"}</div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-[15px] font-medium">{post.title}</h2>
+                    <h2 className="text-[15px] font-medium">{post.title || post.excerpt}</h2>
                     <Status status={post.status} />
                   </div>
-                  <button type="button" className="mt-1 flex items-center gap-2 text-[13px] text-muted" onClick={() => author && go("user", author.id)}>
-                    <Avatar src={author?.avatar} name={author?.name ?? "?"} className="size-5" />
-                    @{author?.name ?? "未知"} · {post.time}
+                  <button type="button" className="mt-1 flex items-center gap-2 text-[13px] text-muted" onClick={() => post.authorId && go("user", post.authorId)}>
+                    @{name} · {post.time}
                   </button>
                   <p className="mt-1 text-[13px] text-muted">{post.excerpt}</p>
+                  {post.adminReason && <p className="mt-1 text-[12px] text-warn">删除原因：{post.adminReason}</p>}
                 </div>
               </div>
-              {post.status === "pending" && (
-                <div className="mt-2.5 grid grid-cols-2 gap-2">
-                  <button type="button" className="h-11 rounded-full nova-ok-soft text-[15px] font-semibold" onClick={() => setPostStatus(post.id, "approved")}>
-                    通过
-                  </button>
-                  <button type="button" className="h-11 rounded-full nova-danger-soft text-[15px] font-semibold" onClick={() => setPostStatus(post.id, "removed")}>
-                    删除
-                  </button>
-                </div>
-              )}
-              {post.status !== "pending" && (
-                <button type="button" className="mt-2.5 h-11 w-full rounded-full bg-subtle text-[13px] font-semibold" onClick={() => setPostStatus(post.id, "pending")}>
-                  退回待审
+              {post.status === "removed" ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="mt-2.5 h-11 w-full rounded-full nova-ok-soft text-[15px] font-semibold disabled:opacity-50"
+                  onClick={async () => {
+                    setBusy(true);
+                    await restoreContent(post.kind, post.id);
+                    setBusy(false);
+                  }}
+                >
+                  恢复
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-2.5 h-11 w-full rounded-full nova-danger-soft text-[15px] font-semibold"
+                  onClick={() => {
+                    setReason("");
+                    setReasonFor(post.id);
+                  }}
+                >
+                  删除
                 </button>
               )}
             </article>
           );
         })}
       </div>
+      <Sheet open={!!target} title="删除内容" onClose={() => setReasonFor(null)}>
+        {target && (
+          <>
+            <p className="mb-2 text-[15px]">{target.title || target.excerpt}</p>
+            <p className="mb-3 text-[13px] text-muted">删除后用户端不再展示。原因选填。</p>
+            <textarea
+              className="mb-3 min-h-20 w-full rounded-2xl border border-line bg-subtle px-3 py-2 text-[16px] outline-none"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="原因（可选）"
+            />
+            <PrimaryButton
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await hideContent(target.kind, target.id, reason);
+                setBusy(false);
+                setReasonFor(null);
+              }}
+            >
+              确认删除
+            </PrimaryButton>
+          </>
+        )}
+      </Sheet>
     </Screen>
   );
 }
 
 function Status({ status }: { status: PostItem["status"] }) {
-  if (status === "approved") return <Pill tone="ok">已通过</Pill>;
+  if (status === "approved") return <Pill tone="ok">可见</Pill>;
   if (status === "removed") return <Pill tone="danger">已删除</Pill>;
   return <Pill tone="warn">待审核</Pill>;
 }
@@ -96,8 +153,10 @@ export function ReportsScreen() {
   const reports = useAdmin((s) => s.reports);
   const back = useAdmin((s) => s.back);
   const resolveReport = useAdmin((s) => s.resolveReport);
+  const refreshReports = useAdmin((s) => s.refreshReports);
   const demoMode = useAdmin((s) => s.demoMode);
-  const hasReportApi = useAdmin((s) => !!s.connection.available.adminReports);
+  const hasReportApi = useAdmin((s) => !!s.connection.available.adminReports || s.authed);
+  useEffect(() => { void refreshReports(); }, [refreshReports]);
   const [tab, setTab] = useState<"open" | "done">("open");
   const [current, setCurrent] = useState<string | null>(null);
   const [choice, setChoice] = useState(resolutions[0]);
@@ -161,8 +220,7 @@ export function ReportsScreen() {
             </div>
             <PrimaryButton
               onClick={() => {
-                resolveReport(active.id, choice);
-                setCurrent(null);
+                void resolveReport(active.id, choice).then(() => setCurrent(null));
               }}
             >
               确认处理

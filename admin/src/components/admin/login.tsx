@@ -1,28 +1,44 @@
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, LockKeyhole, Server, UserRound } from "lucide-react";
 import { useAdmin } from "@/lib/admin/store";
-import { PrimaryButton, Sheet, StarMark } from "./ui";
-import { ConnectionBadge, ServerPanel } from "./server-panel";
+import { isNativeShell, resolveBase } from "@/lib/admin/backend";
+import { ConnectionBadge } from "./server-panel";
+import { ServerPanel } from "./server-panel";
+import { Sheet, StarMark } from "./ui";
 
 export function LoginScreen() {
   const attemptLogin = useAdmin((s) => s.attemptLogin);
-  const resetDemo = useAdmin((s) => s.resetDemo);
-  const [account, setAccount] = useState("admin");
+  const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [serverOpen, setServerOpen] = useState(false);
-  const [forgot, setForgot] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  function submitPassword(event: FormEvent) {
+  async function submitPassword(event: FormEvent) {
     event.preventDefault();
-    const message = attemptLogin(account, password, remember);
-    if (message) {
-      setError(message);
+    if (busy) return;
+    const base = resolveBase();
+    if (!base) {
+      setError(
+        isNativeShell()
+          ? "请先点「设置服务器」填写后端地址，再登录。"
+          : "未配置接口地址。请先点「设置服务器」填写后端网址。",
+      );
+      setServerOpen(true);
       return;
     }
+    setBusy(true);
     setError("");
+    try {
+      const message = await attemptLogin(account, password, remember);
+      if (message) setError(message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "登录失败");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -77,13 +93,14 @@ export function LoginScreen() {
               <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
               记住登录
             </label>
-            <button type="button" onClick={() => setForgot(true)}>
-              忘记密码？
-            </button>
           </div>
           {error && <p className="mb-2.5 text-center text-[13px] text-surface">{error}</p>}
-          <button type="submit" className="h-11 w-full rounded-full bg-surface text-[16px] font-semibold text-primary-deep">
-            登录
+          <button
+            type="submit"
+            disabled={busy}
+            className="h-11 w-full rounded-full bg-surface text-[16px] font-semibold text-primary-deep disabled:opacity-60"
+          >
+            {busy ? "正在登录…" : "登录"}
           </button>
         </form>
       </div>
@@ -97,27 +114,12 @@ export function LoginScreen() {
           <ConnectionBadge />
         </div>
         <p className="px-1 text-center text-[11px] leading-4 text-on-primary/75">
-          本机操作员登录：后端尚无管理端鉴权接口。口令只存在本机，默认 admin / nova1234，不是服务器账号。列表与统计来自真实后端；连不上或接口未开放时显示空状态，不会填入虚构数字。
+          使用服务器上的管理员账号登录（用 <code className="text-[10px]">admin-cli</code> 创建，令牌前缀 na_）。没有内置默认口令。列表与统计全部来自真实后端。
         </p>
       </div>
 
       <Sheet open={serverOpen} title="服务器" onClose={() => setServerOpen(false)}>
         <ServerPanel onDone={() => setServerOpen(false)} />
-      </Sheet>
-      <Sheet open={forgot} title="忘记密码" onClose={() => setForgot(false)}>
-        <p className="mb-4 text-[15px] leading-5 text-muted">
-          这是本机口令，不会发邮件，也不会显示原密码。可以把口令恢复为初始值 admin / nova1234。这不是服务器账号。
-        </p>
-        <PrimaryButton
-          onClick={() => {
-            resetDemo();
-            setPassword("");
-            setForgot(false);
-            setError("");
-          }}
-        >
-          恢复本机默认口令
-        </PrimaryButton>
       </Sheet>
     </div>
   );

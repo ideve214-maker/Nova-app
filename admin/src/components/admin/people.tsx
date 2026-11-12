@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Search, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import {
   daysLeft,
   fmtUntil,
@@ -18,24 +18,19 @@ export function UsersScreen() {
   const entitlements = useAdmin((s) => s.entitlements);
   const go = useAdmin((s) => s.go);
   const back = useAdmin((s) => s.back);
-  const addUser = useAdmin((s) => s.addUser);
   const banUser = useAdmin((s) => s.banUser);
+  const refreshUsers = useAdmin((s) => s.refreshUsers);
   const demoMode = useAdmin((s) => s.demoMode);
   const connection = useAdmin((s) => s.connection);
-  const canMutate = demoMode || !!connection.available.adminUsers;
+  const canMutate = demoMode || !!connection.available.adminUsers || !!useAdmin.getState().authed;
+  useEffect(() => { void refreshUsers(); }, [refreshUsers]);
   const [tab, setTab] = useState<UserTab>("all");
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [vipDays, setVipDays] = useState(0);
-  const [error, setError] = useState("");
-
   const list = useMemo(() => {
     return members.filter((member) => {
-      if (tab === "active" && !(member.status === "active" && member.presence === "online")) return false;
+      if (tab === "active" && member.status !== "active") return false;
       if (tab === "banned" && member.status !== "banned") return false;
       if (tab === "vip" && vipPhase(member) !== "active" && vipPhase(member) !== "soon") return false;
       const q = query.trim().toLowerCase();
@@ -57,24 +52,17 @@ export function UsersScreen() {
         canMutate ? (
           <div className="flex gap-2 border-t border-line bg-surface px-4 py-2 pb-safe">
             <button type="button" className="h-11 flex-1 rounded-full bg-subtle text-[15px] font-semibold" onClick={() => setPicking((v) => !v)}>
-              {picking ? "取消选择" : "批量操作"}
-            </button>
-            <button type="button" className="h-11 flex-1 rounded-full bg-primary text-[15px] font-semibold text-on-primary" onClick={() => setAdding(true)}>
-              添加用户
+              {picking ? "取消选择" : "批量封禁"}
             </button>
           </div>
-        ) : (
-          <div className="border-t border-line bg-surface px-4 py-2 pb-safe text-center text-[12px] leading-4 text-muted">
-            添加 / 封禁等写入接口待接入
-          </div>
-        )
+        ) : undefined
       }
     >
       <Seg
         value={tab}
         options={[
           { id: "all", label: "全部" },
-          { id: "active", label: "活跃" },
+          { id: "active", label: "正常" },
           { id: "banned", label: "封禁" },
           { id: "vip", label: "VIP" },
         ]}
@@ -144,44 +132,18 @@ export function UsersScreen() {
             type="button"
             className="h-11 w-full rounded-full bg-danger font-semibold text-on-primary"
             onClick={() => {
-              picked.forEach((id) => banUser(id));
-              setPicked([]);
-              setPicking(false);
+              void (async () => {
+                for (const id of picked) await banUser(id);
+                setPicked([]);
+                setPicking(false);
+              })();
             }}
           >
             封禁所选 {picked.length} 人
           </button>
         </div>
       )}
-      <Sheet open={adding} title="添加用户" onClose={() => setAdding(false)}>
-        <Field label="昵称">
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="例如 林夏" />
-        </Field>
-        <Field label="邮箱">
-          <input className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@nova.com" />
-        </Field>
-        <Field label="手动开通 VIP（天，0 表示不开通）">
-          <input className={inputClass} inputMode="numeric" value={vipDays || ""} onChange={(e) => setVipDays(Number(e.target.value.replace(/\D/g, "")) || 0)} />
-        </Field>
-        {error && <p className="mb-3 text-sm text-danger">{error}</p>}
-        <PrimaryButton
-          onClick={() => {
-            const message = addUser({ name, email, vipDays });
-            setError(message ?? "");
-            if (!message) {
-              setAdding(false);
-              setName("");
-              setEmail("");
-              setVipDays(0);
-            }
-          }}
-        >
-          <span className="inline-flex items-center gap-2">
-            <UserPlus className="size-4" />
-            确认添加
-          </span>
-        </PrimaryButton>
-      </Sheet>
+      
     </Screen>
   );
 }
@@ -240,16 +202,16 @@ export function UserScreen() {
       footer={
         <div className="grid grid-cols-2 gap-2 border-t border-line bg-surface px-4 py-3 pb-safe">
           {member.status === "banned" ? (
-            <button type="button" className="h-11 rounded-full nova-ok-soft font-semibold" onClick={() => unbanUser(member.id)}>
+            <button type="button" className="h-11 rounded-full nova-ok-soft font-semibold" onClick={() => void unbanUser(member.id)}>
               解除封禁
             </button>
           ) : (
-            <button type="button" className="h-11 rounded-full nova-danger-soft font-semibold" onClick={() => banUser(member.id)}>
+            <button type="button" className="h-11 rounded-full nova-danger-soft font-semibold" onClick={() => void banUser(member.id)}>
               封禁账号
             </button>
           )}
-          <button type="button" className="h-11 rounded-full bg-primary font-semibold text-on-primary" onClick={() => setNotice(true)}>
-            发送通知
+          <button type="button" className="h-11 rounded-full bg-subtle font-semibold text-muted" disabled>
+            发送通知（未接入）
           </button>
         </div>
       }
@@ -287,14 +249,14 @@ export function UserScreen() {
           <Info label="简介" value={member.bio || "未填写"} />
           <Info label="最后登录" value={member.lastLogin} />
           <div className="grid grid-cols-2 gap-2 px-4 py-3">
-            <button type="button" className="h-11 rounded-full bg-subtle font-semibold" onClick={() => { setName(member.name); setBio(member.bio); setEdit(true); }}>
-              编辑资料
+            <button type="button" className="h-11 rounded-full bg-subtle font-semibold text-muted" disabled>
+              编辑资料（未接入）
             </button>
-            <button type="button" className="h-11 rounded-full bg-subtle font-semibold" onClick={() => setCode(resetPassword(member.id))}>
+            <button type="button" className="h-11 rounded-full bg-subtle font-semibold" onClick={() => { void resetPassword(member.id).then((c) => { if (c) setCode(c); }); }}>
               重置密码
             </button>
           </div>
-          {member.tempCode && <p className="px-4 pb-4 text-sm text-muted">已有一次性重置码，原密码不可查看。</p>}
+          {member.mustChangePw && <p className="px-4 pb-4 text-sm text-muted">该用户下次登录须修改密码。</p>}
         </div>
       )}
       {tab === "activity" && (
@@ -313,7 +275,7 @@ export function UserScreen() {
         <div className="mt-2 bg-surface px-4 py-2">
           <ToggleRow label="允许发帖" on={member.canPost} disabled={member.status === "banned"} onClick={() => updateUser(member.id, { canPost: !member.canPost })} />
           <ToggleRow label="允许评论" on={member.canComment} disabled={member.status === "banned"} onClick={() => updateUser(member.id, { canComment: !member.canComment })} />
-          <p className="py-3 text-sm text-muted">封禁后会话失效。这些开关只影响该用户，不会变成付费门槛。</p>
+          <p className="py-3 text-sm text-muted">发帖 / 评论开关尚无对应管理接口。封禁后该用户所有会话立即失效。</p>
         </div>
       )}
       {tab === "vip" && (
@@ -332,15 +294,14 @@ export function UserScreen() {
               type="button"
               className="h-11 rounded-full bg-subtle font-semibold"
               onClick={() => {
-                const message = revokeVip(member.id, "管理员在详情页撤销");
-                setFormError(message ?? "");
+                void revokeVip(member.id, "管理员在详情页撤销").then((message) => setFormError(message ?? ""));
               }}
             >
               撤销会员
             </button>
           </div>
           {formError && <p className="mt-2 text-sm text-danger">{formError}</p>}
-          <p className="mt-3 text-sm text-muted">用户端支付未接入。这里的开通不会产生订单或收款。</p>
+          <p className="mt-3 text-sm text-muted">此处为管理员手动开通（须填写原因）。用户自行付款请到「付款审核」核对后再开通。月卡 30 天 ¥9.9，年卡 365 天 ¥99。</p>
         </div>
       )}
 
@@ -373,9 +334,9 @@ export function UserScreen() {
           保存
         </PrimaryButton>
       </Sheet>
-      <Sheet open={!!code} title="一次性重置码" onClose={() => setCode(null)}>
-        <p className="mb-2 text-sm text-muted">原密码无法查看，也不能还原。请把下面的临时码交给用户，它只使用一次。</p>
-        <p className="mb-4 rounded-2xl bg-subtle px-3 py-4 text-center text-xl font-semibold tracking-wider">{code}</p>
+      <Sheet open={!!code} title="临时密码" onClose={() => setCode(null)}>
+        <p className="mb-2 text-sm text-muted">原密码已失效。请把下面的临时密码交给用户，登录后必须修改。请立刻复制，关闭后无法再从服务器取回。</p>
+        <p className="mb-4 break-all rounded-2xl bg-subtle px-3 py-4 text-center text-[18px] font-semibold tracking-wider">{code}</p>
         <PrimaryButton
           onClick={() => {
             if (code) void navigator.clipboard?.writeText(code);
@@ -417,9 +378,10 @@ export function UserScreen() {
         {formError && <p className="mb-2 text-sm text-danger">{formError}</p>}
         <PrimaryButton
           onClick={() => {
-            const message = grantVip(member.id, days, reason);
-            setFormError(message ?? "");
-            if (!message) setVipOpen(false);
+            void grantVip(member.id, days, reason).then((message) => {
+              setFormError(message ?? "");
+              if (!message) setVipOpen(false);
+            });
           }}
         >
           确认

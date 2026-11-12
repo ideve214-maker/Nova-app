@@ -9,6 +9,8 @@ describe("hash routing", () => {
     assert.deepEqual(hashToNav("#/"), { name: "home" });
     assert.deepEqual(hashToNav(""), { name: "home" });
     assert.deepEqual(hashToNav("#/content"), { name: "content" });
+    assert.equal(navToHash({ name: "payments" }), "#/payments");
+    assert.deepEqual(hashToNav("#/payments"), { name: "payments" });
   });
   it("maps user detail with id", () => {
     assert.equal(navToHash({ name: "user", userId: "u/1" }), "#/user/u%2F1");

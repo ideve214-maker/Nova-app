@@ -16,6 +16,7 @@ export const PAGE_NAMES = [
   "announce",
   "devices",
   "admins",
+  "payments",
 ] as const;
 
 export type HashPageName = (typeof PAGE_NAMES)[number];

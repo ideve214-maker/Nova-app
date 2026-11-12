@@ -1,16 +1,17 @@
-# NOVA 管理端（已修复 iPhone 进不去的问题）
+# NOVA 管理端（v4 · 对接后端 0.7.0-m4.12）
 
-这是 NOVA 社区的**管理端**网页。它可以独立运行，也可以连到用户端的同一套后端。
+这是 NOVA 社区的**管理端**网页 / Capacitor App。它连到用户端的同一套后端，用真实管理员账号和真实数据。
 
-**本机操作员登录**（后端 M2.6 尚无管理端鉴权接口，例如 `/api/admin/auth`）：
+**管理员登录**（`POST /api/admin/auth/login`）：
 
-- 账号：`admin`
-- 密码：`nova1234`（只存在本机 localStorage，不是服务器账号；可在「我的」里修改）
-- 已取消二次验证码
+- 账号与密码由运营在服务器上创建，没有内置默认口令：
+  `node server/admin-cli.mjs create --username 名称 --password '强密码'`
+  密码须 8–128 位且同时包含字母和数字。
+- 登录成功后得到 `na_` 前缀令牌，之后所有管理请求带 `Authorization: Bearer na_…`。
+- 令牌保存在本机（默认「记住登录」）；接口返回 401 会回到登录页。
+- 没有二次验证，也没有「本机口令」兜底。
 
-**数据默认全部来自真实后端。** 演示模式默认关闭，需在「我的」里手动打开，打开后各页会标明「演示模式」。未接入的接口显示「接口待接入」或「—」，不会填入虚构数字。公开预览无法访问本机后端，也会如实显示未连接。
-
-连上本机预览服务后，会读取 `GET /api/health` 和真实的 `GET /api/vip/catalog`。用户列表、统计、举报等管理接口属于规划中的 M3，当前没有则保持为空。
+**数据全部来自真实后端。** 未接入或为空时显示空状态或「—」，不会填入虚构数字。公开预览若访问不到后端，会如实显示未连接。
 
 
 ---
@@ -60,7 +61,7 @@ npm run test:admin          # 适配层单测
 
 ## 3. 和用户端后端怎么联通（适配未来版本）
 
-管理端和用户端计划共用同一套后端，但**当前用户端后端（0.7.0-m4.7）还没有管理端专用接口**（用户列表、封禁、管理员登录等属于规划里的 M3，尚未实现）。所以联通策略是「能连就用真实数据，连不上或接口还没有就显示空 / 接口待接入，绝不默认填虚构数字」，并且把路径集中配置，方便以后换更新的压缩包。演示模式必须手动打开。
+当前对接用户端后端 **0.7.0-m4.12**。管理端专用接口已经齐了（登录、用户、封禁、重置密码、VIP、内容、付款、公告、审计、统计、举报）。路径仍集中在 `DEFAULT_ENDPOINT_MAP`，设置页可用 JSON 覆盖，主路径 404 时试别名，方便以后换版本。
 
 ### 使用步骤
 
@@ -85,21 +86,33 @@ npm run test:admin          # 适配层单测
 | 空状态 | 超时、网络错误、404 都不会卡住启动；页面标明「未连接后端」或「后端已通 · 管理接口待接入」，列表为空。只有手动打开演示模式才出现「演示模式」徽章和虚构数据 |
 | VIP 目录 | 当前后端已有 `GET /api/vip/catalog`，连通后会读取并尽量对到管理端的权益开关 |
 
-当前 0.7.0-m4.7 已能用上的公开接口：`GET /api/health`、`GET /api/vip/catalog`、`GET /api/stickers`。动态、社区、通知、搜索等需要用户登录令牌，管理端不会代为登录。如有用户令牌时还可读 `/api/me`、`/api/vip/me`。  
-一旦未来的用户端后端提供例如 `GET /api/admin/users`、`POST /api/admin/vip/grant`，只要路径能对上（或在对照表里改一下），管理端会自动改用服务器数据，不必再改一版前端。
+已对接的管理接口见第 5 节。路径对不上时，在「设置服务器 → 高级」用 JSON 覆盖即可，不必再改一版前端。
 
-**不要把管理员密钥写进前端源码。** 密钥只放后端环境变量。支付不会在管理端接入。
+**不要把管理员密钥写进前端源码。** 管理员用 `admin-cli` 在服务器上创建。
 
-请求头：`Authorization: Bearer <token>`（若已配置）。错误体按 `{error:{code,message}}` 解析，也兼容其他常见形状。
+请求头：`Authorization: Bearer na_…`。错误体按 `{error:{code,message}}` 解析，也兼容其他常见形状。
+
+### CORS 与 Capacitor
+
+后端默认 `NOVA_CORS_ORIGIN=*`，允许任意来源（包括 `capacitor://localhost`、`http://localhost`、预览页来源）。管理端请求用 `credentials: "omit"`，只靠 Authorization 头，和 `*` 兼容。
+
+若生产把 `NOVA_CORS_ORIGIN` 设成逗号分隔白名单，必须**精确包含**管理端的 Origin，否则浏览器会拦请求。建议同时加上：
+
+- 管理端网页的 https 域名
+- `capacitor://localhost`（iOS Capacitor WebView）
+- `http://localhost`（Android Capacitor WebView）
+
+匹配是精确字符串，没有通配。白名单未命中时，响应里不会带 `Access-Control-Allow-Origin`。
 
 ---
 
 ## 4. 目录说明
 
 ```
-src/components/admin/   管理端界面（登录、首页、用户、内容、系统设置等）
-src/lib/admin/store.ts  本机状态；默认空列表；演示数据仅在手动打开演示模式时加载
-src/lib/admin/backend.ts 后端适配层
+src/components/admin/   管理端界面（登录、首页、用户、内容、付款审核、系统设置等）
+src/lib/admin/store.ts  状态与真实接口调用
+src/lib/admin/backend.ts 后端适配层（路径对照、别名、字段容错）
+src/lib/admin/remote.ts  对 0.7.0-m4.12 各接口的实际请求
 src/spa-main.tsx        单文件 / 静态预览的入口（不走服务端渲染）
 spa.html                带启动保护的静态壳
 scripts/preview-server.mjs  预览服务（静态页 + /api 反代）
@@ -116,25 +129,32 @@ capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未�
 - `NOVA_API` 默认 `http://127.0.0.1:8787`
 
 
-## 5. 数据从哪来、还缺哪些接口
+## 5. 数据从哪来（0.7.0-m4.12）
 
-管理端默认对接用户端后端 **0.7.0-m4.7**（副本在仓库旁的 `nova-v7/`，不要改 `/workspace/nova`）。演示模式默认关闭。启动时**不会写入任何虚构用户或帖子**。
+管理端对接用户端后端 **0.7.0-m4.12**（副本可放在仓库旁的 `nova-v7-m412/`，**不要改** `/workspace/nova` 或 Bob 的用户端仓库）。所有下表数据都是真实接口，没有虚构数字。
 
-| 数据 | 来源 |
+| 数据 | 接口 |
 |---|---|
-| 连接状态、健康检查 | `GET /api/health`（公开，真实） |
-| VIP 套餐与权益目录 | `GET /api/vip/catalog`（公开，真实） |
-| 表情包目录 | `GET /api/stickers`（公开，真实） |
-| 动态 / 评论 | `GET /api/posts` 等已存在，但**必须用户登录**；管理端没有管理员令牌，不会代拉，页面标明「需要用户登录 · 管理入口待接入」 |
-| 社区、通知、搜索、私聊 | 同上，均为需登录的用户接口，尚无管理只读入口 |
-| 用户列表、封禁、重置密码 | 无 `GET /api/admin/users`（404）→「接口待接入」 |
-| 管理统计与趋势 | 无 `GET /api/admin/stats` → 显示「—」 |
-| 举报、公告、管理审计 | 尚无对应管理接口 |
-| 管理员登录 | 无 `/api/admin/auth`；使用本机口令 `admin` / `nova1234`（只存在本机，不是服务器账号） |
+| 管理员登录 / 退出 / 当前管理员 | `POST /api/admin/auth/login`、`POST /api/admin/auth/logout`、`GET /api/admin/me` |
+| 用户列表与详情 | `GET /api/admin/users`、`GET /api/admin/users/:id` |
+| 封禁 / 解封 | `POST /api/admin/users/:id/ban`、`/unban`（可选 `reason`） |
+| 重置用户密码 | `POST /api/admin/users/:id/reset-password`，返回 `temporaryPassword`（不是 `tempCode`），并设 `mustChangePw` |
+| 开通 / 撤销 VIP | `POST /api/admin/vip/grant` `{userId, days, reason}`（原因必填）；`POST /api/admin/vip/revoke` `{userId, reason}` |
+| 内容审核 | `GET /api/admin/content?type=post\|comment&status=all\|visible\|removed`；`POST /api/admin/content/:type/:id/delete`（可选 reason）、`/restore` |
+| 付款审核 | `GET /api/admin/payments`、`GET /api/admin/payments/:id`；截图 `GET /api/admin/payments/:id/receipt`（需鉴权，前端用 blob 显示）；`POST …/confirm`（开通或续期 VIP）、`POST …/reject`（原因必填）、`POST …/refund` |
+| 统计 | `GET /api/admin/stats`（当前汇总；后端不提供按日趋势，页面不画虚构折线） |
+| 审计日志 | `GET /api/admin/audit` |
+| 公告 | `GET/POST /api/admin/announcements`（发布即生效）；`POST /api/admin/announcements/:id/delete`。没有编辑或撤回接口 |
+| 举报 | `GET /api/admin/reports`；`POST /api/admin/reports/:id/decision` `{action: resolve\|reject\|review, note}` |
+| 健康检查、VIP 目录 | `GET /api/health`、`GET /api/vip/catalog`（公开） |
 
-当前预览库 `/tmp/nova-admin-m47.db` 是空库（0 用户、0 帖子），未 seed。若以后提供管理用户列表，会自动拉取真实数据。
+付款说明：用户扫个人微信 / 支付宝收款码，转账备注订单码（NV + 6 位）。价格每月 ¥9.9（30 天）、每年 ¥99（365 天）。确认开通前用户须先点「我已付款」（否则 409 `NOT_CLAIMED`）。
 
-公开托管的预览（如 Tiiny）**不能**访问开发机上的 8787 端口，因此会显示「未连接后端」和空列表，这是诚实状态，不是演示数据。本地用 `npm run preview:admin` 时，`/api` 会反代到 8787，VIP 目录和表情包即可显示真实内容。
+**退款与 VIP：** 当前 m4.12 的 `POST /api/admin/payments/:id/refund` 只把订单标为 `refunded`，响应里 `vipRevoked: false`，**不会自动撤销 VIP**（审计备注也写了这一点）。Bob 正在改为退款时撤销 VIP。管理端按钮按「退款并撤销 VIP」标注，若响应未撤销会提示去用户详情手动撤销。
+
+管理员不能在管理端直接创建用户（无此接口），请用户在用户端自行注册。编辑用户资料、发帖/评论开关、站内通知尚无管理接口，页面已标明「未接入」，不会假装已写入服务器。
+
+公开托管的预览（如 Tiiny）**不能**访问开发机上的 8787 端口，会显示未连接。本地用 `npm run preview:admin` 时，`/api` 会反代到 8787。
 
 ## 6. iPhone 布局（v2）
 
@@ -168,7 +188,7 @@ npm run build:spa
 
 路由使用 hash（`#/`、`#/users`、`#/user/:id`），在 `capacitor://` 或离线 WebView 里刷新不会 404。
 
-登录状态写在本机 `localStorage`（键 `nova-admin-v2` 的 `authed`）。默认「记住登录」；取消勾选则只在本次会话有效。这是本机操作员口令，不是服务器账号。
+登录状态：`na_` 令牌写在 `localStorage` 键 `nova-admin-api-config-v1` 的 `token`；会话标记在 `nova-admin-v2`。默认「记住登录」；取消勾选则关闭页面后需重新登录。401 会清令牌并回到登录页。
 
 接口根地址优先级：
 

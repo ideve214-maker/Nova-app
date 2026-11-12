@@ -7,10 +7,15 @@ import {
   mapRemoteUser,
   probeConnection,
   saveConfig,
+  setUnauthorizedHandler,
   type ConnectionStatus,
   type EndpointMap,
+  type MappedAdmin,
+  type MappedPayment,
+  type MappedStats,
 } from "./backend";
 import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
+import * as remote from "./remote";
 
 export type { ConnectionStatus } from "./backend";
 
@@ -45,7 +50,8 @@ export type PageName =
   | "vip"
   | "announce"
   | "devices"
-  | "admins";
+  | "admins"
+  | "payments";
 
 export type Nav = { name: PageName; userId?: string };
 
@@ -65,6 +71,8 @@ export type Member = {
   canPost: boolean;
   canComment: boolean;
   tempCode: string | null;
+  mustChangePw?: boolean;
+  username?: string;
 };
 
 export type PostItem = {
@@ -76,6 +84,9 @@ export type PostItem = {
   kind: "post" | "comment";
   status: "pending" | "approved" | "removed";
   excerpt: string;
+  adminReason?: string;
+  authorName?: string;
+  postId?: string;
 };
 
 export type ReportItem = {
@@ -511,6 +522,7 @@ type Persisted = {
   authed: boolean;
   rememberLogin: boolean;
   password: string;
+  adminName: string;
   demoMode: boolean;
   members: Member[];
   posts: PostItem[];
@@ -541,26 +553,43 @@ export type AdminState = Persisted & {
   go: (name: PageName, userId?: string) => void;
   back: () => void;
   tab: (name: PageName) => void;
-  attemptLogin: (account: string, password: string, remember?: boolean) => string | null;
+  adminProfile: MappedAdmin | null;
+  stats: MappedStats | null;
+  payments: MappedPayment[];
+  attemptLogin: (account: string, password: string, remember?: boolean) => Promise<string | null>;
   confirmTotp: (code: string) => string | null;
-  logout: () => void;
+  logout: () => Promise<void>;
   changePassword: (current: string, next: string) => string | null;
   resetDemo: () => void;
   setDemoMode: (on: boolean) => void;
-  banUser: (id: string) => void;
-  unbanUser: (id: string) => void;
+  banUser: (id: string, reason?: string) => Promise<string | null>;
+  unbanUser: (id: string, reason?: string) => Promise<string | null>;
   updateUser: (id: string, patch: Partial<Pick<Member, "name" | "bio" | "canPost" | "canComment">>) => void;
   revealEmail: (id: string) => void;
-  resetPassword: (id: string) => string | null;
+  resetPassword: (id: string) => Promise<string | null>;
   addUser: (input: { name: string; email: string; vipDays: number }) => string | null;
-  setPostStatus: (id: string, status: PostItem["status"]) => void;
-  resolveReport: (id: string, resolution: string) => void;
-  grantVip: (id: string, days: number, reason: string) => string | null;
-  revokeVip: (id: string, reason: string) => string | null;
+  setPostStatus: (id: string, status: PostItem["status"], reason?: string) => Promise<string | null>;
+  hideContent: (kind: "post" | "comment", id: string, reason?: string) => Promise<string | null>;
+  restoreContent: (kind: "post" | "comment", id: string) => Promise<string | null>;
+  refreshContent: (opts?: { type?: string; status?: string; q?: string }) => Promise<void>;
+  refreshUsers: (opts?: { status?: string; q?: string }) => Promise<void>;
+  refreshPayments: (opts?: { status?: string; q?: string }) => Promise<void>;
+  refreshAudit: () => Promise<void>;
+  refreshAnnouncements: () => Promise<void>;
+  refreshStats: () => Promise<void>;
+  refreshReports: () => Promise<void>;
+  confirmPayment: (id: string, note?: string) => Promise<string | null>;
+  rejectPayment: (id: string, reason: string) => Promise<string | null>;
+  refundPayment: (id: string, reason?: string) => Promise<string | null>;
+  fetchReceiptUrl: (id: string) => Promise<{ url: string; mime: string } | { error: string }>;
+  resolveReport: (id: string, resolution: string) => Promise<string | null>;
+  grantVip: (id: string, days: number, reason: string) => Promise<string | null>;
+  revokeVip: (id: string, reason: string) => Promise<string | null>;
+  deleteAnnouncement: (id: string) => Promise<string | null>;
   toggleEntitlement: (key: string) => void;
   addTopic: (name: string) => void;
   toggleBoard: (id: string) => void;
-  saveAnnouncement: (input: { id?: string; title: string; body: string }) => void;
+  saveAnnouncement: (input: { id?: string; title: string; body: string }) => Promise<string | null>;
   setAnnouncement: (id: string, status: Announcement["status"]) => void;
   toggleFlag: (key: keyof Flags) => void;
   createInvite: () => string;
@@ -574,7 +603,8 @@ export type AdminState = Persisted & {
 const emptyPersisted = (): Persisted => ({
   authed: false,
   rememberLogin: true,
-  password: "nova1234",
+  password: "",
+  adminName: "",
   demoMode: false,
   members: [],
   posts: [],
@@ -601,7 +631,8 @@ const emptyPersisted = (): Persisted => ({
 const demoPersisted = (): Persisted => ({
   authed: false,
   rememberLogin: true,
-  password: "nova1234",
+  password: "",
+  adminName: "admin",
   demoMode: true,
   members: seedMembers,
   posts: seedPosts,
@@ -703,6 +734,102 @@ function restoreLocal(): Partial<Persisted> {
   }
 }
 
+
+function toMember(m: import("./backend").MappedMember): Member {
+  return {
+    ...m,
+    avatar: m.avatar || "",
+    username: m.username || m.name,
+    mustChangePw: !!m.mustChangePw,
+  };
+}
+
+function toPost(c: import("./backend").MappedContent): PostItem {
+  return {
+    id: c.id,
+    title: c.title,
+    authorId: c.authorId,
+    image: c.image || "",
+    time: c.time,
+    kind: c.type,
+    status: c.status,
+    excerpt: c.text,
+    adminReason: c.adminReason || undefined,
+    authorName: c.authorName,
+    postId: c.postId || undefined,
+  };
+}
+
+function toAnnouncement(a: import("./backend").MappedAnnouncement): Announcement {
+  return {
+    id: a.id,
+    title: a.title,
+    body: a.body,
+    status: a.published ? "published" : "draft",
+    time: a.time,
+  };
+}
+
+function toReport(r: import("./backend").MappedReport): ReportItem {
+  return { ...r };
+}
+
+function toAudit(a: import("./backend").MappedAudit): AuditItem {
+  return { id: a.id, kind: a.kind, action: a.action, target: a.target, time: a.time, ip: a.ip };
+}
+
+function upsertMember(list: Member[], m: Member): Member[] {
+  const i = list.findIndex((x) => x.id === m.id);
+  if (i < 0) return [m, ...list];
+  const next = list.slice();
+  next[i] = { ...list[i], ...m };
+  return next;
+}
+
+function upsertPost(list: PostItem[], m: PostItem): PostItem[] {
+  const i = list.findIndex((x) => x.id === m.id && x.kind === m.kind);
+  if (i < 0) return [m, ...list];
+  const next = list.slice();
+  next[i] = { ...list[i], ...m };
+  return next;
+}
+
+function upsertPayment(list: MappedPayment[], m: MappedPayment): MappedPayment[] {
+  const i = list.findIndex((x) => x.id === m.id);
+  if (i < 0) return [m, ...list];
+  const next = list.slice();
+  next[i] = { ...list[i], ...m };
+  return next;
+}
+
+let handling401 = false;
+function attachUnauthorized() {
+  setUnauthorizedHandler(() => {
+    if (handling401) return;
+    const s = useAdmin.getState();
+    if (!s.authed) return;
+    handling401 = true;
+    saveConfig({ token: "" });
+    try {
+      sessionStorage.removeItem("nova-admin-session");
+    } catch {
+      /* ignore */
+    }
+    useAdmin.setState({
+      authed: false,
+      adminProfile: null,
+      nav: { name: "home" },
+      history: [],
+    });
+    writeHash({ name: "home" });
+    s.flash("登录已过期，请重新登录");
+    window.setTimeout(() => {
+      handling401 = false;
+    }, 800);
+  });
+}
+
+
 export const useAdmin = create<AdminState>((set, get) => ({
   ...emptyPersisted(),
   ...restoreLocal(),
@@ -711,6 +838,9 @@ export const useAdmin = create<AdminState>((set, get) => ({
   booted: typeof window !== "undefined",
   bootError: null,
   connection: emptyConnection(loadConfig().baseUrl),
+  adminProfile: null,
+  stats: null,
+  payments: [],
   nav: { name: "home" },
   history: [],
   toast: null,
@@ -744,22 +874,23 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ nav: { name }, history: [] });
     writeHash({ name });
   },
-  attemptLogin: (account, password, remember = true) => {
+  attemptLogin: async (account, password, remember = true) => {
     const s = get();
     if (s.lockedUntil > Date.now()) return "登录已暂时锁定，请稍后再试";
-    if (account.trim().toLowerCase() !== "admin" || password !== s.password) {
+    const name = account.trim();
+    if (!name || !password) return "请输入管理员账号和密码";
+    const result = await remote.remoteLogin(name, password);
+    if (!result.ok) {
       const failedLogins = s.failedLogins + 1;
       const locked = failedLogins >= 5;
       set({
         failedLogins: locked ? 0 : failedLogins,
         lockedUntil: locked ? Date.now() + 30_000 : 0,
-        audits: [
-          makeAudit({ kind: "security", action: locked ? "登录锁定" : "登录失败", target: "admin" }),
-          ...s.audits,
-        ],
       });
-      return locked ? "连续失败 5 次，已锁定 30 秒" : "账号或密码不正确";
+      if (result.status === 429) return result.error;
+      return locked ? "连续失败 5 次，已锁定 30 秒" : result.error;
     }
+    saveConfig({ token: result.data.token });
     try {
       if (remember) sessionStorage.removeItem("nova-admin-session");
       else sessionStorage.setItem("nova-admin-session", "1");
@@ -768,56 +899,77 @@ export const useAdmin = create<AdminState>((set, get) => ({
     }
     const initial = remember ? (readInitialNav() || { name: "home" as const }) : { name: "home" as const };
     const nav = initial.name === "home" || !remember ? { name: "home" as const } : initial;
-    set((s) =>
-      withAudit(s, { kind: "security", action: "管理员登录", target: "admin · 本机口令（后端无管理鉴权）" }, {
-        authed: true,
-        rememberLogin: remember,
-        failedLogins: 0,
-        lockedUntil: 0,
-        nav,
-        history: [],
-      }),
-    );
+    set({
+      authed: true,
+      rememberLogin: remember,
+      failedLogins: 0,
+      lockedUntil: 0,
+      adminProfile: result.data.admin,
+      adminName: result.data.admin.username,
+      nav,
+      history: [],
+    });
     writeHash(nav);
+    try {
+      const status = await probeConnection(undefined, 5000);
+      applyConnection(status);
+    } catch {
+      /* 登录已成功，探测失败不挡进入 */
+    }
+    void refreshLiveData();
+    get().flash("已登录 " + result.data.admin.username);
     return null;
   },
   confirmTotp: (_code) => {
-    return "当前无二次验证；请使用本机账号密码直接登录";
+    return "当前无需二次验证，请直接使用管理员账号登录";
   },
-  logout: () => {
-    set((s) =>
-      withAudit(s, { kind: "security", action: "退出登录", target: "admin" }, {
-        authed: false,
-        nav: { name: "home" },
-        history: [],
-      }),
-    );
+  logout: async () => {
+    try {
+      await remote.remoteLogout();
+    } catch {
+      saveConfig({ token: "" });
+    }
+    try {
+      sessionStorage.removeItem("nova-admin-session");
+    } catch {
+      /* ignore */
+    }
+    set({
+      authed: false,
+      adminProfile: null,
+      nav: { name: "home" },
+      history: [],
+      members: get().demoMode ? get().members : [],
+      posts: get().demoMode ? get().posts : [],
+      reports: get().demoMode ? get().reports : [],
+      audits: get().demoMode ? get().audits : [],
+      announcements: get().demoMode ? get().announcements : [],
+      payments: [],
+      stats: null,
+    });
     writeHash({ name: "home" });
   },
-  changePassword: (current, next) => {
-    const s = get();
-    if (current !== s.password) return "当前密码不正确";
-    if (next.length < 8) return "新密码至少 8 位";
-    set((state) =>
-      withAudit(state, { kind: "security", action: "修改管理员密码", target: "admin" }, { password: next }),
-    );
-    get().flash("密码已更新，只保存在本机预览");
-    return null;
+  changePassword: (_current, _next) => {
+    return "管理员密码请用服务器命令 node server/admin-cli.mjs 管理，管理端不能改口令";
   },
   resetDemo: () => {
     const on = get().demoMode;
     const fresh = on ? demoPersisted() : emptyPersisted();
+    saveConfig({ token: "" });
     set({
       ...fresh,
       demoMode: on,
       authed: false,
-      password: "nova1234",
+      adminProfile: null,
+      payments: [],
+      stats: null,
       nav: { name: "home" },
       history: [],
       booted: true,
       connection: get().connection,
     });
-    get().flash("已恢复本机默认口令 admin / nova1234");
+    writeHash({ name: "home" });
+    get().flash("已退出并清空本机会话");
   },
   setDemoMode: (on) => {
     const cur = get();
@@ -826,7 +978,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
       set({
         ...fresh,
         authed: cur.authed,
-        password: cur.password,
+        adminProfile: cur.adminProfile,
+        adminName: cur.adminName,
         booted: true,
         connection: cur.connection,
         nav: cur.nav,
@@ -840,7 +993,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({
       ...fresh,
       authed: cur.authed,
-      password: cur.password,
+      adminProfile: cur.adminProfile,
+      adminName: cur.adminName,
       booted: true,
       connection: cur.connection,
       nav: cur.nav,
@@ -848,167 +1002,277 @@ export const useAdmin = create<AdminState>((set, get) => ({
       demoMode: false,
     });
     get().flash("已关闭演示模式，仅展示后端真实数据");
-    if (cur.connection.mode === "live") {
-      void pullRemoteUsers().catch(() => {});
-    }
+    if (cur.authed) void refreshLiveData();
   },
-  banUser: (id) => {
-    const member = get().members.find((item) => item.id === id);
-    if (!member || member.status === "banned") return;
-    set((s) =>
-      withAudit(s, { kind: "admin", action: "封禁账号", target: member.name }, {
+  banUser: async (id, reason) => {
+    if (get().demoMode) {
+      const member = get().members.find((item) => item.id === id);
+      if (!member || member.status === "banned") return null;
+      set((s) => ({
         members: s.members.map((item) =>
           item.id === id ? { ...item, status: "banned" as const, presence: "offline" as const } : item,
         ),
-      }),
-    );
-    get().flash(`已封禁 ${member.name}，其会话视为失效`);
+      }));
+      get().flash(`已封禁 ${member.name}`);
+      return null;
+    }
+    const result = await remote.remoteBan(id, reason);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ members: upsertMember(s.members, toMember(result.data)) }));
+    get().flash(`已封禁 ${result.data.name}，其登录会话已失效`);
+    void get().refreshAudit();
+    return null;
   },
-  unbanUser: (id) => {
-    const member = get().members.find((item) => item.id === id);
-    if (!member || member.status !== "banned") return;
-    set((s) =>
-      withAudit(s, { kind: "admin", action: "解除封禁", target: member.name }, {
+  unbanUser: async (id, reason) => {
+    if (get().demoMode) {
+      const member = get().members.find((item) => item.id === id);
+      if (!member || member.status !== "banned") return null;
+      set((s) => ({
         members: s.members.map((item) => (item.id === id ? { ...item, status: "active" as const } : item)),
-      }),
-    );
-    get().flash(`已解除 ${member.name} 的封禁`);
+      }));
+      get().flash(`已解除 ${member.name} 的封禁`);
+      return null;
+    }
+    const result = await remote.remoteUnban(id, reason);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ members: upsertMember(s.members, toMember(result.data)) }));
+    get().flash(`已解除 ${result.data.name} 的封禁`);
+    void get().refreshAudit();
+    return null;
   },
-  updateUser: (id, patch) => {
-    const member = get().members.find((item) => item.id === id);
-    if (!member) return;
-    set((s) =>
-      withAudit(s, { kind: "admin", action: "编辑用户资料", target: member.name }, {
-        members: s.members.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-      }),
-    );
-    get().flash("资料已保存");
+  updateUser: (_id, _patch) => {
+    get().flash("编辑资料接口尚未提供，未改动服务器数据");
   },
   revealEmail: (id) => {
     const member = get().members.find((item) => item.id === id);
     if (!member) return;
-    set((s) =>
-      withAudit(s, { kind: "security", action: "查看完整邮箱", target: member.name }, {}),
-    );
+    set((s) => s);
   },
-  resetPassword: (id) => {
-    const member = get().members.find((item) => item.id === id);
-    if (!member) return null;
-    const code = tempCode();
-    set((s) =>
-      withAudit(s, { kind: "admin", action: "生成重置码", target: member.name }, {
-        members: s.members.map((item) => (item.id === id ? { ...item, tempCode: code } : item)),
-      }),
-    );
-    return code;
-  },
-  addUser: ({ name, email, vipDays }) => {
-    const trimmed = name.trim();
-    if (trimmed.length < 2) return "昵称至少 2 个字";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "邮箱格式不正确";
-    if (get().members.some((item) => item.email.toLowerCase() === email.trim().toLowerCase())) {
-      return "这个邮箱已经注册";
+  resetPassword: async (id) => {
+    const result = await remote.remoteResetPassword(id);
+    if (!result.ok) {
+      get().flash(result.error);
+      return null;
     }
-    const id = String(10000 + get().members.length + 1);
-    const member: Member = {
-      id,
-      name: trimmed,
-      email: email.trim(),
-      avatar: "",
-      status: "active",
-      presence: "offline",
-      vipUntil: vipDays > 0 ? Date.now() + vipDays * 86400000 : null,
-      joinedAt: stamp(),
-      lastLogin: "尚未登录",
-      violations: 0,
-      bio: "",
-      posts: 0,
-      canPost: true,
-      canComment: true,
-      tempCode: null,
-    };
-    set((s) =>
-      withAudit(s, { kind: "admin", action: "添加用户", target: trimmed }, {
-        members: [member, ...s.members],
-      }),
-    );
-    get().flash("用户已添加");
-    return null;
-  },
-  setPostStatus: (id, status) => {
-    const post = get().posts.find((item) => item.id === id);
-    if (!post || post.status === status) return;
-    const action = status === "approved" ? "通过内容" : status === "removed" ? "删除内容" : "退回待审";
-    set((s) =>
-      withAudit(s, { kind: "admin", action, target: post.title }, {
-        posts: s.posts.map((item) => (item.id === id ? { ...item, status } : item)),
-      }),
-    );
-    get().flash(status === "approved" ? "已通过" : status === "removed" ? "已删除" : "已退回");
-  },
-  resolveReport: (id, resolution) => {
-    const report = get().reports.find((item) => item.id === id);
-    if (!report || report.status === "done") return;
-    set((s) => {
-      let posts = s.posts;
-      let members = s.members;
-      if (resolution.startsWith("删除") && report.postId) {
-        posts = posts.map((item) => (item.id === report.postId ? { ...item, status: "removed" as const } : item));
-      }
-      if (resolution.startsWith("封禁") && report.userId) {
-        members = members.map((item) =>
-          item.id === report.userId ? { ...item, status: "banned" as const, presence: "offline" as const, violations: item.violations + 1 } : item,
-        );
-      } else if (resolution.includes("警告") && report.userId) {
-        members = members.map((item) =>
-          item.id === report.userId ? { ...item, violations: item.violations + 1 } : item,
-        );
-      }
-      const notice: NoticeItem = {
-        id: uid("n"),
-        kind: "violation",
-        title: "举报处理结论",
-        body: `${report.title}：${resolution}。已记录给举报人与被举报对象。`,
-        time: "刚刚",
-        read: false,
-      };
-      return withAudit(s, { kind: "admin", action: "处理举报", target: report.title }, {
-        posts,
-        members,
-        notices: [notice, ...s.notices],
-        reports: s.reports.map((item) =>
-          item.id === id ? { ...item, status: "done" as const, resolution } : item,
+    if (result.data.user) {
+      const m = toMember(result.data.user);
+      m.tempCode = result.data.temporaryPassword;
+      m.mustChangePw = result.data.mustChangePw;
+      set((s) => ({ members: upsertMember(s.members, m) }));
+    } else {
+      set((s) => ({
+        members: s.members.map((item) =>
+          item.id === id ? { ...item, tempCode: result.data.temporaryPassword, mustChangePw: true } : item,
         ),
-      });
-    });
-    get().flash("处理结果已记录");
+      }));
+    }
+    void get().refreshAudit();
+    return result.data.temporaryPassword;
   },
-  grantVip: (id, days, reason) => {
-    const member = get().members.find((item) => item.id === id);
-    if (!member) return "找不到用户";
-    if (member.status === "banned") return "封禁账号不能开通会员";
-    if (!reason.trim()) return "请填写原因";
-    const base = member.vipUntil && member.vipUntil > Date.now() ? member.vipUntil : Date.now();
-    const vipUntil = base + days * 86400000;
-    const action = member.vipUntil && member.vipUntil > Date.now() ? "续期会员" : "开通会员";
-    set((s) =>
-      withAudit(s, { kind: "admin", action, target: `${member.name} · ${reason.trim()}` }, {
-        members: s.members.map((item) => (item.id === id ? { ...item, vipUntil } : item)),
-      }),
-    );
-    get().flash(`${member.name} 的会员已更新`);
+  addUser: () => {
+    return "管理员不能直接创建用户。请让对方在用户端自行注册。";
+  },
+  hideContent: async (kind, id, reason) => {
+    const result = await remote.remoteHideContent(kind, id, reason);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ posts: upsertPost(s.posts, toPost(result.data)) }));
+    get().flash("已删除（用户端不再展示）");
+    void get().refreshAudit();
     return null;
   },
-  revokeVip: (id, reason) => {
-    const member = get().members.find((item) => item.id === id);
-    if (!member) return "找不到用户";
+  restoreContent: async (kind, id) => {
+    const result = await remote.remoteRestoreContent(kind, id);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ posts: upsertPost(s.posts, toPost(result.data)) }));
+    get().flash("已恢复");
+    void get().refreshAudit();
+    return null;
+  },
+  setPostStatus: async (id, status, reason) => {
+    const post = get().posts.find((item) => item.id === id);
+    if (!post) return "找不到该内容";
+    if (status === "removed") return get().hideContent(post.kind, id, reason);
+    if (status === "approved") return get().restoreContent(post.kind, id);
+    get().flash("后端没有「待审」状态，内容只有可见或已删除");
+    return "后端没有待审状态";
+  },
+  refreshContent: async (opts) => {
+    if (get().demoMode) return;
+    const type = opts?.type;
+    const status = opts?.status || "all";
+    const q = opts?.q;
+    if (!type || type === "all") {
+      const [posts, comments] = await Promise.all([
+        remote.remoteContent({ type: "post", status, q, limit: 50 }),
+        remote.remoteContent({ type: "comment", status, q, limit: 50 }),
+      ]);
+      const rows: PostItem[] = [];
+      if (posts.ok) rows.push(...posts.data.map(toPost));
+      if (comments.ok) rows.push(...comments.data.map(toPost));
+      rows.sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
+      if (posts.ok || comments.ok) set({ posts: rows });
+      if (!posts.ok && !comments.ok && posts) get().flash(posts.error);
+      return;
+    }
+    const result = await remote.remoteContent({ type, status, q, limit: 50 });
+    if (!result.ok) {
+      get().flash(result.error);
+      return;
+    }
+    set({ posts: result.data.map(toPost) });
+  },
+  refreshUsers: async (opts) => {
+    if (get().demoMode) return;
+    const result = await remote.remoteUsers({ status: opts?.status, q: opts?.q, limit: 100 });
+    if (!result.ok) {
+      get().flash(result.error);
+      return;
+    }
+    set({ members: result.data.map(toMember) });
+  },
+  refreshPayments: async (opts) => {
+    if (get().demoMode) return;
+    const result = await remote.remotePayments({ status: opts?.status, q: opts?.q, limit: 50 });
+    if (!result.ok) {
+      get().flash(result.error);
+      return;
+    }
+    set({ payments: result.data });
+  },
+  refreshAudit: async () => {
+    if (get().demoMode) return;
+    const result = await remote.remoteAudit({ limit: 80 });
+    if (!result.ok) return;
+    set({ audits: result.data.map(toAudit) });
+  },
+  refreshAnnouncements: async () => {
+    if (get().demoMode) return;
+    const result = await remote.remoteAnnouncements();
+    if (!result.ok) return;
+    set({ announcements: result.data.map(toAnnouncement) });
+  },
+  refreshStats: async () => {
+    if (get().demoMode) return;
+    const result = await remote.remoteStats();
+    if (!result.ok) return;
+    set({ stats: result.data });
+  },
+  refreshReports: async () => {
+    if (get().demoMode) return;
+    const result = await remote.remoteReports({ limit: 50 });
+    if (!result.ok) return;
+    set({ reports: result.data.map(toReport) });
+  },
+  confirmPayment: async (id, note) => {
+    const result = await remote.remoteConfirmPayment(id, note);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ payments: upsertPayment(s.payments, result.data.payment) }));
+    get().flash(result.data.already ? "该订单已经开通过" : "已确认付款并开通 / 续期 VIP");
+    void get().refreshUsers();
+    void get().refreshAudit();
+    void get().refreshStats();
+    return null;
+  },
+  rejectPayment: async (id, reason) => {
+    const why = (reason || "").trim();
+    if (!why) return "请填写拒绝原因";
+    const result = await remote.remoteRejectPayment(id, why);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ payments: upsertPayment(s.payments, result.data) }));
+    get().flash("已拒绝该订单");
+    void get().refreshAudit();
+    return null;
+  },
+  refundPayment: async (id, reason) => {
+    const result = await remote.remoteRefundPayment(id, reason);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ payments: upsertPayment(s.payments, result.data.payment) }));
+    if (result.data.vipRevoked) {
+      get().flash("已退款并撤销该订单开通的 VIP");
+    } else {
+      get().flash("已标记退款。当前后端尚未自动撤销 VIP，如需撤销请到用户详情手动操作");
+    }
+    void get().refreshUsers();
+    void get().refreshAudit();
+    void get().refreshStats();
+    return null;
+  },
+  fetchReceiptUrl: async (id) => {
+    const result = await remote.remoteReceipt(id);
+    if (!result.ok) return { error: result.error };
+    return { url: result.data.objectUrl, mime: result.data.mime };
+  },
+  resolveReport: async (id, resolution) => {
+    const action: "resolve" | "reject" = resolution.includes("驳回") ? "reject" : "resolve";
+    const result = await remote.remoteDecideReport(id, action, resolution);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({
+      reports: s.reports.map((item) => (item.id === id ? toReport(result.data) : item)),
+    }));
+    get().flash(action === "reject" ? "已驳回举报" : "已处理举报");
+    void get().refreshAudit();
+    return null;
+  },
+  grantVip: async (id, days, reason) => {
     if (!reason.trim()) return "请填写原因";
-    set((s) =>
-      withAudit(s, { kind: "admin", action: "撤销会员", target: `${member.name} · ${reason.trim()}` }, {
-        members: s.members.map((item) => (item.id === id ? { ...item, vipUntil: null } : item)),
-      }),
-    );
+    if (!(Number.isInteger(days) && days > 0)) return "请填写开通天数";
+    const result = await remote.remoteGrantVip(id, days, reason.trim());
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ members: upsertMember(s.members, toMember(result.data)) }));
+    get().flash(`${result.data.name} 的会员已更新`);
+    void get().refreshAudit();
+    void get().refreshStats();
+    return null;
+  },
+  revokeVip: async (id, reason) => {
+    if (!reason.trim()) return "请填写原因";
+    const result = await remote.remoteRevokeVip(id, reason.trim());
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ members: upsertMember(s.members, toMember(result.data)) }));
     get().flash("会员权益已立即失效");
+    void get().refreshAudit();
+    void get().refreshStats();
+    return null;
+  },
+  deleteAnnouncement: async (id) => {
+    const result = await remote.remoteDeleteAnnouncement(id);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ announcements: s.announcements.filter((item) => item.id !== id) }));
+    get().flash("公告已删除");
+    void get().refreshAudit();
     return null;
   },
   toggleEntitlement: (key) => {
@@ -1046,56 +1310,27 @@ export const useAdmin = create<AdminState>((set, get) => ({
       }),
     );
   },
-  saveAnnouncement: ({ id, title, body }) => {
+  saveAnnouncement: async ({ id, title, body }) => {
     if (title.trim().length < 2 || body.trim().length < 2) {
       get().flash("标题和正文都要填写");
-      return;
+      return "标题和正文都要填写";
     }
-    set((s) => {
-      if (id) {
-        return withAudit(s, { kind: "admin", action: "编辑公告", target: title.trim() }, {
-          announcements: s.announcements.map((item) =>
-            item.id === id ? { ...item, title: title.trim(), body: body.trim() } : item,
-          ),
-        });
-      }
-      const item: Announcement = {
-        id: uid("an"),
-        title: title.trim(),
-        body: body.trim(),
-        status: "draft",
-        time: stamp(),
-      };
-      return withAudit(s, { kind: "admin", action: "创建公告草稿", target: item.title }, {
-        announcements: [item, ...s.announcements],
-      });
-    });
-    get().flash(id ? "公告已保存" : "已存为草稿");
+    if (id) {
+      get().flash("后端不支持编辑公告，请删除后重新发布");
+      return "后端不支持编辑公告，请删除后重新发布";
+    }
+    const result = await remote.remoteAddAnnouncement(title.trim(), body.trim(), true);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set({ announcements: result.data.map(toAnnouncement) });
+    get().flash("公告已发布");
+    void get().refreshAudit();
+    return null;
   },
-  setAnnouncement: (id, status) => {
-    const item = get().announcements.find((row) => row.id === id);
-    if (!item) return;
-    const action = status === "published" ? "发布公告" : status === "withdrawn" ? "撤回公告" : "退回草稿";
-    set((s) =>
-      withAudit(s, { kind: "admin", action, target: item.title }, {
-        announcements: s.announcements.map((row) => (row.id === id ? { ...row, status } : row)),
-        notices:
-          status === "published"
-            ? [
-                {
-                  id: uid("n"),
-                  kind: "system" as const,
-                  title: "全站公告",
-                  body: item.title,
-                  time: "刚刚",
-                  read: false,
-                },
-                ...s.notices,
-              ]
-            : s.notices,
-      }),
-    );
-    get().flash(action);
+  setAnnouncement: (_id, _status) => {
+    get().flash("后端没有撤回或改草稿接口，需要撤下请直接删除");
   },
   toggleFlag: (key) => {
     set((s) => {
@@ -1204,19 +1439,25 @@ function applyConnection(status: ConnectionStatus) {
 }
 
 export async function pullRemoteUsers(): Promise<number> {
-  const { apiRequest } = await import("./backend");
-  const res = await apiRequest("adminUsers");
-  if (!res.ok) return 0;
-  const rows = extractList(res.json)
-    .map(mapRemoteUser)
-    .filter((item): item is NonNullable<typeof item> => !!item);
-  if (!rows.length) return 0;
-  const members = rows.map((item) => ({
-    ...item,
-    avatar: item.avatar || "",
-  }));
+  const result = await remote.remoteUsers({ limit: 100 });
+  if (!result.ok) return 0;
+  const members = result.data.map(toMember);
   useAdmin.setState({ members });
   return members.length;
+}
+
+export async function refreshLiveData() {
+  const s = useAdmin.getState();
+  if (!s.authed || s.demoMode) return;
+  await Promise.all([
+    s.refreshUsers(),
+    s.refreshContent({ type: "all", status: "all" }),
+    s.refreshPayments(),
+    s.refreshAudit(),
+    s.refreshAnnouncements(),
+    s.refreshStats(),
+    s.refreshReports(),
+  ]);
 }
 
 let didHydrate = false;
@@ -1228,7 +1469,8 @@ function startPersisting() {
     const slice: Persisted = {
       authed: state.authed,
       rememberLogin: state.rememberLogin,
-      password: state.password,
+      password: "",
+      adminName: state.adminName,
       demoMode: state.demoMode,
       members: state.members,
       posts: state.posts,
@@ -1278,6 +1520,7 @@ export function hydrateAdmin() {
         bootError: err instanceof Error ? err.message : "本地数据读取失败，已进入应用（列表为空）",
       });
     }
+    attachUnauthorized();
     markAppBooted();
     startPersisting();
   } else if (!useAdmin.getState().booted) {
@@ -1298,21 +1541,45 @@ export function hydrateAdmin() {
   void (async () => {
     try {
       const cfg = loadConfig();
+      const token = (cfg.token || "").trim();
+      const remember = useAdmin.getState().rememberLogin !== false;
+      let sessionOk = true;
+      if (useAdmin.getState().authed && !remember) {
+        try {
+          sessionOk = sessionStorage.getItem("nova-admin-session") === "1";
+        } catch {
+          sessionOk = false;
+        }
+      }
+      if (token && sessionOk) {
+        const me = await remote.remoteMe();
+        if (me.ok) {
+          useAdmin.setState({ authed: true, adminProfile: me.data, adminName: me.data.username, booted: true });
+        } else {
+          saveConfig({ token: "" });
+          useAdmin.setState({ authed: false, adminProfile: null, nav: { name: "home" }, history: [] });
+          writeHash({ name: "home" });
+        }
+      } else if (useAdmin.getState().authed && !token) {
+        useAdmin.setState({ authed: false, adminProfile: null, nav: { name: "home" }, history: [] });
+        writeHash({ name: "home" });
+      }
+
       const base = (cfg.baseUrl || "").trim();
-      const sameOrigin = !base && window.location.protocol !== "file:";
+      const sameOrigin = !base && window.location.protocol !== "file:" && window.location.protocol !== "capacitor:";
       if (base || sameOrigin) {
         const status = await Promise.race([
-          probeConnection(base, 3500, true),
+          probeConnection(base, 5000, false),
           new Promise<ConnectionStatus>((resolve) =>
-            setTimeout(() => resolve({ ...emptyConnection(base), message: "检测超时，未连接后端。", lastChecked: Date.now() }), 3500),
+            setTimeout(() => resolve({ ...emptyConnection(base), message: "检测超时，未连接后端。", lastChecked: Date.now() }), 5000),
           ),
         ]);
         applyConnection(status);
-        if (status.mode === "live" && !useAdmin.getState().demoMode) {
+        if (useAdmin.getState().authed && !useAdmin.getState().demoMode) {
           try {
-            await pullRemoteUsers();
+            await refreshLiveData();
           } catch {
-            /* keep current members */
+            /* keep current */
           }
         }
       }

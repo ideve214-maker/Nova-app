@@ -92,13 +92,19 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
 export function ConnectionBadge() {
   const connection = useAdmin((s) => s.connection);
   const demoMode = useAdmin((s) => s.demoMode);
+  const needLogin =
+    connection.reachable &&
+    connection.mode !== "live" &&
+    Object.keys(connection.authRequired || {}).some((k) => k.startsWith("admin"));
   const label = demoMode
     ? "演示模式"
     : connection.mode === "live"
       ? "已连接后端"
-      : connection.mode === "degraded"
-        ? "后端已通 · 管理接口待接入"
-        : "未连接后端";
+      : needLogin
+        ? "后端已通 · 请登录"
+        : connection.mode === "degraded"
+          ? "后端已通 · 管理接口待接入"
+          : "未连接后端";
   const cls = demoMode
     ? "nova-warn-soft"
     : connection.mode === "live"
