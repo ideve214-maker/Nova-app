@@ -1,0 +1,34 @@
+/* M4.2 社区联网：登录后创建/加入/退出走服务器。演示社区仍只在本机。 */
+function adoptCm(c){
+  if(!c)return null;
+  const ch=(c.channels||[]).map((x,i)=>[x.id,x.name,x.kind==='公告'||x.kindKey==='announce'?'公告':'文字',x.isDefault]);
+  const mb={};
+  (c.members||[]).forEach(m=>{
+    rememberAuthor(m);
+    const me=SESSION&&SESSION.user&&Number(SESSION.user.id)===Number(m.id);
+    mb[me?'me':String(m.id)]=m.role;
+  });
+  if(c.owner)rememberAuthor(c.owner);
+  return {id:c.id,n:c.name,d:c.description||'',m:c.memberCount||0,j:c.joined?1:0,r:c.role||'',ch,mb,vis:c.visibility,src:'net',banned:!!c.banned};
+}
+function netCm(){return usingNet()&&Array.isArray(S.communities)}
+function cmSrc(){return netCm()?S.communities:D.cm}
+async function loadCommunities(){
+  if(!usingNet()||!SESSION)return;
+  const [mine,disc]=await Promise.all([api('GET','/api/communities?mine=1'),api('GET','/api/communities')]);
+  const map=new Map();
+  if(mine.s===200)(mine.j.communities||[]).forEach(c=>map.set(c.id,adoptCm(c)));
+  if(disc.s===200)(disc.j.communities||[]).forEach(c=>{if(!map.has(c.id))map.set(c.id,adoptCm(c))});
+  S.communities=[...map.values()];
+}
+async function loadCommunity(id){
+  if(!usingNet()||!SESSION)return;
+  const r=await api('GET','/api/communities/'+id);
+  if(r.s!==200)return null;
+  const c=adoptCm(r.j.community);
+  S.communities=S.communities||[];
+  const i=S.communities.findIndex(x=>x.id==id);
+  if(i>=0)S.communities[i]=Object.assign(S.communities[i],c,{mb:c.mb&&Object.keys(c.mb).length?c.mb:S.communities[i].mb});
+  else S.communities.push(c);
+  return c;
+}

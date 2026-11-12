@@ -6,7 +6,7 @@ ${modeChip()}
 <div class="sc"><div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">写点什么</button><button class="ib" data-a="compose" aria-label="发帖" style="color:var(--ac)">${ic('plus')}</button></div>
 ${fl.length?`<div class="ppl">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div>`:''}
 ${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='rec'?'推荐里还没有帖子':'你还没有关注任何人'}</p>`}${usingNet()&&S.postsCursor?`<div style="padding:16px"><button class="pb s" style="width:100%" data-a="morefeed" id="morefeed">加载更多</button></div>`:''}</div></div>`};
-const cml=()=>{const q=S.cq.trim().toLowerCase(),L=D.cm.filter(c=>!!c.j==(S.cs=='j')&&(!q||(c.n+c.d).toLowerCase().includes(q)));
+const cml=()=>{const q=S.cq.trim().toLowerCase(),src=typeof cmSrc==='function'?cmSrc():D.cm,L=src.filter(c=>!!c.j==(S.cs=='j')&&(!q||(c.n+c.d).toLowerCase().includes(q)));
 L.sort((a,b)=>(b.pin||0)-(a.pin||0));
 return L.length?L.map(c=>swrow(`data-a="cm" data-v="${c.id}"`,`${cmface(c,48)}<div class="gr"><b>${c.pin?'📌 ':''}${esc(c.n)}${c.mute?' 🔕':''}</b><small>${esc(c.d)}</small><small>${c.m} 名成员 · ${c.ch.length} 个频道</small></div><button class="pb sm${c.j?' s':''}" data-a="${c.j?'cm':'join'}" data-v="${c.id}">${c.j?'已加入':'加入'}</button>`,
  c.j?[['cmpin',c.pin?'取消置顶':'置顶','#2D88FF',c.id],['cmmute',c.mute?'取消静音':'静音','#E8870E',c.id],...(c.r=='所有者'?[]:[['leave','退出','#D4655A',c.id]])]:[['join','加入','#2D88FF',c.id]])).join(''):'<p class="em">没有社区</p>'};
