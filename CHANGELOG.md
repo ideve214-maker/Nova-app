@@ -1,5 +1,9 @@
 # 更新日志（最新在上）
 
+## V7 M4.2.5 · 社区联网回归（2026-11-12）
+- 双账号角色、退出、封禁、解散用例：管理员不能改所有者角色；所有者退出被拒（`OWNER_LEAVE`）；被封禁者无法再加入（`BANNED`）；解散后读取 404，成员列表清空。
+- 测试：新增服务端 2 项。
+
 ## V7 M4.2.4 · 社区邀请/加入边界（2026-11-12）
 - 私密社区不出现在发现列表，未加入者 `GET /api/communities/:id` 返回 404（不泄露存在），直接加入 403 `INVITE_REQUIRED`。
 - `POST /api/communities/:id/invites` 生成邀请码（可设有效期、次数）；`GET` 列出；`POST .../invites/revoke` 立即失效。`POST /api/communities/join-code` 或加入时带 `code`。过期、用尽、撤销均失效。
