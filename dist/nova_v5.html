@@ -147,6 +147,11 @@ nav button:active{transform:scale(.94)}.ib:active{transform:scale(.9)}.mi:active
 .cvr.dec{box-shadow:inset 0 -3px 0 var(--vip)}
 .pdec{display:block;width:52px;height:8px;margin:2px auto 6px;background:linear-gradient(90deg,transparent,var(--vip),transparent);position:relative}
 .pdec::before{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;background:var(--vip);transform:rotate(45deg);border-radius:1px}
+.stk{font-size:36px;line-height:1;display:inline-block}
+.stkgrid{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px}
+.stkgrid button{width:52px;height:52px;font-size:28px;border-radius:12px;background:var(--s2);border:0;color:var(--tx)}
+.stkgrid button[disabled]{opacity:.4}
+.stklok{color:var(--t2);font-size:13px;padding:4px 0 8px}
 </style></head><body>
 <div id="app"><div id="v"></div><div id="tt" role="status"></div></div>
 <script>
@@ -186,7 +191,7 @@ function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
 function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
-function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved()]).then(()=>render())}
+function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers()]).then(()=>render())}
 async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
@@ -384,7 +389,7 @@ if(typeof module!=='undefined')module.exports={RANK,CMP,canC,canManage,assignabl
 /* 私聊/群聊消息：[发送者,类型,时间,状态,文字,id]；社区频道消息：[发送者,时间,文字,id] */
 const msgs=(k,cid)=>(k=='cv'?D.m:D.cmsg)[cid]||[];
 const mid=(k,m)=>k=='cv'?m[5]:m[3];
-const mtext=(k,m)=>k=='cv'?m[4]:m[2];
+const mtext=(k,m)=>{const x=k=='cv'?m[4]:m[2];return x&&typeof x==='object'?(typeof stkLabel==='function'?stkLabel(x):(x.glyph||'')+' '+(x.name||'')):x};
 const newId=()=>'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 /* 给所有缺 ID 的消息补上；种子消息用固定 ID：会话ID_序号 */
 function fixIds(){
@@ -405,6 +410,30 @@ function fmt(t){
   return esc(t).replace(re,(x,n)=>`<span class="at${n=='所有人'?' all':''}">@${n}</span>`);
 }
 if(typeof module!=='undefined')module.exports={};
+
+/* ===== 18_stk.js ===== */
+/* 专属表情包（M2.5.5）。香槟金系列是原创 Unicode 白名单。
+   VIP 可从面板选用；所有人都能看见已发出的贴纸并继续用基础包交流。演示模式只能用基础包。 */
+const STK={cat:null};
+const STK_BASIC={id:'basic',title:'常用表情',premium:false,usable:true,items:[{id:'smile',glyph:'😊',name:'微笑'},{id:'heart',glyph:'❤️',name:'爱心'},{id:'thumb',glyph:'👍',name:'赞'},{id:'laugh',glyph:'😂',name:'大笑'},{id:'wow',glyph:'😮',name:'惊讶'},{id:'sad',glyph:'😢',name:'难过'},{id:'fire',glyph:'🔥',name:'火'},{id:'wave',glyph:'🙌',name:'加油'}]};
+const STK_GOLD={id:'nova_gold',title:'香槟金系列',premium:true,usable:false,entitlement:'premium_emoji_pack',items:[{id:'gold_star',glyph:'🌟',name:'金星'},{id:'gold_cheers',glyph:'🥂',name:'香槟'},{id:'gold_sparkle',glyph:'✨',name:'闪光'},{id:'gold_crown',glyph:'👑',name:'皇冠'},{id:'gold_rose',glyph:'🌹',name:'玫瑰'},{id:'gold_moon',glyph:'🌙',name:'月夜'},{id:'gold_book',glyph:'📖',name:'书页'},{id:'gold_coffee',glyph:'☕',name:'咖啡'}]};
+function stkPacks(){
+  if(STK.cat&&STK.cat.packs)return STK.cat.packs;
+  const gold={...STK_GOLD,usable:typeof vipFlag==='function'&&vipFlag('premium_emoji_pack')};
+  return [STK_BASIC,gold]}
+async function loadStickers(){
+  if(!NET)return;const r=await api('GET','/api/stickers');if(r.s===200)STK.cat=r.j}
+function stkView(s){const o=s&&typeof s==='object'?s:null;return o?`<span class="stk" data-stk="${esc((o.pack||'')+':'+(o.id||''))}" role="img" aria-label="${esc(o.name||'贴纸')}">${o.glyph||''}</span>`:esc(String(s||''))}
+function stkLabel(s){return s&&typeof s==='object'?((s.glyph||'')+' '+(s.name||'贴纸')):String(s||'')}
+function stkp(v){S.sh={t:'stk',cid:v};if(MODE==='account')return loadStickers()}
+function stkuse(v){
+  const[pack,id]=v.split('|'),packs=stkPacks(),p=packs.find(x=>x.id===pack),it=p&&p.items.find(x=>x.id===id);
+  if(!it)return T('贴纸不存在');
+  if(p.premium&&!p.usable){S.sh=null;T('这项功能需要 NOVA VIP，才能使用「专属表情包」。');return}
+  const send=st=>{const cid=S.sh&&S.sh.cid;S.sh=null;if(!cid)return;(D.m[cid]=D.m[cid]||[]).push(['me','k','刚刚','已发送',st,newId()]);const i=D.cv.findIndex(c=>c.id==cid),c=D.cv.splice(i,1)[0];D.cv.unshift(c);S.bot=1;T('已发送 '+st.name)};
+  const st={pack,id,glyph:it.glyph,name:it.name,premium:!!p.premium};
+  if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{if(r.s!==200){T(errMsg(r,'无法使用这张贴纸'));return}send(r.j.sticker)});
+  send(st)}
 
 /* ===== 20_ui.js ===== */
 const P=id=>{const a=D.u[id]||D.u.me;return{id,n:a[0],h:a[1],l:a[2],c:a[3],b:a[4],v:a[5]}};
@@ -447,7 +476,7 @@ L.sort((a,b)=>(b.pin||0)-(a.pin||0));
 return L.length?L.map(c=>swrow(`data-a="cm" data-v="${c.id}"`,`${cmface(c,48)}<div class="gr"><b>${c.pin?'📌 ':''}${esc(c.n)}${c.mute?' 🔕':''}</b><small>${esc(c.d)}</small><small>${c.m} 名成员 · ${c.ch.length} 个频道</small></div><button class="pb sm${c.j?' s':''}" data-a="${c.j?'cm':'join'}" data-v="${c.id}">${c.j?'已加入':'加入'}</button>`,
  c.j?[['cmpin',c.pin?'取消置顶':'置顶','#2D88FF',c.id],['cmmute',c.mute?'取消静音':'静音','#E8870E',c.id],...(c.r=='所有者'?[]:[['leave','退出','#D4655A',c.id]])]:[['join','加入','#2D88FF',c.id]])).join(''):'<p class="em">没有社区</p>'};
 const tCm=()=>`<div class="pg"><div class="top"><h1>社区</h1><button class="ib" data-a="newcm" aria-label="创建社区">${ic('plus')}</button></div><div class="seg"><button data-a="cmseg" data-v="j" class="${S.cs=='j'?'on':''}">已加入</button><button data-a="cmseg" data-v="d" class="${S.cs=='d'?'on':''}">发现</button></div><div class="sc"><div style="padding:8px 16px 0"><input class="fld" id="cq" placeholder="搜索" value="${esc(S.cq)}"></div><div id="cl">${cml()}</div></div></div>`;
-const last=id=>{const a=D.m[id]||[],m=a[a.length-1];return m?{x:m[1]=='i'?'图片占位':m[1]=='v'?'语音占位':m[4],t:m[2]}:{x:'',t:''}};
+const last=id=>{const a=D.m[id]||[],m=a[a.length-1];return m?{x:m[1]=='i'?'图片占位':m[1]=='v'?'语音占位':m[1]=='k'?stkLabel(m[4]):m[4],t:m[2]}:{x:'',t:''}};
 const rowc=(c,hd)=>{const l=last(c.id),at=c.u>0&&(D.m[c.id]||[]).slice(-c.u).some(m=>m[0]!='me'&&String(m[4]).includes('@所有人')),W=c.g?216:288;
 const row=`<div class="row swc" data-w="${W}" data-a="${hd?'unhide':'conv'}" data-v="${c.id}">${c.g?gface(c,48):av(c.mem[0],48)}<div class="gr"><b>${c.pin?'📌 ':''}${esc(c.n)}${c.g?'<span class="tag">群聊</span>':''}${c.mute?' 🔕':''}</b><small>${at?'<span style="color:var(--dg)">[@所有人] </span>':''}${esc(l.x)}</small></div><div style="text-align:right"><small>${hd?'点击恢复':l.t}</small>${c.u&&!hd?`<br><i class="bdg" style="position:static;display:inline-block${c.mute?';background:var(--t3)':''}">${c.u}</i>`:''}</div>${hd?'':`<button class="ib" data-a="cvm" data-v="${c.id}" aria-label="更多">${ic('more')}</button>`}</div>`;
 return hd?row.replace(' swc"','"'):`<div class="swr"><div class="swa">${[['cvpin',c.pin?'取消置顶':'置顶','#2D88FF'],['cvmute',c.mute?'取消静音':'静音','#E8870E'],['cvhide','隐藏','#737985'],...(c.g?[]:[['cvdel','删除','#D4655A']])].map(a=>`<button style="background:${a[2]}" data-a="${a[0]}" data-v="${c.id}">${a[1]}</button>`).join('')}</div>${row}</div>`};
@@ -478,10 +507,10 @@ const pCm=id=>{const c=D.cm.find(x=>x.id==id),cur=c.ch.find(x=>x[0]==S.ch[id])||
 return `<div class="pg">${sub(esc(c.n))}<div class="sc"><div class="cover photo" style="${bgCss(c.bg||cove(c.id))}">${c.j&&(c.r=='所有者'||c.r=='管理员')?`<button class="cam" data-a="ccov" data-v="${c.id}">更换封面</button>`:''}</div><div class="cmi"><b style="font-size:18px">${esc(c.n)}</b><p>${esc(c.d)}</p><small>${c.m} 名成员 · ${c.ch.length} 个频道</small>${c.j?`<p><span class="tag" style="margin:0">${c.r}</span> <small>演示版：权限只在本机生效，不是服务端校验</small></p>`:''}<div class="fr" style="justify-content:flex-start">${!c.j?`<button class="pb" data-a="join" data-v="${c.id}">加入</button>`:c.r=='所有者'?'<small style="flex:1">你是所有者，演示中不能退出</small><button class="pb sm d" data-a="dis" data-v="'+c.id+'">解散社区</button>':`<button class="pb s" data-a="leave" data-v="${c.id}">退出</button>`}<button class="pb sm s" data-a="go" data-v="cmm:${c.id}">成员</button></div></div><div class="chs">${c.ch.map(h=>`<button data-a="chan" data-v="${c.id}|${h[0]}" class="${h[0]==cur[0]?'on':''}">${h[2]=='公告'?'📢':'#'} ${h[1]}</button>`).join('')}${mg?`<button data-a="addch" data-v="${c.id}" style="background:none;border:1px dashed var(--t3)">＋ 新频道</button><button data-a="chmgr" data-v="${c.id}">⚙ 管理</button>`:''}</div>${c.j?pinbar('ch',cur[0]):''}${ms.length?ms.map(m=>`<div class="cm" data-mid="${m[3]}" data-a="msgm" data-v="ch|${cur[0]}|${m[3]}">${av(m[0],36)}<div class="gr"><b style="display:inline">${esc(m[0]=='me'?'我':P(m[0]).n)}</b> <small>${m[1]}</small>${(D.pm[cur[0]]||[]).includes(m[3])?' <small>📌</small>':''}<div style="word-break:break-word">${fmt(m[2])}</div></div></div>`).join(''):'<p class="em">这个频道还没有演示消息</p>'}${c.j?'':'<p class="em">加入后才在演示里出现在你的列表顶部</p>'}</div>${can?inbar('cmin','在 '+cur[1]+' 发言','cmsend',c.id+'|'+cur[0],`<button class="ib" data-a="ment" data-v="ch|cmin|${cur[0]}" aria-label="@提及" style="font-weight:800">@</button>`):`<div class="nope">${c.j?'只有所有者、管理员和版主能在公告频道发言':'加入后才能发言'}</div>`}</div>`};
 const pinbar=(k,cid)=>{const ids=pinned(k,cid);if(!ids.length)return '';const n=ids.length,i=(S.pi[cid]||0)%n,id=ids[n-1-i],m=msgs(k,cid).find(x=>mid(k,x)==id),who=k=='cv'?m[0]:m[0];
 return `<button class="pinb" data-a="pinjump" data-v="${k}|${cid}" aria-label="跳到置顶消息"><span>📌</span><span class="gr"><small>置顶消息${n>1?' '+(i+1)+'/'+n:''}</small><b>${esc(who=='me'?'我':P(who).n)}：${esc(mtext(k,m))}</b></span></button>`};
-const bubble=(m,g,cid)=>{if(m[1]=='s')return `<div class="mt" style="text-align:center;padding:6px 16px">${esc(m[4])}</div>`;const me=m[0]=='me',b=m[1]=='i'?`<div class="ph2">图片占位</div>${fmt(m[4])}`:m[1]=='v'?`🎙 语音占位 · ${fmt(m[4])}`:fmt(m[4]),pn=(D.pm[cid]||[]).includes(m[5]);
+const bubble=(m,g,cid)=>{if(m[1]=='s')return `<div class="mt" style="text-align:center;padding:6px 16px">${esc(m[4])}</div>`;const me=m[0]=='me',b=m[1]=='i'?`<div class="ph2">图片占位</div>${fmt(m[4])}`:m[1]=='v'?`🎙 语音占位 · ${fmt(m[4])}`:m[1]=='k'?stkView(m[4]):fmt(m[4]),pn=(D.pm[cid]||[]).includes(m[5]);
 return `<div class="mr${me?' me':''}" data-mid="${m[5]}">${me?'':av(m[0],32)}<div class="mw">${g&&!me?`<small>${esc(P(m[0]).n)}</small>`:''}<div class="bub" data-a="msgm" data-v="cv|${cid}|${m[5]}">${pn?'<span class="pnt">📌 </span>':''}${b}</div><div class="mt">${m[2]}${me?' · '+m[3]:''}</div></div></div>`};
 const pChat=id=>{const c=D.cv.find(x=>x.id==id),ms=D.m[id]||[];
-return `<div class="pg">${sub(esc(c.n)+(c.g?'<span class="tag">群聊</span>':''),`<button class="ib" data-a="${c.g?'ginfo':'cvm'}" data-v="${id}" aria-label="更多">${ic('more')}</button>`)}${ban()}${c.g?pinbar('cv',id):''}<div class="sc" style="padding:8px 0">${ms.map(m=>bubble(m,c.g,id)).join('')||'<p class="em">发一条演示消息吧</p>'}</div>${inbar('chin','输入演示消息','send',id,`${c.g?`<button class="ib" data-a="ment" data-v="cv|chin|${id}" aria-label="@提及" style="font-weight:800">@</button>`:''}<button class="ib" data-a="media" aria-label="图片（演示中不可用）">${ic('image')}</button><button class="ib" data-a="media" aria-label="语音（演示中不可用）">${ic('mic')}</button>`)}</div>`};
+return `<div class="pg">${sub(esc(c.n)+(c.g?'<span class="tag">群聊</span>':''),`<button class="ib" data-a="${c.g?'ginfo':'cvm'}" data-v="${id}" aria-label="更多">${ic('more')}</button>`)}${ban()}${c.g?pinbar('cv',id):''}<div class="sc" style="padding:8px 0">${ms.map(m=>bubble(m,c.g,id)).join('')||'<p class="em">发一条演示消息吧</p>'}</div>${inbar('chin','输入演示消息','send',id,`${c.g?`<button class="ib" data-a="ment" data-v="cv|chin|${id}" aria-label="@提及" style="font-weight:800">@</button>`:''}<button class="ib" data-a="stkp" data-v="${id}" aria-label="表情贴纸" id="stkp">🙂</button><button class="ib" data-a="media" aria-label="图片（演示中不可用）">${ic('image')}</button><button class="ib" data-a="media" aria-label="语音（演示中不可用）">${ic('mic')}</button>`)}</div>`};
 const pEdit=()=>{const g=S.d.eg||'',row=(k,l)=>`<div class="row" style="padding:6px 0;background:none;border:0"><div class="gr"><b style="font-weight:600">${l}</b></div><button class="pb sm${S.d['v'+k]?'':' s'}" data-a="vis" data-v="${k}" aria-pressed="${!!S.d['v'+k]}">${S.d['v'+k]?'公开':'仅自己'}</button></div>`;
 return `<div class="pg">${sub('编辑资料')}<div class="sc" style="padding:16px"><span class="lab">显示名（1–20 字）</span><input class="fld" data-d="en"><span class="lab">账号（4–15 位小写字母、数字、下划线）</span><input class="fld" data-d="eh" autocapitalize="none"><span class="lab">简介（最多 80 字）</span><textarea class="fld" data-d="eb" rows="3"></textarea><span class="lab">性别</span><div class="sw" style="margin:6px 0 12px">${['男','女','其他',''].map(x=>`<button class="pb sm${g==x?'':' s'}" data-a="gen" data-v="${x}">${x||'不填'}</button>`).join('')}</div><span class="lab">生日</span><input class="fld" type="date" data-d="ebd"><div class="shd" style="padding:8px 0 4px">谁能看到</div>${row('bp','生日')}${row('ap','年龄')}${row('gp','性别')}<div class="fr"><button class="pb" data-a="saveedit">保存</button></div></div></div>`};
 const pGi=id=>{const c=D.cv.find(x=>x.id==id);if(!c)return sub('群聊信息');const ow=c.own||'me',own=ow=='me',mine=gAdm(c),ids=['me',...c.mem];
@@ -527,6 +556,7 @@ if(s.t=='msg'){const[k,cid,id]=[s.k,s.cid,s.id],m=msgs(k,cid).find(x=>mid(k,x)==
  h=`<button class="mi" data-a="mcopy" data-v="${k}|${cid}|${id}">复制文字</button><button class="mi" data-a="savm" data-v="${k}|${cid}|${id}">${isSaved('message',cid+':'+id)?'取消收藏':'收藏（仅自己可见）'}</button>${msgPerm(k,cid,'pinMsg')?`<button class="mi" data-a="${pn?'unpinm':'pinm'}" data-v="${k}|${cid}|${id}">${pn?'取消置顶':'置顶这条消息'}</button>`:''}${del?`<button class="mi dg" data-a="delmsg" data-v="${k}|${cid}|${id}">删除这条消息</button>`:''}`}}
 if(s.t=='ment'){const all=msgPerm(s.k,s.cid,'atAll'),L=s.k=='cv'?(D.cv.find(x=>x.id==s.cid).mem):Object.keys((cmOf(s.cid)||{mb:{}}).mb);
  h=`<h3>提及</h3><button class="nr" data-a="mins" data-v="${s.key}|@所有人"${all?'':' disabled'} style="opacity:${all?1:.45}"><span class="gr"><b>@所有人</b><small>${all?'群里每个人都会看到高亮提醒':'只有群主/管理员能@所有人'}</small></span></button>${L.map(i=>`<button class="nr" data-a="mins" data-v="${s.key}|@${esc(P(i).n)}">${av(i,32)}<span class="gr"><b>${esc(P(i).n)}</b></span></button>`).join('')}`}
+if(s.t=='stk'){const packs=stkPacks();h=`<h3>表情贴纸</h3>`+packs.map(pk=>`<div class="shd" data-pack="${esc(pk.id)}">${esc(pk.title)}${pk.premium?' <span class="tag">VIP</span>':''}</div>`+(pk.premium&&!pk.usable?`<p class="stklok" data-stk-lock="${esc(pk.id)}">开通 NOVA VIP 后可使用。已发出的贴纸所有人都能看见，免费用户可以继续用常用表情交流。</p>`:'')+`<div class="stkgrid" data-pack="${esc(pk.id)}">${pk.items.map(it=>`<button ${pk.premium&&!pk.usable?'disabled':'data-a="stkuse" data-v="'+pk.id+'|'+it.id+'"'} aria-label="${esc(it.name)}" title="${esc(it.name)}">${it.glyph}</button>`).join('')}</div>`).join('')+`<p class="lab">已发出的贴纸所有人可见。专属包内容为原创 Unicode 白名单。</p>`}
 if(s.t=='dis')h=`<h3>解散这个社区？</h3><p style="color:var(--t2);margin-bottom:8px">解散后，频道和消息都会被删除，成员也无法再进入。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="dis2" data-v="${s.id}">确定解散</button></div>`;
 return `<div class="ov" data-a="x"></div><div class="pn" role="dialog">${h}</div>`};
 
@@ -883,7 +913,7 @@ gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.s
 theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
 
 /* ===== 80_events.js ===== */
-Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,saved:savedOpen,savp,savm,unsav});
+Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,saved:savedOpen,savp,savm,unsav,stkp,stkuse});
 document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;const ret=f(el.dataset.v);S.bot=k=='cmsend';if(ret&&typeof ret.then==='function')ret.then(()=>render(),()=>render());else render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t)}else if(t.id=='sq'){S.sq=t.value;$('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&document.getElementById('gate')){const b=document.querySelector('#gate [data-a=authgo]');if(b)b.click();return}if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});

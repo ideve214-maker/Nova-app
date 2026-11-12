@@ -82,7 +82,7 @@ export const VIP_CONFIG = Object.freeze({
       onExpire: '已发布的长内容保留；之后新发的内容按 Basic 上限。',
     }),
     premium_emoji_pack: Object.freeze({
-      title: '专属表情包', kind: 'flag', basic: false, vip: true, status: 'planned', phase: 'M2.5.5',
+      title: '专属表情包', kind: 'flag', basic: false, vip: true, status: 'live', phase: 'M2.5.5',
       description: '香槟金系列贴纸，可在聊天中从面板选用；所有人都能正常看到并交流。',
       onExpire: '已发出的贴纸仍对所有人可见，但不能再从专属面板选用。',
     }),

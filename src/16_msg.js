@@ -2,7 +2,7 @@
 /* 私聊/群聊消息：[发送者,类型,时间,状态,文字,id]；社区频道消息：[发送者,时间,文字,id] */
 const msgs=(k,cid)=>(k=='cv'?D.m:D.cmsg)[cid]||[];
 const mid=(k,m)=>k=='cv'?m[5]:m[3];
-const mtext=(k,m)=>k=='cv'?m[4]:m[2];
+const mtext=(k,m)=>{const x=k=='cv'?m[4]:m[2];return x&&typeof x==='object'?(typeof stkLabel==='function'?stkLabel(x):(x.glyph||'')+' '+(x.name||'')):x};
 const newId=()=>'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 /* 给所有缺 ID 的消息补上；种子消息用固定 ID：会话ID_序号 */
 function fixIds(){

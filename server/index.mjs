@@ -7,6 +7,7 @@ import {openDb} from './db.mjs';
 import {hashPassword, verifyPassword, newToken, tokenHash} from './auth.mjs';
 import {createVip, VipError} from './vip.mjs';
 import {createSaved, PUBLIC_PIN_MAX} from './saved.mjs';
+import {createStickers} from './stickers.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -21,6 +22,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const db = openDb(dbPath);
   const vip = createVip(db, {clock});
   const saved = createSaved(db, {vip, now});
+  const stickers = createStickers({vip});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at}; };
   const q = {
@@ -140,7 +142,18 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const scope = String(b.scope || ''), text = b.text;
       return {ok: true, now: now(), ...vip.requireTextLength(user, scope, text)};
     },
+    // 贴纸（M2.5.5）：目录所有人可看（未登录也可）；选用专属包必须经 requireEntitlement。
+    'GET /api/stickers'(req) {
+      let user = null;
+      try { user = auth(req).user; } catch (e) { if (!(e && e.code === 'UNAUTHORIZED')) throw e; }
+      return stickers.catalog(user);
+    },
+    'POST /api/stickers/use'(req, b) {
+      const {user} = auth(req);
+      return stickers.use(user, b || {});
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
+
 
 
   };
