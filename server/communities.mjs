@@ -254,6 +254,6 @@ export function createCommunities(db, {profile, vip, now}) {
   return {
     create, get, list, join, leave, members, setMemberRole, kick,
     addChannel, renameChannel, removeChannel, postMessage, listMessages,
-    invite, listInvites, revokeInvite, joinByCode, dissolve, getVisible, ROLE_CN,
+    invite, listInvites, revokeInvite, joinByCode, dissolve, getVisible, ROLE_CN, roleOf,
   };
 }

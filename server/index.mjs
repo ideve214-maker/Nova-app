@@ -11,6 +11,7 @@ import {createStickers} from './stickers.mjs';
 import {createProfile, newSessionId, maskIp, deviceOf} from './profile.mjs';
 import {ApiError} from './errors.mjs';
 import {createPosts} from './posts.mjs';
+import {createPolls} from './polls.mjs';
 import {createComments} from './comments.mjs';
 import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
@@ -70,6 +71,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   posts.attach(comments);
   const follows = createFollows(db, {profile, vip, now});
   const communities = createCommunities(db, {profile, vip, now});
+  const polls = createPolls(db, {now, posts, follows, communities});
+  posts.attach({pollOf: (id, me) => polls.ofPost(id, me)});
   const friends = createFriends(db, {now, profile});
   const e2ee = createE2ee(db, {now, friends});
   const events = createEvents(db, {now, ...eventsOpts});
@@ -310,7 +313,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     // ---- 动态（M4.1）帖子真实入库；发布成功以服务端响应为准 ----
     'POST /api/posts'(req, b) {
       const {user} = auth(req);
-      const r = posts.create(user, b || {});
+      const body = b || {};
+      if (body.poll) polls.validateSpec(body.poll);
+      const r = posts.create(user, body);
+      if (body.poll) {
+        const pr = polls.createForPost(user, r.post.id, body.poll);
+        r.post.poll = pr.poll;
+      }
       audit(user.id, 'post.create', 'post:' + r.post.id, ip(req));
       return r;
     },
@@ -1007,6 +1016,29 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       };
     },
 
+    'GET /api/polls/:id'(req) {
+      const {user} = auth(req);
+      return polls.get(user, req.params.id);
+    },
+    'POST /api/polls/:id/vote'(req, b) {
+      const {user} = auth(req);
+      return polls.vote(user, req.params.id, b || {});
+    },
+    'POST /api/posts/:id/poll'(req, b) {
+      const {user} = auth(req);
+      return polls.createForPost(user, req.params.id, b || {});
+    },
+    'GET /api/communities/:id/polls'(req) {
+      const {user} = auth(req);
+      return polls.listCommunity(user, req.params.id);
+    },
+    'POST /api/communities/:id/polls'(req, b) {
+      const {user} = auth(req);
+      const r = polls.createForCommunity(user, req.params.id, b || {});
+      audit(user.id, 'poll.create', 'poll:' + r.poll.id, ip(req), {communityId: req.params.id});
+      return r;
+    },
+
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -1166,7 +1198,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls;
   return server;
 }
 

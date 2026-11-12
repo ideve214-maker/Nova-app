@@ -35,7 +35,7 @@ export function createPosts(db, {vip, profile, now}) {
     return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!v.active};
   }
   let extras = null;
-  function attach(ex) { extras = ex; }
+  function attach(ex) { extras = Object.assign(extras || {}, ex); }
   function pub(row, me) {
     if (!row || row.deleted_at) return null;
     const out = {
@@ -55,6 +55,8 @@ export function createPosts(db, {vip, profile, now}) {
       out.reactions = rx.reactions;
       out.myReaction = rx.myReaction;
       out.commentCount = extras.commentCount(row.id);
+      if (extras.pollOf) out.poll = extras.pollOf(row.id, me);
+      if (extras.hashtagsOf) out.hashtags = extras.hashtagsOf(row.id);
     }
     return out;
   }
