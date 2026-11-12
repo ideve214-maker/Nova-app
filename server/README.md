@@ -1,4 +1,4 @@
-# NOVA 后端（M4.5.1）
+# NOVA 后端（M4.5.2）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -83,6 +83,8 @@
 | POST /api/media | 上传媒体（本地存储，与消息分离） |
 | GET /api/media/:id | 媒体元数据 |
 | GET /api/media/usage | 存储额度 |
+| GET /api/media/:id/file | 鉴权下载（Authorization 或短期 ticket） |
+| GET /api/media/:id/preview | 预览图 |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。

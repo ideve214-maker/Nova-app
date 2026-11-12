@@ -13,7 +13,7 @@ const NAME_MAX = 20;
 const RECALL_MS = 2 * 60 * 1000; // 撤回时间窗：2 分钟
 const PUBLIC_PIN_MAX = 5;
 
-export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
+export function createChats(db, {profile, vip, now, friends, onEvent, media} = {}) {
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
   const insCv = db.prepare(`INSERT INTO conversations(id,kind,name,owner_id,created_at,dm_lo,dm_hi) VALUES(?,?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM conversations WHERE id=?');
@@ -333,6 +333,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
       mine: !!(me && Number(me.id) === Number(row.author_id)),
       clientId: row.client_id || undefined,
       atAll: !!(hasAt && row.at_all),
+      mediaId: row.media_id || undefined,
+      media: (row.media_id && media) ? media.pub(media._byId.get(row.media_id)) : undefined,
       ...receiptOf(row, me),
     };
   }
@@ -355,7 +357,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
       if (other) checkDmGate(user.id, other.user_id);
     }
     const text = String((body && body.text) != null ? body.text : '').trim();
-    if (!len(text)) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
+    const mediaId = body && body.mediaId ? String(body.mediaId) : '';
+    if (!len(text) && !mediaId) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
     if (vip) vip.requireTextLength(user, 'chat', text);
     const wantAtAll = text.includes('@所有人');
     if (wantAtAll && row.kind === 'group') {
@@ -379,6 +382,12 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
         if (existed && !existed.deleted_at) return {message: pubMsg(existed, user), idempotent: true};
       }
       throw e;
+    }
+    if (mediaId && media) {
+      const md = media.get(user, mediaId).media;
+      if (Number(md.ownerId) !== Number(user.id)) throw new ApiError(403, 'FORBIDDEN', '只能发送自己上传的文件');
+      db.prepare('UPDATE messages SET media_id=? WHERE id=?').run(mediaId, mid);
+      media.attachToMessage(mediaId, id, mid);
     }
     const msg = pubMsg(msgById.get(mid), user);
     const others = mems.all(id).map(m => m.user_id);

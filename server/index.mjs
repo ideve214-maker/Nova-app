@@ -577,17 +577,6 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return res.end(html);
       } catch { return send(503, {error: {code: 'NO_BUILD', message: '前端还没构建'}}); }
     }
-    const found = findRoute(req.method, path);
-    if (!found) return send(404, {error: {code: 'NOT_FOUND', message: '接口不存在'}});
-    const fn = found.fn; req.params = found.params;
-    if (req.method === 'GET' && path === '/api/events') {
-      try { fn(req, res); }
-      catch (e) {
-        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
-        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
-      }
-      return;
-    }
     const mediaFile = /^\/api\/media\/([^/]+)\/(file|preview)$/.exec(path);
     if (req.method === 'GET' && mediaFile) {
       try {
@@ -607,6 +596,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         });
         return res.end(data);
       } catch (e) {
+        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+      }
+      return;
+    }
+    const found = findRoute(req.method, path);
+    if (!found) return send(404, {error: {code: 'NOT_FOUND', message: '接口不存在'}});
+    const fn = found.fn; req.params = found.params;
+    if (req.method === 'GET' && path === '/api/events') {
+      try { fn(req, res); }
+      catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
         else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
       }

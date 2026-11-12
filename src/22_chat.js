@@ -56,7 +56,7 @@ function adoptMsg(m){
   if(!m)return null;
   rememberAuthor(m.author);
   const me=SESSION&&SESSION.user&&m.author&&Number(SESSION.user.id)===Number(m.author.id);
-  return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.deleted?'（已撤回）':m.text,m.id];
+  const tx=m.deleted?'（已撤回）':(m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text);return [me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
 }
 function msgSrc(id){
   if(typeof usingNet==='function'&&usingNet())return (S.messages&&S.messages[id])||[];
