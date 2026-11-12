@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans SC Variable", "Noto Sans SC", "PingFang SC", "WenQuanYi Zen Hei",
+    ui-sans-serif, system-ui, sans-serif;
+  --color-stage: #e6e0f4;
+  --color-bg: #f5f3fb;
+  --color-surface: #ffffff;
+  --color-fg: #1c1633;
+  --color-muted: #8b86a0;
+  --color-subtle: #f3f0f9;
+  --color-line: #ebe6f4;
+  --color-primary: #6d4aff;
+  --color-primary-deep: #542ee0;
+  --color-on-primary: #ffffff;
+  --color-danger: #f04b73;
+  --color-ok: #12a36a;
+  --color-vip: #c8963e;
+  --color-warn: #e09a2b;
+  --color-ink: #241b3d;
+  --radius-card: 1.35rem;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-stage);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  input,
+  textarea {
+    font: inherit;
+  }
+}
+
+.nova-frame {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.nova-login {
+  background: linear-gradient(180deg, #5b35f0 0%, #7a59ff 46%, #c8b6ff 100%);
+}
+
+@supports (background: color-mix(in srgb, white 72%, transparent)) {
+  .nova-login {
+    background:
+      radial-gradient(90% 42% at 50% 100%, color-mix(in srgb, white 72%, transparent), transparent 70%),
+      linear-gradient(180deg, #5b35f0 0%, #7a59ff 46%, #c8b6ff 100%);
+  }
+}
+
+.nova-hero {
+  background: linear-gradient(145deg, #623cf3 0%, #7d5cff 52%, #a489ff 100%);
+  color: var(--color-on-primary);
+}
+
+.nova-soft {
+  background: color-mix(in srgb, var(--color-primary) 12%, white);
+  color: var(--color-primary-deep);
+}
+
+.nova-ok-soft {
+  background: color-mix(in srgb, var(--color-ok) 14%, white);
+  color: var(--color-ok);
+}
+
+.nova-danger-soft {
+  background: color-mix(in srgb, var(--color-danger) 12%, white);
+  color: var(--color-danger);
+}
+
+.nova-vip-soft {
+  background: color-mix(in srgb, var(--color-vip) 18%, white);
+  color: #8a6418;
+}
+
+.nova-warn-soft {
+  background: color-mix(in srgb, var(--color-warn) 18%, white);
+  color: #9a6810;
+}
+
+.shadow-card {
+  box-shadow: 0 10px 30px rgba(109, 74, 255, 0.1);
+}
+
+@supports (background: color-mix(in srgb, white 50%, transparent)) {
+  .shadow-card {
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+}
+
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer base {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(109, 74, 255, 0.15);
+  }
+}
+
+/* color-mix fallbacks for older Safari */
+.nova-soft {
+  background: #efeaff;
+  color: var(--color-primary-deep);
+}
+.nova-ok-soft {
+  background: #e5f6ee;
+  color: var(--color-ok);
+}
+.nova-danger-soft {
+  background: #fde8ee;
+  color: var(--color-danger);
+}
+.nova-vip-soft {
+  background: #f6ecd8;
+  color: #8a6418;
+}
+.nova-warn-soft {
+  background: #f8efd9;
+  color: #9a6810;
+}
+
+@supports (background: color-mix(in srgb, white 50%, red)) {
+  .nova-soft {
+    background: color-mix(in srgb, var(--color-primary) 12%, white);
+    color: var(--color-primary-deep);
+  }
+  .nova-ok-soft {
+    background: color-mix(in srgb, var(--color-ok) 14%, white);
+    color: var(--color-ok);
+  }
+  .nova-danger-soft {
+    background: color-mix(in srgb, var(--color-danger) 12%, white);
+    color: var(--color-danger);
+  }
+  .nova-vip-soft {
+    background: color-mix(in srgb, var(--color-vip) 18%, white);
+    color: #8a6418;
+  }
+  .nova-warn-soft {
+    background: color-mix(in srgb, var(--color-warn) 18%, white);
+    color: #9a6810;
+  }
+}
