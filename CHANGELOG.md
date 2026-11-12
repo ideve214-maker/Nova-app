@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## V7 M4.2.4 · 社区邀请/加入边界（2026-11-12）
+- 私密社区不出现在发现列表，未加入者 `GET /api/communities/:id` 返回 404（不泄露存在），直接加入 403 `INVITE_REQUIRED`。
+- `POST /api/communities/:id/invites` 生成邀请码（可设有效期、次数）；`GET` 列出；`POST .../invites/revoke` 立即失效。`POST /api/communities/join-code` 或加入时带 `code`。过期、用尽、撤销均失效。
+- 用户端发现页可输入邀请码加入；版主及以上可在社区页生成/撤销邀请码。
+- 测试：新增服务端 2 项。
+
 ## V7 M4.2.3 · 频道创建、改名、删除、公告（2026-11-12）
 - `POST /api/communities/:id/channels` 创建频道（text / announce）。默认「大厅」不能删除；公告频道仅所有者、管理员、版主可发言（`POST /api/channels/:id/messages` 权限在服务端校验）。
 - 改名 `POST /api/channels/:id/rename`（1–20 字，同社区不重名），删除 `POST /api/channels/:id/delete`。用户端频道管理在登录后走这些接口。
