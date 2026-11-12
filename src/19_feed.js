@@ -31,17 +31,19 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount};if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;return o;
 }
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
   if(MODE!=='account'||!SESSION)return;
-  const r=await api('GET','/api/posts?limit=50&feed='+(S.feed==='follow'?'follow':'rec'));
+  const r=await api('GET','/api/posts?limit=50&feed='+(S.feed==='follow'?'follow':S.feed==='topic'?'topic':'rec'));
   if(r.s!==200){S.postsErr=errMsg(r,'动态加载失败');return}
   S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';S.postsCursor=r.j.nextCursor||null;
 }
-async function publishPost(text){
-  const r=await api('POST','/api/posts',{text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)});
+async function publishPost(text,meta){
+  const body={text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)};
+  if(meta){if(meta.audience)body.audience=meta.audience;if(meta.mood)body.mood=meta.mood;if(meta.location)body.location=meta.location;if(meta.tagged&&meta.tagged.length)body.tagged=meta.tagged.map(Number).filter(n=>n);if(meta.media&&meta.media.length)body.media=meta.media;}
+  const r=await api('POST','/api/posts',body);
   if(r.s!==200){T(errMsg(r,'发布失败'));return null}
   const p=adoptPost(r.j.post);
   S.posts=S.posts||[];

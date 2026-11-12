@@ -437,6 +437,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         ids.push(user.id);
         q.authors = ids;
       }
+      // feed=topic 由 posts.list 按话题/标签过滤，并套用受众权限。
       return posts.list(user, q);
     },
     'GET /api/posts/:id'(req) {

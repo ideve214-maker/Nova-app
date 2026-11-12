@@ -1,11 +1,17 @@
 /* ---- tabs ---- */
-const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
-return `<div class="pg"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
+const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts);
+const base=src.filter(p=>S.feed=='rec'||S.feed=='topic'||p.a=='me'||fl.includes(p.a));
+const L=S.feed=='topic'?base.filter(p=>(p.hashtags&&p.hashtags.length)||(p.x&&p.x.includes('#'))):base;
+const stories=()=>{const first=`<button class="st-item" data-a="compose" data-v="story"><span class="st-ring create">${av('me',58)}<i class="st-plus">+</i></span><span>创建动态</span></button>`;
+const rest=(fl||[]).slice(0,16).map((i,n)=>`<button class="st-item" data-a="user" data-v="${i}"><span class="st-ring${n>3?' seen':''}">${av(i,58)}</span><span>${esc(P(i).n)}</span></button>`).join('');
+return `<div class="stories">${first}${rest}</div>`};
+return `<div class="pg"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1><button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
-<div class="seg"><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">关注</button><button data-a="feed" data-v="rec" class="${S.feed=='rec'?'on':''}">推荐</button></div>
-<div class="sc"><div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">写点什么</button><button class="ib" data-a="compose" aria-label="发帖" style="color:var(--ac)">${ic('plus')}</button></div>
-${fl.length?`<div class="ppl">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div>`:''}
-${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='rec'?'推荐里还没有帖子':'你还没有关注任何人'}</p>`}${usingNet()&&S.postsCursor?`<div style="padding:16px"><button class="pb s" style="width:100%" data-a="morefeed" id="morefeed">加载更多</button></div>`:''}</div></div>`};
+${stories()}
+<div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">分享一下你的新鲜事</button><button class="ib" data-a="compose" aria-label="添加照片" style="color:var(--ac)">${ic('image')}</button></div>
+<div class="seg feed-seg"><button data-a="feed" data-v="rec" class="${S.feed=='follow'||S.feed=='topic'?'':'on'}">为你推荐</button><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">正在关注</button><button data-a="feed" data-v="topic" class="${S.feed=='topic'?'on':''}">热门话题</button></div>
+<div class="sc">
+${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='topic'?'还没有热门话题':S.feed=='follow'?'你还没有关注任何人':'推荐里还没有帖子'}</p>`}${usingNet()&&S.postsCursor?`<div style="padding:16px"><button class="pb s" style="width:100%" data-a="morefeed" id="morefeed">加载更多</button></div>`:''}</div></div>`};
 const cml=()=>{const q=S.cq.trim().toLowerCase(),src=typeof cmSrc==='function'?cmSrc():D.cm,L=src.filter(c=>!!c.j==(S.cs=='j')&&(!q||(c.n+c.d).toLowerCase().includes(q)));
 L.sort((a,b)=>(b.pin||0)-(a.pin||0));
 return L.length?L.map(c=>swrow(`data-a="cm" data-v="${c.id}"`,`${cmface(c,48)}<div class="gr"><b>${c.pin?'📌 ':''}${esc(c.n)}${c.mute?' 🔕':''}</b><small>${esc(c.d)}</small><small>${c.m} 名成员 · ${c.ch.length} 个频道</small></div><button class="pb sm${c.j?' s':''}" data-a="${c.j?'cm':'join'}" data-v="${c.id}">${c.j?'已加入':'加入'}</button>`,
