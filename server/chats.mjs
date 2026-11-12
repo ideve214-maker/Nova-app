@@ -169,8 +169,19 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     if (typeof friends.isBlocked === 'function' && friends.isBlocked(a, b)) {
       throw new ApiError(403, 'BLOCKED', '因拉黑无法私聊');
     }
-    if (friends.enforce && typeof friends.areFriends === 'function' && !friends.areFriends(a, b)) {
-      throw new ApiError(403, 'NOT_FRIENDS', '只有双向好友才能私聊');
+    if (typeof friends.areFriends === 'function' && friends.areFriends(a, b)) return;
+    // 已接受的消息请求，或互相关注，可直接进入正常会话
+    try {
+      const acc = db.prepare(`SELECT 1 FROM message_requests WHERE status='accepted' AND ((sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?))`).get(Number(a), Number(b), Number(b), Number(a));
+      if (acc) return;
+    } catch {}
+    try {
+      const ab = db.prepare('SELECT 1 FROM follows WHERE follower_id=? AND followee_id=?').get(Number(a), Number(b));
+      const ba = db.prepare('SELECT 1 FROM follows WHERE follower_id=? AND followee_id=?').get(Number(b), Number(a));
+      if (ab && ba) return;
+    } catch {}
+    if (friends.enforce) {
+      throw new ApiError(403, 'NOT_FRIENDS', '只有双向好友才能直接私聊，请先发送消息请求');
     }
   }
 

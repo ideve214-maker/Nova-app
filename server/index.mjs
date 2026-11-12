@@ -22,6 +22,7 @@ import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
 import {createChats} from './chats.mjs';
 import {createFriends} from './friends.mjs';
+import {createMessageRequests} from './message_requests.mjs';
 import {createEvents} from './events.mjs';
 import {createMedia} from './media.mjs';
 import {createNotifications} from './notifications.mjs';
@@ -133,6 +134,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const presence = createPresence(db, {now, friends, events, chats: null});
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
   presence.attach({chats, events, friends});
+  const msgReq = createMessageRequests(db, {now, profile, friends, chats, follows, notifications: null});
+  // notifications 在后面赋值，accept/send 里对 notifications 做了空判断；启动后再挂。
+  let attachMsgReqNotif = () => {};
+
   const exporter = createExporter(db, {now, posts, profile, chats, vip, saved});
   posts.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
   comments.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
@@ -660,7 +665,43 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
 
     // ---- 会话（M4.3.1）----
-    'POST /api/conversations'(req, b) {
+    'POST /api/message-requests'(req, b) {
+      const {user} = auth(req);
+      return msgReq.send(user, b || {});
+    },
+    'GET /api/message-requests'(req) {
+      const {user} = auth(req);
+      return msgReq.list(user, req.query || {});
+    },
+    'GET /api/message-requests/:id'(req) {
+      const {user} = auth(req);
+      return msgReq.get(user, req.params.id);
+    },
+    'POST /api/message-requests/:id/accept'(req) {
+      const {user} = auth(req);
+      const r = msgReq.accept(user, req.params.id);
+      audit(user.id, 'mreq.accept', 'mreq:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/message-requests/:id/decline'(req) {
+      const {user} = auth(req);
+      const r = msgReq.decline(user, req.params.id);
+      audit(user.id, 'mreq.decline', 'mreq:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/message-requests/:id/delete'(req) {
+      const {user} = auth(req);
+      const r = msgReq.decline(user, req.params.id);
+      audit(user.id, 'mreq.decline', 'mreq:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/message-requests/:id/block'(req) {
+      const {user} = auth(req);
+      const r = msgReq.block(user, req.params.id);
+      audit(user.id, 'mreq.block', 'mreq:' + req.params.id, ip(req), {userId: r.userId});
+      return r;
+    },
+        'POST /api/conversations'(req, b) {
       const {user} = auth(req);
       const r = chats.create(user, b || {});
       audit(user.id, 'chat.create', 'conversation:' + r.conversation.id, ip(req), {kind: r.conversation.kind});

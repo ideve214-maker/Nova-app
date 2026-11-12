@@ -38,7 +38,7 @@ async function loadConversation(id){
 }
 async function openDm(userId){
   const r=await api('POST','/api/conversations',{kind:'dm',userId:Number(userId)});
-  if(r.s!==200){T(errMsg(r,'无法发起私聊'));return null}
+  if(r.s!==200){if(r.j&&r.j.error&&r.j.error.code==='NOT_FRIENDS'){S.sh={t:'mrsend',uid:String(userId)};T('请先发送消息请求');if(typeof render==='function')render();return null}T(errMsg(r,'无法发起私聊'));return null}
   const c=adoptCv(r.j.conversation);
   S.conversations=S.conversations||[];
   if(!S.conversations.some(x=>x.id===c.id))S.conversations.unshift(c);
@@ -333,4 +333,23 @@ function noteTyping(data){
     const cur=S.st&&S.st[S.st.length-1];
     if(cur&&String(cur)==='chat:'+cid)render();
   }
+}
+
+async function loadMsgRequests(){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
+  const r=await api('GET','/api/message-requests');
+  if(r.s!==200){S.msgReqErr=errMsg(r,'消息请求加载失败');return}
+  S.msgReqs=r.j.requests||[];S.mreqCount=r.j.pendingCount||S.msgReqs.length;S.msgReqErr='';
+}
+async function sendMsgRequest(userId,text){
+  const r=await api('POST','/api/message-requests',{userId:Number(userId),text});
+  if(r.s!==200){T(errMsg(r,'发送失败'));return null}
+  T('已发送消息请求');
+  return r.j.request;
+}
+async function actMsgRequest(id,act){
+  const r=await api('POST','/api/message-requests/'+id+'/'+act,{});
+  if(r.s!==200){T(errMsg(r,'操作失败'));return null}
+  if(typeof loadMsgRequests==='function')await loadMsgRequests();
+  return r.j;
 }
