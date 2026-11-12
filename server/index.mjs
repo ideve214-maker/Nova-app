@@ -221,6 +221,18 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return posts.get(user, req.params.id);
     },
+    'POST /api/posts/:id/edit'(req, b) {
+      const {user} = auth(req);
+      const r = posts.edit(user, req.params.id, b || {});
+      audit(user.id, 'post.edit', 'post:' + r.post.id, ip(req));
+      return r;
+    },
+    'POST /api/posts/:id/delete'(req) {
+      const {user} = auth(req);
+      const r = posts.remove(user, req.params.id);
+      audit(user.id, 'post.delete', 'post:' + r.deleted, ip(req));
+      return r;
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
