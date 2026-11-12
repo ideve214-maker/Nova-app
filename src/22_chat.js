@@ -236,3 +236,34 @@ async function startEvents(){
   };
   loop();
 }
+
+async function doForward(dest,srcId,srcCid){
+  if(!SESSION||!dest||!srcId)return;
+  const destCv=typeof cvf==='function'?cvf(dest):null;
+  const arr=(S.messages&&S.messages[srcCid])||[];
+  const row=arr.find(x=>x[5]==srcId);
+  const plain=row?((typeof mtext==='function'?mtext('cv',row):row[4])||''):'';
+  const body={conversationId:dest,clientId:'fwd'+Date.now()};
+  const needEnc=destCv&&!destCv.g&&destCv.e2ee&&typeof e2eeEncrypt==='function';
+  if(needEnc){
+    const peer=typeof e2eePeerOf==='function'?e2eePeerOf(destCv):destCv.peerId;
+    if(!peer){T('无法加密转发');return}
+    try{
+      const enc=await e2eeEncrypt(peer,{v:1,t:'text',text:String(plain)});
+      if(enc&&enc.ciphertext){body.encrypted=true;body.ciphertext=typeof enc.ciphertext==='string'?enc.ciphertext:JSON.stringify(enc.ciphertext);if(enc.senderDeviceId)body.senderDeviceId=enc.senderDeviceId}
+      else {T('重加密失败');return}
+    }catch(e){T('重加密失败');return}
+  }else{
+    body.text=String(plain);
+  }
+  const r=await api('POST','/api/messages/'+srcId+'/forward',body);
+  if(r.s!==200){T(errMsg(r,'转发失败'));return}
+  T('已转发');
+  if(typeof adoptMsg==='function'){
+    S.messages=S.messages||{};S.messages[dest]=S.messages[dest]||[];
+    const dec=(r.j.message.encrypted&&typeof e2eeDecrypt==='function')?await e2eeDecrypt(r.j.message):r.j.message;
+    if(plain&&dec.encrypted)dec.text=plain;
+    S.messages[dest].push(adoptMsg(dec));
+  }
+  if(typeof loadConversations==='function')await loadConversations();
+}

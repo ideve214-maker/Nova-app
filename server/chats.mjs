@@ -76,6 +76,9 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   const setE2ee = hasE2ee ? db.prepare('UPDATE messages SET encrypted=1, text=?, ciphertext=?, e2ee_type=?, sender_device_id=?, recipient_device_id=?, olm_session_id=? WHERE id=?') : null;
   const hasReply = (() => { try { db.prepare('SELECT reply_to_id FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
   const setReply = hasReply ? db.prepare('UPDATE messages SET reply_to_id=? WHERE id=?') : null;
+  const hasForward = (() => { try { db.prepare('SELECT forwarded FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
+  const setFwd = hasForward ? db.prepare('UPDATE messages SET forwarded=1, forward_from_message_id=?, forward_from_user_id=?, forward_from_conversation_id=?, forward_label=? WHERE id=?') : null;
+
 
 
 
@@ -369,6 +372,34 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       sticker: (!row.deleted_at && row.sticker) ? (() => { try { return JSON.parse(row.sticker); } catch { return undefined; } })() : undefined,
       ...receiptOf(row, me),
       replyTo: quoteOf(row),
+      forwarded: !!(hasForward && row.forwarded),
+      forwardFrom: forwardFromOf(row, me),
+    };
+  }
+  function hideForwardAuthor(authorId, viewerId) {
+    if (authorId == null || viewerId == null) return false;
+    if (Number(authorId) === Number(viewerId)) return false;
+    if (friends && typeof friends.isBlocked === 'function' && friends.isBlocked(authorId, viewerId)) return true;
+    const u = userBy.get(Number(authorId));
+    if (u && profile && typeof profile.privacyOf === 'function') {
+      const vis = profile.privacyOf(u).profileVisibility;
+      if (vis === 'private') return true;
+      if (vis === 'friends' && friends && typeof friends.areFriends === 'function' && !friends.areFriends(authorId, viewerId)) return true;
+    }
+    return false;
+  }
+  function forwardFromOf(row, me) {
+    if (!hasForward || !row || !row.forwarded) return null;
+    const viewer = me && me.id;
+    const hidden = hideForwardAuthor(row.forward_from_user_id, viewer);
+    const name = hidden ? '一位用户' : (row.forward_label || (row.forward_from_user_id ? authorOf(row.forward_from_user_id).displayName : '一条消息'));
+    return {
+      messageId: hidden ? null : (row.forward_from_message_id || null),
+      userId: hidden ? null : (row.forward_from_user_id || null),
+      conversationId: hidden ? null : (row.forward_from_conversation_id || null),
+      displayName: name,
+      hidden,
+      label: '转发',
     };
   }
   function parseCursor(c) {
@@ -634,9 +665,53 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   // 自挂：本模块已含消息
   listMsg = {last: lastOf, list: listMessages};
 
+
+  function forward(user, mid, body = {}) {
+    if (!hasForward || !setFwd) throw new ApiError(503, 'NO_FORWARD', '转发功能尚未就绪');
+    const src = msgById.get(String(mid));
+    if (!src || src.deleted_at) throw new ApiError(404, 'NOT_FOUND', '消息不存在或已删除');
+    const srcCv = requireConv(src.conversation_id);
+    requireMem(srcCv, user);
+    const destId = String((body && (body.conversationId || body.conversation_id)) || '').trim();
+    if (!destId) throw new ApiError(400, 'BAD_DEST', '请选择要转发到的会话');
+    const dest = requireConv(destId);
+    requireMem(dest, user);
+    if (dest.kind === 'dm') {
+      const other = mems.all(destId).find(m => Number(m.user_id) !== Number(user.id));
+      if (other) checkDmGate(user.id, other.user_id);
+    }
+    const srcEnc = !!(hasE2ee && src.encrypted);
+    const wantEnc = !!(body && (body.encrypted === true || body.ciphertext));
+    if (srcEnc && dest.kind === 'dm' && !wantEnc) {
+      throw new ApiError(400, 'E2EE_REENCRYPT', '加密私聊的转发须由客户端重新加密后再发送，服务端不能代为解密。');
+    }
+    if (srcEnc && dest.kind !== 'dm' && !String((body && body.text) || '').trim() && !(body && body.sticker)) {
+      throw new ApiError(400, 'E2EE_REENCRYPT', '转发到未加密会话时，请在客户端解密后再提交。');
+    }
+    let sendBody;
+    if (wantEnc) {
+      sendBody = {
+        encrypted: true, ciphertext: body.ciphertext, senderDeviceId: body.senderDeviceId,
+        clientId: body.clientId, sessionId: body.sessionId,
+      };
+    } else {
+      const text = (body && body.text != null) ? String(body.text) : (srcEnc ? '' : src.text);
+      if (!String(text).trim() && !src.sticker && !src.media_id) throw new ApiError(400, 'BAD_TEXT', '没有可转发的内容');
+      sendBody = {text, clientId: body && body.clientId};
+      if (body && body.sticker) sendBody.sticker = body.sticker;
+      else if (src.sticker && hasSticker) {
+        try { sendBody.sticker = JSON.parse(src.sticker); } catch { /* skip */ }
+      }
+    }
+    const sent = send(user, destId, sendBody);
+    const label = authorOf(src.author_id).displayName;
+    setFwd.run(src.id, src.author_id, src.conversation_id, String(label).slice(0, 80), sent.message.id);
+    return {message: pubMsg(msgById.get(sent.message.id), user)};
+  }
+
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
-    send, listMessages, pubMsg, quoteOf, markRead, setMute, setConvPin, unreadOf, receiptOf,
+    send, listMessages, pubMsg, quoteOf, forward, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,

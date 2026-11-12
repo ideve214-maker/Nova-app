@@ -636,6 +636,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(user.id, 'chat.recall', 'message:' + req.params.id, ip(req));
       return r;
     },
+    'POST /api/messages/:id/forward'(req, b) {
+      const {user} = auth(req);
+      const r = chats.forward(user, req.params.id, b || {});
+      audit(user.id, 'chat.forward', 'message:' + req.params.id, ip(req), {dest: b && (b.conversationId || b.conversation_id)});
+      return r;
+    },
     'POST /api/messages/:id/pin'(req, b) {
       const {user} = auth(req);
       const r = chats.pinMessage(user, req.params.id, b || {});
