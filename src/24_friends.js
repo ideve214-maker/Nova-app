@@ -37,3 +37,11 @@ function pFriends(){
   return `<div class="pg" id="friendsp">${sub('好友')}<div class="sc"><div class="shd">待处理的申请${inL.length?'（'+inL.length+'）':''}</div>${incoming}${outgoing?`<div class="shd">我发出的申请</div>`+outgoing:''}<div class="shd">我的好友（${fr.length}）</div>${list}<p class="hint" style="padding:12px 16px">删除好友后，双方都不再是好友；以前的私聊还在，但不能再发送。私聊默认只对好友开放。</p></div></div>`;
 }
 const friendsRow=()=>`<button class="row" style="width:100%;text-align:left" data-a="friends" id="frrow"><div class="gr"><b>好友</b><small>${(S.friendIn&&S.friendIn.length)?(S.friendIn.length+' 条待处理申请'):'申请、列表与删除'}</small></div><small>›</small></button>`;
+
+function loadUserCard(id){
+  if(typeof usingNet!=='function'||!usingNet())return Promise.resolve();
+  return api('GET','/api/users/'+id).then(r=>{
+    if(r.s===200&&r.j&&r.j.user){S.userView={id:String(id),hidden:false,user:r.j.user};return}
+    S.userView={id:String(id),hidden:true,code:r.j&&r.j.error&&r.j.error.code,message:(r.j&&r.j.error&&r.j.error.message)||'该用户资料不可见'};
+  });
+}

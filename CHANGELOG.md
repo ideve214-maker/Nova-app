@@ -1,5 +1,13 @@
 # 更新日志（最新在上）
 
+## V7 M4.10.3 · 好友隐私设置生效（2026-11-12）
+- 新增 `GET /api/users/:id`（需登录）：按被查看者的 `profileVisibility` 返回用户卡，不含邮箱。
+  - `everyone`：任何登录用户可见。
+  - `friends`：仅已接受的好友与自己；其他人 403 `PROFILE_PRIVATE`。
+  - `private`：仅自己；其他人 404（看起来像用户不存在）。
+- `showBirthday` / `showAge` / `showGender` 对他人生效，对自己始终完整。
+- 「谁可以加我为好友 = 不接受」已在申请接口返回 403 `REQUESTS_CLOSED`（M4.10.1）。
+
 ## V7 M4.10.2 · 删除好友与好友列表（2026-11-12）
 - `GET /api/friends` 双方看到同一组已接受的好友；`POST /api/friends/remove` 删除后双方同步，不再是好友。
 - 私聊规则：删除后不能再发送（403 `NOT_FRIENDS`）；**不删除会话和历史消息**；重新加好友后可在原会话继续。

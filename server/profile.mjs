@@ -135,7 +135,55 @@ export function createProfile(db, {now}) {
     });
     return privacyOf(user);
   }
-  return {publicOf, save, defaults, privacyOf, savePrivacy, PRIVACY_DEFAULTS, AVATAR_COLORS};
+  let friends = null;
+  function attach(deps = {}) { if (deps.friends) friends = deps.friends; }
+
+  function ageYears(birthday, at = now()) {
+    const m = String(birthday || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const t = new Date(at);
+    let age = t.getUTCFullYear() - Number(m[1]);
+    const md = (t.getUTCMonth() + 1) * 100 + t.getUTCDate();
+    if (md < Number(m[2]) * 100 + Number(m[3])) age--;
+    return age >= 0 && age < 150 ? age : null;
+  }
+
+  // 按资料可见范围与字段开关，组装给「别人」看的用户卡。自己始终看完整。
+  function viewFor(viewer, target) {
+    if (!target || target.status !== 'active') {
+      throw new ApiError(404, 'NOT_FOUND', '用户不存在');
+    }
+    const self = viewer && Number(viewer.id) === Number(target.id);
+    const priv = privacyOf(target);
+    const vis = priv.profileVisibility || 'everyone';
+    if (!self) {
+      if (vis === 'private') throw new ApiError(404, 'NOT_FOUND', '用户不存在');
+      if (vis === 'friends') {
+        const ok = viewer && friends && friends.areFriends(viewer.id, target.id);
+        if (!ok) throw new ApiError(403, 'PROFILE_PRIVATE', '该用户资料仅好友可见');
+      }
+    }
+    const p = publicOf(target);
+    const isFriend = !!(viewer && friends && friends.areFriends(viewer.id, target.id));
+    const card = {
+      id: target.id,
+      username: target.username,
+      displayName: p.displayName,
+      bio: p.bio || '',
+      avatar: p.avatar,
+      isFriend,
+      isSelf: !!self,
+    };
+    if (self || priv.showGender) card.gender = p.gender || '';
+    else card.gender = '';
+    if (self || priv.showBirthday) card.birthday = p.birthday || '';
+    else card.birthday = '';
+    if (self || priv.showAge) card.age = ageYears(p.birthday);
+    else card.age = null;
+    return {user: card};
+  }
+
+  return {publicOf, save, defaults, privacyOf, savePrivacy, PRIVACY_DEFAULTS, AVATAR_COLORS, attach, viewFor, ageYears};
 }
 
 export function newSessionId() { return 'ss_' + randomBytes(16).toString('base64url'); }

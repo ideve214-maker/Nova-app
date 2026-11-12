@@ -72,6 +72,7 @@ NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost NOVA_ENV=production npm
 | POST /api/auth/login | 登录：account（用户名或邮箱）、password；连错5次锁15分钟 |
 | POST /api/auth/logout | 退出（令牌立即失效） |
 | GET /api/me | 当前用户 |
+| GET /api/users/:id | 查看他人资料（按可见范围与字段开关过滤，不含邮箱；需登录） |
 | POST /api/me/password | 改密码，其他设备下线 |
 | GET /api/vip/catalog | 公开：套餐、价格占位、权益表、到期规则（无需登录） |
 | GET /api/vip/me | 当前用户的 VIP 状态（plan/state/开始/到期/剩余天数）与每项权益取值；服务端按时间计算 |

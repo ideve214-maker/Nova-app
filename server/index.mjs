@@ -85,6 +85,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent});
   notifications = createNotifications(db, {now, profile, vip, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   friends.attach({notifications, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
+  profile.attach({friends});
   const search = createSearch(db, {profile, vip, now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
@@ -166,6 +167,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/auth/logout'(req) { const {user, hash} = auth(req); q.delSess.run(hash); audit(user.id, 'auth.logout', 'user:' + user.id, ip(req)); return {}; },
     'GET /api/me'(req) { return {user: pubUser(auth(req).user)}; },
+    'GET /api/users/:id'(req) {
+      const {user} = auth(req);
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) throw bad('BAD_USER', '请指定用户', 400);
+      const target = q.userBy.get(id);
+      return profile.viewFor(user, target);
+    },
     'POST /api/me/password'(req, b) {
       const {user, hash} = auth(req);
       if (!verifyPassword(String(b.oldPassword || ''), user.password_hash)) throw bad('BAD_CREDENTIALS', '原密码不正确', 401);
