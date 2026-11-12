@@ -87,9 +87,9 @@ export const VIP_CONFIG = Object.freeze({
       onExpire: '已发出的贴纸仍对所有人可见，但不能再从专属面板选用。',
     }),
     media_quota_plus: Object.freeze({
-      title: '更大的媒体额度', kind: 'quota', unit: 'MB', basic: null, vip: null, status: 'planned', phase: 'M4.5 之后',
-      description: '图片/视频存储额度。要等媒体上传、鉴权与成本核算完成后才确定数值。',
-      onExpire: '已上传文件保留；超额后不能新上传（细则在 M4.5 确定）。',
+      title: '更大的媒体额度', kind: 'quota', unit: 'MB', basic: 200, vip: 2048, status: 'live', phase: 'M4.5.6',
+      description: '本地存储总量：免费 200MB，VIP 2GB。数值暂定，上线前可能按成本调整。超额由服务端拒绝新上传。',
+      onExpire: '已上传文件保留；超出基础额度后不能新上传，可删除文件腾出空间。',
     }),
   }),
 });
