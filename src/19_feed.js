@@ -25,7 +25,7 @@ function adoptPost(p){
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
   if(MODE!=='account'||!SESSION)return;
-  const r=await api('GET','/api/posts?limit=50');
+  const r=await api('GET','/api/posts?limit=50&feed='+(S.feed==='follow'?'follow':'rec'));
   if(r.s!==200){S.postsErr=errMsg(r,'动态加载失败');return}
   S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';
 }
@@ -58,3 +58,23 @@ function commentsOf(id){
   if(usingNet()&&S.commentPost==id&&Array.isArray(S.comments))return S.comments;
   return D.c.filter(c=>c.p==id);
 }
+
+async function loadFollows(){
+  if(!usingNet()||!SESSION)return;
+  const r=await api('GET','/api/follows?kind=following&user=me');
+  if(r.s!==200)return;
+  S.following=(r.j.users||[]).map(u=>String(u.id));
+  S.followCounts={following:r.j.followingCount,followers:r.j.followerCount};
+  (r.j.users||[]).forEach(rememberAuthor);
+}
+async function loadFollowList(kind,id){
+  if(!usingNet()||!SESSION)return;
+  const q=id&&id!='me'?'&user='+id:'';
+  const r=await api('GET','/api/follows?kind='+(kind==='followers'?'followers':'following')+q);
+  if(r.s!==200){S.followList=[];return}
+  (r.j.users||[]).forEach(rememberAuthor);
+  S.followList=(r.j.users||[]).map(u=>{rememberAuthor(u);return {id:String(u.id),followedByMe:!!u.followedByMe,n:u.displayName,h:u.username}});
+  if(id==='me'||!id)S.followCounts={following:r.j.followingCount,followers:r.j.followerCount};
+}
+function followingIds(){return usingNet()&&Array.isArray(S.following)?S.following:null}
+function isFollowed(id){if(id==='me')return false;const ids=followingIds();return ids?ids.includes(String(id)):fol('me',id)}

@@ -19,6 +19,13 @@ export function createPosts(db, {vip, profile, now}) {
   const newest = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
     AND (? IS NULL OR author_id=?)
     ORDER BY created_at DESC, id DESC LIMIT ?`);
+  const newestIn = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND author_id IN (SELECT value FROM json_each(?))
+    ORDER BY created_at DESC, id DESC LIMIT ?`);
+  const listIn = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND author_id IN (SELECT value FROM json_each(?))
+    AND (created_at < ? OR (created_at = ? AND id < ?))
+    ORDER BY created_at DESC, id DESC LIMIT ?`);
 
   function authorOf(id) {
     const u = userBy.get(id);
@@ -94,8 +101,16 @@ export function createPosts(db, {vip, profile, now}) {
     const limit = Math.min(Math.max(+(q.limit) || 20, 1), 50);
     const author = q.author === 'me' && user ? user.id : (q.author || null);
     const take = limit + 1;
+    const authors = q.authors || null; // 数字 id 数组，用于关注动态
     let rows;
-    if (q.cursor) {
+    if (authors) {
+      const js = JSON.stringify(authors.map(Number));
+      if (q.cursor) {
+        const cur = byId.get(String(q.cursor));
+        if (!cur) throw new ApiError(400, 'BAD_CURSOR', '分页游标不正确');
+        rows = listIn.all(js, cur.created_at, cur.created_at, cur.id, take);
+      } else rows = newestIn.all(js, take);
+    } else if (q.cursor) {
       const cur = byId.get(String(q.cursor));
       if (!cur) throw new ApiError(400, 'BAD_CURSOR', '分页游标不正确');
       rows = listSql.all(author, author, cur.created_at, cur.created_at, cur.id, take);

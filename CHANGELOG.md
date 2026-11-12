@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## V7 M4.1.4 · 关注/取消关注（2026-11-12）
+- `POST /api/follows`、`POST /api/follows/remove`、`GET /api/follows`。关注是单向的：A 关注 B 不会让 B 自动关注 A。重复关注幂等，不能关注自己。
+- 与双向好友分开建模（好友在 M4.10）：关注不写入、不依赖好友表。
+- `GET /api/posts?feed=follow` 只返回自己和已关注的人的动态。「推荐」仍是全部。用户端「关注」标签走这条接口。
+- 测试：新增服务端 2 项、浏览器 1 项。
+
 ## V7 M4.1.3 · 评论、回复、反应（2026-11-12）
 - 评论 `GET/POST /api/posts/:id/comments`、删除 `POST /api/comments/:id/delete`、点赞 `POST /api/comments/:id/like`、表态 `POST /api/posts/:id/react`。评论最多 280 字；回复只能一层。
 - 数量由服务端维护：删除后 `commentCount` 立即减少；有回复的评论软删除后保留占位「已删除」，计入不含已删。只能删除自己的评论，他人 403。

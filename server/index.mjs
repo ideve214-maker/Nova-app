@@ -12,6 +12,7 @@ import {createProfile, newSessionId, maskIp, deviceOf} from './profile.mjs';
 import {ApiError} from './errors.mjs';
 import {createPosts} from './posts.mjs';
 import {createComments} from './comments.mjs';
+import {createFollows} from './follows.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -31,6 +32,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const posts = createPosts(db, {vip, profile, now});
   const comments = createComments(db, {profile, vip, posts, now});
   posts.attach(comments);
+  const follows = createFollows(db, {profile, vip, now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -217,7 +219,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'GET /api/posts'(req) {
       const {user} = auth(req);
-      const q = req.query || {};
+      const q = {...(req.query || {})};
+      if (q.feed === 'follow') {
+        const ids = follows.followingIds(user.id);
+        ids.push(user.id);
+        q.authors = ids;
+      }
       return posts.list(user, q);
     },
     'GET /api/posts/:id'(req) {
@@ -259,6 +266,22 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/posts/:id/react'(req, b) {
       const {user} = auth(req);
       return comments.react(user, req.params.id, b || {});
+    },
+    'POST /api/follows'(req, b) {
+      const {user} = auth(req);
+      const r = follows.add(user, b || {});
+      audit(user.id, 'follow.add', 'user:' + (b && (b.userId || b.id)), ip(req));
+      return r;
+    },
+    'POST /api/follows/remove'(req, b) {
+      const {user} = auth(req);
+      const r = follows.remove(user, b || {});
+      audit(user.id, 'follow.remove', 'user:' + (b && (b.userId || b.id)), ip(req));
+      return r;
+    },
+    'GET /api/follows'(req) {
+      const {user} = auth(req);
+      return follows.list(user, req.query || {});
     },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
@@ -331,7 +354,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows;
   return server;
 }
 

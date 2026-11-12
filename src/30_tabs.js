@@ -1,5 +1,5 @@
 /* ---- tabs ---- */
-const tHome=()=>{const fl=D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
+const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
 return `<div class="pg"><div class="top"><h1 class="br">NOVA</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${D.n.some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
 <div class="seg"><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">关注</button><button data-a="feed" data-v="rec" class="${S.feed=='rec'?'on':''}">推荐</button></div>
@@ -22,7 +22,7 @@ else h=D.rq.length?D.rq.map(r=>`<div class="row">${av(r.u,48)}<div class="gr"><b
 return `<div class="pg"><div class="top"><h1>聊天</h1><button class="ib" data-a="newg" aria-label="新建群聊">${ic('plus')}</button></div>${ban()}<div class="seg"><button data-a="seg" data-v="in" class="${S.cseg=='in'?'on':''}">消息</button><button data-a="seg" data-v="rq" class="${S.cseg=='rq'?'on':''}">申请${np?' '+np:''}</button></div><div class="sc">${h}</div></div>`};
 const age=b=>{const d=new Date(b),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n<new Date(n.getFullYear(),d.getMonth(),d.getDate()))a--;return a};
 const info=id=>{const f=D.pf[id];if(!f)return[];const me=id=='me',w=k=>me||f[k],t=k=>me&&!f[k]?'（仅自己可见）':'',r=[];if(f.b&&w('bp'))r.push('🎂 出生于 '+f.b.replace(/^(\d+)-(\d+)-(\d+)$/,'$1年$2月$3日')+t('bp'));if(f.b&&w('ap'))r.push('🎈 '+age(f.b)+' 岁'+t('ap'));if(f.g&&w('gp'))r.push('👤 '+f.g+t('gp'));return r};
-const prof=id=>{const u=P(id),me=id=='me',n=k=>D.f.filter(e=>e[k]==id).length,f=fol('me',id),IN=info(id),fl=D.f.filter(e=>e[0]==id).map(e=>e[1]),ab=S.mt=='about';
+const prof=id=>{const u=P(id),me=id=='me',n=k=>{if(typeof usingNet==='function'&&usingNet()){const c=me?S.followCounts:S.userSocial;if(c)return k==0?(c.following||c.followingCount||0):(c.followers||c.followerCount||0)}return D.f.filter(e=>e[k]==id).length},f=typeof isFollowed==='function'?isFollowed(id):fol('me',id),IN=info(id),fl=D.f.filter(e=>e[0]==id).map(e=>e[1]),ab=S.mt=='about';
 const bio=`<div class="card" style="padding:12px 16px"><b style="font-size:17px">简介</b><p style="margin-top:6px">${esc(u.b)}</p></div>`;
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">编辑</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
 const dec=me&&typeof vipDecoOn==='function'&&vipDecoOn();

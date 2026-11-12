@@ -1,4 +1,4 @@
-# NOVA 后端（M4.1.3）
+# NOVA 后端（M4.1.4）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -42,6 +42,9 @@
 | POST /api/comments/:id/delete | 删除自己的评论 |
 | POST /api/comments/:id/like | 评论点赞切换 |
 | POST /api/posts/:id/react | 动态表态（切换/取消） |
+| POST /api/follows | 关注（单向、幂等） |
+| POST /api/follows/remove | 取消关注 |
+| GET /api/follows | 关注/粉丝列表 |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
