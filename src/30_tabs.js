@@ -2,7 +2,7 @@
 const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts);
 const base=src.filter(p=>S.feed=='rec'||S.feed=='topic'||p.a=='me'||fl.includes(p.a));
 const L=S.feed=='topic'?base.filter(p=>(p.hashtags&&p.hashtags.length)||(p.x&&p.x.includes('#'))):base;
-const stories=()=>{const first=`<button class="st-item" data-a="compose" data-v="story"><span class="st-ring create">${av('me',58)}<i class="st-plus">+</i></span><span>创建动态</span></button>`;
+const stories=()=>{const first=`<button class="st-create" data-a="compose" data-v="story"><span class="st-photo">${av('me',76)}</span><i class="st-add">${typeof icLine==='function'?icLine('plus'):'+'}</i><em>创建动态</em></button>`;
 const rest=(fl||[]).slice(0,16).map((i,n)=>`<button class="st-item" data-a="user" data-v="${i}"><span class="st-ring${n>3?' seen':''}">${av(i,58)}</span><span>${esc(P(i).n)}</span></button>`).join('');
 return `<div class="stories">${first}${rest}</div>`};
 return `<div class="pg"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1><button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
