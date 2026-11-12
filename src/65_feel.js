@@ -23,8 +23,19 @@ const HP={tap:10,switch:7,send:[10,24,12],warn:[18,30,18],open:8,close:6,snap:12
 let _hx=null;
 function iosTick(){try{if(!_hx){_hx=document.createElement('label');_hx.className='hxl';_hx.setAttribute('aria-hidden','true');
   const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');_hx.appendChild(i);document.body.appendChild(_hx)}_hx.click()}catch(e){}}
+function capHaptic(kind){
+  try{
+    const C=window.Capacitor||{};
+    const H=(C.Plugins&&C.Plugins.Haptics)||C.Haptics||window.Haptics;
+    if(!H||typeof H.impact!=='function')return false;
+    const style=(kind==='warn'||kind==='success'||kind==='send')?'Medium':'Light';
+    H.impact({style});
+    return true;
+  }catch(e){return false}
+}
 function haptic(kind){
-  if(D.st.haptic===0)return;
+  if(D.st&&D.st.haptic===0)return;
+  if(capHaptic(kind))return;
   const p=HP[kind]||10;
   if(navigator.vibrate){try{if(navigator.vibrate(p))return}catch(e){}}
   if(IOS){iosTick();if(Array.isArray(p)&&p.length>1)setTimeout(iosTick,90)}
