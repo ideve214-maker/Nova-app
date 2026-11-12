@@ -1,0 +1,2 @@
+-- M4.4.5 @所有人 标记。
+ALTER TABLE messages ADD COLUMN at_all INTEGER NOT NULL DEFAULT 0;

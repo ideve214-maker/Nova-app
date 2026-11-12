@@ -1,5 +1,9 @@
 # 更新日志（最新在上）
 
+## V7 M4.4.5 · @所有人（2026-11-12）
+- 群聊中消息包含 `@所有人` 时，仅群主和管理员可发送，否则 403 `AT_ALL_FORBIDDEN`（成员尝试不会入库）。消息带 `atAll:true`，接收端沿用高亮，未读正常增加。
+- 测试：新增服务端 1 项。
+
 ## V7 M4.4.4 · 置顶（2026-11-12）
 - `POST /api/messages/:id/pin` / `unpin`，`kind` 为 `public`（房间公共，群主/管理员，最多 5 条）或 `personal`（仅自己可见，任何成员可操作）。两种置顶分开存储。
 - 会话详情带 `publicPins` 与 `personalPins`。会话列表个人置顶用 `POST /api/conversations/:id/pin`。
