@@ -12,6 +12,7 @@ import {createProfile, newSessionId, maskIp, deviceOf} from './profile.mjs';
 import {ApiError} from './errors.mjs';
 import {createPosts} from './posts.mjs';
 import {createPolls} from './polls.mjs';
+import {createHashtags} from './hashtags.mjs';
 import {createComments} from './comments.mjs';
 import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
@@ -72,7 +73,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const follows = createFollows(db, {profile, vip, now});
   const communities = createCommunities(db, {profile, vip, now});
   const polls = createPolls(db, {now, posts, follows, communities});
-  posts.attach({pollOf: (id, me) => polls.ofPost(id, me)});
+  const hashtags = createHashtags(db, {now, posts});
+  posts.attach({pollOf: (id, me) => polls.ofPost(id, me), hashtagsOf: id => hashtags.ofPost(id)});
   const friends = createFriends(db, {now, profile});
   const e2ee = createE2ee(db, {now, friends});
   const events = createEvents(db, {now, ...eventsOpts});
@@ -320,6 +322,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         const pr = polls.createForPost(user, r.post.id, body.poll);
         r.post.poll = pr.poll;
       }
+      r.post.hashtags = hashtags.syncPost(user, r.post);
       audit(user.id, 'post.create', 'post:' + r.post.id, ip(req));
       return r;
     },
@@ -340,6 +343,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/posts/:id/edit'(req, b) {
       const {user} = auth(req);
       const r = posts.edit(user, req.params.id, b || {});
+      r.post.hashtags = hashtags.syncPost(user, r.post);
       audit(user.id, 'post.edit', 'post:' + r.post.id, ip(req));
       return r;
     },
@@ -1016,6 +1020,24 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       };
     },
 
+    'GET /api/hashtags/search'(req) {
+      auth(req);
+      return hashtags.search((req.query || {}).q, {limit: (req.query || {}).limit});
+    },
+    'GET /api/hashtags/trending'(req) {
+      auth(req);
+      const q = req.query || {};
+      const windowMs = q.window === '7d' ? 7 * 24 * 3600_000 : (q.windowMs ? Number(q.windowMs) : 24 * 3600_000);
+      return hashtags.trending({windowMs, limit: q.limit});
+    },
+    'POST /api/hashtags'(req, b) {
+      const {user} = auth(req);
+      return hashtags.create(user, b || {});
+    },
+    'GET /api/hashtags/:name'(req) {
+      const {user} = auth(req);
+      return hashtags.get(req.params.name, user);
+    },
     'GET /api/polls/:id'(req) {
       const {user} = auth(req);
       return polls.get(user, req.params.id);
@@ -1198,7 +1220,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags;
   return server;
 }
 
