@@ -1,0 +1,10 @@
+{
+  "id": "glass",
+  "name": "液态玻璃",
+  "version": "1.0.0",
+  "preview": "preview.svg",
+  "css": "skin.css",
+  "buttons": {
+    "normal": { "background": "rgba(45,136,255,.72)", "color": "#fff", "radius": "14px", "height": "36px" }
+  }
+}
