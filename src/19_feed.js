@@ -27,7 +27,7 @@ async function loadFeed(){
   if(MODE!=='account'||!SESSION)return;
   const r=await api('GET','/api/posts?limit=50&feed='+(S.feed==='follow'?'follow':'rec'));
   if(r.s!==200){S.postsErr=errMsg(r,'动态加载失败');return}
-  S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';
+  S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';S.postsCursor=r.j.nextCursor||null;
 }
 async function publishPost(text){
   const r=await api('POST','/api/posts',{text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)});
@@ -78,3 +78,15 @@ async function loadFollowList(kind,id){
 }
 function followingIds(){return usingNet()&&Array.isArray(S.following)?S.following:null}
 function isFollowed(id){if(id==='me')return false;const ids=followingIds();return ids?ids.includes(String(id)):fol('me',id)}
+
+async function loadMoreFeed(){
+  if(!usingNet()||!S.postsCursor||S.postsLoading)return;
+  S.postsLoading=1;
+  const r=await api('GET','/api/posts?limit=20&feed='+(S.feed==='follow'?'follow':'rec')+'&cursor='+encodeURIComponent(S.postsCursor));
+  S.postsLoading=0;
+  if(r.s!==200){T(errMsg(r,'加载失败'));return}
+  const more=(r.j.posts||[]).map(adoptPost);
+  const seen=new Set((S.posts||[]).map(p=>p.id));
+  S.posts=(S.posts||[]).concat(more.filter(p=>!seen.has(p.id)));
+  S.postsCursor=r.j.nextCursor||null;
+}

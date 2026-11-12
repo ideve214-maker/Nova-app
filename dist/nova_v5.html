@@ -531,7 +531,7 @@ async function loadFeed(){
   if(MODE!=='account'||!SESSION)return;
   const r=await api('GET','/api/posts?limit=50&feed='+(S.feed==='follow'?'follow':'rec'));
   if(r.s!==200){S.postsErr=errMsg(r,'动态加载失败');return}
-  S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';
+  S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';S.postsCursor=r.j.nextCursor||null;
 }
 async function publishPost(text){
   const r=await api('POST','/api/posts',{text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)});
@@ -583,6 +583,18 @@ async function loadFollowList(kind,id){
 function followingIds(){return usingNet()&&Array.isArray(S.following)?S.following:null}
 function isFollowed(id){if(id==='me')return false;const ids=followingIds();return ids?ids.includes(String(id)):fol('me',id)}
 
+async function loadMoreFeed(){
+  if(!usingNet()||!S.postsCursor||S.postsLoading)return;
+  S.postsLoading=1;
+  const r=await api('GET','/api/posts?limit=20&feed='+(S.feed==='follow'?'follow':'rec')+'&cursor='+encodeURIComponent(S.postsCursor));
+  S.postsLoading=0;
+  if(r.s!==200){T(errMsg(r,'加载失败'));return}
+  const more=(r.j.posts||[]).map(adoptPost);
+  const seen=new Set((S.posts||[]).map(p=>p.id));
+  S.posts=(S.posts||[]).concat(more.filter(p=>!seen.has(p.id)));
+  S.postsCursor=r.j.nextCursor||null;
+}
+
 /* ===== 20_ui.js ===== */
 const P=id=>{const a=D.u[id]||D.u.me;return{id,n:a[0],h:a[1],l:a[2],c:a[3],b:a[4],v:a[5]}};
 const PH={me:'assets/av-me.jpg',zhou:'assets/av-zhou.jpg',chen:'assets/av-chen.jpg',su:'assets/av-su.jpg',he:'assets/av-he.jpg',jiang:'assets/av-jiang.jpg',pei:'assets/av-pei.jpg',notice:'assets/av-notice.jpg',group:'assets/av-group.jpg'};
@@ -620,7 +632,7 @@ ${modeChip()}
 <div class="seg"><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">关注</button><button data-a="feed" data-v="rec" class="${S.feed=='rec'?'on':''}">推荐</button></div>
 <div class="sc"><div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">写点什么</button><button class="ib" data-a="compose" aria-label="发帖" style="color:var(--ac)">${ic('plus')}</button></div>
 ${fl.length?`<div class="ppl">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div>`:''}
-${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='rec'?'推荐里还没有帖子':'你还没有关注任何人'}</p>`}</div></div>`};
+${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='rec'?'推荐里还没有帖子':'你还没有关注任何人'}</p>`}${usingNet()&&S.postsCursor?`<div style="padding:16px"><button class="pb s" style="width:100%" data-a="morefeed" id="morefeed">加载更多</button></div>`:''}</div></div>`};
 const cml=()=>{const q=S.cq.trim().toLowerCase(),L=D.cm.filter(c=>!!c.j==(S.cs=='j')&&(!q||(c.n+c.d).toLowerCase().includes(q)));
 L.sort((a,b)=>(b.pin||0)-(a.pin||0));
 return L.length?L.map(c=>swrow(`data-a="cm" data-v="${c.id}"`,`${cmface(c,48)}<div class="gr"><b>${c.pin?'📌 ':''}${esc(c.n)}${c.mute?' 🔕':''}</b><small>${esc(c.d)}</small><small>${c.m} 名成员 · ${c.ch.length} 个频道</small></div><button class="pb sm${c.j?' s':''}" data-a="${c.j?'cm':'join'}" data-v="${c.id}">${c.j?'已加入':'加入'}</button>`,
@@ -1013,7 +1025,7 @@ const gRole=(c,u)=>u==(c.own||'me')?'群主':(c.adm||[]).includes(u)?'管理员'
 const gm=(id,x)=>{(D.m[id]=D.m[id]||[]).push(['me','s','刚刚','',x,newId()])};
 const gx=id=>{D.cv=D.cv.filter(c=>c.id!=id);delete D.m[id];S.st=S.st.filter(p=>p!='chat:'+id&&p!='gi:'+id);S.sh=null;T('已退出群聊')};
 const cvf=v=>D.cv.find(c=>c.id==v);
-const A={tab:v=>{S.tab=v;S.st=[];S.sh=null;S.reply=null},go:v=>{S.st.push(v);S.sh=null},back:()=>{S.st.pop();S.reply=null},x:()=>{S.sh=null},feed:v=>{S.feed=v;if(typeof usingNet==='function'&&usingNet()&&typeof loadFeed==='function')return loadFeed()},
+const A={tab:v=>{S.tab=v;S.st=[];S.sh=null;S.reply=null},go:v=>{S.st.push(v);S.sh=null},back:()=>{S.st.pop();S.reply=null},x:()=>{S.sh=null},morefeed:()=>typeof loadMoreFeed==='function'&&loadMoreFeed(),feed:v=>{S.feed=v;if(typeof usingNet==='function'&&usingNet()&&typeof loadFeed==='function')return loadFeed()},
 user:v=>{if(v=='me'){S.tab='me';S.st=[];S.sh=null}else A.go('user:'+v)},post:v=>{A.go('post:'+v);if(typeof usingNet==='function'&&usingNet())return loadComments(v)},
 rx:v=>{S.sh={t:'rx',id:v}},rxp:v=>{const[i,j]=v.split('|'),k=+j,apply=(p,r,m)=>{if(!p)return;p.r=r||p.r;p.m=m};const loc=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==i)||D.p.find(x=>x.id==i);if(MODE==='account'&&NET&&SESSION)return api('POST','/api/posts/'+i+'/react',{index:k}).then(r=>{if(r.s!==200){T(errMsg(r,'表态失败'));return}apply(loc,r.j.reactions,r.j.myReaction);S.sh=null});if(!loc)return;if(loc.m==k){loc.r[k]--;loc.m=-1}else{if(loc.m>=0)loc.r[loc.m]--;loc.r[k]++;loc.m=k}S.sh=null},
 more:v=>{S.sh={t:'more',id:v}},copy:v=>{const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==v)||D.p.find(x=>x.id==v);try{navigator.clipboard.writeText(p?p.x:'').catch(()=>{})}catch(e){}S.sh=null;T('已复制')},report:()=>{S.sh=null;T('已记录（仅演示，不会发送给任何人）')},edp:v=>{S.sh={t:'edp',id:v}},

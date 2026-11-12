@@ -72,7 +72,14 @@ export function createPosts(db, {vip, profile, now}) {
       }
     } else clientId = null;
     const id = nid(), t = now();
-    ins.run(id, user.id, text, t, t, clientId);
+    try { ins.run(id, user.id, text, t, t, clientId); }
+    catch (e) {
+      if (clientId && /UNIQUE/i.test(String(e.message))) {
+        const existed = byClient.get(user.id, clientId);
+        if (existed && !existed.deleted_at) return {post: pub(existed, user), idempotent: true};
+      }
+      throw e;
+    }
     return {post: pub(byId.get(id), user), idempotent: false};
   }
   function get(user, id) {
