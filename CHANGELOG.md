@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.9.0 · 实时通信调研结论（2026-11-12）
+- 固化结论：第一阶段继续 SSE + POST；鉴权只用 `Authorization`，禁止令牌入 URL；客户端用 `fetch()` 读流并走 `apiUrl()` / `NOVA_API_BASE`。
+- 升级 WebSocket 的条件与必须补齐的能力写入 `docs/research/M4.9.0_实时通信调研结论.md`。本步不引入 WS 依赖、不迁移。
+- 何时升级、会话是否改为 Cookie，留给负责人（后者在 M6.1）。
+
 ## DEPLOY · Capacitor / 跨域部署支持（2026-11-12）
 - **客户端 API 基址**：`window.NOVA_API_BASE`（空或未设 = 同源，行为与原来一致）。`api()`、`/api/health`、`/api/auth/logout`、媒体上传、SSE `/api/events` 全部经 `apiUrl()` 拼接。构建：`node scripts/build.mjs --api-base=https://api.example.com`（或环境变量 `NOVA_API_BASE`）；也可在主脚本前放 `<script>window.NOVA_API_BASE='https://api.example.com'</script>`，页面里已有的值不被覆盖。
 - **CORS 白名单**：`NOVA_CORS_ORIGIN` 支持逗号分隔（如 `capacitor://localhost,https://localhost`），只回显匹配的 `Origin`。预检 OPTIONS 允许 `Authorization`、`Content-Type`、`X-File-Name`，方法 GET/POST。SSE 与媒体文件响应同样带 CORS 头。未设置时仍是 `*`，与原来一致。
