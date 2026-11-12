@@ -56,12 +56,19 @@ function adoptMsg(m){
   if(!m)return null;
   rememberAuthor(m.author);
   const me=SESSION&&SESSION.user&&m.author&&Number(SESSION.user.id)===Number(m.author.id);
-  if(m.deleted)return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'','（已撤回）',m.id,m.media];
-  if(m.sticker)return [me?'me':String(m.author.id),'k',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.sticker,m.id,m.media];
+  function finish(row){
+    if(m.replyTo)row.replyTo=m.replyTo;
+    if(m.forwarded||m.forwardFrom){row.forwarded=!!m.forwarded;row.forwardFrom=m.forwardFrom||m.source}
+    if(m.reactions)row.reactions=m.reactions;
+    if(m.saved)row.saved=true;
+    row.encrypted=!!m.encrypted;row.decryptError=m.decryptError;
+    return row}
+  if(m.deleted)return finish([me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'','（已撤回）',m.id,m.media]);
+  if(m.sticker)return finish([me?'me':String(m.author.id),'k',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.sticker,m.id,m.media]);
   let tx=m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text;
   if(m.encrypted&&(tx==null||tx===''))tx=m.decryptError?'［无法解密］':'［加密消息］';
   const row=[me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
-  row.encrypted=!!m.encrypted;row.decryptError=m.decryptError;return row;
+  return finish(row);
 }
 function msgSrc(id){
   if(typeof usingNet==='function'&&usingNet())return (S.messages&&S.messages[id])||[];
@@ -97,6 +104,8 @@ async function loadMessages(id,cursor){
 async function sendNet(cid,text,extra){
   const clientId='c'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
   const body={clientId};
+  if(extra&&extra.replyToId)body.replyToId=extra.replyToId;
+  else if(S.replyTo&&S.replyTo.cid===cid&&S.replyTo.id)body.replyToId=S.replyTo.id;
   if(extra&&extra.sticker)body.sticker={pack:extra.sticker.pack,id:extra.sticker.id};
   if(extra&&extra.mediaId)body.mediaId=extra.mediaId;
   const c=(typeof cvSrc==='function'?cvSrc():[]).find(x=>x.id==cid);

@@ -74,6 +74,9 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   const hasSticker = (() => { try { db.prepare('SELECT sticker FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
   const hasE2ee = (() => { try { db.prepare('SELECT encrypted FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
   const setE2ee = hasE2ee ? db.prepare('UPDATE messages SET encrypted=1, text=?, ciphertext=?, e2ee_type=?, sender_device_id=?, recipient_device_id=?, olm_session_id=? WHERE id=?') : null;
+  const hasReply = (() => { try { db.prepare('SELECT reply_to_id FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
+  const setReply = hasReply ? db.prepare('UPDATE messages SET reply_to_id=? WHERE id=?') : null;
+
 
 
 
@@ -324,6 +327,22 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   }
 
 
+  function quoteOf(row) {
+    if (!hasReply || !row || !row.reply_to_id) return null;
+    const orig = msgById.get(row.reply_to_id);
+    if (!orig) return {id: row.reply_to_id, deleted: true, missing: true, state: 'deleted', text: ''};
+    const gone = !!orig.deleted_at;
+    const enc = !!(hasE2ee && orig.encrypted);
+    return {
+      id: orig.id,
+      conversationId: orig.conversation_id,
+      author: authorOf(orig.author_id),
+      text: (gone || enc) ? '' : String(orig.text || '').slice(0, 200),
+      encrypted: !!(enc && !gone),
+      deleted: gone,
+      state: gone ? 'deleted' : 'ok',
+    };
+  }
   function pubMsg(row, me) {
     if (!row) return null;
     const enc = !!(hasE2ee && row.encrypted);
@@ -349,6 +368,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       media: (row.media_id && media) ? media.pub(media._byId.get(row.media_id)) : undefined,
       sticker: (!row.deleted_at && row.sticker) ? (() => { try { return JSON.parse(row.sticker); } catch { return undefined; } })() : undefined,
       ...receiptOf(row, me),
+      replyTo: quoteOf(row),
     };
   }
   function parseCursor(c) {
@@ -405,6 +425,12 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
         return {message: pubMsg(existed, user), idempotent: true};
       }
     } else clientId = null;
+    const replyToIdEarly = body && (body.replyToId || body.reply_to_id || (body.replyTo && body.replyTo.id));
+    if (replyToIdEarly) {
+      if (!setReply) throw new ApiError(503, 'NO_REPLY', '引用回复尚未就绪');
+      const orig0 = msgById.get(String(replyToIdEarly));
+      if (!orig0 || orig0.conversation_id !== id) throw new ApiError(400, 'BAD_REPLY', '只能引用同一会话里的消息');
+    }
     const mid = nidMsg(), t = now();
     try { insMsg.run(mid, id, Number(user.id), 'text', text, t, clientId); if (wantAtAll && hasAt) db.prepare('UPDATE messages SET at_all=1 WHERE id=?').run(mid); }
     catch (e) {
@@ -429,6 +455,13 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       const recip = ctObj.envelopes.length === 1 ? ctObj.envelopes[0].deviceId : 'multi';
       const sess = (body.sessionId || (ctObj.envelopes[0] && ctObj.envelopes[0].sessionId) || '').slice(0, 80) || null;
       setE2ee.run('', stored, 'olm', senderDev, recip, sess, mid);
+    }
+    const replyToId = body && (body.replyToId || body.reply_to_id || (body.replyTo && body.replyTo.id));
+    if (replyToId) {
+      if (!setReply) throw new ApiError(503, 'NO_REPLY', '引用回复尚未就绪');
+      const orig = msgById.get(String(replyToId));
+      if (!orig || orig.conversation_id !== id) throw new ApiError(400, 'BAD_REPLY', '只能引用同一会话里的消息');
+      setReply.run(orig.id, mid);
     }
     const msg = pubMsg(msgById.get(mid), user);
     const others = mems.all(id).map(m => m.user_id);
@@ -603,7 +636,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
 
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
-    send, listMessages, pubMsg, markRead, setMute, setConvPin, unreadOf, receiptOf,
+    send, listMessages, pubMsg, quoteOf, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,
