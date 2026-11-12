@@ -105,6 +105,11 @@ export type PostItem = {
   replyToName?: string;
   replyToText?: string;
   replyCount?: number;
+  audience?: import("./backend").PostAudience;
+  audienceLabel?: string;
+  mood?: string;
+  location?: string;
+  media?: import("./backend").MappedMedia[];
 };
 
 export type ReportItem = {
@@ -118,6 +123,10 @@ export type ReportItem = {
   resolution?: string;
   postId?: string;
   userId?: string;
+  targetType?: string;
+  targetId?: string;
+  targetName?: string;
+  messageIds?: string[];
 };
 
 export type AuditItem = {
@@ -422,6 +431,11 @@ function toPost(c: import("./backend").MappedContent): PostItem {
     replyToName: c.replyTo && !c.replyTo.deleted ? c.replyTo.authorName : c.replyTo ? "已删除的评论" : undefined,
     replyToText: c.replyTo && !c.replyTo.deleted ? c.replyTo.text : undefined,
     replyCount: c.replyCount || 0,
+    audience: c.audience,
+    audienceLabel: c.audienceLabel,
+    mood: c.mood,
+    location: c.location,
+    media: c.media,
   };
 }
 

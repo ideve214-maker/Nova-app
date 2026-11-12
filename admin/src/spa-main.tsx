@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { AdminApp } from "./components/admin/app";
 import { applyTheme, watchSystemTheme } from "./lib/admin/theme";
@@ -49,4 +50,33 @@ window.__NOVA_MEDIA__ = {
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("缺少 #root");
 
-createRoot(rootEl).render(<AdminApp />);
+class FatalBoundary extends Component<{ children: ReactNode }, { err: unknown }> {
+  state = { err: null as unknown };
+  static getDerivedStateFromError(err: unknown) {
+    return { err };
+  }
+  componentDidCatch(err: unknown) {
+    const w = window as unknown as { __NOVA_SHOW_ERROR__?: (t: string) => void };
+    const e = err as { stack?: string; message?: string };
+    w.__NOVA_SHOW_ERROR__?.("渲染出错: " + String(e?.stack || e?.message || err));
+  }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{ padding: "64px 24px", color: "#F4F6FC", textAlign: "center" }}>
+          <p style={{ fontSize: 20, fontWeight: 700 }}>管理端出错了</p>
+          <button type="button" onClick={() => location.reload()} style={{ marginTop: 16, height: 44, padding: "0 22px", borderRadius: 14, border: 0, background: "#6E8BFF", color: "#fff", fontSize: 16, fontWeight: 700 }}>
+            刷新重试
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+createRoot(rootEl).render(
+  <FatalBoundary>
+    <AdminApp />
+  </FatalBoundary>,
+);

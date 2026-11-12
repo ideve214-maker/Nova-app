@@ -15,6 +15,31 @@
     <title>NOVA 管理端</title>
     <script>
       (function () {
+        function show(text) {
+          try {
+            var el = document.getElementById("nova-fatal");
+            if (!el) {
+              el = document.createElement("div");
+              el.id = "nova-fatal";
+              el.setAttribute("style", "position:fixed;left:0;right:0;bottom:0;z-index:2147483647;max-height:60vh;overflow:auto;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));background:#2a0f14;color:#ffd7dc;font:12px/1.5 -apple-system,monospace;white-space:pre-wrap;word-break:break-all;");
+              (document.body || document.documentElement).appendChild(el);
+            }
+            el.textContent = (el.textContent ? el.textContent + "\n\n" : "管理端出错了，请把这段截图发给我：\n") + text + "\nUA: " + navigator.userAgent + "\nURL: " + location.href;
+          } catch (e) {}
+        }
+        window.__NOVA_SHOW_ERROR__ = show;
+        window.addEventListener("error", function (e) {
+          var t = e && e.target;
+          if (t && t !== window && (t.src || t.href)) { show("资源加载失败: " + (t.src || t.href)); return; }
+          show(String((e && e.message) || "error") + "\n" + ((e && e.error && e.error.stack) || "") + "\n" + ((e && e.filename) || "") + ":" + ((e && e.lineno) || ""));
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e && e.reason; show("Promise 未处理: " + String((r && (r.stack || r.message)) || r));
+        });
+      })();
+    </script>
+    <script>
+      (function () {
         try {
           var m = localStorage.getItem("nova-admin-theme");
           var light = m === "light" || (m !== "dark" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);

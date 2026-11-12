@@ -778,6 +778,61 @@ export type MappedReplyTo = {
   text: string;
 };
 
+export const POST_AUDIENCES = ["public", "followers", "friends", "self"] as const;
+export type PostAudience = (typeof POST_AUDIENCES)[number];
+export const AUDIENCE_LABELS: Record<PostAudience, string> = {
+  public: "公开",
+  followers: "粉丝可见",
+  friends: "好友可见",
+  self: "仅自己",
+};
+
+/** 字段缺失时不默认成公开（管理端接口目前可能还没返回 audience）。非法值按公开。 */
+export function mapAudience(raw: unknown): PostAudience | undefined {
+  if (!isRecord(raw)) return undefined;
+  const v = pick(raw, "audience");
+  if (v == null || v === "") return undefined;
+  const s = String(v).trim().toLowerCase();
+  return (POST_AUDIENCES as readonly string[]).includes(s) ? (s as PostAudience) : "public";
+}
+
+export function audienceLabel(audience: PostAudience | string | undefined): string {
+  if (!audience) return "";
+  return AUDIENCE_LABELS[audience as PostAudience] || AUDIENCE_LABELS.public;
+}
+
+export type MappedMedia = {
+  id: string;
+  url: string;
+  kind: string;
+};
+
+export function parsePostMedia(raw: unknown): MappedMedia[] {
+  if (raw == null || raw === "") return [];
+  let src: unknown = raw;
+  if (typeof raw === "string") {
+    try { src = JSON.parse(raw); } catch { return []; }
+  }
+  const arr = Array.isArray(src) ? src : isRecord(src) && Array.isArray((src as { items?: unknown }).items) ? (src as { items: unknown[] }).items : [src];
+  const out: MappedMedia[] = [];
+  for (const it of arr.slice(0, 9)) {
+    if (typeof it === "string") {
+      const s = it.trim();
+      if (!s) continue;
+      const isUrl = /^(https?:|data:|blob:|\/)/i.test(s);
+      out.push({ id: isUrl ? "" : s, url: isUrl ? s : "", kind: "" });
+      continue;
+    }
+    if (!isRecord(it)) continue;
+    const id = asString(pick(it, "id", "mediaId", "media_id"));
+    const url = asString(pick(it, "url", "src", "href", "imageUrl", "image_url"));
+    const kind = asString(pick(it, "kind", "type", "mime"));
+    if (!id && !url) continue;
+    out.push({ id, url, kind });
+  }
+  return out;
+}
+
 export type MappedContent = {
   id: string;
   type: "post" | "comment";
@@ -796,6 +851,11 @@ export type MappedContent = {
   depth: number;
   replyTo: MappedReplyTo | null;
   replyCount: number;
+  audience?: PostAudience;
+  audienceLabel?: string;
+  mood?: string;
+  location?: string;
+  media: MappedMedia[];
 };
 
 export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" = "post"): MappedContent | null {
@@ -807,6 +867,11 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
   const author = isRecord(raw.author) ? raw.author : {};
   const deleted = raw.deleted === true || raw.status === "removed" || raw.status === "deleted" || !!pick(raw, "deletedAt", "deleted_at");
   const text = asString(pick(raw, "text", "body", "content", "excerpt"));
+  const media = parsePostMedia(pick(raw, "media", "mediaItems", "media_items", "attachments"));
+  const audience = type === "post" ? mapAudience(raw) : undefined;
+  const mood = type === "post" ? asString(pick(raw, "mood")) : "";
+  const location = type === "post" ? asString(pick(raw, "location")) : "";
+  const mediaTitle = media.length ? `媒体 ×${media.length}` : "";
   const replyRaw = isRecord(raw.replyTo) ? raw.replyTo : isRecord(raw.reply_to) ? raw.reply_to : null;
   const replyAuthor = replyRaw && isRecord(replyRaw.author) ? replyRaw.author : {};
   const replyTo: MappedReplyTo | null = replyRaw
@@ -821,13 +886,13 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
   return {
     id,
     type,
-    title: asString(pick(raw, "title"), text.slice(0, 40) || (type === "comment" ? "评论" : "动态")),
+    title: asString(pick(raw, "title")).trim() || text.slice(0, 40) || mediaTitle || (type === "comment" ? "评论" : "动态"),
     text,
     authorId: asString(pick(raw, "authorId", "author_id", "userId") ?? pick(author, "id")),
     authorName: asString(pick(raw, "authorName") ?? pick(author, "displayName", "username", "name"), "未知"),
     time: asTime(pick(raw, "createdAtUtc", "created_at_utc", "createdAt", "created_at", "time")),
     status: deleted ? "removed" : "approved",
-    image: asString(pick(raw, "image", "imageUrl", "cover")),
+    image: asString(pick(raw, "image", "imageUrl", "cover"), media[0]?.url || ""),
     postId: asString(pick(raw, "postId", "post_id")),
     adminReason: asString(pick(raw, "adminReason", "admin_reason", "reason")),
     adminHidden: raw.adminHidden === true || raw.admin_hidden === true,
@@ -836,6 +901,11 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
     depth: Number(pick(raw, "depth") ?? 0) || 0,
     replyTo,
     replyCount: Number(pick(raw, "replyCount", "reply_count") ?? 0) || 0,
+    audience,
+    audienceLabel: audience ? audienceLabel(audience) : undefined,
+    mood: mood || undefined,
+    location: location || undefined,
+    media,
   };
 }
 
@@ -1034,6 +1104,8 @@ export function mapRemoteStats(raw: unknown): MappedStats | null {
   };
 }
 
+export type ReportTargetType = "user" | "post" | "comment" | "message" | "community" | "conversation" | string;
+
 export type MappedReport = {
   id: string;
   title: string;
@@ -1045,7 +1117,50 @@ export type MappedReport = {
   resolution?: string;
   postId?: string;
   userId?: string;
+  targetType: string;
+  targetId: string;
+  targetName: string;
+  messageIds: string[];
 };
+
+export function reportKindLabel(targetType: string, messageIds: string[] = []): string {
+  if (targetType === "community") return "社区举报";
+  if (targetType === "conversation" && messageIds.length === 0) return "整群举报";
+  if (targetType === "conversation") return "会话举报";
+  if (targetType === "message") return "私聊消息举报";
+  if (targetType === "post") return "帖子举报";
+  if (targetType === "comment") return "评论举报";
+  if (targetType === "user") return "用户举报";
+  return "";
+}
+
+function parseIdList(raw: unknown): string[] {
+  if (raw == null || raw === "") return [];
+  let src: unknown = raw;
+  if (typeof raw === "string") {
+    try { src = JSON.parse(raw); } catch { return raw.trim() ? [raw.trim()] : []; }
+  }
+  if (!Array.isArray(src)) return [];
+  return src.map((x) => String(x)).filter(Boolean);
+}
+
+function reportTargetName(raw: Record<string, unknown>, targetType: string, _targetId: string): string {
+  const context = isRecord(raw.context) ? raw.context : {};
+  const community = isRecord(raw.community) ? raw.community : isRecord(context.community) ? context.community : {};
+  const conversation = isRecord(raw.conversation) ? raw.conversation : isRecord(context.conversation) ? context.conversation : {};
+  const name = asString(
+    pick(raw, "targetName", "target_name", "communityName", "community_name", "groupName", "group_name", "conversationName")
+      ?? pick(context, "name", "communityName", "community_name", "groupName", "group_name", "conversationName", "title")
+      ?? pick(community, "name")
+      ?? pick(conversation, "name", "title"),
+  );
+  if (name) return name;
+  if (targetType === "user") {
+    const tu = isRecord(raw.targetUser) ? raw.targetUser : isRecord(raw.target_user) ? raw.target_user : {};
+    return asString(pick(tu, "displayName", "username", "name"));
+  }
+  return "";
+}
 
 export function mapRemoteReport(raw: unknown): MappedReport | null {
   if (!isRecord(raw)) return null;
@@ -1058,17 +1173,28 @@ export function mapRemoteReport(raw: unknown): MappedReport | null {
   const decision = isRecord(raw.decision) ? raw.decision : {};
   const targetType = asString(pick(raw, "targetType", "target_type"));
   const targetId = asString(pick(raw, "targetId", "target_id"));
+  const messageIds = parseIdList(pick(raw, "messageIds", "message_ids"));
+  const targetName = reportTargetName(raw, targetType, targetId);
+  const kind = reportKindLabel(targetType, messageIds);
+  const fallbackTarget = targetType && targetId ? `${targetType}:${targetId}` : "";
+  const targetDisplay = targetName
+    ? (targetType === "community" ? `社区：${targetName}` : targetType === "conversation" && messageIds.length === 0 ? `群：${targetName}` : targetName)
+    : asString(pick(raw, "target"), fallbackTarget);
   return {
     id,
-    title: asString(pick(raw, "title"), "举报"),
+    title: kind || asString(pick(raw, "title"), "举报"),
     reason: asString(pick(raw, "reason", "detail")),
     reporter: asString(pick(reporter, "displayName", "username", "name"), asString(pick(raw, "reporter"))),
-    target: asString(pick(raw, "target"), targetType && targetId ? `${targetType}:${targetId}` : ""),
+    target: targetDisplay,
     time: asTime(pick(raw, "createdAtUtc", "time", "createdAt", "created_at")),
     status: done ? "done" : "open",
     resolution: asString(pick(decision, "resolution", "note") ?? pick(raw, "resolution")) || undefined,
     postId: targetType === "post" ? targetId : undefined,
     userId: asString(pick(raw, "targetUserId", "target_user_id", "userId")) || undefined,
+    targetType,
+    targetId,
+    targetName,
+    messageIds,
   };
 }
 

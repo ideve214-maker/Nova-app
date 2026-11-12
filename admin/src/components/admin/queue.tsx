@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
-import { useAdmin, type PostItem } from "@/lib/admin/store";
+import { useAdmin, type PostItem, type ReportItem } from "@/lib/admin/store";
+import { joinUrl, loadConfig, resolveBase } from "@/lib/admin/backend";
 import { Avatar, DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { mediaUrl } from "@/lib/admin/media";
+
+function adminMediaSrc(url?: string): string | undefined {
+  if (!url) return undefined;
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  const base = resolveBase(loadConfig().baseUrl);
+  return base ? joinUrl(base, url) : url;
+}
 
 
 export function ContentScreen() {
@@ -69,14 +77,17 @@ export function ContentScreen() {
             <article key={post.kind + ":" + post.id} className="rounded-card bg-surface p-2.5 shadow-card">
               <div className="flex gap-2.5">
                 {post.image ? (
-                  <img src={post.image} alt="" className="size-16 rounded-xl object-cover" />
+                  <img src={adminMediaSrc(post.image) || post.image} alt="" className="size-16 rounded-xl object-cover" />
                 ) : (
                   <div className="grid size-16 place-items-center rounded-xl bg-subtle text-[12px] text-muted">{post.kind === "comment" ? "评论" : "帖子"}</div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-[15px] font-medium">{post.title || post.excerpt}</h2>
-                    <Status status={post.status} />
+                    <h2 className="text-[15px] font-medium">{post.title || post.excerpt || (post.media?.length ? `媒体 ×${post.media.length}` : "")}</h2>
+                    <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                      {post.kind === "post" && post.audienceLabel && <Pill tone="muted">{post.audienceLabel}</Pill>}
+                      <Status status={post.status} />
+                    </span>
                   </div>
                   <button type="button" className="mt-1 flex items-center gap-2 text-[13px] text-muted" onClick={() => post.authorId && go("user", post.authorId)}>
                     @{name} · {post.time}
@@ -84,7 +95,27 @@ export function ContentScreen() {
                   {post.kind === "comment" && post.replyToName && (
                     <p className="mt-1 text-[12px] text-muted">回复 @{post.replyToName}{post.replyToText ? `：${post.replyToText}` : ""}</p>
                   )}
-                  <p className="mt-1 text-[13px] text-muted">{post.excerpt}</p>
+                  {(post.mood || post.location) && (
+                    <p className="mt-1 text-[12px] text-muted">{[post.mood, post.location].filter(Boolean).join(" · ")}</p>
+                  )}
+                  {post.excerpt ? (
+                    <p className="mt-1 text-[13px] text-muted">{post.excerpt}</p>
+                  ) : post.media && post.media.length > 0 ? (
+                    <p className="mt-1 text-[13px] text-muted">{post.media.length} 个媒体</p>
+                  ) : null}
+                  {post.kind === "post" && post.media && post.media.length > 0 && (
+                    <div className="mt-1.5 flex gap-1 overflow-x-auto">
+                      {post.media.slice(0, 4).map((m, i) => {
+                        const src = adminMediaSrc(m.url) || mediaUrl(m.url);
+                        return src ? (
+                          <img key={m.id || String(i)} src={src} alt="" className="size-12 rounded-lg object-cover" />
+                        ) : (
+                          <div key={m.id || String(i)} className="grid size-12 place-items-center rounded-lg bg-subtle text-[10px] text-muted">{m.kind || "媒体"}</div>
+                        );
+                      })}
+                      {post.media.length > 4 && <span className="self-center text-[11px] text-muted">+{post.media.length - 4}</span>}
+                    </div>
+                  )}
                   {post.kind === "comment" && (
                     <button
                       type="button"
@@ -215,13 +246,30 @@ function Status({ status }: { status: PostItem["status"] }) {
 
 const resolutions = ["删除内容并警告", "仅警告用户", "封禁作者", "驳回举报"];
 
+function reportTargetText(item: ReportItem, communityName?: string) {
+  if (item.targetType === "community") {
+    const name = item.targetName || communityName || item.targetId;
+    return name ? `社区：${name}` : item.target;
+  }
+  if (item.targetType === "conversation" && !(item.messageIds && item.messageIds.length)) {
+    return item.targetName ? `群：${item.targetName}` : item.targetId ? `群：${item.targetId}` : item.target;
+  }
+  return item.target;
+}
+
 export function ReportsScreen() {
   const reports = useAdmin((s) => s.reports);
+  const communities = useAdmin((s) => s.communities);
   const back = useAdmin((s) => s.back);
+  const go = useAdmin((s) => s.go);
   const resolveReport = useAdmin((s) => s.resolveReport);
   const refreshReports = useAdmin((s) => s.refreshReports);
+  const refreshCommunities = useAdmin((s) => s.refreshCommunities);
   const hasReportApi = useAdmin((s) => !!s.connection.available.adminReports || s.authed);
-  useEffect(() => { void refreshReports(); }, [refreshReports]);
+  useEffect(() => {
+    void refreshReports();
+    void refreshCommunities();
+  }, [refreshReports, refreshCommunities]);
   const [tab, setTab] = useState<"open" | "done">("open");
   const [current, setCurrent] = useState<string | null>(null);
   const [choice, setChoice] = useState(resolutions[0]);
@@ -244,10 +292,15 @@ export function ReportsScreen() {
         {list.map((item) => (
           <article key={item.id} className="rounded-card bg-surface p-3 shadow-card">
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-[15px] font-medium">{item.title}</h2>
                 <p className="mt-1 text-sm text-muted">举报人：{item.reporter}</p>
-                <p className="text-sm text-muted">{item.target}</p>
+                <p className="text-sm text-muted">{reportTargetText(item, communities.find((c) => c.id === item.targetId)?.name)}</p>
+                {item.targetType === "community" && item.targetId && (
+                  <button type="button" className="mt-0.5 text-[13px] font-medium text-primary" onClick={() => go("community", item.targetId)}>
+                    查看社区
+                  </button>
+                )}
                 <p className="text-sm">理由：{item.reason}</p>
                 <p className="mt-1 text-xs text-muted">{item.time}</p>
                 {item.resolution && <p className="mt-2 text-sm text-ok">结论：{item.resolution}</p>}
@@ -270,7 +323,7 @@ export function ReportsScreen() {
         {active && (
           <>
             <p className="mb-1 font-semibold">{active.title}</p>
-            <p className="mb-3 text-sm text-muted">{active.target} · {active.reason}</p>
+            <p className="mb-3 text-sm text-muted">{reportTargetText(active, communities.find((c) => c.id === active.targetId)?.name)} · {active.reason}</p>
             <div className="mb-4 space-y-2">
               {resolutions.map((item) => (
                 <button

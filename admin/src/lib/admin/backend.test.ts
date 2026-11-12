@@ -25,6 +25,11 @@ import {
   mapRemoteBlockword,
   mapRemoteChannelMessage,
   mapRemoteCommunity,
+  mapRemoteReport,
+  mapAudience,
+  audienceLabel,
+  parsePostMedia,
+  reportKindLabel,
 } from "./backend.ts";
 
 describe("pick / joinUrl / pathTemplate", () => {
@@ -327,5 +332,118 @@ describe("m5.1 mappers", () => {
     const w = mapRemoteBlockword({ id: 9, word: "spam", note: "广告", createdAt: 1700000000000, scope: "platform" });
     assert.equal(w!.word, "spam");
     assert.equal(w!.scope, "platform");
+  });
+});
+
+
+describe("m7.r3 post audience and media", () => {
+  it("maps audience labels and does not invent one when the field is missing", () => {
+    assert.equal(mapAudience({ audience: "friends" }), "friends");
+    assert.equal(audienceLabel("friends"), "好友可见");
+    assert.equal(audienceLabel("followers"), "粉丝可见");
+    assert.equal(audienceLabel("self"), "仅自己");
+    assert.equal(audienceLabel("public"), "公开");
+    assert.equal(mapAudience({ audience: "everyone" }), "public");
+    assert.equal(mapAudience({ text: "no field" }), undefined);
+    const c = mapRemoteContent({
+      id: "po_fr",
+      type: "post",
+      text: "只给好友看",
+      audience: "friends",
+      mood: "开心",
+      location: "上海",
+      author: { username: "alice", displayName: "Alice" },
+      createdAtUtc: "2026-11-12T04:00:00.000Z",
+    });
+    assert.equal(c!.audience, "friends");
+    assert.equal(c!.audienceLabel, "好友可见");
+    assert.equal(c!.mood, "开心");
+    assert.equal(c!.location, "上海");
+    const bare = mapRemoteContent({ id: "po_x", type: "post", text: "普通" });
+    assert.equal(bare!.audience, undefined);
+    assert.equal(bare!.audienceLabel, undefined);
+  });
+
+  it("tolerates empty body when media is present", () => {
+    const media = parsePostMedia([{ id: "md_1", url: "/api/media/md_1", kind: "image" }, { id: "md_2", url: "https://cdn.example/a.jpg" }]);
+    assert.equal(media.length, 2);
+    assert.equal(media[0].url, "/api/media/md_1");
+    const c = mapRemoteContent({
+      id: "po_media",
+      type: "post",
+      text: "",
+      audience: "self",
+      media: [{ id: "md_1", url: "/api/media/md_1", kind: "image" }, { id: "md_2" }],
+    });
+    assert.equal(c!.text, "");
+    assert.equal(c!.title, "媒体 ×2");
+    assert.equal(c!.media.length, 2);
+    assert.equal(c!.image, "/api/media/md_1");
+    assert.equal(c!.audienceLabel, "仅自己");
+    const adminShape = mapRemoteContent({
+      id: "po_empty",
+      type: "post",
+      text: "",
+      title: "",
+      author: { username: "alice" },
+    });
+    assert.equal(adminShape!.title, "动态");
+    assert.equal(adminShape!.text, "");
+    assert.equal(adminShape!.media.length, 0);
+  });
+});
+
+describe("m7.r3 community and group reports", () => {
+  it("labels community and whole-group reports and keeps existing types", () => {
+    assert.equal(reportKindLabel("community"), "社区举报");
+    assert.equal(reportKindLabel("conversation", []), "整群举报");
+    assert.equal(reportKindLabel("conversation", ["m1"]), "会话举报");
+    assert.equal(reportKindLabel("message", ["m1"]), "私聊消息举报");
+    assert.equal(reportKindLabel("post"), "帖子举报");
+
+    const cm = mapRemoteReport({
+      id: "rp_cm",
+      targetType: "community",
+      targetId: "cm_1",
+      reason: "违规内容",
+      status: "pending",
+      queueStatus: "open",
+      reporter: { displayName: "周周" },
+      context: { communityName: "摄影俱乐部" },
+      createdAt: 1700000000000,
+    });
+    assert.equal(cm!.title, "社区举报");
+    assert.equal(cm!.targetName, "摄影俱乐部");
+    assert.equal(cm!.target, "社区：摄影俱乐部");
+    assert.equal(cm!.targetType, "community");
+    assert.equal(cm!.messageIds.length, 0);
+
+    const gp = mapRemoteReport({
+      id: "rp_gp",
+      targetType: "conversation",
+      targetId: "cv_9",
+      reason: "骚扰",
+      status: "pending",
+      reporter: { username: "li" },
+      messageIds: [],
+      context: { conversationId: "cv_9", groupName: "夜跑小队" },
+    });
+    assert.equal(gp!.title, "整群举报");
+    assert.equal(gp!.target, "群：夜跑小队");
+    assert.equal(gp!.targetName, "夜跑小队");
+
+    const post = mapRemoteReport({
+      id: "rp_p",
+      title: "举报帖子",
+      targetType: "post",
+      targetId: "po_1",
+      reason: "广告",
+      status: "pending",
+      target: "post:po_1",
+      reporter: { username: "a" },
+    });
+    assert.equal(post!.title, "帖子举报");
+    assert.equal(post!.postId, "po_1");
+    assert.equal(post!.target, "post:po_1");
   });
 });
