@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.2.3 · 频道创建、改名、删除、公告（2026-11-12）
+- `POST /api/communities/:id/channels` 创建频道（text / announce）。默认「大厅」不能删除；公告频道仅所有者、管理员、版主可发言（`POST /api/channels/:id/messages` 权限在服务端校验）。
+- 改名 `POST /api/channels/:id/rename`（1–20 字，同社区不重名），删除 `POST /api/channels/:id/delete`。用户端频道管理在登录后走这些接口。
+- 测试：新增服务端 2 项。
+
 ## V7 M4.2.2 · 成员列表与成员角色（2026-11-12）
 - `GET /api/communities/:id/members` 返回成员和角色。`POST /api/communities/:id/role` 设置角色（所有者/管理员/版主/成员），权限在服务端按等级校验，不信任客户端传来的角色。
 - 只能管理比自己低的成员；只有所有者能设管理员；不能改变所有者。成员改角色 403。用户端「设为… / 移出」在登录后走这些接口。
