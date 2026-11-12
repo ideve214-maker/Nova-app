@@ -27,7 +27,7 @@ export function createSearch(db, {profile, vip, now} = {}) {
     SELECT msg.* FROM messages msg
     JOIN conversation_members cm ON cm.conversation_id=msg.conversation_id AND cm.user_id=? AND cm.left_at IS NULL
     JOIN conversations cv ON cv.id=msg.conversation_id AND cv.deleted_at IS NULL
-    WHERE msg.deleted_at IS NULL AND msg.text LIKE ? ESCAPE '\\' AND IFNULL(msg.text,'')<>''
+    WHERE msg.deleted_at IS NULL AND msg.text LIKE ? ESCAPE '\\' AND IFNULL(msg.text,'')<>'' AND IFNULL(msg.encrypted,0)=0
     ORDER BY msg.created_at DESC, msg.id DESC LIMIT ?`);
 
   function authorOf(id) {

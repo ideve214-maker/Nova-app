@@ -95,10 +95,15 @@ export function createReports(db, {now, notifications, profile} = {}) {
       if (allowCv && String(m.conversation_id) !== allowCv) continue;
       // 若是私聊，确认举报人是该会话成员（提交时已校验，这里再防串会话）。
       if (row && !memGet.get(m.conversation_id, row.reporter_id)) continue;
+      const copies = (context && context.messageCopies) || {};
+      const enc = !!m.encrypted;
       out.push({
         id: m.id,
         conversationId: m.conversation_id,
-        text: m.text,
+        text: enc ? '' : m.text,
+        encrypted: enc,
+        // 加密消息的明文只能由举报人在客户端解密后提交副本，不是服务端解开的。
+        submittedPlaintext: copies[m.id] != null ? String(copies[m.id]) : undefined,
         createdAt: m.created_at,
         author: authorCard(m.author_id),
       });
@@ -113,6 +118,14 @@ export function createReports(db, {now, notifications, profile} = {}) {
     let targetUserId = body.targetUserId != null ? Number(body.targetUserId) : null;
     const context = body.context && typeof body.context === 'object' ? {...body.context} : {};
     const rawIds = Array.isArray(body.messageIds) ? body.messageIds.map(String) : [];
+    // 用户提交的解密副本（仅限其勾选的 messageIds）；服务端不当作自己解开的明文。
+    if (body.messageCopies && typeof body.messageCopies === 'object') {
+      const copies = {};
+      for (const [id, txt] of Object.entries(body.messageCopies)) {
+        if (typeof txt === 'string' && txt.length) copies[String(id)] = txt.slice(0, 4000);
+      }
+      if (Object.keys(copies).length) context.messageCopies = copies;
+    }
     const messageIds = [];
 
     if (type === 'user') {
@@ -190,6 +203,14 @@ export function createReports(db, {now, notifications, profile} = {}) {
       throw new ApiError(400, 'BAD_TARGET', '不能举报自己');
     }
     const id = 'rp_' + randomBytes(12).toString('base64url');
+    if (t.context && t.context.messageCopies) {
+      const keep = {};
+      for (const id of t.messageIds || []) {
+        if (t.context.messageCopies[id] != null) keep[id] = t.context.messageCopies[id];
+      }
+      if (Object.keys(keep).length) t.context.messageCopies = keep;
+      else delete t.context.messageCopies;
+    }
     ins.run(
       id, Number(user.id), t.type, t.targetId,
       t.targetUserId != null ? Number(t.targetUserId) : null,

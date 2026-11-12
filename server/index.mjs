@@ -22,6 +22,7 @@ import {createNotifications} from './notifications.mjs';
 import {createSearch} from './search.mjs';
 import {createAdmins} from './admin.mjs';
 import {createReports} from './reports.mjs';
+import {createE2ee, safetyNumber} from './e2ee.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 
@@ -67,6 +68,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const follows = createFollows(db, {profile, vip, now});
   const communities = createCommunities(db, {profile, vip, now});
   const friends = createFriends(db, {now, profile});
+  const e2ee = createE2ee(db, {now, friends});
   const events = createEvents(db, {now, ...eventsOpts});
   const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
   const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan});
@@ -782,6 +784,56 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return {audits, nextCursor: more ? slice[slice.length - 1].id : null};
     },
 
+    'POST /api/e2ee/keys'(req, b) {
+      const {user} = auth(req);
+      const r = e2ee.upload(user, b || {});
+      audit(user.id, 'e2ee.keys_upload', 'device:' + (r.device && r.device.deviceId), ip(req), {added: r.added});
+      return r;
+    },
+    'GET /api/e2ee/keys'(req) {
+      const {user} = auth(req);
+      const qid = req.query && (req.query.userId || req.query.user_id);
+      if (qid) return e2ee.listOf(user, qid);
+      return e2ee.listMine(user);
+    },
+    'GET /api/e2ee/keys/:userId'(req) {
+      const {user} = auth(req);
+      return e2ee.listOf(user, req.params.userId);
+    },
+    'GET /api/e2ee/devices'(req) {
+      const {user} = auth(req);
+      const qid = req.query && (req.query.userId || req.query.user_id);
+      if (qid) return e2ee.listOf(user, qid);
+      return e2ee.listMine(user);
+    },
+    'POST /api/e2ee/keys/claim'(req, b) {
+      const {user} = auth(req);
+      return e2ee.claim(user, b || {});
+    },
+    'POST /api/e2ee/devices/:id/revoke'(req) {
+      const {user} = auth(req);
+      const r = e2ee.revoke(user, req.params.id);
+      audit(user.id, 'e2ee.device_revoke', 'device:' + req.params.id, ip(req));
+      return r;
+    },
+    'GET /api/e2ee/safety/:userId'(req) {
+      const {user} = auth(req);
+      const theirs = e2ee.listOf(user, req.params.userId);
+      const mine = e2ee.listMine(user);
+      const myDev = (mine.devices || []).find(d => !d.revoked);
+      const theirDev = (theirs.devices || []).find(d => !d.revoked);
+      if (!myDev || !theirDev) return {userId: Number(req.params.userId), safetyNumber: null, devices: theirs.devices};
+      return {
+        userId: Number(req.params.userId),
+        safetyNumber: safetyNumber(myDev.identityKey.ed25519, theirDev.identityKey.ed25519),
+        myDeviceId: myDev.deviceId,
+        theirDeviceId: theirDev.deviceId,
+        myIdentity: myDev.identityKey,
+        theirIdentity: theirDev.identityKey,
+        theirDevices: theirs.devices,
+      };
+    },
+
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -893,7 +945,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.adminSeed = adminSeed;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed;
   return server;
 }
 

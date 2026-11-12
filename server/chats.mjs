@@ -1,6 +1,7 @@
 // M4.3 单聊/群聊：会话、成员、消息。权限在服务端校验，不信任客户端角色。
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
+import {parseCiphertext} from './e2ee.mjs';
 
 const nid = p => p + '_' + randomBytes(12).toString('base64url');
 const len = s => [...String(s)].length;
@@ -71,6 +72,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   const delMsg = hasMsg ? db.prepare('UPDATE messages SET deleted_at=? WHERE id=? AND conversation_id=? AND deleted_at IS NULL') : null;
   const hasAt = (() => { try { db.prepare('SELECT at_all FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
   const hasSticker = (() => { try { db.prepare('SELECT sticker FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
+  const hasE2ee = (() => { try { db.prepare('SELECT encrypted FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
+  const setE2ee = hasE2ee ? db.prepare('UPDATE messages SET encrypted=1, text=?, ciphertext=?, e2ee_type=?, sender_device_id=?, recipient_device_id=?, olm_session_id=? WHERE id=?') : null;
 
 
 
@@ -323,12 +326,20 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
 
   function pubMsg(row, me) {
     if (!row) return null;
+    const enc = !!(hasE2ee && row.encrypted);
     return {
       id: row.id,
       conversationId: row.conversation_id,
       author: authorOf(row.author_id),
       kind: row.kind,
-      text: row.deleted_at ? '' : row.text,
+      // 加密消息的 text 永远为空，密文只放在 ciphertext 里，避免误当明文展示或入库索引。
+      text: (row.deleted_at || enc) ? '' : row.text,
+      encrypted: enc,
+      ciphertext: (enc && !row.deleted_at) ? row.ciphertext : undefined,
+      e2eeType: (enc && !row.deleted_at) ? (row.e2ee_type || 'olm') : undefined,
+      senderDeviceId: (enc && !row.deleted_at) ? (row.sender_device_id || undefined) : undefined,
+      recipientDeviceId: (enc && !row.deleted_at) ? (row.recipient_device_id || undefined) : undefined,
+      sessionId: (enc && !row.deleted_at) ? (row.olm_session_id || undefined) : undefined,
       deleted: !!row.deleted_at,
       createdAt: row.created_at,
       mine: !!(me && Number(me.id) === Number(row.author_id)),
@@ -361,15 +372,25 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     let text = String((body && body.text) != null ? body.text : '').trim();
     const mediaId = body && body.mediaId ? String(body.mediaId) : '';
     let stickerObj = null;
+    const wantEnc = !!(body && (body.encrypted === true || body.ciphertext));
+    let ctObj = null;
+    if (wantEnc) {
+      if (!hasE2ee || !setE2ee) throw new ApiError(503, 'NO_E2EE', '加密消息功能尚未就绪');
+      if (row.kind !== 'dm') throw new ApiError(400, 'E2EE_GROUP', '群聊暂不支持端到端加密');
+      if (text) throw new ApiError(400, 'PLAINTEXT_WITH_CIPHERTEXT', '加密消息不得附带明文');
+      if (body.sticker) throw new ApiError(400, 'E2EE_STICKER', '请将贴纸放入密文后发送');
+      ctObj = parseCiphertext(String(body.ciphertext || ''));
+    }
     if (body && body.sticker) {
+      if (wantEnc) throw new ApiError(400, 'E2EE_STICKER', '请将贴纸放入密文后发送');
       if (!stickers) throw new ApiError(503, 'NO_STICKERS', '贴纸功能尚未就绪');
       if (mediaId) throw new ApiError(400, 'BAD_STICKER', '贴纸不能和文件一起发送');
       const used = stickers.use(user, body.sticker);
       stickerObj = used.sticker;
       if (!text) text = stickerObj.glyph || '';
     }
-    if (!len(text) && !mediaId && !stickerObj) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
-    if (vip && len(text)) vip.requireTextLength(user, 'chat', text);
+    if (!wantEnc && !len(text) && !mediaId && !stickerObj) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
+    if (vip && len(text) && !wantEnc) vip.requireTextLength(user, 'chat', text);
     const wantAtAll = text.includes('@所有人');
     if (wantAtAll && row.kind === 'group') {
       const m = activeMem(id, user.id);
@@ -401,6 +422,13 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     }
     if (stickerObj && hasSticker) {
       db.prepare('UPDATE messages SET sticker=? WHERE id=?').run(JSON.stringify(stickerObj), mid);
+    }
+    if (ctObj && setE2ee) {
+      const stored = JSON.stringify(ctObj);
+      const senderDev = body.senderDeviceId ? String(body.senderDeviceId).slice(0, 64) : null;
+      const recip = ctObj.envelopes.length === 1 ? ctObj.envelopes[0].deviceId : 'multi';
+      const sess = (body.sessionId || (ctObj.envelopes[0] && ctObj.envelopes[0].sessionId) || '').slice(0, 80) || null;
+      setE2ee.run('', stored, 'olm', senderDev, recip, sess, mid);
     }
     const msg = pubMsg(msgById.get(mid), user);
     const others = mems.all(id).map(m => m.user_id);
