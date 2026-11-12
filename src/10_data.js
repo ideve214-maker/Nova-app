@@ -11,6 +11,9 @@ mood:'<circle cx="12" cy="12" r="8.4"/><circle cx="9" cy="10" r=".95" fill="curr
 loc:'<path d="M12 21s6.6-5.85 6.6-10.6A6.6 6.6 0 0 0 5.4 10.4C5.4 15.15 12 21 12 21Z"/><circle cx="12" cy="10.2" r="2.15"/>',
 game:'<rect x="3.2" y="7.4" width="17.6" height="10.4" rx="5.2"/><path d="M8 10.4v4.4M5.8 12.6h4.4"/><circle cx="15.4" cy="11.2" r=".95" fill="currentColor" stroke="none"/><circle cx="17.5" cy="13.6" r=".95" fill="currentColor" stroke="none"/>',
 plus:'<path d="M12 6.2v11.6M6.2 12h11.6"/>',
+grid1:'<rect x="4.2" y="4.2" width="15.6" height="15.6" rx="2.2"/>',
+grid2:'<rect x="3.2" y="4.5" width="7.8" height="15" rx="1.6"/><rect x="13" y="4.5" width="7.8" height="15" rx="1.6"/>',
+grid4:'<rect x="3.2" y="3.2" width="7.6" height="7.6" rx="1.4"/><rect x="13.2" y="3.2" width="7.6" height="7.6" rx="1.4"/><rect x="3.2" y="13.2" width="7.6" height="7.6" rx="1.4"/><rect x="13.2" y="13.2" width="7.6" height="7.6" rx="1.4"/>',
 smile:'<circle cx="12" cy="12" r="8.4"/><path d="M8.5 14.4c1.1 1.65 2.4 2.4 3.5 2.4s2.4-.75 3.5-2.4"/><path d="M9 10h.01M15 10h.01" stroke-width="2.2"/>'
 };
 function icLine(n,cls){return `<svg class="ic-line${cls?' '+cls:''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICL[n]||''}</svg>`}

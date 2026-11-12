@@ -322,4 +322,24 @@ html.has-safe-area .ios-sb{display:none}
 .pn{animation:pnIn .22s cubic-bezier(.32,.72,0,1) both}
 html.rm #tt.tt-in,html.rm #tt.tt-out,html.rm .ov,html.rm .pn,body.rm #tt.tt-in,body.rm #tt.tt-out,body.rm .ov,body.rm .pn{animation:none}
 
+
+/* 社区视图：单 / 双 / 四 */
+.ggrid.v1{display:flex;flex-direction:column;gap:14px;padding:10px 16px 24px}
+.ggrid.v2{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 12px 24px}
+.ggrid.v2 .gcover{height:112px;border-radius:14px 14px 0 0}
+.ggrid.v2 .gbody{padding:8px 10px 10px;gap:4px}
+.ggrid.v2 .gbody b{font-size:14px}
+.ggrid.v2 .gmeta{font-size:11px}
+.ggrid.v2 .gintro{font-size:11px}
+.ggrid.v2 .gbody .pb{height:32px;min-height:32px;margin-top:6px;font-size:13px;border-radius:10px}
+.ggrid.v4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px 8px 24px}
+.ggrid.v4 .gcard{border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.ggrid.v4 .gcover{height:68px;border-radius:12px 12px 0 0}
+.ggrid.v4 .gbody{padding:5px 5px 6px;gap:2px}
+.ggrid.v4 .gbody b{font-size:11px;line-height:1.25;font-weight:700;-webkit-line-clamp:2}
+.ggrid.v4 .gmeta,.ggrid.v4 .gintro{display:none}
+.ggrid.v4 .gbody .pb{height:22px;min-height:22px;margin-top:3px;font-size:10px;padding:0 2px;border-radius:7px;gap:0}
+.ggrid.v4 .gbody .pb .ic-line{display:none}
+.ib .ic-line{width:20px;height:20px;color:var(--tx)}
+
 </style></head><body>
