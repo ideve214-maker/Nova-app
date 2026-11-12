@@ -120,6 +120,7 @@ nav button:active{transform:scale(.94)}.ib:active{transform:scale(.9)}.mi:active
 /* 会员中心 */
 .vp{padding:12px 16px}.vp b{display:block;font-size:17px;margin-bottom:4px}.vp small{display:block;margin-top:2px}
 .vp[data-vs=active] b,.vp[data-vs=expiring] b{color:var(--vip)}
+.tbox{border:1px dashed var(--vip);margin:8px 12px;border-radius:14px}
 .plans{display:flex;gap:8px;padding:12px 16px 4px;background:var(--sf)}
 .plan{flex:1;min-width:0;border:1px solid var(--ln);border-radius:14px;padding:12px}.plan.v{border-color:var(--vip)}
 .plan b{display:block;font-size:16px}.plan .pp{font-size:15px;font-weight:700;margin:6px 0 4px;min-height:42px}.plan.v .pp{color:var(--vip)}
@@ -233,11 +234,23 @@ function vipCompare(c){
   return `<div class="shd">权益对比</div>`+c.entitlements.map(e=>`<div class="ent" data-ent="${esc(e.key)}"><div class="et"><b>${esc(e.title)}</b>${e.status==='live'?'':'<span class="tag">即将推出</span>'}<small>${esc(e.description)}</small></div><div class="ev"><span data-p="basic"><i>Basic</i>${esc(vipFmt(e,'basic'))}</span><span class="v" data-p="vip"><i>VIP</i>${esc(vipFmt(e,'vip'))}</span></div></div>`).join('')}
 function vipRules(c){
   return `<div class="card vp" style="margin-top:8px"><b>到期后会怎样</b><small>${esc(c.expiry.rule)}${esc(c.expiry.dataPolicy)}</small></div><div class="card vp"><b>这些永远免费</b>${c.alwaysFree.map(x=>`<small>· ${esc(x)}</small>`).join('')}<small style="margin-top:6px">我们不出售：${c.neverSold.map(esc).join('、')}。</small></div>`}
+/* 测试模式（M2.4.4）：是否显示完全由服务端目录的 testToggle.enabled 决定；生产环境里该开关为 false，
+   这里不渲染任何按钮，服务端也会对 /api/vip/test-toggle 返回 403。 */
+function vipTestBox(c){
+  if(!(c.testToggle&&c.testToggle.enabled)||MODE!=='account'||!VIP.me)return '';
+  const v=VIP.me.vip,test=v.active&&v.source==='test',real=v.active&&v.source!=='test';
+  const btn=real?'<button class="pb s" disabled>你已有正式 VIP，测试开关不会改动它</button>':test?'<button class="pb s" data-a="viptoggle" data-v="0">切回普通模式</button>':'<button class="pb" data-a="viptoggle" data-v="1">切换到 VIP（测试）</button>';
+  return `<div class="card vp tbox" id="vtest"><b>测试模式</b><small>仅开发环境可见。只影响你自己的账号，由服务器记录，不是真实购买。</small><div style="margin-top:8px">${btn}</div></div>`}
+async function vipToggle(v){
+  if(VIP.busy)return;VIP.busy=1;
+  const r=await api('POST','/api/vip/test-toggle',{on:v==='1'});VIP.busy=0;
+  if(r.s!==200){T(errMsg(r,'切换失败'));await loadVip();return}
+  VIP.me=r.j;syncVipUser();T(r.j.vip.active?'已切换到 VIP（测试）':'已切回普通模式')}
 const pVip=()=>{
   const c=VIP.cat;let body;
   if(!NET)body='<div class="card vp"><b>没有连上服务器</b><small>会员信息保存在服务器上。离线演示模式下无法读取。</small></div>';
   else if(!c)body=VIP.err?`<div class="card vp"><div class="err" role="alert">${esc(VIP.err)}</div><button class="pb" data-a="vipretry">重试</button></div>`:'<p class="em" data-vs="loading">正在读取会员信息…</p>';
-  else body=vipStatusCard()+(VIP.err?`<div class="err" role="alert" style="margin:8px 16px">${esc(VIP.err)}</div>`:'')+vipPlans(c)+vipCompare(c)+vipRules(c);
+  else body=vipStatusCard()+vipTestBox(c)+(VIP.err?`<div class="err" role="alert" style="margin:8px 16px">${esc(VIP.err)}</div>`:'')+vipPlans(c)+vipCompare(c)+vipRules(c);
   return `<div class="pg" id="vipc">${sub('会员中心')}<div class="sc">${body}</div></div>`};
 /* 设置页里的入口行 */
 const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip;
@@ -245,6 +258,7 @@ const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip
   return `<button class="row" style="width:100%;text-align:left" data-a="vip"><div class="gr"><b>会员中心</b><small>${esc(t)}</small></div><small>›</small></button>`};
 const vipOpen=()=>{S.sh=null;S.st.push('vip');loadVip().then(()=>render())};
 const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
+const vipTog=v=>vipToggle(v);
 
 /* ===== 15_perm.js ===== */
 /* NOVA V5 权限表（纯逻辑，无界面依赖，可在 node 里单测）。
@@ -765,7 +779,7 @@ gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.s
 theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
 
 /* ===== 80_events.js ===== */
-Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,vip:vipOpen,vipretry:vipRetry});
+Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog});
 document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;const ret=f(el.dataset.v);S.bot=k=='cmsend';if(ret&&typeof ret.then==='function')ret.then(()=>render(),()=>render());else render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t)}else if(t.id=='sq'){S.sq=t.value;$('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&document.getElementById('gate')){const b=document.querySelector('#gate [data-a=authgo]');if(b)b.click();return}if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});

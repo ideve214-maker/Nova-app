@@ -86,3 +86,47 @@ test('M2.4.3 读取失败时显示错误并可重试；设置页有入口', asyn
   await page.click('#v [data-a=vip]'); await page.waitForSelector('#vipc [data-plan=basic]');
   assert.deepEqual(page.errors, [], '无控制台报错');
 });
+
+// ---- M2.4.4 测试模式切换 ----
+test('M2.4.4 生产环境（默认）：界面没有测试开关，直接调接口也被 403', async () => {
+  // 上面共用的 S 是默认（生产）服务器
+  await page.reload(); await page.waitForSelector('nav'); await openCenter();
+  assert.equal(await page.locator('[data-a=viptoggle]').count(), 0);
+  assert.equal(await page.locator('#vtest').count(), 0);
+  assert.doesNotMatch(await page.innerText('#vipc'), /测试模式/);
+  const r = await page.evaluate(async () => { const t = JSON.parse(localStorage.getItem('nova_session')).token; const x = await fetch('/api/vip/test-toggle', {method: 'POST', headers: {Authorization: 'Bearer ' + t, 'Content-Type': 'application/json'}, body: '{"on":true}'}); return [x.status, (await x.json()).error.code]; });
+  assert.deepEqual(r, [403, 'TEST_MODE_DISABLED']);
+  assert.match(await page.innerText('#vipc'), /当前套餐：Basic/);
+});
+
+test('M2.4.4 开发环境：一键切 VIP / 普通，状态由服务端返回并刷新后保持', async () => {
+  const D = await startServer({env: 'development'});
+  const p = await openPage(browser, D.base);
+  try {
+    await register(p, 'vip_dev_1');
+    await p.click('nav [data-v=me]'); await p.click('#v [data-a=vip]');
+    await p.waitForSelector('#vtest');
+    assert.match(await p.innerText('#vtest'), /仅开发环境可见/);
+    assert.equal(await p.getAttribute('#vipc .vp[data-vs]', 'data-vs'), 'none');
+    await p.click('[data-a=viptoggle][data-v="1"]');
+    await p.waitForSelector('#vipc .vp[data-vs=active]');
+    assert.match(await p.innerText('#vipc'), /当前套餐：NOVA VIP[\s\S]*剩余 30 天/);
+    assert.equal(D.srv.db.prepare("SELECT vip_source s FROM users WHERE username='vip_dev_1'").get().s, 'test', '服务端真实入库');
+    await p.screenshot({path: SHOT + 'm244-center-vip-test.png'});
+    await p.reload(); await p.waitForSelector('nav');
+    await p.click('nav [data-v=me]'); await p.click('#v [data-a=vip]');
+    await p.waitForSelector('#vipc .vp[data-vs=active]');                 // 刷新后仍是 VIP（服务端状态）
+    await p.click('[data-a=viptoggle][data-v="0"]');
+    await p.waitForSelector('#vipc .vp[data-vs=none]');
+    assert.match(await p.innerText('#vipc'), /当前套餐：Basic/);
+    assert.equal(D.srv.db.prepare("SELECT vip_until u FROM users WHERE username='vip_dev_1'").get().u, null);
+    // 正式 VIP 不被测试开关改动
+    D.srv.db.prepare("UPDATE users SET vip_until=?, vip_since=?, vip_source='admin' WHERE username='vip_dev_1'").run(Date.now() + 864e5 * 60, Date.now());
+    await p.reload(); await p.waitForSelector('nav');
+    await p.click('nav [data-v=me]'); await p.click('#v [data-a=vip]');
+    await p.waitForSelector('#vipc .vp[data-vs=active]');
+    assert.equal(await p.locator('[data-a=viptoggle]').count(), 0);
+    assert.match(await p.innerText('#vtest'), /正式 VIP，测试开关不会改动它/);
+    assert.deepEqual(p.errors, []);
+  } finally { await p.context().close(); await D.close(); }
+});

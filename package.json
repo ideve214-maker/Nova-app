@@ -1,15 +1,15 @@
 {
   "name": "nova-v7",
   "private": true,
-  "version": "0.7.0-m2.4.3",
+  "version": "0.7.0-m2.4.4",
   "scripts": {
     "build": "node scripts/build.mjs",
     "server": "node --no-warnings server/index.mjs",
     "dev": "NOVA_ENV=development node --no-warnings server/index.mjs",
     "gen:vipdoc": "node scripts/gen-vip-doc.mjs",
-    "test:server": "node --no-warnings --test server/test/auth.test.mjs server/test/vip-config.test.mjs server/test/vip-api.test.mjs",
-    "test:ui": "node --no-warnings --test server/test/m22-ui.test.mjs server/test/m24-ui.test.mjs",
-    "test:web": "node tests/run.js"
+    "test:server": "node --no-warnings --test server/test/auth.test.mjs server/test/vip-config.test.mjs server/test/vip-api.test.mjs server/test/vip-toggle.test.mjs",
+    "test:ui": "node scripts/build.mjs && node --no-warnings --test server/test/m22-ui.test.mjs server/test/m24-ui.test.mjs",
+    "test:web": "node scripts/build.mjs && node tests/run.js"
   },
   "engines": {"node": ">=22.5"}
 }

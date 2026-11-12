@@ -12,7 +12,10 @@ class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s =
 const bad = (code, msg, s = 400) => new HttpError(s, code, msg);
 
 // clock 仅用于测试注入固定时间；生产一律用系统时间。
-export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*', clock = Date.now} = {}) {
+// env：只有严格等于 'development' 才会开启 VIP 测试切换（默认 production）；任何拼写变体都按生产处理。
+export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*', clock = Date.now,
+  env = process.env.NOVA_ENV || 'production', vipTestToggle = process.env.NOVA_VIP_TEST_TOGGLE !== '0'} = {}) {
+  const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
   const db = openDb(dbPath);
   const vip = createVip(db, {clock});
@@ -102,10 +105,22 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return {sessions: q.mySess.all(user.id).map(s => ({id: s.token_hash.slice(0, 12), current: s.token_hash === hash, createdAt: s.created_at, ip: s.ip, ua: s.ua}))};
     },
     // ---- VIP（M2.4.2）----
-    'GET /api/vip/catalog'() { return vip.catalog(); },
+    'GET /api/vip/catalog'() { return vip.catalog({testToggle: {enabled: testToggleOn}}); },
     'GET /api/vip/me'(req) {
       const {user} = auth(req);
       return {now: now(), vip: vip.status(user), entitlements: vip.entitlements(user)};
+    },
+    // 仅开发环境：给「调用者自己」开/关测试 VIP。生产环境一律 403；不改动管理员/支付开通的正式 VIP。
+    'POST /api/vip/test-toggle'(req, b) {
+      const {user} = auth(req);
+      if (!testToggleOn) { audit(user.id, 'vip.test_denied', 'user:' + user.id, ip(req)); throw bad('TEST_MODE_DISABLED', '测试模式未开启', 403); }
+      if (typeof b.on !== 'boolean') throw bad('BAD_REQUEST', '请指定 on: true 或 false');
+      const st = vip.status(user);
+      if (st.active && st.source !== 'test') throw bad('REAL_VIP_ACTIVE', '你已有正式开通的 VIP，测试开关不会改动它', 409);
+      if (b.on && !st.active) { vip.grant(user.id, {days: vip.config.expiry.testGrantDays, source: 'test', actorId: user.id, note: '测试开关'}); audit(user.id, 'vip.test_on', 'user:' + user.id, ip(req)); }
+      if (!b.on && st.active) { vip.revoke(user.id, {source: 'test', actorId: user.id, note: '测试开关'}); audit(user.id, 'vip.test_off', 'user:' + user.id, ip(req)); }
+      const u = q.userBy.get(user.id);
+      return {now: now(), vip: vip.status(u), entitlements: vip.entitlements(u)};
     },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
   };
@@ -155,5 +170,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = +process.env.PORT || 8787, host = process.env.HOST || '0.0.0.0', dbPath = process.env.NOVA_DB || './nova.db';
-  createApp({dbPath}).listen(port, host, () => console.log(`NOVA 后端已启动 http://${host}:${port}  数据库:${dbPath}`));
+  const app = createApp({dbPath});
+  app.listen(port, host, () => {
+    console.log(`NOVA 后端已启动 http://${host}:${port}  数据库:${dbPath}`);
+    if (process.env.NOVA_ENV === 'development' && process.env.NOVA_VIP_TEST_TOGGLE !== '0') console.log('⚠ 开发环境：VIP 测试切换已开启（任何登录用户都能给自己开/关测试 VIP）。不要用于公开部署。');
+  });
 }

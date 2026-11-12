@@ -4,7 +4,10 @@ import {VIP_CONFIG, valueOf, DAY_MS} from './vip-config.mjs';
 
 export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
   const now = () => clock();
-  const lastEvent = db.prepare('SELECT action FROM vip_events WHERE user_id=? ORDER BY id DESC LIMIT 1');
+  const lastEvent = db.prepare('SELECT action, source FROM vip_events WHERE user_id=? ORDER BY id DESC LIMIT 1');
+  const getUser = db.prepare('SELECT * FROM users WHERE id=?');
+  const setVip = db.prepare('UPDATE users SET vip_until=?, vip_since=?, vip_source=? WHERE id=?');
+  const addEvent = db.prepare('INSERT INTO vip_events(user_id,at,action,source,actor_id,until_before,until_after,note) VALUES(?,?,?,?,?,?,?,?)');
 
   /** state: none 未开通 | active 有效 | expiring 有效但即将到期 | expired 已过期 | revoked 已被撤销 */
   function status(user, at = now()) {
@@ -17,7 +20,33 @@ export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
     }
     if (until) return {...base, plan: 'basic', state: 'expired', active: false, since, expiredAt: until, source: user.vip_source || null};
     const ev = lastEvent.get(user.id);
-    return {...base, plan: 'basic', state: ev && ev.action === 'revoke' ? 'revoked' : 'none', active: false};
+    // 测试开关关闭不算「被撤销」，回到未开通；只有管理员/支付侧的撤销才是 revoked。
+    return {...base, plan: 'basic', state: ev && ev.action === 'revoke' && ev.source !== 'test' ? 'revoked' : 'none', active: false};
+  }
+
+  const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
+
+  /** 开通/续期。未过期 → 从原到期日顺延；已过期或未开通 → 从现在开始。写事件流水。 */
+  function grant(userId, {days, source, actorId = null, note = null}) {
+    if (!(Number.isInteger(days) && days > 0 && days <= 3660)) throw new Error('days 必须是 1–3660 的整数');
+    if (!['test', 'admin', 'payment'].includes(source)) throw new Error('未知来源 ' + source);
+    return tx(() => {
+      const u = getUser.get(userId); if (!u) throw new Error('用户不存在');
+      const at = now(), active = !!(u.vip_until && u.vip_until > at), before = u.vip_until || null;
+      const until = (active ? u.vip_until : at) + days * DAY_MS, since = active ? (u.vip_since || at) : at;
+      setVip.run(until, since, active ? (u.vip_source || source) : source, userId);
+      addEvent.run(userId, at, active ? 'extend' : 'grant', source, actorId, before, until, note);
+      return getUser.get(userId);
+    });
+  }
+  /** 撤销：立刻失效。 */
+  function revoke(userId, {source, actorId = null, note = null}) {
+    return tx(() => {
+      const u = getUser.get(userId); if (!u) throw new Error('用户不存在');
+      setVip.run(null, null, null, userId);
+      addEvent.run(userId, now(), 'revoke', source, actorId, u.vip_until || null, null, note);
+      return getUser.get(userId);
+    });
   }
 
   /** 当前身份下每项权益的取值：flag → true/false；quota → 数字或按 scope 的对象；待定 → null。 */
@@ -50,5 +79,5 @@ export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
     };
   }
 
-  return {config, now, status, entitlements, has, limit, catalog, lastEvent};
+  return {config, now, status, entitlements, has, limit, catalog, lastEvent, grant, revoke};
 }
