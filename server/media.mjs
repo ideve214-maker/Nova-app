@@ -5,6 +5,7 @@ import {join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {ApiError} from './errors.mjs';
+import {assertMagic} from './security.mjs';
 
 const nid = () => 'md_' + randomBytes(18).toString('base64url');
 const TICKET_MS = 5 * 60 * 1000;
@@ -143,6 +144,8 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     const lim = MEDIA_LIMITS[kind];
     const max = isVip(user) ? lim.vip : lim.basic;
     if (buffer.length > max) throw new ApiError(400, 'TOO_LARGE', `文件过大，最多 ${Math.round(max / 1024 / 1024)} MB`, {max, kind});
+    // 魔数校验：不能只靠扩展名或客户端声明的 MIME
+    assertMagic(buffer, kind, mime);
     const q = quotaOf(user), usedN = usageOf(user);
     if (usedN + buffer.length > q) throw new ApiError(403, 'QUOTA', '媒体存储额度已满', {used: usedN, quota: q});
 

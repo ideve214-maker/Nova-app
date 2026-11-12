@@ -31,6 +31,15 @@ import {createReports} from './reports.mjs';
 import {createE2ee, safetyNumber} from './e2ee.mjs';
 import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
+import {
+  clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
+  sessionCookies, clearSessionCookies, newCsrf, createRateLimit, createSecurityEvents,
+  slog, redact, lockBackoffMs,
+} from './security.mjs';
+import {createAccount} from './account.mjs';
+import {createAlerts} from './alerts.mjs';
+import {backupOpen} from './backup.mjs';
+import {readFileSync as _readLegal} from 'node:fs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 
@@ -45,13 +54,27 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   mediaDir, mediaScan, eventsOpts = {},
   adminUsername = process.env.NOVA_ADMIN_USERNAME,
   adminPassword = process.env.NOVA_ADMIN_PASSWORD,
-  payEnv = process.env, payDir, scheduleAuto, scheduleInterval = 5000} = {}) {
+  payEnv = process.env, payDir, scheduleAuto, scheduleInterval = 5000,
+  trustProxy = process.env.NOVA_TRUST_PROXY === '1',
+  trustedProxies = process.env.NOVA_TRUSTED_PROXIES || '',
+  cookieSession = process.env.NOVA_COOKIE_SESSION === '1',
+  cookieSecure = process.env.NOVA_COOKIE_SECURE,
+  hsts = process.env.NOVA_HSTS === '1',
+  rateLimitMode = process.env.NOVA_RATE_LIMIT || '',
+  alertWebhook = process.env.NOVA_ALERT_WEBHOOK || '',
+  } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
+  const trustOpts = {trustProxy: !!trustProxy, trustedProxies};
+  const rateMode = (rateLimitMode === '0' || rateLimitMode === 'off') ? 'off'
+    : (rateLimitMode === 'strict' ? 'strict' : (env === 'production' && dbPath !== ':memory:' && rateLimitMode !== 'lenient' ? 'lenient' : 'lenient'));
+  // 默认 lenient：单元测试与本机不会误伤；生产可设 NOVA_RATE_LIMIT=strict。:memory: 测试同样 lenient。
+  const cookieOn = !!cookieSession;
+
   // CORS：未设置或 * 时与原先一致（允许任意来源）。逗号分隔白名单只回显匹配的 Origin。
   function corsHeaders(req) {
     const out = {
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name, Last-Event-ID, Last-Event-Id',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name, Last-Event-ID, Last-Event-Id, X-CSRF-Token, X-Nova-Session',
       'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS',
     };
     const raw = (corsOrigin == null || String(corsOrigin).trim() === '') ? '*' : String(corsOrigin).trim();
@@ -62,7 +85,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     const list = raw.split(',').map(s => s.trim()).filter(Boolean);
     const origin = req && req.headers && (req.headers.origin || req.headers.Origin);
     out['Vary'] = 'Origin';
-    if (origin && list.includes(origin)) out['Access-Control-Allow-Origin'] = origin;
+    if (origin && list.includes(origin)) {
+      out['Access-Control-Allow-Origin'] = origin;
+      out['Access-Control-Allow-Credentials'] = 'true';
+    }
     return out;
   }
 
@@ -128,7 +154,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     delSess: db.prepare('DELETE FROM sessions WHERE token_hash=?'),
     delOther: db.prepare('DELETE FROM sessions WHERE user_id=? AND token_hash<>?'),
     att: db.prepare('SELECT * FROM login_attempts WHERE key=?'),
-    setAtt: db.prepare('INSERT INTO login_attempts(key,fails,locked_until) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET fails=excluded.fails, locked_until=excluded.locked_until'),
+    setAtt: db.prepare('INSERT INTO login_attempts(key,fails,locked_until,locks) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET fails=excluded.fails, locked_until=excluded.locked_until, locks=excluded.locks'),
     clrAtt: db.prepare('DELETE FROM login_attempts WHERE key=?'),
     audit: db.prepare('INSERT INTO audit_log(at,actor_id,action,target,ip,detail) VALUES(?,?,?,?,?,?)'),
     setPw: db.prepare('UPDATE users SET password_hash=?, must_change_pw=0 WHERE id=?'),
@@ -142,6 +168,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const payRoot = payDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/pay');
   const pay = createPay(db, {now, vip, audit, dataDir: payRoot, env: payEnv || process.env});
   const adminOps = createAdminOps(db, {now, vip, profile, pay, audit});
+  const secEvents = createSecurityEvents(db, {now});
+  const alerts = createAlerts({webhook: alertWebhook, now, dataDir: dbPath && dbPath !== ':memory:' ? dbPath : '.'});
+  const rate = rateMode === 'off' ? null : createRateLimit({now, mode: rateMode === 'strict' ? 'strict' : 'lenient', onEvent: ev => {
+    secEvents.record({...ev, ip: ev.ip, actorId: ev.actorId});
+  }});
+  const account = createAccount(db, {now, profile, hashPassword, verifyPassword, audit});
+
   const srvPostAuthor = (postId) => {
     const r = db.prepare('SELECT author_id FROM posts WHERE id=? AND deleted_at IS NULL').get(postId);
     return r ? r.author_id : null;
@@ -154,19 +187,51 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   };
   const PW_MSG = '密码需 8–128 位，且同时包含字母和数字';
 
-  function issue(user, req) {
+  function wantCookie(req, body) {
+    const h = String((req.headers && (req.headers['x-nova-session'] || req.headers['X-Nova-Session'])) || '').toLowerCase();
+    if (h === 'bearer') return false;
+    if (h === 'cookie') return true;
+    if (body && (body.session === 'cookie' || body.sessionMode === 'cookie')) return true;
+    return false;
+  }
+  function cookieSecureFor(req) {
+    if (cookieSecure === '1' || cookieSecure === true) return true;
+    if (cookieSecure === '0' || cookieSecure === false) return false;
+    return forwardedProto(req, trustOpts) === 'https';
+  }
+  function issue(user, req, body) {
     const t = newToken(), n = now();
     q.insSess.run(tokenHash(t), user.id, n, n + SESSION_MS, ip(req), String(req.headers['user-agent'] || '').slice(0, 200), newSessionId());
-    return {token: t, expiresAt: n + SESSION_MS};
+    const out = {token: t, expiresAt: n + SESSION_MS};
+    if (wantCookie(req, body) || (cookieOn && wantCookie(req, body))) {
+      const csrf = newCsrf();
+      req._setCookies = sessionCookies(t, csrf, {secure: cookieSecureFor(req), maxAge: SESSION_MS / 1000});
+      out.csrf = csrf;
+      out.sessionMode = 'cookie';
+    }
+    // cookieOn + X-Nova-Session cookie already handled; also honor cookieOn with explicit want
+    if (cookieOn && !out.sessionMode && wantCookie(req, body || {})) {
+      /* already set */
+    }
+    return out;
   }
-  const ip = req => req.socket.remoteAddress || '';
-  function auth(req) {
-    const m = /^Bearer (\S+)$/.exec(req.headers.authorization || ''); if (!m) throw bad('UNAUTHORIZED', '请先登录', 401);
-    const h = tokenHash(m[1]), s = q.sess.get(h);
+  const ip = req => clientIp(req, trustOpts) || (req.socket && req.socket.remoteAddress) || '';
+  function sessFromToken(raw) {
+    const h = tokenHash(raw), s = q.sess.get(h);
     if (!s || s.expires_at < now()) { if (s) q.delSess.run(h); throw bad('UNAUTHORIZED', '登录已过期，请重新登录', 401); }
     const u = q.userBy.get(s.user_id);
     if (!u || u.status !== 'active') throw bad('FORBIDDEN', '账号不可用', 403);
     return {user: u, hash: h};
+  }
+  function auth(req) {
+    const m = /^Bearer (\S+)$/.exec(req.headers.authorization || '');
+    if (m) return sessFromToken(m[1]);
+    const ck = cookieAuth(req);
+    if (ck.token) {
+      if (needsCsrf(req)) assertCsrf(req, ck.csrf);
+      return {...sessFromToken(ck.token), via: 'cookie'};
+    }
+    throw bad('UNAUTHORIZED', '请先登录', 401);
   }
   function adminAuth(req) {
     const m = /^Bearer (\S+)$/.exec(req.headers.authorization || '');
@@ -180,6 +245,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     throw bad('UNAUTHORIZED', '登录已过期，请重新登录', 401);
   }
 
+  function legalDoc(kind) {
+    const name = kind === 'terms' ? '04_user-agreement.md' : '04_privacy-policy.md';
+    const fp = pathJoin(dirname(fileURLToPath(import.meta.url)), '../docs/compliance', name);
+    let body = '';
+    try { body = _readLegal(fp, 'utf8'); } catch { body = '文档尚未生成。本接口仅提供草案，需专业审阅，不构成法律意见。'; }
+    return {kind, body, language: 'zh-CN', reviewRequired: true, disclaimer: '本稿为草案，须经专业人士审阅，不构成法律意见。'};
+  }
   const routes = {
     'POST /api/auth/register'(req, b) {
       const username = String(b.username || '').trim(), email = String(b.email || '').trim().toLowerCase(), pw = b.password;
@@ -190,7 +262,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const r = q.insUser.run(username, email, hashPassword(pw), now());
       const u = q.userBy.get(Number(r.lastInsertRowid));
       audit(u.id, 'user.register', 'user:' + u.id, ip(req));
-      return {user: pubUser(u), ...issue(u, req)};
+      return {user: pubUser(u), ...issue(u, req, b)};
     },
     'POST /api/auth/login'(req, b) {
       const id = String(b.account || '').trim().toLowerCase(), pw = String(b.password || ''), key = 'a:' + id;
@@ -201,13 +273,20 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       // 账号不存在时也做一次哈希，避免通过耗时判断账号是否存在
       const ok = u ? verifyPassword(pw, u.password_hash) : (verifyPassword(pw, 'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$' + 'A'.repeat(86) + '=='), false);
       if (!ok) {
-        const f = (a ? a.fails : 0) + 1; q.setAtt.run(key, f >= LOCK_FAILS ? 0 : f, f >= LOCK_FAILS ? now() + LOCK_MS : 0);
+        const locks = (a && a.locks) || 0;
+        const f = (a ? a.fails : 0) + 1;
+        if (f >= LOCK_FAILS) {
+          const next = locks + 1;
+          q.setAtt.run(key, 0, now() + lockBackoffMs(next, LOCK_MS), next);
+        } else {
+          q.setAtt.run(key, f, 0, locks);
+        }
         audit(u && u.id, 'auth.login_fail', key, ip(req));
         throw bad('BAD_CREDENTIALS', '账号或密码错误', 401);
       }
       if (u.status !== 'active') { audit(u.id, 'auth.login_banned', key, ip(req)); throw bad('BANNED', '账号已被封禁，请联系管理员', 403); }
       q.clrAtt.run(key); q.seen.run(now(), u.id); audit(u.id, 'auth.login', 'user:' + u.id, ip(req));
-      return {user: pubUser(u), ...issue(u, req)};
+      return {user: pubUser(u), ...issue(u, req, b)};
     },
     'POST /api/auth/logout'(req) { const {user, hash} = auth(req); q.delSess.run(hash); audit(user.id, 'auth.logout', 'user:' + user.id, ip(req)); return {}; },
     'GET /api/me'(req) { return {user: pubUser(auth(req).user)}; },
@@ -891,6 +970,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'GET /api/admin/users/:id'(req) {
       const {admin} = adminAuth(req);
+      audit(admin.id, 'admin.user.read', 'user:' + req.params.id, ip(req), {adminUsername: admin.username});
       return adminOps.oneUser(req.params.id);
     },
     'POST /api/admin/users/:id/ban'(req, b) {
@@ -975,6 +1055,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'GET /api/admin/payments/:id'(req) {
       const {admin} = adminAuth(req);
+      audit(admin.id, 'admin.payment.read', 'payment:' + req.params.id, ip(req), {adminUsername: admin.username});
       return pay.getFor(admin, req.params.id, {admin: true});
     },
     'POST /api/admin/payments/:id/confirm'(req, b) {
@@ -1085,6 +1166,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'GET /api/me/export'(req) {
       const {user} = auth(req);
+      audit(user.id, 'user.export', 'user:' + user.id, ip(req));
       return {export: exporter.exportAll(user)};
     },
     'POST /api/me/export'(req) {
@@ -1213,7 +1295,86 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return r;
     },
 
-    'GET /api/health'() { return {status: 'ok', time: now()}; },
+    'GET /api/health'() {
+      try {
+        const row = db.prepare('SELECT 1 AS n').get();
+        if (!row || row.n !== 1) throw new Error('db ping failed');
+      } catch (e) {
+        try { alerts.dbError(e, {path: '/api/health'}); } catch {}
+        throw bad('DB_UNAVAILABLE', '数据库不可用', 503);
+      }
+      let disk;
+      try { disk = alerts.disk(); } catch { disk = {}; }
+      return {
+        status: 'ok', time: now(), db: 'ok',
+        uptime: Math.round(process.uptime()),
+        disk: disk && disk.free != null ? {free: disk.free, low: !!disk.low} : undefined,
+      };
+    },
+    'GET /api/metrics'(req) {
+      const {admin} = adminAuth(req);
+      let disk = {};
+      try { disk = alerts.disk(); } catch {}
+      return {
+        time: now(), uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        rate: rate ? rate.snapshot() : {mode: 'off'},
+        disk,
+        sse: typeof events.stats === 'function' ? events.stats() : undefined,
+      };
+    },
+    'GET /api/admin/metrics'(req) {
+      const {admin} = adminAuth(req);
+      return routes['GET /api/metrics'](req);
+    },
+    'GET /api/admin/security/events'(req) {
+      const {admin} = adminAuth(req);
+      return secEvents.listEvents(req.query || {});
+    },
+    'POST /api/me/delete'(req, b) {
+      const {user} = auth(req);
+      const r = account.deleteAccount(user, {...(b || {}), _ip: ip(req)});
+      req._setCookies = clearSessionCookies({secure: cookieSecureFor(req)});
+      return r;
+    },
+    'POST /api/appeals'(req, b) {
+      try {
+        const {user} = auth(req);
+        return account.submitAppeal(user, {...(b || {}), _ip: ip(req)});
+      } catch (e) {
+        if (e && (e.code === 'UNAUTHORIZED' || e.s === 401)) {
+          return account.submitAppealWithPassword(b || {}, {ip: ip(req)});
+        }
+        throw e;
+      }
+    },
+    'GET /api/appeals'(req) {
+      const {user} = auth(req);
+      return account.listMine(user, req.query || {});
+    },
+    'GET /api/admin/appeals'(req) {
+      const {admin} = adminAuth(req);
+      return account.listAll(req.query || {});
+    },
+    'GET /api/admin/appeals/:id'(req) {
+      const {admin} = adminAuth(req);
+      return account.get(req.params.id);
+    },
+    'POST /api/admin/appeals/:id/decision'(req, b) {
+      const {admin} = adminAuth(req);
+      return account.decideAppeal(admin, req.params.id, b || {}, ip(req));
+    },
+    'GET /api/legal/privacy'() { return legalDoc('privacy'); },
+    'GET /api/legal/terms'() { return legalDoc('terms'); },
+    'GET /api/auth/csrf'(req) {
+      const csrf = newCsrf();
+      req._setCookies = [
+        ...(req._setCookies || []),
+        sessionCookies('x', csrf, {secure: cookieSecureFor(req), maxAge: SESSION_MS / 1000})[1],
+      ];
+      return {csrf};
+    },
+
 
 
 
@@ -1244,14 +1405,38 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const root = dirname(fileURLToPath(import.meta.url));
   const assetRoot = join(root, '../assets');
   const server = http.createServer((req, res) => {
-    const h = {...corsHeaders(req),
-      'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8'};
-    const send = (s, o) => { res.writeHead(s, h); res.end(JSON.stringify(o)); };
+    const h = {...corsHeaders(req), ...securityHeaders({hsts: !!hsts, html: false}),
+      'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8'};
+    const send = (s, o) => {
+      const hdrs = {...h};
+      if (req._setCookies && req._setCookies.length) hdrs['Set-Cookie'] = req._setCookies;
+      if (s === 429 && o && o.error && o.error.retryAfter) hdrs['Retry-After'] = String(o.error.retryAfter);
+      res.writeHead(s, hdrs); res.end(JSON.stringify(o));
+    };
     if (req.method === 'OPTIONS') { res.writeHead(204, h); return res.end(); }
     const parsed = new URL(req.url, 'http://x');
     const path = parsed.pathname;
     req.query = Object.fromEntries(parsed.searchParams);
     req.params = {};
+    if (rate && path !== '/api/health') {
+      try {
+        const id = ip(req) || 'unknown';
+        let kind = 'global';
+        if (req.method === 'POST' && path === '/api/auth/register') kind = 'register';
+        else if (req.method === 'POST' && (path === '/api/auth/login' || path === '/api/admin/auth/login')) kind = 'login';
+        else if (req.method === 'POST' && path === '/api/reports') kind = 'report';
+        else if (req.method === 'POST' && path === '/api/media') kind = 'upload';
+        else if (req.method === 'POST' && path === '/api/posts') kind = 'post';
+        else if (req.method === 'POST' && (/\/messages$/.test(path))) kind = 'message';
+        else if (req.method === 'POST' && path === '/api/appeals') kind = 'appeal';
+        rate.check(kind, id, path);
+      } catch (e) {
+        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) {
+          return send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+        }
+        throw e;
+      }
+    }
     if (req.method === 'GET' && path.startsWith('/assets/')) {
       const name = decodeURIComponent(path.slice('/assets/'.length));
       if (!/^[\w.-]+$/.test(name)) return send(400, {error: {code: 'BAD_PATH', message: '路径不正确'}});
@@ -1264,7 +1449,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     if (req.method === 'GET' && (path === '/' || path === '/index.html' || path === '/nova_v5.html')) {
       try {
         const html = readFileSync(join(root, '../dist/nova_v5.html'));
-        res.writeHead(200, {...h, 'Content-Type': 'text/html; charset=utf-8'});
+        res.writeHead(200, {...h, ...securityHeaders({hsts: !!hsts, html: true, connectSrc: process.env.NOVA_API_BASE || ''}), 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': securityHeaders({html: true, connectSrc: process.env.NOVA_API_BASE || ''})['Content-Security-Policy']});
         return res.end(html);
       } catch { return send(503, {error: {code: 'NO_BUILD', message: '前端还没构建'}}); }
     }
@@ -1288,7 +1473,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return res.end(data);
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
-        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
       }
       return;
     }
@@ -1311,7 +1496,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return res.end(f.buf);
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
-        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
         return;
       }
     }
@@ -1322,8 +1507,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         const got = pay.getFor(admin, decodeURIComponent(payRcpt[1]), {admin: true});
         const row = pay.get(got.order.id);
         const f = pay.receiptFile(row);
+        audit(admin.id, 'admin.payment.receipt', 'payment:' + got.order.id, ip(req), {adminUsername: admin.username, method: req.method});
         res.writeHead(200, {
           ...corsHeaders(req),
+          ...securityHeaders({hsts: !!hsts}),
           'Content-Type': f.mime,
           'Content-Length': f.buf.length,
           'Content-Disposition': 'inline; filename="' + String(f.name || 'receipt').replace(/["\\]/g, '') + '"',
@@ -1334,7 +1521,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return res.end(f.buf);
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
-        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
         return;
       }
     }
@@ -1345,7 +1532,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       try { fn(req, res); }
       catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
-        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
       }
       return;
     }
@@ -1369,11 +1556,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         send(200, {ok: true, ...fn(req, b)});
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
-        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence; server.exporter = exporter;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
