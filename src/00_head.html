@@ -30,7 +30,10 @@ button{cursor:pointer}:focus-visible{outline:2px solid var(--ac);outline-offset:
 .ib{width:var(--tap,44px);height:var(--tap,44px);display:grid;place-items:center;border-radius:var(--r-sm,10px);flex:none;position:relative}
 .ib svg{width:calc(22px * var(--ui-scale,1));height:calc(22px * var(--ui-scale,1));fill:currentColor}.ib:active{background:var(--s2)}
 .dot{position:absolute;top:9px;right:9px;width:10px;height:10px;border-radius:50%;background:var(--dg);border:2px solid var(--sf)}
-nav{flex:none;display:flex;height:calc(var(--nav-h,50px) + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);background:var(--sf);border-top:.5px solid var(--ln);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px)}
+nav.fnav,nav{flex:none;position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));height:var(--nav-h,56px);padding:0;display:flex;background:color-mix(in srgb,var(--sf) 78%,transparent);border:.5px solid var(--ln2,rgba(255,255,255,.08));border-radius:28px;backdrop-filter:saturate(180%) blur(22px);-webkit-backdrop-filter:saturate(180%) blur(22px);box-shadow:0 8px 28px rgba(0,0,0,.32),0 1px 0 rgba(255,255,255,.06) inset;z-index:16}
+#v{position:relative}
+#v.has-nav>.pg{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+#tt{bottom:calc(96px + env(safe-area-inset-bottom,0px))!important}
 nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:var(--fs-xs,12px);color:var(--t2);position:relative;min-height:var(--nav-h,50px)}
 nav button.on{color:var(--ac);font-weight:600}nav svg{width:calc(24px * var(--ui-scale,1));height:calc(24px * var(--ui-scale,1));fill:currentColor}
 .bdg{position:absolute;top:5px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--dg);color:#fff;font:700 11px/18px sans-serif;text-align:center;font-style:normal}
