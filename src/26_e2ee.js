@@ -363,10 +363,26 @@ function safetySheet(s){
   return `<h3>安全号码</h3><p class="hint" style="margin-bottom:8px">请与对方当面或通过其他可信渠道核对这些数字。数字相同表示正在和同一把身份密钥通话。密钥变化时会再次提示。独立安全审查尚未完成。</p><div style="padding:8px;text-align:center;font-size:15px;line-height:1.9" data-safety-number="${esc(info.number)}">${grid}</div>${info.verified?'<p class="hint">你已将此号码标记为已核对。</p>':''}<div class="fr"><button class="pb s" data-a="x">关闭</button><button class="pb" data-a="safeok" data-v="${s.peer}">${info.verified?'重新确认':'标记为已核对'}</button></div>`;
 }
 
+async function e2eeDecryptExport(data){
+  if(!data||!Array.isArray(data.conversations))return data;
+  for(const cv of data.conversations){
+    for(const m of (cv.messages||[])){
+      if(!(m&&m.encrypted&&m.ciphertext))continue;
+      try{
+        const copy=Object.assign({},m);
+        await e2eeDecrypt(copy);
+        if(copy.decrypted){m.plaintextExport=copy.text;m.decryptedOnClient=true}
+        else{m.decryptedOnClient=false;m.decryptError=copy.decryptError}
+      }catch(e){m.decryptedOnClient=false;m.decryptError=String(e&&e.message||e)}
+    }
+  }
+  data.e2eeDecryptedOnClient=true;
+  return data;
+}
 // 导出到全局，供聊天与界面调用。
 Object.assign(globalThis,{
   e2eeEnsure, e2eeEncrypt, e2eeDecrypt, e2eeSafetyOf, e2eeMarkVerified, e2eeOnLogin,
   e2eePeerOf:peerOfCv, e2eeIsDm, safetyNumber, e2eeUploadKeys, e2eePlainCache,
-  e2eeChatBar, safenum, safeok, safetySheet,
+  e2eeChatBar, safenum, safeok, safetySheet, e2eeDecryptExport,
 });
 })();
