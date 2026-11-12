@@ -636,6 +636,34 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(user.id, 'chat.recall', 'message:' + req.params.id, ip(req));
       return r;
     },
+    'POST /api/messages/:id/save'(req, b) {
+      const {user} = auth(req);
+      const mid = req.params.id;
+      const row = chats.messageOf(user, mid);
+      const r = saved.add(user, {
+        kind: 'message',
+        target: row.conversation_id + ':' + mid,
+        title: (b && b.title) || '消息',
+        excerpt: (b && b.excerpt) || '',
+      });
+      return {saved: true, item: r.item, existed: r.existed, count: r.count, limit: r.limit, publicPinsUnchanged: true};
+    },
+    'POST /api/messages/:id/unsave'(req) {
+      const {user} = auth(req);
+      const mid = req.params.id;
+      const row = chats.messageOf(user, mid, {allowMissing: true});
+      const target = row ? (row.conversation_id + ':' + mid) : null;
+      const r = target
+        ? saved.remove(user, {kind: 'message', target})
+        : saved.remove(user, {kind: 'message', target: mid});
+      return {saved: false, removed: r.removed, count: r.count};
+    },
+    'GET /api/saved-messages'(req) {
+      const {user} = auth(req);
+      const all = saved.list(user);
+      const items = (all.items || []).filter(i => i.kind === 'message');
+      return {items, count: items.length, limit: all.limit, plan: all.plan, kind: 'message', separateFromPublicPins: true};
+    },
     'POST /api/messages/:id/react'(req, b) {
       const {user} = auth(req);
       return chats.react(user, req.params.id, b || {});

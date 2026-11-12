@@ -717,6 +717,16 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return {message: msg, emoji, added: true, already: false};
   }
 
+  function messageOf(user, mid, {allowMissing = false} = {}) {
+    const row = msgById.get(String(mid));
+    if (!row) {
+      if (allowMissing) return null;
+      throw new ApiError(404, 'NOT_FOUND', '消息不存在');
+    }
+    const cv = requireConv(row.conversation_id);
+    requireMem(cv, user);
+    return row;
+  }
   function forward(user, mid, body = {}) {
     if (!hasForward || !setFwd) throw new ApiError(503, 'NO_FORWARD', '转发功能尚未就绪');
     const src = msgById.get(String(mid));
@@ -762,7 +772,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
 
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
-    send, listMessages, pubMsg, quoteOf, forward, react, markRead, setMute, setConvPin, unreadOf, receiptOf,
+    send, listMessages, pubMsg, quoteOf, forward, react, messageOf, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,
