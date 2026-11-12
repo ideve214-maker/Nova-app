@@ -1,5 +1,15 @@
 # 更新日志（最新在上）
 
+## V7 M4.12 · 管理端内容/用户/VIP 与人工收款开通（2026-11-12）
+- **内容删除与恢复（M3.5.3）：** `GET /api/admin/content`（`type=post|comment`，`status=all|visible|removed`）。`POST /api/admin/content/:type/:id/delete`（软删除，可附 reason，幂等）与 `/restore`。写入 `audit_log`。用户端仍按 `deleted_at` 隐藏，恢复后重新可见。
+- **用户管理（对齐 Agen 路径）：** `GET /api/admin/users`、`GET /api/admin/users/:id`、`POST .../ban`、`.../unban`、`.../reset-password`。封禁立即清会话，登录返回 403 `BANNED`，持有旧令牌访问与发帖会被拒。解禁后可再登录。重置密码返回一次性 `temporaryPassword` 并设 `mustChangePw`。
+- **VIP 授予/撤销：** `POST /api/admin/vip/grant`（`userId, days, reason`）、`POST /api/admin/vip/revoke`（`userId, reason`）。封禁账号不能开通。复用已有 `vip.grant` / `revoke`。另有 `GET /api/admin/stats`、`GET|POST /api/admin/announcements`。
+- **支付默认人工收款码（不上应用商店）：** 用户选套餐后 `POST /api/pay/orders` 生成待付款订单与短订单码（`NV`+6 位）。客户端展示配置的微信/支付宝收款码、金额，并提示在转账备注填写订单码。点「我已付款」（可选截图，JPG/PNG/WebP，≤5 MB）后进入 `awaiting_review`，**不会立刻开通**。管理员 `GET /api/admin/payments` 列表，`POST .../confirm` 幂等授予/续期 VIP，`POST .../reject` 需原因，`POST .../refund` 只改退款状态、不自动撤销 VIP。订单会过期（默认 24 小时，`NOVA_PAY_ORDER_EXPIRE_MINUTES`），每用户待处理上限默认 3（`NOVA_PAY_PENDING_LIMIT`）。
+- **收款码：** 默认随仓库提供的是**已遮罩**图（`assets/pay-wechat.jpg`、`assets/pay-alipay.jpg`），可用 `NOVA_PAY_WECHAT_QR` / `NOVA_PAY_ALIPAY_QR`（URL 或本地路径）覆盖。`NOVA_PAY_WECHAT_ENABLED` / `NOVA_PAY_ALIPAY_ENABLED` 可单独关闭。微信码可能来自已停用账号，关闭即可。未遮罩原图不得入库。
+- **其他提供商：** 提供商无关的订单层。`mock` 渠道用 `NOVA_PAY_MOCK_SECRET` 校验 `X-Nova-Pay-Signature`（HMAC-SHA256），回调幂等开通。微信/支付宝官方、Stripe、Apple IAP 为未配置桩（501，不接受商户凭证）。价格仍是配置里的「暂定」¥9.9/月、¥99/年。月/年对应 30/365 天。
+- **诚实文案：** 会员中心开通入口说明「管理员核对后生效，不会自动扣款或立刻到账」。不出现「已购买成功」类即时开通。两种方式都关闭时按钮回到「暂未开放」。
+
+
 ## V7 M4.11.3–M4.11.4 · 私聊 Olm（vodozemac）端到端加密（2026-11-12）
 - 负责人选定 vodozemac（Apache-2.0）。使用 vendored `@kinsh/vodozemac-wasm` 0.4.2（官方 vodozemac 的 WASM 绑定），不安装 libsignal，不自写 ratchet。
 - **设备密钥（M4.11.3）：** 客户端生成 Olm Account，私钥只留本机。`POST /api/e2ee/keys` 上传身份公钥与一次性/备用密钥；`POST /api/e2ee/keys/claim` 供好友消耗性领取；`POST /api/e2ee/devices/:id/revoke` 撤销。拒绝上传私钥。
