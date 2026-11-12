@@ -3,32 +3,102 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#6d4aff" />
+    <meta name="theme-color" content="#0A0C14" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="description" content="NOVA 社区管理端，用户、内容、举报与会员权益。" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <title>NOVA 管理端</title>
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem("nova-admin-theme");
+          var light = m === "light" || (m !== "dark" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+          document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+          document.documentElement.style.colorScheme = light ? "light" : "dark";
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", light ? "#F3F4F9" : "#0A0C14");
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
     <style>
       html, body, #root { margin: 0; min-height: 100%; min-height: 100dvh; }
-      body { background: #e6e0f4; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", sans-serif; }
+      html, body { background: #0A0C14; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      html[data-theme="light"], html[data-theme="light"] body { background: #F3F4F9; }
       #nova-static-splash {
         min-height: 100vh; min-height: 100dvh;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        color: #fff; text-align: center; padding: max(32px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(32px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
-        background: linear-gradient(180deg, #5b35f0 0%, #7a59ff 46%, #c8b6ff 100%);
+        text-align: center;
+        padding: max(32px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(32px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+        color: #F4F6FC;
+        background:
+          radial-gradient(80% 50% at 50% 34%, rgba(110,139,255,.38), transparent 72%),
+          #0A0C14;
       }
-      #nova-static-msg { display: none; max-width: 320px; font-size: 14px; line-height: 1.6; }
-      #nova-static-btn { display: none; margin-top: 16px; height: 44px; padding: 0 22px; border: 0; border-radius: 999px; background: #fff; color: #542ee0; font-size: 16px; font-weight: 600; }
+      html[data-theme="light"] #nova-static-splash {
+        color: #13151C;
+        background:
+          radial-gradient(80% 50% at 50% 34%, rgba(79,110,247,.18), transparent 72%),
+          #F3F4F9;
+      }
+      #nova-static-splash .nova-static-brand {
+        margin: 20px 0 0;
+        font-size: 28px; font-weight: 800; letter-spacing: .06em; line-height: 1;
+        background: linear-gradient(180deg, #8BA3FF 0%, #6E8BFF 48%, #5B74F2 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      html[data-theme="light"] #nova-static-splash .nova-static-brand {
+        background: linear-gradient(180deg, #6B86FF 0%, #4F6EF7 50%, #3D58E0 100%);
+        -webkit-background-clip: text; background-clip: text;
+      }
+      #nova-static-splash .nova-static-sub {
+        margin: 8px 0 0; font-size: 15px; font-weight: 700; letter-spacing: .12em;
+        color: #6E8BFF;
+      }
+      html[data-theme="light"] #nova-static-splash .nova-static-sub { color: #4F6EF7; }
+      #nova-static-msg { display: none; max-width: 320px; font-size: 14px; line-height: 1.6; margin: 16px 0 0; opacity: .85; }
+      #nova-static-btn {
+        display: none; margin-top: 16px; height: 44px; padding: 0 22px; border: 0;
+        border-radius: 14px; background: linear-gradient(180deg, #8BA3FF 0%, #6E8BFF 48%, #5B74F2 100%);
+        color: #fff; font-size: 16px; font-weight: 700; letter-spacing: .02em;
+        box-shadow: 0 4px 14px rgba(110,139,255,.38);
+      }
     </style>
   </head>
   <body>
     <div id="root">
       <div id="nova-static-splash">
-        <svg viewBox="0 0 64 64" width="48" height="48" aria-hidden="true">
-          <path fill="currentColor" d="M32 3c1.2 14 7 20.2 22 22.4C39 27.6 33.2 34 32 48 30.8 34 25 27.6 10 25.4 25 23.2 30.8 17 32 3z"/>
+        <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true">
+          <defs>
+            <linearGradient id="boot-star" x1="32" y1="2" x2="32" y2="48" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#F0F3FF"/>
+              <stop offset=".35" stop-color="#C5D0FF"/>
+              <stop offset=".75" stop-color="#8BA3FF"/>
+              <stop offset="1" stop-color="#5B74F2"/>
+            </linearGradient>
+            <linearGradient id="boot-wave" x1="6" y1="48" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#4ECDC4"/>
+              <stop offset=".5" stop-color="#6E8BFF"/>
+              <stop offset="1" stop-color="#A8BAFF"/>
+            </linearGradient>
+          </defs>
+          <path fill="url(#boot-star)" d="M32 2.8C33.35 16.4 36.1 22.7 48.2 25.15C36.1 27.6 33.35 33.9 32 47.5C30.65 33.9 27.9 27.6 15.8 25.15C27.9 22.7 30.65 16.4 32 2.8Z"/>
+          <path fill="url(#boot-star)" opacity=".92" transform="rotate(45 32 25.15)" d="M32 12.2C32.7 18.5 34.4 21.7 41.2 23.15C34.4 24.6 32.7 27.8 32 34.1C31.3 27.8 29.6 24.6 22.8 23.15C29.6 21.7 31.3 18.5 32 12.2Z"/>
+          <circle cx="11.5" cy="12.5" r="1.2" fill="#A8BAFF" opacity=".9"/>
+          <circle cx="53" cy="11" r=".85" fill="#F0F3FF" opacity=".95"/>
+          <circle cx="54.5" cy="21.5" r="1.05" fill="#6E8BFF" opacity=".8"/>
+          <circle cx="9.5" cy="23" r=".7" fill="#4ECDC4" opacity=".75"/>
+          <path fill="none" stroke="url(#boot-wave)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M7.5 48.2c6.8-5.6 13-5.6 19.6 0s13 5.6 19.6 0 10.2-5.3 11.3-5"/>
+          <path fill="none" stroke="url(#boot-wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55" d="M11.5 55.4c5.7-4.3 11.4-4.3 17.1 0s11.4 4.3 17.1 0 8.6-4.1 9.6-3.9"/>
         </svg>
+        <p class="nova-static-brand">NOVA</p>
+        <p class="nova-static-sub">管理端</p>
         <p id="nova-static-msg">正在进入管理端。如果长时间没有变化，请关闭后重新打开。</p>
         <button type="button" id="nova-static-btn">刷新重试</button>
       </div>

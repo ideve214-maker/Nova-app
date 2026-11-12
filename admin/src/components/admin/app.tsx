@@ -62,16 +62,18 @@ export function AdminApp() {
   if (!booted) {
     return (
       <Frame>
-        <div className="nova-login grid flex-1 place-items-center px-6 text-on-primary" style={{ paddingTop: "max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))", paddingBottom: "max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))" }}>
+        <div className="nova-splash grid flex-1 place-items-center px-6 text-fg" style={{ paddingTop: "max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))", paddingBottom: "max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex flex-col items-center text-center">
-            <StarMark className="size-9" />
-            <p className="mt-4 text-[15px] text-on-primary/85">正在进入 NOVA 管理端…</p>
+            <StarMark className="size-[72px]" />
+            <p className="nova-brand mt-5 text-[28px] leading-none">NOVA</p>
+            <p className="mt-2 text-[15px] font-bold tracking-[0.12em] text-primary">管理端</p>
+            <p className="mt-4 text-[15px] text-muted">正在进入 NOVA 管理端…</p>
             {(stalled || bootError) && (
               <>
-                <p className="mt-3 max-w-xs text-[13px] leading-5">{bootError || "启动较慢"}</p>
+                <p className="mt-3 max-w-xs text-[13px] leading-5 text-muted">{bootError || "启动较慢"}</p>
                 <button
                   type="button"
-                  className="mt-4 h-11 rounded-full bg-surface px-6 text-[16px] font-semibold text-primary-deep"
+                  className="nova-btn-primary mt-4 h-11 px-6 text-[16px]"
                   onClick={() => {
                     useAdmin.setState({ booted: true, bootError: bootError || "已跳过启动等待" });
                     markAppBooted();
@@ -130,7 +132,9 @@ export function AdminApp() {
             const on = name === item.id;
             return (
               <button key={item.id} type="button" onClick={() => tab(item.id)} className={`relative flex h-[49px] flex-col items-center justify-center gap-px ${on ? "font-semibold text-primary" : "text-muted"}`}>
-                <Icon className="size-[22px]" strokeWidth={on ? 2.2 : 1.8} />
+                <span className={`nova-tab-icon ${on ? "is-on" : ""}`}>
+                  <Icon className="size-[22px]" strokeWidth={on ? 2.2 : 1.8} />
+                </span>
                 <span className="text-[10px] leading-3">{item.label}</span>
                 {item.id === "messages" && unread > 0 && (
                   <span className="absolute right-[18%] top-0.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold text-on-primary">

@@ -43,7 +43,7 @@ export function LoginScreen() {
 
   return (
     <div
-      className="nova-login flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto text-on-primary"
+      className="nova-login flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto text-fg"
       style={{
         paddingTop: "max(12px, var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))",
         paddingBottom: "max(12px, var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))",
@@ -52,14 +52,13 @@ export function LoginScreen() {
       }}
     >
       <div className="flex flex-1 flex-col items-center pt-4">
-        <span className="grid size-[52px] place-items-center rounded-[14px] bg-surface/15">
-          <StarMark className="size-7" />
-        </span>
-        <h1 className="mt-3 text-[22px] font-semibold tracking-tight">NOVA 管理端</h1>
-        <p className="mt-1 text-[13px] text-on-primary/80">社区管理</p>
+        <StarMark className="size-[72px]" />
+        <h1 className="nova-brand mt-5 text-[28px] leading-none">NOVA</h1>
+        <p className="mt-2 text-[15px] font-bold tracking-[0.12em] text-primary">管理端</p>
+        <p className="mt-1 text-[13px] text-muted">社区管理</p>
 
         <form onSubmit={submitPassword} className="mt-6 w-full">
-          <label className="mb-2.5 flex h-11 items-center gap-2 rounded-xl bg-surface px-3 text-fg">
+          <label className="mb-2.5 flex h-11 items-center gap-2 rounded-[14px] border border-line bg-subtle px-3 text-fg">
             <UserRound className="size-4 shrink-0 text-muted" />
             <input
               className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none"
@@ -69,7 +68,7 @@ export function LoginScreen() {
               placeholder="管理员账号"
             />
           </label>
-          <label className="mb-2.5 flex h-11 items-center gap-2 rounded-xl bg-surface px-3 text-fg">
+          <label className="mb-2.5 flex h-11 items-center gap-2 rounded-[14px] border border-line bg-subtle px-3 text-fg">
             <LockKeyhole className="size-4 shrink-0 text-muted" />
             <input
               className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none"
@@ -94,11 +93,11 @@ export function LoginScreen() {
               记住登录
             </label>
           </div>
-          {error && <p className="mb-2.5 text-center text-[13px] text-surface">{error}</p>}
+          {error && <p className="mb-2.5 text-center text-[13px] text-danger">{error}</p>}
           <button
             type="submit"
             disabled={busy}
-            className="h-11 w-full rounded-full bg-surface text-[16px] font-semibold text-primary-deep disabled:opacity-60"
+            className="nova-btn-primary h-11 w-full text-[16px] disabled:opacity-60"
           >
             {busy ? "正在登录…" : "登录"}
           </button>
@@ -106,14 +105,14 @@ export function LoginScreen() {
       </div>
 
       <div className="mt-4 pb-3">
-        <button type="button" className="mx-auto flex h-11 items-center gap-1.5 text-[13px]" onClick={() => setServerOpen(true)}>
+        <button type="button" className="mx-auto flex h-11 items-center gap-1.5 text-[13px] text-primary" onClick={() => setServerOpen(true)}>
           <Server className="size-3.5" />
           设置服务器
         </button>
         <div className="mb-2 flex justify-center">
           <ConnectionBadge />
         </div>
-        <p className="px-1 text-center text-[11px] leading-4 text-on-primary/75">
+        <p className="px-1 text-center text-[11px] leading-4 text-muted">
           使用服务器上的管理员账号登录（用 <code className="text-[10px]">admin-cli</code> 创建，令牌前缀 na_）。没有内置默认口令。列表与统计全部来自真实后端。
         </p>
       </div>

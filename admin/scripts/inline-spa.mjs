@@ -72,6 +72,19 @@ html = html.replace(/<script([^>]*?)src="([^"]+)"([^>]*)><\/script>/gi, (full, a
   return `<script${type}>\n${js}\n</script>`;
 });
 
+// Brand icons for the multi-file webDir (SPA build sets publicDir: false).
+const brandFiles = [
+  "favicon.svg",
+  "favicon-32.png",
+  "apple-touch-icon.png",
+  "icon-192.png",
+  "mark.svg",
+];
+for (const name of brandFiles) {
+  const src = join(root, "public", name);
+  if (existsSync(src)) copyFileSync(src, join(dir, name));
+}
+
 const out = join(dir, "NOVA_Admin.html");
 writeFileSync(out, html);
 console.log(`Multi-file (Capacitor webDir): ${multi}`);

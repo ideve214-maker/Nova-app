@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import { AdminApp } from "./components/admin/app";
+import { applyTheme, watchSystemTheme } from "./lib/admin/theme";
 import "./styles.css";
+
+applyTheme();
+watchSystemTheme();
 import m0 from "../public/media/av-chen.jpg";
 import m1 from "../public/media/av-group.jpg";
 import m2 from "../public/media/av-he.jpg";

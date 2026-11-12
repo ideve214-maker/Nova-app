@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { overviewOf, useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
+import { getStoredTheme, setTheme, type ThemeMode } from "@/lib/admin/theme";
 import { DataHint, DemoBanner, EmptyState, Pill, PendingApi, RowLink, Seg, StarMark } from "./ui";
 import { ConnectionBadge } from "./server-panel";
 
@@ -226,11 +227,18 @@ export function MessagesScreen() {
   );
 }
 
+const themeOptions: { id: ThemeMode; label: string }[] = [
+  { id: "system", label: "跟随系统" },
+  { id: "dark", label: "深色" },
+  { id: "light", label: "浅色" },
+];
+
 export function MeScreen() {
   const go = useAdmin((s) => s.go);
   const logout = useAdmin((s) => s.logout);
   const adminProfile = useAdmin((s) => s.adminProfile);
   const adminName = useAdmin((s) => s.adminName);
+  const [theme, setThemeMode] = useState<ThemeMode>(() => (typeof window === "undefined" ? "system" : getStoredTheme()));
   return (
     <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-3">
       <header className="px-4 pb-2 pt-safe">
@@ -255,6 +263,25 @@ export function MeScreen() {
         <RowLink icon={<CreditCard className="size-4" />} title="付款审核" desc="收款码人工核对" onClick={() => go("payments")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ShieldCheck className="size-4" />} title="安全设置" desc="登录保护说明" onClick={() => go("security")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-4" />} title="审计日志" onClick={() => go("audit")} extra={<ChevronRight className="size-4 text-muted" />} />
+      </div>
+      <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface px-3.5 py-3 shadow-card">
+        <div className="text-[15px] font-medium">外观</div>
+        <div className="mt-0.5 text-[13px] text-muted">星澜主题，深色为默认，也可跟随系统。</div>
+        <div className="mt-2.5 grid grid-cols-3 gap-1 rounded-[14px] bg-subtle p-1">
+          {themeOptions.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setTheme(item.id);
+                setThemeMode(item.id);
+              }}
+              className={`h-9 rounded-[12px] text-[13px] font-semibold ${theme === item.id ? "bg-surface text-primary shadow-card" : "text-muted"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="mx-4 mt-3">
         <button type="button" onClick={() => void logout()} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-[16px] font-semibold text-danger shadow-card">

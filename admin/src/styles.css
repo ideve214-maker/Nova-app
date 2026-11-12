@@ -1,24 +1,31 @@
+@import "./theme/tokens.css";
 @import "tailwindcss";
 
+/* tokens.css 在 :root 上写了安全区 padding，管理端已用 .pt-safe / .nova-topbar 处理，这里清掉以免叠加。 */
+html {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 @theme {
-  --font-sans: "Noto Sans SC Variable", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
-    "WenQuanYi Zen Hei", ui-sans-serif, system-ui, sans-serif;
-  --color-stage: #e6e0f4;
-  --color-bg: #f4f2f8;
-  --color-surface: #ffffff;
-  --color-fg: #1c1633;
-  --color-muted: #8b86a0;
-  --color-subtle: #f3f0f9;
-  --color-line: #ebe6f4;
-  --color-primary: #6d4aff;
-  --color-primary-deep: #542ee0;
-  --color-on-primary: #ffffff;
-  --color-danger: #f04b73;
-  --color-ok: #12a36a;
-  --color-vip: #c8963e;
-  --color-warn: #e09a2b;
-  --color-ink: #241b3d;
-  --radius-card: 0.75rem;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --color-stage: var(--cv);
+  --color-bg: var(--bg);
+  --color-surface: var(--sf);
+  --color-fg: var(--tx);
+  --color-muted: var(--t2);
+  --color-subtle: var(--s2);
+  --color-line: var(--ln);
+  --color-primary: var(--ac);
+  --color-primary-deep: var(--ac-pressed);
+  --color-on-primary: var(--onac);
+  --color-danger: var(--dg);
+  --color-ok: var(--ok);
+  --color-vip: var(--vip);
+  --color-warn: var(--warn);
+  --color-ink: #13151c;
+  --radius-card: var(--r-md);
 }
 
 @layer base {
@@ -39,16 +46,22 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    color-scheme: dark;
+    background: var(--cv);
+  }
+
+  html[data-theme="light"] {
+    color-scheme: light;
   }
 
   body {
     margin: 0;
-    background: var(--color-stage);
-    color: var(--color-fg);
+    background: var(--cv);
+    color: var(--tx);
     font-family: var(--font-sans);
     font-size: 16px;
-    line-height: 1.37;
-    letter-spacing: -0.01em;
+    line-height: 1.45;
+    letter-spacing: 0;
     text-rendering: optimizeLegibility;
   }
 
@@ -64,6 +77,16 @@
   video {
     max-width: 100%;
   }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--ac);
+    outline-offset: 2px;
+  }
 }
 
 .nova-frame {
@@ -73,25 +96,57 @@
   overflow-x: hidden;
 }
 
-.nova-login {
-  background: linear-gradient(180deg, #5b35f0 0%, #7a59ff 52%, #c8b6ff 100%);
+.nova-frame-inner {
+  background:
+    radial-gradient(90% 42% at 50% 0%, color-mix(in srgb, var(--ac) 18%, transparent), transparent 70%),
+    var(--bg);
 }
 
-@supports (background: color-mix(in srgb, white 72%, transparent)) {
-  .nova-login {
-    background:
-      radial-gradient(80% 36% at 50% 100%, color-mix(in srgb, white 68%, transparent), transparent 70%),
-      linear-gradient(180deg, #5b35f0 0%, #7a59ff 52%, #c8b6ff 100%);
+@supports not (background: color-mix(in srgb, white 50%, red)) {
+  .nova-frame-inner {
+    background: var(--bg);
   }
 }
 
+/* 启动屏 / 登录：夜空底 + 顶部星云光，不再用旧的饱和紫渐变。 */
+.nova-login,
+.nova-splash {
+  background:
+    radial-gradient(80% 50% at 50% 34%, color-mix(in srgb, var(--ac) 32%, transparent), transparent 72%),
+    var(--bg);
+  color: var(--tx);
+}
+
+@supports not (background: color-mix(in srgb, white 50%, red)) {
+  .nova-login,
+  .nova-splash {
+    background: var(--bg);
+  }
+}
+
+html[data-theme="light"] .nova-login,
+html[data-theme="light"] .nova-splash {
+  background:
+    radial-gradient(80% 50% at 50% 34%, color-mix(in srgb, var(--ac) 18%, transparent), transparent 72%),
+    var(--bg);
+}
+
 .nova-hero {
-  background: linear-gradient(145deg, #623cf3 0%, #7d5cff 58%, #a489ff 100%);
-  color: var(--color-on-primary);
+  background: var(--ac-grad);
+  color: var(--onac);
+}
+
+.nova-brand {
+  font-weight: 800;
+  letter-spacing: var(--tracking-brand);
+  background: var(--ac-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .shadow-card {
-  box-shadow: 0 1px 2px rgba(36, 27, 61, 0.05), 0 4px 12px rgba(109, 74, 255, 0.06);
+  box-shadow: var(--sh-sm);
 }
 
 /* --nova-safe-* is 0 in production; screenshots / tests may set them to simulate a notch. */
@@ -118,20 +173,50 @@
   padding-right: max(0.25rem, var(--nova-safe-right, 0px), env(safe-area-inset-right, 0px));
 }
 
+.nova-topbar h1 {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.nova-topbar button {
+  border-radius: var(--r-sm);
+}
+
 .nova-tabbar {
   padding-bottom: max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
   padding-left: max(var(--nova-safe-left, 0px), env(safe-area-inset-left, 0px));
   padding-right: max(var(--nova-safe-right, 0px), env(safe-area-inset-right, 0px));
 }
 
+.nova-tab-icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 1.35rem;
+  border-radius: var(--r-pill);
+}
+
+.nova-tab-icon.is-on {
+  background: var(--ac-soft);
+}
+
 .nova-toast {
   bottom: calc(5rem + max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)));
+}
+
+.nova-toast > div {
+  background: var(--tx);
+  color: var(--bg);
+  border-radius: var(--r-pill);
 }
 
 .nova-sheet {
   padding-bottom: max(0.75rem, var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
   padding-left: max(1rem, var(--nova-safe-left, 0px), env(safe-area-inset-left, 0px));
   padding-right: max(1rem, var(--nova-safe-right, 0px), env(safe-area-inset-right, 0px));
+  border-top-left-radius: var(--r-lg);
+  border-top-right-radius: var(--r-lg);
+  box-shadow: var(--sh-sheet);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -149,51 +234,91 @@
   a,
   [role="button"] {
     touch-action: manipulation;
-    -webkit-tap-highlight-color: rgba(109, 74, 255, 0.12);
+    -webkit-tap-highlight-color: var(--ac-soft);
   }
 }
 
-/* color-mix fallbacks for older Safari */
+/* 主/次/危险按钮：映射星澜 14px 圆角方 + 光晕，不改各页 class 也能生效。 */
+button.bg-primary,
+.nova-btn-primary {
+  background: var(--ac-grad);
+  color: var(--onac);
+  border-radius: var(--r-btn);
+  box-shadow: var(--sh-btn);
+  letter-spacing: var(--tracking-btn);
+  font-weight: 700;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+button.bg-primary:hover:not(:disabled),
+.nova-btn-primary:hover:not(:disabled) {
+  background: var(--ac-hover);
+}
+
+button.bg-primary:active:not(:disabled),
+.nova-btn-primary:active:not(:disabled) {
+  transform: scale(0.97);
+  background: var(--ac-pressed);
+  box-shadow: none;
+}
+
+button.bg-primary:disabled,
+.nova-btn-primary:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+button.bg-subtle,
+button.border-line {
+  border-radius: var(--r-btn);
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select,
+label:has(input:not([type="checkbox"]):not([type="radio"])) {
+  border-radius: var(--r-btn);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+textarea:focus {
+  border-color: var(--ac);
+  box-shadow: 0 0 0 3px var(--ac-soft);
+}
+
+/* 分段指示条：更短、更圆的 2px 滑块（Seg 组件里已是 inset-x-8 h-0.5） */
 .nova-soft {
-  background: #efeaff;
-  color: var(--color-primary-deep);
+  background: var(--ac-soft);
+  color: var(--ac);
 }
 .nova-ok-soft {
-  background: #e5f6ee;
-  color: var(--color-ok);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
 }
 .nova-danger-soft {
-  background: #fde8ee;
-  color: var(--color-danger);
+  background: var(--dg-soft);
+  color: var(--dg);
 }
 .nova-vip-soft {
-  background: #f6ecd8;
-  color: #8a6418;
+  background: color-mix(in srgb, var(--vip) 18%, transparent);
+  color: var(--vip);
 }
 .nova-warn-soft {
-  background: #f8efd9;
-  color: #9a6810;
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
 }
 
-@supports (background: color-mix(in srgb, white 50%, red)) {
-  .nova-soft {
-    background: color-mix(in srgb, var(--color-primary) 12%, white);
-    color: var(--color-primary-deep);
-  }
+@supports not (background: color-mix(in srgb, white 50%, red)) {
   .nova-ok-soft {
-    background: color-mix(in srgb, var(--color-ok) 14%, white);
-    color: var(--color-ok);
-  }
-  .nova-danger-soft {
-    background: color-mix(in srgb, var(--color-danger) 12%, white);
-    color: var(--color-danger);
+    background: var(--s2);
+    color: var(--ok);
   }
   .nova-vip-soft {
-    background: color-mix(in srgb, var(--color-vip) 18%, white);
-    color: #8a6418;
+    background: var(--s2);
+    color: var(--vip);
   }
   .nova-warn-soft {
-    background: color-mix(in srgb, var(--color-warn) 18%, white);
-    color: #9a6810;
+    background: var(--s2);
+    color: var(--warn);
   }
 }

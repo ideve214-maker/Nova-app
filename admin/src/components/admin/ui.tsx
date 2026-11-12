@@ -4,26 +4,20 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { mediaUrl } from "@/lib/admin/media";
 import { useAdmin } from "@/lib/admin/store";
+import markUrl from "@/theme/nova-mark.svg?url";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function StarMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M32 3c1.2 14 7 20.2 22 22.4C39 27.6 33.2 34 32 48 30.8 34 25 27.6 10 25.4 25 23.2 30.8 17 32 3z"
-      />
-    </svg>
-  );
+  return <img src={markUrl} alt="" className={className} />;
 }
 
 export function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="nova-frame bg-stage text-fg">
-      <div className="nova-frame relative mx-auto flex w-full max-w-[430px] flex-col overflow-x-hidden bg-bg shadow-card">
+      <div className="nova-frame nova-frame-inner relative mx-auto flex w-full max-w-[430px] flex-col overflow-x-hidden bg-bg shadow-card">
         {children}
       </div>
     </div>
@@ -206,7 +200,7 @@ export function PrimaryButton({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className="h-11 w-full rounded-full bg-primary text-[16px] font-semibold text-on-primary disabled:opacity-50"
+      className="nova-btn-primary h-11 w-full text-[16px] disabled:opacity-50"
     >
       {children}
     </button>

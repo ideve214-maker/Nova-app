@@ -10,11 +10,11 @@ const config = {
   ios: {
     // 由 CSS env(safe-area-inset-*) 处理刘海与 Home Indicator，不要让 WebView 再垫一层。
     contentInset: "never",
-    backgroundColor: "#5b35f0",
+    backgroundColor: "#0A0C14",
     preferredContentMode: "mobile",
   },
   android: {
-    backgroundColor: "#5b35f0",
+    backgroundColor: "#0A0C14",
   },
 };
 

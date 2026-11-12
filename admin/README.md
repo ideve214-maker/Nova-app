@@ -1,4 +1,4 @@
-# NOVA 管理端（v5 · 对接后端 0.7.0-m5.1）
+# NOVA 管理端（v6 · 星澜 Xinglan · 对接后端 0.7.0-m5.1）
 
 这是 NOVA 社区的**管理端**网页 / Capacitor App。它连到用户端的同一套后端，用真实管理员账号和真实数据。
 
@@ -119,6 +119,7 @@ scripts/preview-server.mjs  预览服务（静态页 + /api 反代）
 dist-spa/                   Capacitor webDir：index.html + assets/（相对路径）
 dist-spa/NOVA_Admin.html    构建后的单文件（额外产物）
 capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未安装 iOS 平台）
+resources/                   星澜 App 图标 1024 与深/浅启动屏，供 @capacitor/assets
 .env.production            生产默认后端 http://47.239.0.90（已提交，无密钥）
 .env.production.example     同上说明与混合内容注意事项
 ```
@@ -169,7 +170,7 @@ capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未�
 - `viewport-fit=cover`，使用 `env(safe-area-inset-*)`
 - 底栏按 iOS 约 49px + Home Indicator
 - 禁止横向溢出
-- 保留紫色 / 星星品牌
+- 星澜（Xinglan）主题：夜空底 + 长春花靛紫 `#6E8BFF`，深色为默认，浅色跟随系统或在「我的 → 外观」切换
 
 ## 7. Capacitor / TestFlight 打包说明
 
@@ -188,6 +189,15 @@ npm run build:spa
 ```
 
 `capacitor.config.ts` 已写好占位：`appId: "com.nova.admin"`，`webDir: "dist-spa"`，iOS `contentInset: "never"`（刘海和 Home Indicator 由页面的 `viewport-fit=cover` 与 `env(safe-area-inset-*)` 处理）。**本仓库没有执行 `npx cap add ios`，也不包含 ios/ 工程**；以后在本机包装时再安装 Capacitor 与 iOS 平台，把 `dist-spa` 指过去即可。
+
+外观是「星澜 Xinglan」：令牌在 `src/theme/tokens.css`（许可见同目录 `LICENSES.md`），深色默认，浅色由系统 `prefers-color-scheme` 或「我的」里的外观开关决定（存在 `localStorage` 键 `nova-admin-theme`）。启动画面与登录页使用星澜标志（四角新星 + 双层微澜）和「管理端」字样，不再使用旧的饱和紫渐变。
+
+打包图标与启动屏（供以后运行 `@capacitor/assets`）放在 `resources/`：
+
+- `resources/icon.png`：1024×1024 应用图标（另有 `icon.svg`、`icon-masked.png`）
+- `resources/splash-dark.png` / `resources/splash-light.png`：1170×2532 启动屏（深/浅），同目录还有 SVG 源稿
+- 网页用：`public/favicon.svg`、`public/apple-touch-icon.png`（180）、`public/icon-192.png`
+
 
 路由使用 hash（`#/`、`#/users`、`#/user/:id`），在 `capacitor://` 或离线 WebView 里刷新不会 404。
 
