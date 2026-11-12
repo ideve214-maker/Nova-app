@@ -1,5 +1,16 @@
 # 更新日志（最新在上）
 
+## V7 M2.4.1 · 权益与额度配置（2026-11-12）
+- 新增 `server/vip-config.mjs`：VIP 权益与额度的唯一数据源。包含 Basic / NOVA VIP 两个套餐、7 个服务端 entitlement key（`vip_badge`、`profile_theme_gold`、`profile_decoration`、`personal_saved_items_plus`、`longer_post_text`、`premium_emoji_pack`、`media_quota_plus`）、免费额度与 VIP 额度、到期后的行为。
+- 额度：个人收藏 20→100 条；发帖 280→1000 字、聊天 500→1500 字、频道发言 280→800 字（Basic 数值保持现有产品行为）。媒体额度待 M4.5 之后再定，标为占位。
+- 到期规则：到期立即回落 Basic，无宽限期；已创建内容保留，只失去新增/使用能力。
+- 每项权益带状态：`planned`（未实现）/`live`（已实现并通过测试）。目前全部为 planned，随后续步骤逐项改成 live，不提前承诺。
+- 启动时校验配置，写错（如 VIP 额度不大于 Basic、支付被打开）会拒绝启动。
+- 新增 `scripts/gen-vip-doc.mjs`：由配置生成 `docs/spec/09_VIP权益与额度.md`；测试检查文档与配置一致。
+- 价格仍只是占位（¥9.9/月、¥99/年，“价格暂定”），支付未接入；基础社交与安全能力不进入权益表。
+- 新增 `npm run dev`（NOVA_ENV=development，后续用于测试切换）、`scripts/pack.sh` 改为 V7 打包。
+- 测试：`npm run test:server` 18 项（原 9 项 + 配置 9 项）全绿。
+
 ## V7 M2.2.1 · 头像和背景：样板照片 + 相册裁剪（2026-11-11）
 - 个人头像、个人背景、群头像、社区封面不再用色块。初始样板是 8 张人像和 2 张风景。
 - 我的主页、群聊、自己的社区都可以从相册或文件选图片。选完后拖动、双指或滑杆缩放，再裁成圆形头像或横幅背景。

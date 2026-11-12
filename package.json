@@ -1,11 +1,13 @@
 {
   "name": "nova-v7",
   "private": true,
-  "version": "0.7.0-m2.2",
+  "version": "0.7.0-m2.4.1",
   "scripts": {
     "build": "node scripts/build.mjs",
     "server": "node --no-warnings server/index.mjs",
-    "test:server": "node --no-warnings --test server/test/auth.test.mjs",
+    "dev": "NOVA_ENV=development node --no-warnings server/index.mjs",
+    "gen:vipdoc": "node scripts/gen-vip-doc.mjs",
+    "test:server": "node --no-warnings --test server/test/auth.test.mjs server/test/vip-config.test.mjs",
     "test:ui": "node --no-warnings --test server/test/m22-ui.test.mjs",
     "test:web": "node tests/run.js"
   },
