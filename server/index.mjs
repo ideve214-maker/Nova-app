@@ -16,6 +16,7 @@ import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
 import {createChats} from './chats.mjs';
 import {createFriends} from './friends.mjs';
+import {createEvents} from './events.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -38,7 +39,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const follows = createFollows(db, {profile, vip, now});
   const communities = createCommunities(db, {profile, vip, now});
   const friends = createFriends(db, {now});
-  const chats = createChats(db, {profile, vip, now, friends});
+  const events = createEvents(db, {now});
+  const chats = createChats(db, {profile, vip, now, friends, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -435,6 +437,24 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return chats.listMessages(user, req.params.id, req.query || {});
     },
+
+    'GET /api/events'(req, res) {
+      const q = req.query || {};
+      if (q.token || q.access_token || q.auth || q.authorization) throw bad('TOKEN_IN_URL', '不要把访问令牌放在 URL 里', 400);
+      const {user} = auth(req);
+      const lastId = req.headers['last-event-id'] || q.after || '';
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': corsOrigin,
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, Last-Event-ID, Last-Event-Id',
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.write(': ok\n\n');
+      events.subscribe(user, res, {lastId});
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -466,7 +486,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const root = dirname(fileURLToPath(import.meta.url));
   const assetRoot = join(root, '../assets');
   const server = http.createServer((req, res) => {
-    const h = {'Access-Control-Allow-Origin': corsOrigin, 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    const h = {'Access-Control-Allow-Origin': corsOrigin, 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Last-Event-ID, Last-Event-Id', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
       'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8'};
     const send = (s, o) => { res.writeHead(s, h); res.end(JSON.stringify(o)); };
     if (req.method === 'OPTIONS') { res.writeHead(204, h); return res.end(); }
@@ -493,6 +513,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     const found = findRoute(req.method, path);
     if (!found) return send(404, {error: {code: 'NOT_FOUND', message: '接口不存在'}});
     const fn = found.fn; req.params = found.params;
+    if (req.method === 'GET' && path === '/api/events') {
+      try { fn(req, res); }
+      catch (e) {
+        if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+        else { console.error('内部错误:', e.message); send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+      }
+      return;
+    }
     let size = 0; const chunks = [];
     req.on('data', c => { size += c.length; if (size > 1e6) { send(413, {error: {code: 'TOO_LARGE', message: '请求过大'}}); req.destroy(); } else chunks.push(c); });
     req.on('end', () => {
@@ -506,7 +534,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events;
   return server;
 }
 

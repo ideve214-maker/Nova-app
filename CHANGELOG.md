@@ -1,5 +1,12 @@
 # 更新日志（最新在上）
 
+## V7 M4.3.4 · SSE 服务端推送（2026-11-12）
+- `GET /api/events` 为 `text/event-stream`。新消息以 `conversation.message` 事件推送给会话成员。心跳注释 `: ping`。
+- 鉴权只用 `Authorization` 头（前端用 `fetch`，不用 EventSource）。URL 带 `token` / `access_token` 一律 400 `TOKEN_IN_URL`。
+- 事件持久化到 `chat_events`；断线后用 `Last-Event-ID` 或 `?after=`（事件数字 id，不是令牌）补发漏掉的事件。连接限额与更完整重连策略见 M4.9.1。
+- 用户端登录后建立 SSE；按消息 id 去重。
+- 测试：新增服务端 2 项。
+
 ## V7 M4.3.3 · 私聊好友门槛（2026-11-12）
 - 默认只有双向好友可建立或继续私聊（`403 NOT_FRIENDS`）。单向关注不算好友。群聊不受此门槛限制。
 - 任一方拉黑即阻断建立和发送（`403 BLOCKED`）。对方账号被封禁时无法建立（404）。

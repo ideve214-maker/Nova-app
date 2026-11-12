@@ -91,3 +91,55 @@ async function sendNet(cid,text){
   }
   return r.j.message;
 }
+
+function stopEvents(){if(S.evtAbort){try{S.evtAbort.abort()}catch(e){}S.evtAbort=null}S.evtOn=0}
+function applyEvent(ev,data){
+  if(ev==='conversation.message'&&data&&data.message){
+    const cid=data.conversationId||data.message.conversationId;
+    const m=adoptMsg(data.message);
+    S.messages=S.messages||{};
+    S.messages[cid]=S.messages[cid]||[];
+    if(!S.messages[cid].some(x=>x[5]===m[5]))S.messages[cid].push(m);
+    if(Array.isArray(S.conversations)){
+      const i=S.conversations.findIndex(c=>c.id==cid);
+      if(i>=0){const c=S.conversations.splice(i,1)[0];c.last=data.message;if(S.st[S.st.length-1]!=='chat:'+cid)c.u=(c.u||0)+1;S.conversations.unshift(c)}
+      else if(typeof loadConversations==='function')loadConversations();
+    }
+    if(typeof render==='function')render();
+  }
+}
+async function startEvents(){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
+  stopEvents();
+  const ac=new AbortController();S.evtAbort=ac;S.evtOn=1;
+  const loop=async()=>{
+    while(S.evtOn&&SESSION&&!ac.signal.aborted){
+      try{
+        const headers={Authorization:'Bearer '+SESSION.token,Accept:'text/event-stream'};
+        if(S.lastEventId)headers['Last-Event-ID']=String(S.lastEventId);
+        const r=await fetch('/api/events',{headers,signal:ac.signal});
+        if(r.status!==200){await new Promise(ok=>setTimeout(ok,3000));continue}
+        const reader=r.body.getReader(),dec=new TextDecoder();
+        let buf='';
+        while(S.evtOn){
+          const {done,value}=await reader.read();
+          if(done)break;
+          buf+=dec.decode(value,{stream:true});
+          const parts=buf.split('\n\n');buf=parts.pop();
+          for(const raw of parts){
+            let id,ev,data='';
+            for(const line of raw.split('\n')){
+              if(line.startsWith('id:'))id=line.slice(3).trim();
+              else if(line.startsWith('event:'))ev=line.slice(6).trim();
+              else if(line.startsWith('data:'))data+=line.slice(5).trim();
+            }
+            if(id)S.lastEventId=id;
+            if(ev&&data){try{applyEvent(ev,JSON.parse(data))}catch(e){}}
+          }
+        }
+      }catch(e){if(ac.signal.aborted)return}
+      if(S.evtOn&&SESSION&&!ac.signal.aborted)await new Promise(ok=>setTimeout(ok,2000));
+    }
+  };
+  loop();
+}
