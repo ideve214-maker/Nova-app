@@ -27,9 +27,11 @@ export function createPosts(db, {vip, profile, now}) {
     const v = vip.status(u);
     return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!v.active};
   }
+  let extras = null;
+  function attach(ex) { extras = ex; }
   function pub(row, me) {
     if (!row || row.deleted_at) return null;
-    return {
+    const out = {
       id: row.id,
       author: authorOf(row.author_id),
       text: row.text,
@@ -37,7 +39,17 @@ export function createPosts(db, {vip, profile, now}) {
       updatedAt: row.updated_at,
       edited: row.updated_at > row.created_at,
       mine: !!(me && Number(me.id) === Number(row.author_id)),
+      reactions: [0, 0, 0, 0, 0, 0],
+      myReaction: -1,
+      commentCount: 0,
     };
+    if (extras) {
+      const rx = extras.reactOf(row.id, me);
+      out.reactions = rx.reactions;
+      out.myReaction = rx.myReaction;
+      out.commentCount = extras.commentCount(row.id);
+    }
+    return out;
   }
   function create(user, body) {
     const text = String((body && body.text) != null ? body.text : '').trim();
@@ -95,5 +107,5 @@ export function createPosts(db, {vip, profile, now}) {
     const last = rows[rows.length - 1];
     return {posts: rows.map(r => pub(r, user)), nextCursor: more && last ? last.id : null};
   }
-  return {create, get, edit, remove, list, pub, byId};
+  return {create, get, edit, remove, list, pub, byId, attach};
 }

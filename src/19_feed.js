@@ -40,3 +40,21 @@ async function publishPost(text){
 function usingNet(){return MODE==='account'&&!!NET}
 function feedSrc(){return usingNet()?(Array.isArray(S.posts)?S.posts:[]):D.p}
 function postsOf(id){return feedSrc().filter(p=>p.a==id)}
+
+function adoptComment(c){
+  rememberAuthor(c.author);
+  const me=SESSION&&SESSION.user&&c.author&&Number(SESSION.user.id)===Number(c.author.id);
+  return {id:c.id,p:c.postId,pa:c.parentId||0,a:me?'me':String(c.author.id),t:ago(c.createdAt),l:c.likeCount||0,ml:c.liked?1:0,x:c.deleted?'（已删除）':c.text,deleted:!!c.deleted,src:'net'};
+}
+async function loadComments(postId){
+  if(!usingNet()||!SESSION)return;
+  S.commentPost=postId;S.comments=S.comments&&S.commentPost===postId?S.comments:undefined;
+  const r=await api('GET','/api/posts/'+postId+'/comments');
+  if(r.s!==200){S.comments=[];S.commentErr=errMsg(r,'评论加载失败');return}
+  S.comments=(r.j.comments||[]).map(adoptComment);S.commentErr='';S.commentPost=postId;
+  const p=feedSrc().find(x=>x.id==postId);if(p)p.commentCount=r.j.commentCount;
+}
+function commentsOf(id){
+  if(usingNet()&&S.commentPost==id&&Array.isArray(S.comments))return S.comments;
+  return D.c.filter(c=>c.p==id);
+}

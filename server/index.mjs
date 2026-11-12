@@ -11,6 +11,7 @@ import {createStickers} from './stickers.mjs';
 import {createProfile, newSessionId, maskIp, deviceOf} from './profile.mjs';
 import {ApiError} from './errors.mjs';
 import {createPosts} from './posts.mjs';
+import {createComments} from './comments.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -28,6 +29,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const stickers = createStickers({vip});
   const profile = createProfile(db, {now});
   const posts = createPosts(db, {vip, profile, now});
+  const comments = createComments(db, {profile, vip, posts, now});
+  posts.attach(comments);
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -233,6 +236,30 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(user.id, 'post.delete', 'post:' + r.deleted, ip(req));
       return r;
     },
+    'GET /api/posts/:id/comments'(req) {
+      const {user} = auth(req);
+      return comments.list(user, req.params.id);
+    },
+    'POST /api/posts/:id/comments'(req, b) {
+      const {user} = auth(req);
+      const r = comments.add(user, req.params.id, b || {});
+      audit(user.id, 'post.comment', 'comment:' + r.comment.id, ip(req));
+      return r;
+    },
+    'POST /api/comments/:id/delete'(req) {
+      const {user} = auth(req);
+      const r = comments.remove(user, req.params.id);
+      audit(user.id, 'post.comment_delete', 'comment:' + r.deleted, ip(req));
+      return r;
+    },
+    'POST /api/comments/:id/like'(req) {
+      const {user} = auth(req);
+      return comments.like(user, req.params.id);
+    },
+    'POST /api/posts/:id/react'(req, b) {
+      const {user} = auth(req);
+      return comments.react(user, req.params.id, b || {});
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -304,7 +331,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments;
   return server;
 }
 

@@ -18,7 +18,7 @@ const cmface=(c,s)=>phImg(c&&c.cp&&(String(c.cp).startsWith('data:')||String(c.c
 const meCover=()=>{const f=D.pf&&D.pf.me||{};return f.bg||BG[(+f.cv||0)%BG.length]};
 const cove=(key)=>BG[[...String(key)].reduce((a,c)=>a+c.charCodeAt(0),0)%BG.length];
 const PAL=['#2F6F5E','#5C4A3A','#243044','#6B3A4A','#3A465C','#6A5A3C'],hc=s=>PAL[[...s].reduce((a,c)=>a+c.charCodeAt(0),0)%6];
-const fol=(a,b)=>D.f.some(e=>e[0]==a&&e[1]==b),ncm=id=>D.c.filter(c=>c.p==id).length;
+const fol=(a,b)=>D.f.some(e=>e[0]==a&&e[1]==b),ncm=id=>{const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==id);if(p&&p.commentCount!=null)return p.commentCount;return D.c.filter(c=>c.p==id).length};
 const T=m=>{const t=$('#tt');t.textContent=m;t.style.display='block';clearTimeout(T.h);T.h=setTimeout(()=>t.style.display='none',1800)};
 const sub=(t,r='')=>`<div class="top sub"><button class="ib" data-a="back" aria-label="返回">${ic('back')}</button><h1>${t}</h1>${r}</div>`;
 const rs=p=>{const t=p.r.reduce((a,b)=>a+b,0);return t?p.r.map((n,i)=>[n,i]).filter(a=>a[0]).sort((a,b)=>b[0]-a[0]).slice(0,3).map(a=>E[a[1]]).join('')+' '+t:''};

@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## V7 M4.1.3 · 评论、回复、反应（2026-11-12）
+- 评论 `GET/POST /api/posts/:id/comments`、删除 `POST /api/comments/:id/delete`、点赞 `POST /api/comments/:id/like`、表态 `POST /api/posts/:id/react`。评论最多 280 字；回复只能一层。
+- 数量由服务端维护：删除后 `commentCount` 立即减少；有回复的评论软删除后保留占位「已删除」，计入不含已删。只能删除自己的评论，他人 403。
+- 表态 6 种表情，同一用户对一条动态只保留一种；再点同一表情即取消，换表情不重复计数。动态列表和详情带回 `reactions`、`myReaction`、`commentCount`。
+- 测试：新增服务端 4 项、浏览器 1 项。
+
 ## V7 M4.1.2 · 编辑/删除自己的动态（2026-11-12）
 - `POST /api/posts/:id/edit`、`POST /api/posts/:id/delete`。只能操作自己的帖，他人请求 403 `FORBIDDEN`，库中内容不变。
 - 编辑后正文入库并标 `edited`；删除为软删除，之后读取 404、列表不再出现。空内容和超长仍按发帖规则拒绝。
