@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.4.1 · 已读回执（2026-11-12）
+- `POST /api/conversations/:id/read`（可选 `messageId`，省略则标到当前最新）维护每成员每会话的已读游标，只前进不后退。
+- 消息返回 `status`：`已发送` 或 `已读`（`readBy` / `readCount`）。没有设备级投递确认，因此不显示「已送达」，避免假装回执。
+- 测试：新增服务端 1 项。
+
 ## V7 M4.3.5 · 消息幂等与离线补拉（2026-11-12）
 - 同一会话、同一作者、同一 `clientId` 并发重发只入库一次，响应同一条消息并带 `idempotent: true`。
 - 离线期间的消息用 `GET /api/conversations/:id/messages?after=` 一次补齐，不丢不重。用户端在 SSE 重连时对当前会话补拉。

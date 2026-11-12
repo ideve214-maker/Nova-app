@@ -49,6 +49,17 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     AND created_at >= (SELECT created_at FROM messages WHERE id=?)
     ORDER BY created_at ASC, id ASC LIMIT ?`) : null;
 
+  const hasRead = (() => { try { db.prepare('SELECT last_read_at FROM conversation_members LIMIT 1').get(); return true; } catch { return false; } })();
+  const setRead = hasRead ? db.prepare('UPDATE conversation_members SET last_read_message_id=?, last_read_at=? WHERE conversation_id=? AND user_id=?') : null;
+  const setMuted = hasRead ? db.prepare('UPDATE conversation_members SET muted=? WHERE conversation_id=? AND user_id=?') : null;
+  const setPinned = hasRead ? db.prepare('UPDATE conversation_members SET pinned=? WHERE conversation_id=? AND user_id=?') : null;
+  const unreadSql = hasMsg ? db.prepare(`SELECT COUNT(*) AS n FROM messages
+    WHERE conversation_id=? AND deleted_at IS NULL AND author_id<>?
+    AND (? IS NULL OR created_at > ? OR (created_at = ? AND id > ?))`) : null;
+  const readersSql = hasRead ? db.prepare(`SELECT user_id, last_read_message_id, last_read_at FROM conversation_members
+    WHERE conversation_id=? AND left_at IS NULL AND last_read_at IS NOT NULL`) : null;
+
+
 
   let sendMsg = null, listMsg = null; // 由 attachMessages 在 M4.3.2 挂上
 
@@ -103,6 +114,13 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     if (listMsg) {
       const last = listMsg.last(row.id);
       if (last) out.lastMessage = last;
+    }
+    const myMem = mem.get(row.id, Number(me.id));
+    if (myMem) {
+      out.lastReadMessageId = myMem.last_read_message_id || null;
+      out.muted = !!(hasRead && myMem.muted);
+      out.pinned = !!(hasRead && myMem.pinned);
+      out.unread = unreadOf(row.id, me.id, myMem);
     }
     return out;
   }
@@ -297,6 +315,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
       createdAt: row.created_at,
       mine: !!(me && Number(me.id) === Number(row.author_id)),
       clientId: row.client_id || undefined,
+      ...receiptOf(row, me),
     };
   }
   function parseCursor(c) {
@@ -380,13 +399,76 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     return r ? pubMsg(r, {id: -1}) : null;
   }
 
+
+  function unreadOf(cvId, userId, myMem) {
+    if (!unreadSql) return 0;
+    const at = myMem && myMem.last_read_at, mid = myMem && myMem.last_read_message_id;
+    return unreadSql.get(cvId, Number(userId), at || null, at || 0, at || 0, mid || '').n;
+  }
+  function receiptOf(row, me) {
+    if (!readersSql || !row) return {status: '已发送', readBy: []};
+    const readers = readersSql.all(row.conversation_id).filter(r => {
+      if (Number(r.user_id) === Number(row.author_id)) return false;
+      if (r.last_read_at > row.created_at) return true;
+      if (r.last_read_at === row.created_at && r.last_read_message_id && r.last_read_message_id >= row.id) return true;
+      return false;
+    });
+    const readBy = readers.map(r => Number(r.user_id));
+    const mine = me && Number(me.id) === Number(row.author_id);
+    // 不假装「已送达」：没有设备级投递回执。只区分已发送 / 已读。
+    let status = '已发送';
+    if (mine && readBy.length) status = '已读';
+    return {status, readBy, readCount: readBy.length};
+  }
+  function markRead(user, id, body) {
+    const row = requireConv(id);
+    requireMem(row, user);
+    if (!setRead) throw new ApiError(503, 'NO_READ', '已读功能尚未就绪');
+    let target = null;
+    const mid = body && body.messageId;
+    if (mid) {
+      target = msgById.get(String(mid));
+      if (!target || target.conversation_id !== id) throw new ApiError(404, 'NOT_FOUND', '找不到这条消息');
+    } else {
+      target = lastMsg && lastMsg.get(id);
+      if (!target) return {read: true, lastReadMessageId: null, unread: 0};
+    }
+    const myMem = mem.get(id, Number(user.id));
+    const curAt = myMem && myMem.last_read_at, curId = myMem && myMem.last_read_message_id;
+    if (curAt && (target.created_at < curAt || (target.created_at === curAt && curId && target.id <= curId))) {
+      return {read: true, lastReadMessageId: curId, unread: unreadOf(id, user.id, myMem), unchanged: true};
+    }
+    setRead.run(target.id, target.created_at, id, Number(user.id));
+    const fresh = mem.get(id, Number(user.id));
+    emit(mems.all(id).map(m => m.user_id), 'conversation.read', {
+      conversationId: id, userId: Number(user.id), lastReadMessageId: target.id,
+    });
+    return {read: true, lastReadMessageId: target.id, unread: unreadOf(id, user.id, fresh)};
+  }
+  function setMute(user, id, body) {
+    const row = requireConv(id);
+    requireMem(row, user);
+    if (!setMuted) throw new ApiError(503, 'NO_MUTE', '静音功能尚未就绪');
+    const on = !!(body && (body.mute === true || body.mute === 1 || body.muted === true));
+    setMuted.run(on ? 1 : 0, id, Number(user.id));
+    return {muted: on};
+  }
+  function setConvPin(user, id, body) {
+    const row = requireConv(id);
+    requireMem(row, user);
+    if (!setPinned) throw new ApiError(503, 'NO_PIN', '置顶功能尚未就绪');
+    const on = !!(body && (body.pin === true || body.pin === 1 || body.pinned === true));
+    setPinned.run(on ? 1 : 0, id, Number(user.id));
+    return {pinned: on};
+  }
+
   function attachMessages(api) { sendMsg = api.send; listMsg = api; }
   // 自挂：本模块已含消息
   listMsg = {last: lastOf, list: listMessages};
 
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
-    send, listMessages, pubMsg,
+    send, listMessages, pubMsg, markRead, setMute, setConvPin, unreadOf, receiptOf,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,
     ROLE_CN, ROLES, NEED, MAX_GROUP,

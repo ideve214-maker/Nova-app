@@ -455,6 +455,21 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       res.write(': ok\n\n');
       events.subscribe(user, res, {lastId});
     },
+
+    'POST /api/conversations/:id/read'(req, b) {
+      const {user} = auth(req);
+      return chats.markRead(user, req.params.id, b || {});
+    },
+    'POST /api/conversations/:id/mute'(req, b) {
+      const {user} = auth(req);
+      const r = chats.setMute(user, req.params.id, b || {});
+      audit(user.id, 'chat.mute', 'conversation:' + req.params.id, ip(req), {muted: r.muted});
+      return r;
+    },
+    'POST /api/conversations/:id/pin'(req, b) {
+      const {user} = auth(req);
+      return chats.setConvPin(user, req.params.id, b || {});
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
