@@ -37,10 +37,25 @@ async function savePriv(){
 
 function pSec(){
   const acct=MODE==='account'&&SESSION,sess=S.sess||[];
+  const edevs=(S.e2eeDevices&&S.e2eeDevices.devices)||[];
+  const e2eeBox=acct?`<div class="shd">加密设备</div><p class="hint" style="padding:8px 16px 0">每台设备有独立的 Olm 身份密钥，私钥只在该设备上。撤销后该设备不能再解密后续消息。历史能否恢复由密钥恢复方案决定（尚未提供）。登录会话撤销不是加密设备撤销。</p>${edevs.map(d=>`<div class="row" data-edev="${esc(d.deviceId)}"><div class="gr"><b>${esc(d.deviceId)}${d.revoked?' <span class="tag">已撤销</span>':''}</b><small>身份 ${esc((d.identityKey&&d.identityKey.ed25519||'').slice(0,16))}… · 一次性密钥 ${d.oneTimeKeyCount??'-'}</small></div>${d.revoked?'':`<button class="pb sm d" data-a="e2eerev" data-v="${esc(d.deviceId)}">撤销</button>`}</div>`).join('')||'<p class="em">尚未生成本机加密设备，登录后会自动创建。</p>'}`:'';
+
   const pw=`<div class="card" style="padding:12px 16px;margin:8px 0" id="pwbox"><b>修改密码</b><p class="hint">改密后其他设备会退出，这台设备保持登录。</p><label class="lab">当前密码</label><input class="fld" data-d="opw" type="password" autocomplete="current-password"><label class="lab">新密码</label><input class="fld" data-d="npw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字"><label class="lab">再输入一次</label><input class="fld" data-d="npw2" type="password" autocomplete="new-password">${S.pwerr?`<div class="err" role="alert">${esc(S.pwerr)}</div>`:''}<button class="pb" style="width:100%;margin-top:8px" data-a="chpw">修改密码</button></div>`;
   const devices=acct?`<div class="shd">登录设备</div><p class="hint" style="padding:8px 16px 0" data-ndev="${sess.length}">只显示你自己的登录。IP 已脱敏。${sess.length>1?' 退出其他设备后，那些令牌会立即失效，这台设备保持登录。':''}</p>${sess.map(s=>`<div class="row" data-sid="${esc(s.id)}"><div class="gr"><b>${esc(s.device||'未知设备')}${s.current?' <span class="tag">当前设备</span>':''}</b><small>${esc(s.ip||'')} · ${s.createdAt?vipDate(s.createdAt):''}</small></div>${s.current?'':`<button class="pb sm d" data-a="revsess" data-v="${esc(s.id)}">退出</button>`}</div>`).join('')||'<p class="em">正在读取设备列表…</p>'}${sess.length>1?`<div style="padding:16px"><button class="pb d" style="width:100%" data-a="revothersq">退出其他 ${sess.length-1} 台设备</button><p class="hint" style="margin-top:8px">当前这台设备将保持登录。</p></div>`:''}`:'<p class="em">登录后可以管理设备和修改密码。</p>';
-  return `<div class="pg" id="secp">${sub('账号安全')}<div class="sc">${acct?pw:''}${devices}<p class="hint" style="padding:16px">密码在服务器上是加盐哈希，管理员也看不到原文。私聊尚未端到端加密：消息会到达服务器，在独立安全审查完成前不要发送敏感内容。</p></div></div>`}
-function secOpen(){S.pwerr='';S.st.push('sec');return MODE==='account'?loadSessions():Promise.resolve()}
+  return `<div class="pg" id="secp">${sub('账号安全')}<div class="sc">${acct?pw:''}${devices}${e2eeBox}<p class="hint" style="padding:16px">密码在服务器上是加盐哈希，管理员也看不到原文。一对一私聊使用 Olm（vodozemac）加密，私钥只留在这台设备，服务端只保存密文。独立安全审查尚未完成，请先核对手友的安全号码。登录设备撤销不等于加密设备撤销。</p></div></div>`}
+async function loadE2eeDevices(){
+  if(MODE!=='account'||!SESSION)return;
+  const r=await api('GET','/api/e2ee/keys');
+  if(r.s===200)S.e2eeDevices=r.j;
+}
+function secOpen(){S.pwerr='';S.st.push('sec');return MODE==='account'?Promise.all([loadSessions(),loadE2eeDevices()]):Promise.resolve()}
+async function e2eerev(id){
+  if(!id)return;
+  const r=await api('POST','/api/e2ee/devices/'+encodeURIComponent(id)+'/revoke',{});
+  if(r.s!==200){T(errMsg(r,'无法撤销'));return}
+  T('已撤销该加密设备');
+  await loadE2eeDevices();
+}
 async function chpw(){
   if(S.auth&&S.auth.busy)return;const oldP=S.d.opw||'',nw=S.d.npw||'',nw2=S.d.npw2||'';
   S.pwerr='';

@@ -1,4 +1,4 @@
-/* M4.3 单聊/群聊联网：登录后会话走服务器。演示会话仍只在本机。私聊尚未端到端加密（独立安全审查未通过前保持该标识，不用自制算法冒充）。 */
+/* M4.3 / M4.11：登录后会话走服务器。1:1 私聊由客户端用 vodozemac（Olm）加密后再发送，服务端只存密文。群聊不加密。独立安全审查尚未完成，不使用已审查通过的标识。 */
 function adoptCv(c){
   if(!c)return null;
   const me=SESSION&&SESSION.user&&SESSION.user.id;
@@ -12,7 +12,7 @@ function adoptCv(c){
   return {
     id:c.id,g,n:title,mem:others.map(m=>String(m.id)),u:c.unread||0,mute:c.muted?1:0,pin:c.pinned?1:0,lastRead:c.lastReadMessageId||null,
     own:owner?(Number(owner.id)===Number(me)?'me':String(owner.id)):'',
-    adm,r:c.myRole||(my&&my.role)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:false,publicPins:c.publicPins||[],personalPins:c.personalPins||[]
+    adm,r:c.myRole||(my&&my.role)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:c.kind==='dm',peerId:others[0]&&others[0].id,publicPins:c.publicPins||[],personalPins:c.personalPins||[]
   };
 }
 function netCv(){return typeof usingNet==='function'&&usingNet()&&Array.isArray(S.conversations)}
@@ -58,7 +58,10 @@ function adoptMsg(m){
   const me=SESSION&&SESSION.user&&m.author&&Number(SESSION.user.id)===Number(m.author.id);
   if(m.deleted)return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'','（已撤回）',m.id,m.media];
   if(m.sticker)return [me?'me':String(m.author.id),'k',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',m.sticker,m.id,m.media];
-  const tx=m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text;return [me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
+  let tx=m.media?(m.text?m.text+' ':'')+({image:'[图片]',video:'[视频]',audio:'[语音]',file:'[文件]'}[m.media.kind]||'[文件]'):m.text;
+  if(m.encrypted&&(tx==null||tx===''))tx=m.decryptError?'［无法解密］':'［加密消息］';
+  const row=[me?'me':String(m.author.id),m.media&&m.media.kind==='image'?'i':m.media&&m.media.kind==='video'?'v':m.media&&m.media.kind==='audio'?'a':'t',typeof ago==='function'?ago(m.createdAt):'',me?(m.status||'已发送'):'',tx,m.id,m.media];
+  row.encrypted=!!m.encrypted;row.decryptError=m.decryptError;return row;
 }
 function msgSrc(id){
   if(typeof usingNet==='function'&&usingNet())return (S.messages&&S.messages[id])||[];
@@ -77,7 +80,12 @@ async function loadMessages(id,cursor){
   const r=await api('GET','/api/conversations/'+id+'/messages'+q);
   S.messages=S.messages||{};S.msgCursor=S.msgCursor||{};
   if(r.s!==200){S.messages[id]=S.messages[id]||[];return}
-  const page=(r.j.messages||[]).map(adoptMsg);
+  const raw=r.j.messages||[];
+  const page=[];
+  for(const mm of raw){
+    const dec=(mm.encrypted&&typeof e2eeDecrypt==='function')?await e2eeDecrypt(mm):mm;
+    page.push(adoptMsg(dec));
+  }
   if(!cursor)S.messages[id]=page;
   else{
     const old=S.messages[id]||[];
@@ -88,15 +96,49 @@ async function loadMessages(id,cursor){
 }
 async function sendNet(cid,text,extra){
   const clientId='c'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
-  const body={text:text||'',clientId};
+  const body={clientId};
   if(extra&&extra.sticker)body.sticker={pack:extra.sticker.pack,id:extra.sticker.id};
   if(extra&&extra.mediaId)body.mediaId=extra.mediaId;
+  const c=(typeof cvSrc==='function'?cvSrc():[]).find(x=>x.id==cid);
+  const isDm=c&&!c.g;
+  if(isDm&&typeof e2eeEncrypt==='function'){
+    try{
+      const peer=typeof e2eePeerOf==='function'?e2eePeerOf(c):null;
+      if(!peer){T('无法确定私聊对方');return null}
+      const payload=extra&&extra.sticker?{t:'sticker',sticker:extra.sticker,text:text||''}:{t:'text',text:text||''};
+      if(extra&&extra.mediaId){payload.t=payload.t||'media';payload.mediaId=extra.mediaId}
+      const enc=await e2eeEncrypt(peer,payload);
+      delete body.sticker;
+      body.encrypted=true;
+      body.ciphertext=enc.ciphertext;
+      body.senderDeviceId=enc.senderDeviceId;
+    }catch(e){
+      T((e&&e.message)||'无法加密发送，未改为明文');
+      return null;
+    }
+  }else{
+    body.text=text||'';
+  }
+  S.e2eePending=S.e2eePending||{};
+  if(body.encrypted)S.e2eePending[clientId]={text:text||'',sticker:extra&&extra.sticker};
   const r=await api('POST','/api/conversations/'+cid+'/messages',body);
-  if(r.s!==200){T(errMsg(r,'发送失败'));return null}
+  if(r.s!==200){T(errMsg(r,'发送失败'));delete S.e2eePending[clientId];return null}
+  if(body.encrypted&&r.j.message){
+    const cache=typeof e2eePlainCache==='function'?e2eePlainCache():(S.e2eePlain=S.e2eePlain||{});
+    const pending=S.e2eePending[clientId]||{text:text||'',sticker:extra&&extra.sticker};
+    cache[r.j.message.id]=pending.text||'';
+    if(pending.sticker)cache[r.j.message.id]=pending; // object with sticker
+    r.j.message.text=pending.text||'';
+    r.j.message.decrypted=true;
+    if(pending.sticker)r.j.message.sticker=pending.sticker;
+    delete S.e2eePending[clientId];
+  }
   const m=adoptMsg(r.j.message);
   S.messages=S.messages||{};
   S.messages[cid]=S.messages[cid]||[];
-  if(!S.messages[cid].some(x=>x[5]===m[5]))S.messages[cid].push(m);
+  const exist=S.messages[cid].findIndex(x=>x[5]===m[5]);
+  if(exist>=0)S.messages[cid][exist]=m;
+  else S.messages[cid].push(m);
   if(Array.isArray(S.conversations)){
     const i=S.conversations.findIndex(c=>c.id==cid);
     if(i>=0){const c=S.conversations.splice(i,1)[0];c.last=r.j.message;S.conversations.unshift(c)}
@@ -110,16 +152,21 @@ function applyEvent(ev,data){
   if(ev==='conversation.recall'&&data&&data.message){const cid=data.conversationId||data.message.conversationId;const arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.message.id);if(i>=0){arr[i][4]='（已撤回）';arr[i].deleted=1}}if(typeof render==='function')render();return}
 if(ev==='conversation.message'&&data&&data.message){
     const cid=data.conversationId||data.message.conversationId;
-    const m=adoptMsg(data.message);
-    S.messages=S.messages||{};
-    S.messages[cid]=S.messages[cid]||[];
-    if(!S.messages[cid].some(x=>x[5]===m[5]))S.messages[cid].push(m);
-    if(Array.isArray(S.conversations)){
-      const i=S.conversations.findIndex(c=>c.id==cid);
-      if(i>=0){const c=S.conversations.splice(i,1)[0];c.last=data.message;if(S.st[S.st.length-1]!=='chat:'+cid)c.u=(c.u||0)+1;S.conversations.unshift(c)}
-      else if(typeof loadConversations==='function')loadConversations();
-    }
-    if(typeof render==='function')render();
+    const go=async()=>{
+      const raw=data.message;
+      const dec=(raw.encrypted&&typeof e2eeDecrypt==='function')?await e2eeDecrypt(raw):raw;
+      const m=adoptMsg(dec);
+      S.messages=S.messages||{};
+      S.messages[cid]=S.messages[cid]||[];
+      if(!S.messages[cid].some(x=>x[5]===m[5]))S.messages[cid].push(m);
+      if(Array.isArray(S.conversations)){
+        const i=S.conversations.findIndex(c=>c.id==cid);
+        if(i>=0){const c=S.conversations.splice(i,1)[0];c.last=dec;if(S.st[S.st.length-1]!=='chat:'+cid)c.u=(c.u||0)+1;S.conversations.unshift(c)}
+        else if(typeof loadConversations==='function')loadConversations();
+      }
+      if(typeof render==='function')render();
+    };
+    go();
   }
 }
 
@@ -131,7 +178,12 @@ async function catchUpMessages(id){
   if(!last){return loadMessages(id)}
   const r=await api('GET','/api/conversations/'+id+'/messages?after='+encodeURIComponent(last[5])+'&limit=50');
   if(r.s!==200)return;
-  const page=(r.j.messages||[]).map(adoptMsg);
+  const raw=r.j.messages||[];
+  const page=[];
+  for(const mm of raw){
+    const dec=(mm.encrypted&&typeof e2eeDecrypt==='function')?await e2eeDecrypt(mm):mm;
+    page.push(adoptMsg(dec));
+  }
   const seen=new Set((S.messages[id]||[]).map(m=>m[5]));
   S.messages[id]=(S.messages[id]||[]).concat(page.filter(m=>!seen.has(m[5])));
 }

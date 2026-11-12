@@ -60,6 +60,11 @@ function rpsubmit(){
     if(!body.messageIds.length){T('请先勾选要提交的消息');return}
     body.targetType=body.messageIds.length===1?'message':'conversation';
     if(!body.targetId)body.targetId=body.messageIds[0];
+    // 加密消息：把本机解密出的明文作为用户提交的副本，服务端不会自己解开密文。
+    const cache=(typeof e2eePlainCache==='function'?e2eePlainCache():S.e2eePlain)||{};
+    const copies={};
+    for(const id of body.messageIds){if(cache[id]!=null&&typeof cache[id]==='string')copies[id]=cache[id]}
+    if(Object.keys(copies).length)body.messageCopies=copies;
   }
   return api('POST','/api/reports',body).then(r=>{
     if(r.s!==200){T(errMsg(r,'提交失败'));return}

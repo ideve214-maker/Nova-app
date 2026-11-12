@@ -22,6 +22,6 @@ function stkuse(v){
     if(r.s!==200){T(errMsg(r,'无法使用这张贴纸'));return}
     const st2=r.j.sticker,cid=S.sh&&S.sh.cid;S.sh=null;
     if(!cid||typeof sendNet!=='function')return;
-    return sendNet(cid,st2.glyph||'',{sticker:{pack:st2.pack,id:st2.id}}).then(m=>{if(m){S.bot=1;T('已发送 '+st2.name)}});
+    return sendNet(cid,st2.glyph||'',{sticker:{pack:st2.pack,id:st2.id,glyph:st2.glyph,name:st2.name,premium:!!st2.premium}}).then(m=>{if(m){S.bot=1;T('已发送 '+st2.name)}});
   });
   sendLocal(st)}
