@@ -158,6 +158,7 @@ async function sendNet(cid,text,extra){
 function stopEvents(){if(S.evtAbort){try{S.evtAbort.abort()}catch(e){}S.evtAbort=null}S.evtOn=0}
 function applyEvent(ev,data){
   if(ev&&ev.startsWith('friend.')&&typeof loadFriends==='function'){loadFriends().then(()=>{if(typeof render==='function')render()});}
+  if(ev==='conversation.reaction'&&data){const cid=data.conversationId,arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.messageId);if(i>=0)arr[i].reactions=data.reactions||[]}if(typeof render==='function')render();return}
   if(ev==='conversation.recall'&&data&&data.message){const cid=data.conversationId||data.message.conversationId;const arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.message.id);if(i>=0){arr[i][4]='（已撤回）';arr[i].deleted=1}}if(typeof render==='function')render();return}
 if(ev==='conversation.message'&&data&&data.message){
     const cid=data.conversationId||data.message.conversationId;

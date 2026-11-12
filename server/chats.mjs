@@ -78,6 +78,12 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   const setReply = hasReply ? db.prepare('UPDATE messages SET reply_to_id=? WHERE id=?') : null;
   const hasForward = (() => { try { db.prepare('SELECT forwarded FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
   const setFwd = hasForward ? db.prepare('UPDATE messages SET forwarded=1, forward_from_message_id=?, forward_from_user_id=?, forward_from_conversation_id=?, forward_label=? WHERE id=?') : null;
+  const hasRx = (() => { try { db.prepare('SELECT 1 FROM message_reactions LIMIT 1').get(); return true; } catch { return false; } })();
+  const insRx = hasRx ? db.prepare('INSERT INTO message_reactions(message_id,conversation_id,user_id,emoji,created_at) VALUES(?,?,?,?,?)') : null;
+  const delRx = hasRx ? db.prepare('DELETE FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?') : null;
+  const getRx = hasRx ? db.prepare('SELECT * FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?') : null;
+  const listRx = hasRx ? db.prepare('SELECT emoji, user_id FROM message_reactions WHERE message_id=? ORDER BY created_at, emoji') : null;
+
 
 
 
@@ -374,6 +380,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       replyTo: quoteOf(row),
       forwarded: !!(hasForward && row.forwarded),
       forwardFrom: forwardFromOf(row, me),
+      reactions: reactionsOf(row, me),
     };
   }
   function hideForwardAuthor(authorId, viewerId) {
@@ -666,6 +673,50 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   listMsg = {last: lastOf, list: listMessages};
 
 
+
+  function normalizeEmoji(s) {
+    const t = String(s || '').trim();
+    const chars = [...t];
+    if (!chars.length || chars.length > 8) throw new ApiError(400, 'BAD_EMOJI', '请选择一个表情（最多 8 个字符）');
+    if (/[\u0000-\u001f]/.test(t)) throw new ApiError(400, 'BAD_EMOJI', '表情不合法');
+    return t;
+  }
+  function reactionsOf(row, me) {
+    if (!hasRx || !row || !listRx) return [];
+    const rows = listRx.all(row.id);
+    const map = new Map();
+    for (const r of rows) {
+      const cur = map.get(r.emoji) || {emoji: r.emoji, count: 0, me: false};
+      cur.count++;
+      if (me && Number(r.user_id) === Number(me.id)) cur.me = true;
+      map.set(r.emoji, cur);
+    }
+    return [...map.values()];
+  }
+  function react(user, mid, body = {}, {remove = false} = {}) {
+    if (!hasRx) throw new ApiError(503, 'NO_REACTIONS', '表情反应尚未就绪');
+    const row = msgById.get(String(mid));
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '消息不存在或已删除');
+    const cv = requireConv(row.conversation_id);
+    requireMem(cv, user);
+    const emoji = normalizeEmoji(body.emoji || body.reaction);
+    const undo = remove || body.remove === true || body.undo === true;
+    const existed = getRx.get(row.id, Number(user.id), emoji);
+    if (undo || (body.toggle && existed)) {
+      if (existed) delRx.run(row.id, Number(user.id), emoji);
+      const msg = pubMsg(msgById.get(row.id), user);
+      emit(mems.all(cv.id).map(m => m.user_id), 'conversation.reaction', {conversationId: cv.id, messageId: row.id, reactions: msg.reactions, userId: user.id, emoji, added: false});
+      return {message: msg, emoji, added: false, already: !existed, removed: !!existed};
+    }
+    if (existed) {
+      return {message: pubMsg(msgById.get(row.id), user), emoji, added: false, already: true};
+    }
+    insRx.run(row.id, cv.id, Number(user.id), emoji, now());
+    const msg = pubMsg(msgById.get(row.id), user);
+    emit(mems.all(cv.id).map(m => m.user_id), 'conversation.reaction', {conversationId: cv.id, messageId: row.id, reactions: msg.reactions, userId: user.id, emoji, added: true});
+    return {message: msg, emoji, added: true, already: false};
+  }
+
   function forward(user, mid, body = {}) {
     if (!hasForward || !setFwd) throw new ApiError(503, 'NO_FORWARD', '转发功能尚未就绪');
     const src = msgById.get(String(mid));
@@ -711,7 +762,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
 
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
-    send, listMessages, pubMsg, quoteOf, forward, markRead, setMute, setConvPin, unreadOf, receiptOf,
+    send, listMessages, pubMsg, quoteOf, forward, react, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,
