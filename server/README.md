@@ -131,6 +131,14 @@ NOVA_CORS_ORIGIN=capacitor://localhost,https://localhost NOVA_ENV=production npm
 | POST /api/conversations/:id/messages | 发送消息（入库后才成功） |
 | GET /api/conversations/:id/messages | 历史（cursor 更早，after 更新） |
 | （私聊门槛） | 非好友 403 `NOT_FRIENDS`；拉黑 403 `BLOCKED` |
+| GET /api/friends | 双向好友列表 |
+| GET /api/friends/requests | 待处理的来向/去向申请 |
+| GET /api/friends/status | `?userId=` 与某人的关系 |
+| POST /api/friends/request | 发起申请（幂等） |
+| POST /api/friends/accept | 同意申请 |
+| POST /api/friends/decline | 拒绝申请 |
+| POST /api/friends/cancel | 取消自己发出的申请 |
+| POST /api/friends/remove | 删除好友（见 M4.10.2） |
 | GET /api/events | SSE 推送（Authorization 头；禁止 token 放 URL） |
 | POST /api/conversations/:id/read | 上报已读游标 |
 | POST /api/messages/:id/recall | 撤回消息（2 分钟内，仅作者） |

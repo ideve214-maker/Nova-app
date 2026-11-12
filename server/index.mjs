@@ -62,7 +62,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   posts.attach(comments);
   const follows = createFollows(db, {profile, vip, now});
   const communities = createCommunities(db, {profile, vip, now});
-  const friends = createFriends(db, {now});
+  const friends = createFriends(db, {now, profile});
   const events = createEvents(db, {now, ...eventsOpts});
   const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
   const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan});
@@ -84,6 +84,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   };
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent});
   notifications = createNotifications(db, {now, profile, vip, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
+  friends.attach({notifications, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   const search = createSearch(db, {profile, vip, now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
@@ -363,6 +364,51 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/follows'(req) {
       const {user} = auth(req);
       return follows.list(user, req.query || {});
+    },
+
+    'GET /api/friends'(req) {
+      const {user} = auth(req);
+      return friends.list(user);
+    },
+    'GET /api/friends/requests'(req) {
+      const {user} = auth(req);
+      return friends.listRequests(user);
+    },
+    'GET /api/friends/status'(req) {
+      const {user} = auth(req);
+      const id = Number((req.query || {}).userId);
+      if (!Number.isInteger(id)) throw bad('BAD_USER', '请指定用户', 400);
+      return friends.statusWith(user, id);
+    },
+    'POST /api/friends/request'(req, b) {
+      const {user} = auth(req);
+      const r = friends.request(user, b || {});
+      audit(user.id, 'friend.request', 'user:' + (b && (b.userId || b.id)), ip(req));
+      return r;
+    },
+    'POST /api/friends/accept'(req, b) {
+      const {user} = auth(req);
+      const r = friends.accept(user, b || {});
+      audit(user.id, 'friend.accept', 'user:' + (b && (b.userId || b.id)), ip(req));
+      return r;
+    },
+    'POST /api/friends/decline'(req, b) {
+      const {user} = auth(req);
+      const r = friends.decline(user, b || {});
+      audit(user.id, 'friend.decline', 'user:' + (b && (b.userId || b.id)), ip(req));
+      return r;
+    },
+    'POST /api/friends/cancel'(req, b) {
+      const {user} = auth(req);
+      const r = friends.cancel(user, b || {});
+      audit(user.id, 'friend.cancel', 'user:' + (b && (b.userId || b.id)), ip(req));
+      return r;
+    },
+    'POST /api/friends/remove'(req, b) {
+      const {user} = auth(req);
+      const r = friends.unfriend(user, b || {});
+      audit(user.id, 'friend.remove', 'user:' + (b && (b.userId || b.id)), ip(req));
+      return r;
     },
 
     'POST /api/communities'(req, b) {

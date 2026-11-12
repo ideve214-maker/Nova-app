@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.10.1 · 好友申请/同意/拒绝/取消（2026-11-12）
+- `POST /api/friends/request|accept|decline|cancel`，`GET /api/friends`、`GET /api/friends/requests`、`GET /api/friends/status`。状态：`pending` / `accepted` / `declined`。重复申请或同意幂等；对方已向你申请时再申请 409 `ALREADY_INCOMING`。拉黑 403 `BLOCKED`；对方 `friendRequests=nobody` 时 403 `REQUESTS_CLOSED`。关注不算好友。
+- 申请与通过会写入站内通知（`friend_request` / `friend_accepted`）并经 SSE 推送 `friend.*`。
+- 用户页在账号模式下显示「加好友 / 通过 / 拒绝 / 取消申请」。
+
 ## V7 M4.9.2 · WebSocket 技术验证（不迁移）（2026-11-12）
 - 验证：Node 22 无内置 WS 服务端；若升级首选受维护的 `ws`（MIT）。清单覆盖鉴权（禁止令牌入 URL）、心跳、重连、消息确认（不假装已送达）、断线补拉、连接限额、`NOVA_API_BASE` 与 Origin 白名单。
 - **本步不安装依赖、不开放 WebSocket、不迁移客户端。** 现网仍是 SSE + POST。迁移待办，由负责人按 M4.9.0 条件决定。

@@ -212,7 +212,7 @@ function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
 function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
-function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve(),typeof loadFollows==='function'?loadFollows():Promise.resolve(),typeof loadCommunities==='function'?loadCommunities():Promise.resolve(),typeof loadConversations==='function'?loadConversations():Promise.resolve(),typeof loadNotifications==='function'?loadNotifications():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}if(typeof startEvents==='function')startEvents();render()})}
+function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve(),typeof loadFollows==='function'?loadFollows():Promise.resolve(),typeof loadCommunities==='function'?loadCommunities():Promise.resolve(),typeof loadConversations==='function'?loadConversations():Promise.resolve(),typeof loadNotifications==='function'?loadNotifications():Promise.resolve(),typeof loadFriends==='function'?loadFriends():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}if(typeof startEvents==='function')startEvents();render()})}
 async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(apiUrl(path),{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
@@ -798,6 +798,7 @@ async function sendNet(cid,text,extra){
 
 function stopEvents(){if(S.evtAbort){try{S.evtAbort.abort()}catch(e){}S.evtAbort=null}S.evtOn=0}
 function applyEvent(ev,data){
+  if(ev&&ev.startsWith('friend.')&&typeof loadFriends==='function'){loadFriends().then(()=>{if(typeof render==='function')render()});}
   if(ev==='conversation.recall'&&data&&data.message){const cid=data.conversationId||data.message.conversationId;const arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.message.id);if(i>=0){arr[i][4]='（已撤回）';arr[i].deleted=1}}if(typeof render==='function')render();return}
 if(ev==='conversation.message'&&data&&data.message){
     const cid=data.conversationId||data.message.conversationId;
@@ -898,6 +899,35 @@ async function loadSearch(q){
   S.search=r.j;
 }
 
+/* ===== 24_friends.js ===== */
+/* M4.10 双向好友：申请/同意/拒绝/取消。与单向关注分开。 */
+async function loadFriends(){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
+  const[f,r]=await Promise.all([api('GET','/api/friends'),api('GET','/api/friends/requests')]);
+  if(f.s===200)S.friends=f.j.friends||[];
+  if(r.s===200){S.friendIn=r.j.incoming||[];S.friendOut=r.j.outgoing||[]}
+}
+function isFriend(id){return !!(S.friends&&S.friends.some(x=>Number(x.userId)===Number(id)))}
+function friendStatus(id){
+  const n=Number(id);
+  if(isFriend(n))return 'accepted';
+  if(S.friendIn&&S.friendIn.some(x=>Number(x.userId)===n))return 'incoming';
+  if(S.friendOut&&S.friendOut.some(x=>Number(x.userId)===n))return 'outgoing';
+  return 'none';
+}
+function friendBtns(id){
+  if(id==='me'||id==='notice'||typeof usingNet!=='function'||!usingNet())return '';
+  const st=friendStatus(id);
+  if(st==='accepted')return '<span class="tag">好友</span>';
+  if(st==='incoming')return `<button class="pb" data-a="faccept" data-v="${id}">通过申请</button><button class="pb s" data-a="fdecline" data-v="${id}">拒绝</button>`;
+  if(st==='outgoing')return `<button class="pb s" data-a="fcancel" data-v="${id}">取消申请</button>`;
+  return `<button class="pb s" data-a="frequest" data-v="${id}">加好友</button>`;
+}
+function frequest(v){return api('POST','/api/friends/request',{userId:Number(v)}).then(r=>{if(r.s!==200){T(errMsg(r,'无法发送申请'));return}T('已发送好友申请');return loadFriends()})}
+function faccept(v){return api('POST','/api/friends/accept',{userId:Number(v)}).then(r=>{if(r.s!==200){T(errMsg(r,'无法通过'));return}T('已加为好友');return loadFriends()})}
+function fdecline(v){return api('POST','/api/friends/decline',{userId:Number(v)}).then(r=>{if(r.s!==200){T(errMsg(r,'无法拒绝'));return}T('已拒绝');return loadFriends()})}
+function fcancel(v){return api('POST','/api/friends/cancel',{userId:Number(v)}).then(r=>{if(r.s!==200){T(errMsg(r,'无法取消'));return}T('已取消申请');return loadFriends()})}
+
 /* ===== 30_tabs.js ===== */
 /* ---- tabs ---- */
 const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
@@ -927,7 +957,7 @@ const prof=id=>{const u=P(id),me=id=='me',n=k=>{if(typeof usingNet==='function'&
 const bio=`<div class="card" style="padding:12px 16px"><b style="font-size:17px">简介</b><p style="margin-top:6px">${esc(u.b)}</p></div>`;
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">编辑</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
 const dec=me&&typeof vipDecoOn==='function'&&vipDecoOn();
-return `<div class="cvr${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="NOVA VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>'+(MODE==='account'?'<button class="pb s" data-a="vip">会员中心</button>':''):`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
+return `<div class="cvr${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="NOVA VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>'+(MODE==='account'?'<button class="pb s" data-a="vip">会员中心</button>':''):`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${typeof friendBtns==='function'?friendBtns(id):''}${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
 const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
 
 /* ===== 40_pages.js ===== */
@@ -1353,7 +1383,7 @@ gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.s
 theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
 
 /* ===== 80_events.js ===== */
-Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,retryconnect,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet});
+Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,retryconnect,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel});
 document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;const ret=f(el.dataset.v);S.bot=k=='cmsend';if(ret&&typeof ret.then==='function')ret.then(()=>render(),()=>render());else render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t)}else if(t.id=='sq'){S.sq=t.value;if(typeof usingNet==='function'&&usingNet()&&typeof loadSearch==='function'){loadSearch(t.value).then(()=>{const el=$('#sr');if(el)el.innerHTML=srch(S.sq)})}else $('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&document.getElementById('gate')){const b=document.querySelector('#gate [data-a=authgo]');if(b)b.click();return}if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});
