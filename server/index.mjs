@@ -10,6 +10,7 @@ import {createSaved, PUBLIC_PIN_MAX} from './saved.mjs';
 import {createStickers} from './stickers.mjs';
 import {createProfile, newSessionId, maskIp, deviceOf} from './profile.mjs';
 import {ApiError} from './errors.mjs';
+import {createPosts} from './posts.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
@@ -26,6 +27,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const saved = createSaved(db, {vip, now});
   const stickers = createStickers({vip});
   const profile = createProfile(db, {now});
+  const posts = createPosts(db, {vip, profile, now});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -203,11 +205,49 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return stickers.use(user, b || {});
     },
+    // ---- 动态（M4.1）帖子真实入库；发布成功以服务端响应为准 ----
+    'POST /api/posts'(req, b) {
+      const {user} = auth(req);
+      const r = posts.create(user, b || {});
+      audit(user.id, 'post.create', 'post:' + r.post.id, ip(req));
+      return r;
+    },
+    'GET /api/posts'(req) {
+      const {user} = auth(req);
+      const q = req.query || {};
+      return posts.list(user, q);
+    },
+    'GET /api/posts/:id'(req) {
+      const {user} = auth(req);
+      return posts.get(user, req.params.id);
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
 
   };
+
+  function findRoute(method, path) {
+    const exact = routes[method + ' ' + path];
+    if (exact) return {fn: exact, params: {}};
+    for (const [k, fn] of Object.entries(routes)) {
+      const i = k.indexOf(' ');
+      const m = k.slice(0, i), pat = k.slice(i + 1);
+      if (m !== method || !pat.includes(':')) continue;
+      const names = [];
+      const re = new RegExp('^' + pat.split('/').map(seg => {
+        if (seg.startsWith(':')) { names.push(seg.slice(1)); return '([^/]+)'; }
+        return seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }).join('/') + '$');
+      const mm = re.exec(path);
+      if (mm) {
+        const params = {};
+        names.forEach((n, i) => { params[n] = decodeURIComponent(mm[i + 1]); });
+        return {fn, params};
+      }
+    }
+    return null;
+  }
 
   const root = dirname(fileURLToPath(import.meta.url));
   const assetRoot = join(root, '../assets');
@@ -216,7 +256,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8'};
     const send = (s, o) => { res.writeHead(s, h); res.end(JSON.stringify(o)); };
     if (req.method === 'OPTIONS') { res.writeHead(204, h); return res.end(); }
-    const path = new URL(req.url, 'http://x').pathname;
+    const parsed = new URL(req.url, 'http://x');
+    const path = parsed.pathname;
+    req.query = Object.fromEntries(parsed.searchParams);
+    req.params = {};
     if (req.method === 'GET' && path.startsWith('/assets/')) {
       const name = decodeURIComponent(path.slice('/assets/'.length));
       if (!/^[\w.-]+$/.test(name)) return send(400, {error: {code: 'BAD_PATH', message: '路径不正确'}});
@@ -233,8 +276,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return res.end(html);
       } catch { return send(503, {error: {code: 'NO_BUILD', message: '前端还没构建'}}); }
     }
-    const fn = routes[req.method + ' ' + path];
-    if (!fn) return send(404, {error: {code: 'NOT_FOUND', message: '接口不存在'}});
+    const found = findRoute(req.method, path);
+    if (!found) return send(404, {error: {code: 'NOT_FOUND', message: '接口不存在'}});
+    const fn = found.fn; req.params = found.params;
     let size = 0; const chunks = [];
     req.on('data', c => { size += c.length; if (size > 1e6) { send(413, {error: {code: 'TOO_LARGE', message: '请求过大'}}); req.destroy(); } else chunks.push(c); });
     req.on('end', () => {
@@ -248,7 +292,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts;
   return server;
 }
 

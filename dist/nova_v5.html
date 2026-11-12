@@ -191,7 +191,7 @@ function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
 function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
-function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}render()})}
+function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}render()})}
 async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
@@ -501,6 +501,50 @@ function stkuse(v){
   if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{if(r.s!==200){T(errMsg(r,'无法使用这张贴纸'));return}send(r.j.sticker)});
   send(st)}
 
+/* ===== 19_feed.js ===== */
+/* M4.1 动态联网：登录后发帖必须等服务器确认才显示成功；演示数据仍只在本机。 */
+function ago(ms){
+  if(!ms)return '';
+  const d=Math.max(0,(typeof now==='function'?now():Date.now())-ms);
+  if(d<60e3)return '刚刚';
+  if(d<3600e3)return Math.floor(d/60e3)+' 分钟前';
+  if(d<86400e3)return Math.floor(d/3600e3)+' 小时前';
+  if(d<7*86400e3)return Math.floor(d/86400e3)+' 天前';
+  return vipDate(ms);
+}
+function rememberAuthor(a){
+  if(!a||!a.id||!D.u)return;
+  const me=SESSION&&SESSION.user&&Number(SESSION.user.id)===Number(a.id);
+  if(me)return;
+  const id=String(a.id);
+  const l=(a.avatar&&a.avatar.letter)||[...String(a.displayName||a.username||'用')][0];
+  const c=(a.avatar&&a.avatar.color)||'#3A3F46';
+  D.u[id]=[a.displayName||a.username,a.username,l,c,'',a.vip?1:0];
+}
+function adoptPost(p){
+  rememberAuthor(p.author);
+  const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
+  return {id:p.id,a:me?'me':String(p.author.id),t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited};
+}
+function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
+async function loadFeed(){
+  if(MODE!=='account'||!SESSION)return;
+  const r=await api('GET','/api/posts?limit=50');
+  if(r.s!==200){S.postsErr=errMsg(r,'动态加载失败');return}
+  S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';
+}
+async function publishPost(text){
+  const r=await api('POST','/api/posts',{text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)});
+  if(r.s!==200){T(errMsg(r,'发布失败'));return null}
+  const p=adoptPost(r.j.post);
+  S.posts=S.posts||[];
+  if(!S.posts.some(x=>x.id===p.id))S.posts.unshift(p);
+  return p;
+}
+function usingNet(){return MODE==='account'&&!!NET}
+function feedSrc(){return usingNet()?(Array.isArray(S.posts)?S.posts:[]):D.p}
+function postsOf(id){return feedSrc().filter(p=>p.a==id)}
+
 /* ===== 20_ui.js ===== */
 const P=id=>{const a=D.u[id]||D.u.me;return{id,n:a[0],h:a[1],l:a[2],c:a[3],b:a[4],v:a[5]}};
 const PH={me:'assets/av-me.jpg',zhou:'assets/av-zhou.jpg',chen:'assets/av-chen.jpg',su:'assets/av-su.jpg',he:'assets/av-he.jpg',jiang:'assets/av-jiang.jpg',pei:'assets/av-pei.jpg',notice:'assets/av-notice.jpg',group:'assets/av-group.jpg'};
@@ -532,13 +576,13 @@ const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊尚未加
 
 /* ===== 30_tabs.js ===== */
 /* ---- tabs ---- */
-const tHome=()=>{const fl=D.f.filter(e=>e[0]=='me').map(e=>e[1]),L=D.p.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
+const tHome=()=>{const fl=D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
 return `<div class="pg"><div class="top"><h1 class="br">NOVA</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${D.n.some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
 <div class="seg"><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">关注</button><button data-a="feed" data-v="rec" class="${S.feed=='rec'?'on':''}">推荐</button></div>
 <div class="sc"><div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">写点什么</button><button class="ib" data-a="compose" aria-label="发帖" style="color:var(--ac)">${ic('plus')}</button></div>
 ${fl.length?`<div class="ppl">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div>`:''}
-${L.length?L.map(p=>pc(p)).join(''):`<p class="em">${S.feed=='rec'?'推荐里还没有帖子':'你还没有关注任何人'}</p>`}</div></div>`};
+${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='rec'?'推荐里还没有帖子':'你还没有关注任何人'}</p>`}</div></div>`};
 const cml=()=>{const q=S.cq.trim().toLowerCase(),L=D.cm.filter(c=>!!c.j==(S.cs=='j')&&(!q||(c.n+c.d).toLowerCase().includes(q)));
 L.sort((a,b)=>(b.pin||0)-(a.pin||0));
 return L.length?L.map(c=>swrow(`data-a="cm" data-v="${c.id}"`,`${cmface(c,48)}<div class="gr"><b>${c.pin?'📌 ':''}${esc(c.n)}${c.mute?' 🔕':''}</b><small>${esc(c.d)}</small><small>${c.m} 名成员 · ${c.ch.length} 个频道</small></div><button class="pb sm${c.j?' s':''}" data-a="${c.j?'cm':'join'}" data-v="${c.id}">${c.j?'已加入':'加入'}</button>`,
@@ -559,7 +603,7 @@ const prof=id=>{const u=P(id),me=id=='me',n=k=>D.f.filter(e=>e[k]==id).length,f=
 const bio=`<div class="card" style="padding:12px 16px"><b style="font-size:17px">简介</b><p style="margin-top:6px">${esc(u.b)}</p></div>`;
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">编辑</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
 const dec=me&&typeof vipDecoOn==='function'&&vipDecoOn();
-return `<div class="cvr${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="NOVA VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${D.p.filter(p=>p.a==id).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>'+(MODE==='account'?'<button class="pb s" data-a="vip">会员中心</button>':''):`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${D.p.filter(p=>p.a==id).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
+return `<div class="cvr${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="NOVA VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>'+(MODE==='account'?'<button class="pb s" data-a="vip">会员中心</button>':''):`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${(typeof postsOf==='function'?postsOf(id):D.p.filter(p=>p.a==id)).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
 const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
 
 /* ===== 40_pages.js ===== */
@@ -935,7 +979,7 @@ user:v=>{if(v=='me'){S.tab='me';S.st=[];S.sh=null}else A.go('user:'+v)},post:v=>
 rx:v=>{S.sh={t:'rx',id:v}},rxp:v=>{const[i,j]=v.split('|'),p=D.p.find(x=>x.id==i),k=+j;if(p.m==k){p.r[k]--;p.m=-1}else{if(p.m>=0)p.r[p.m]--;p.r[k]++;p.m=k}S.sh=null},
 more:v=>{S.sh={t:'more',id:v}},copy:v=>{try{navigator.clipboard.writeText(D.p.find(x=>x.id==v).x).catch(()=>{})}catch(e){}S.sh=null;T('已复制')},report:()=>{S.sh=null;T('已记录（仅演示，不会发送给任何人）')},
 delp:v=>{D.p=D.p.filter(p=>p.id!=v);D.c=D.c.filter(c=>c.p!=v);S.sh=null;if(S.st[S.st.length-1]=='post:'+v)S.st.pop();T('已删除')},
-compose:()=>{S.sh={t:'compose'}},pub:()=>{const x=(S.d.pin||'').trim(),mx=textLimit('post');if(!ok(x,mx))return T('动态最多 '+mx+' 字');const go=()=>{D.p.unshift({id:'p'+Date.now(),a:'me',t:'刚刚',x,r:[0,0,0,0,0,0],m:-1});S.d.pin='';S.sh=null;S.st=[];S.tab='home';T('已发布')};if(MODE==='account'&&NET&&SESSION)return checkText('post',x).then(ok=>{if(ok)go()});go()},
+compose:()=>{S.sh={t:'compose'}},pub:()=>{const x=(S.d.pin||'').trim(),mx=textLimit('post');if(!ok(x,mx))return T('动态最多 '+mx+' 字');const go=()=>{D.p.unshift({id:'p'+Date.now(),a:'me',t:'刚刚',x,r:[0,0,0,0,0,0],m:-1});S.d.pin='';S.sh=null;S.st=[];S.tab='home';T('已发布')};if(MODE==='account'&&NET&&SESSION)return checkText('post',x).then(okc=>{if(!okc)return;return publishPost(x).then(p=>{if(!p)return;S.d.pin='';S.sh=null;S.st=[];S.tab='home';T('已发布')})});go()},
 search:()=>{S.sh={t:'search'};S.sq=''},notif:()=>{S.sh={t:'notif'}},nr:v=>{D.n.find(n=>n.id==v).u=0},
 rp:v=>{S.reply=v},rpx:()=>{S.reply=null},cs:v=>{const x=(S.d.cin||'').trim();if(!ok(x,280))return;const c={id:'c'+Date.now(),p:v,pa:S.reply||0,a:'me',t:'刚刚',l:0,ml:0,x};S.reply?D.c.push(c):D.c.unshift(c);S.d.cin='';S.reply=null},
 cl:v=>{const c=D.c.find(x=>x.id==v);c.ml?(c.ml=0,c.l--):(c.ml=1,c.l++)},

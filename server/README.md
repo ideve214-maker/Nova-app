@@ -1,4 +1,4 @@
-# NOVA 后端（M2.6.6）
+# NOVA 后端（M4.1.1）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -33,6 +33,9 @@
 | GET /api/me/sessions | 自己的登录设备；公开 id、脱敏 IP、设备名 |
 | POST /api/me/sessions/revoke-others | 退出其他设备，当前设备保留 |
 | POST /api/me/sessions/revoke | 退出指定设备（不能是当前或别人的） |
+| POST /api/posts | 发帖，成功后才算发布（`requireTextLength`） |
+| GET /api/posts | 动态列表 |
+| GET /api/posts/:id | 动态详情 |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
@@ -83,3 +86,7 @@
 ## 登录设备（M2.6.4–M2.6.5）
 - `GET /api/me/sessions` 只返回自己的会话：公开 id（`ss_…`）、脱敏 IP、设备名、是否当前设备。不含令牌、哈希、原始 IP 或 UA。
 - `POST /api/me/sessions/revoke-others` 使其他令牌立即失效，当前设备保留。`POST /api/me/sessions/revoke` 退出指定设备，不能退出当前设备或别人的设备。改密也会踢掉其他设备。
+
+## 动态（M4.1.1）
+- 帖子写在 `posts` 表。发布是否成功以服务端响应为准，前端不能先本地插入再假装成功。
+- 登录后的动态流来自服务器；`file://` 和演示模式仍用本机数据。
