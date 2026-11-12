@@ -50,7 +50,12 @@ export function createFriends(db, {now, profile} = {}) {
   function block(a, b) {
     a = Number(a); b = Number(b);
     if (a === b) return;
+    const p = pair(a, b);
+    const prev = p ? get.get(p[0], p[1]) : null;
     insBlk.run(a, b, now());
+    // 拉黑同时解除好友与待处理申请。
+    remove(a, b);
+    if (prev) emit([a, b], 'friend.removed', {userId: b, by: authorOf(a), reason: 'blocked'});
   }
   function unblock(a, b) { delBlk.run(Number(a), Number(b)); }
 
