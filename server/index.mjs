@@ -13,6 +13,7 @@ import {ApiError} from './errors.mjs';
 import {createPosts} from './posts.mjs';
 import {createPolls} from './polls.mjs';
 import {createHashtags} from './hashtags.mjs';
+import {createSchedule} from './schedule.mjs';
 import {createComments} from './comments.mjs';
 import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
@@ -41,7 +42,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   mediaDir, mediaScan, eventsOpts = {},
   adminUsername = process.env.NOVA_ADMIN_USERNAME,
   adminPassword = process.env.NOVA_ADMIN_PASSWORD,
-  payEnv = process.env, payDir} = {}) {
+  payEnv = process.env, payDir, scheduleAuto, scheduleInterval = 5000} = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
   // CORS：未设置或 * 时与原先一致（允许任意来源）。逗号分隔白名单只回显匹配的 Origin。
@@ -74,6 +75,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const communities = createCommunities(db, {profile, vip, now});
   const polls = createPolls(db, {now, posts, follows, communities});
   const hashtags = createHashtags(db, {now, posts});
+  const schedule = createSchedule(db, {now, posts, hashtags, polls, intervalMs: scheduleInterval});
   posts.attach({pollOf: (id, me) => polls.ofPost(id, me), hashtagsOf: id => hashtags.ofPost(id)});
   const friends = createFriends(db, {now, profile});
   const e2ee = createE2ee(db, {now, friends});
@@ -1020,6 +1022,34 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       };
     },
 
+    'GET /api/post-drafts'(req) {
+      const {user} = auth(req);
+      return schedule.list(user);
+    },
+    'POST /api/post-drafts'(req, b) {
+      const {user} = auth(req);
+      return schedule.create(user, b || {});
+    },
+    'GET /api/post-drafts/:id'(req) {
+      const {user} = auth(req);
+      return schedule.get(user, req.params.id);
+    },
+    'PUT /api/post-drafts/:id'(req, b) {
+      const {user} = auth(req);
+      return schedule.update(user, req.params.id, b || {});
+    },
+    'POST /api/post-drafts/:id/schedule'(req, b) {
+      const {user} = auth(req);
+      return schedule.scheduleOne(user, req.params.id, b || {});
+    },
+    'POST /api/post-drafts/:id/cancel'(req) {
+      const {user} = auth(req);
+      return schedule.cancel(user, req.params.id);
+    },
+    'POST /api/post-drafts/:id/publish'(req) {
+      const {user} = auth(req);
+      return schedule.publishNow(user, req.params.id);
+    },
     'GET /api/hashtags/search'(req) {
       auth(req);
       return hashtags.search((req.query || {}).q, {limit: (req.query || {}).limit});
@@ -1220,7 +1250,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule;
+
+  const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
+  if (autoSched) schedule.start();
+  const _close = server.close.bind(server);
+  server.close = function(cb) {
+    try { schedule.stop(); } catch {}
+    try { events.closeAll(); } catch {}
+    return _close(cb);
+  };
+
   return server;
 }
 
