@@ -1,0 +1,12 @@
+{
+  "id": "nova",
+  "name": "NOVA",
+  "version": "1.0.0",
+  "preview": "preview.svg",
+  "css": "skin.css",
+  "buttons": {
+    "normal": { "background": "#2D88FF", "color": "#fff", "radius": "12px", "height": "36px" },
+    "pressed": { "transform": "scale(0.97)", "background": "#1B6FE0" },
+    "disabled": { "opacity": 0.4 }
+  }
+}

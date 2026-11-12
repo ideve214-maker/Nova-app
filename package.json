@@ -1,7 +1,7 @@
 {
   "name": "nova-v7",
   "private": true,
-  "version": "0.7.0-m6.1",
+  "version": "0.7.0-m7.r1",
   "scripts": {
     "build": "node scripts/build.mjs",
     "admin:create": "node server/admin-cli.mjs create",
