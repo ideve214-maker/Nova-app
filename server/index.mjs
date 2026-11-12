@@ -31,7 +31,7 @@ const bad = (code, msg, s = 400) => new HttpError(s, code, msg);
 // env：只有严格等于 'development' 才会开启 VIP 测试切换（默认 production）；任何拼写变体都按生产处理。
 export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*', clock = Date.now,
   env = process.env.NOVA_ENV || 'production', vipTestToggle = process.env.NOVA_VIP_TEST_TOGGLE !== '0',
-  mediaDir, mediaScan} = {}) {
+  mediaDir, mediaScan, eventsOpts = {}} = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
   // CORS：未设置或 * 时与原先一致（允许任意来源）。逗号分隔白名单只回显匹配的 Origin。
@@ -63,7 +63,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const follows = createFollows(db, {profile, vip, now});
   const communities = createCommunities(db, {profile, vip, now});
   const friends = createFriends(db, {now});
-  const events = createEvents(db, {now});
+  const events = createEvents(db, {now, ...eventsOpts});
   const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
   const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan});
   let notifications;
@@ -516,6 +516,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       if (q.token || q.access_token || q.auth || q.authorization) throw bad('TOKEN_IN_URL', '不要把访问令牌放在 URL 里', 400);
       const {user} = auth(req);
       const lastId = req.headers['last-event-id'] || q.after || '';
+      events.assertCanSubscribe(user);
       res.writeHead(200, {
         ...corsHeaders(req),
         'Content-Type': 'text/event-stream; charset=utf-8',

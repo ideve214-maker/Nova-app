@@ -826,6 +826,7 @@ async function catchUpMessages(id){
   const seen=new Set((S.messages[id]||[]).map(m=>m[5]));
   S.messages[id]=(S.messages[id]||[]).concat(page.filter(m=>!seen.has(m[5])));
 }
+/* SSE：心跳由服务端 : ping 维持；断线后用 Last-Event-ID 补拉，当前打开的会话再用 after 补消息。令牌走 Authorization，地址走 apiUrl。连接过多（429）拉长重试。 */
 async function startEvents(){
   if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
   stopEvents();
@@ -838,6 +839,8 @@ async function startEvents(){
         const headers={Authorization:'Bearer '+SESSION.token,Accept:'text/event-stream'};
         if(S.lastEventId)headers['Last-Event-ID']=String(S.lastEventId);
         const r=await fetch(apiUrl('/api/events'),{headers,signal:ac.signal});
+        if(r.status===401||r.status===403){S.evtOn=0;return}
+        if(r.status===429){await new Promise(ok=>setTimeout(ok,8000));continue}
         if(r.status!==200){await new Promise(ok=>setTimeout(ok,3000));continue}
         const reader=r.body.getReader(),dec=new TextDecoder();
         let buf='';

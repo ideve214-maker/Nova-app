@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## V7 M4.9.1 · SSE 心跳、重连、补拉与连接限额（2026-11-12）
+- 心跳：服务端定期发送 `: ping`（默认 15 秒，测试可注入 `eventsOpts.heartbeatMs`）。
+- 断线补拉：`Last-Event-ID` 补发漏掉的事件（M4.3.4 已有）；打开中的会话再用 `after` 补消息。
+- 连接限额：同一用户默认最多 4 条 SSE，超额 429 `TOO_MANY_CONNECTIONS`。客户端遇 429 拉长重试，401/403 停止。
+- 继续经 `apiUrl()` / `NOVA_API_BASE`，CORS 白名单对 SSE 生效。令牌仍不得放 URL。
+
 ## V7 M4.9.0 · 实时通信调研结论（2026-11-12）
 - 固化结论：第一阶段继续 SSE + POST；鉴权只用 `Authorization`，禁止令牌入 URL；客户端用 `fetch()` 读流并走 `apiUrl()` / `NOVA_API_BASE`。
 - 升级 WebSocket 的条件与必须补齐的能力写入 `docs/research/M4.9.0_实时通信调研结论.md`。本步不引入 WS 依赖、不迁移。

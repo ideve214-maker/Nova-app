@@ -27,12 +27,19 @@ export function createEvents(db, {now, maxPerUser = 4, heartbeatMs = 15000} = {}
     }
   }
 
-  function subscribe(user, res, {lastId} = {}) {
-    const uid = Number(user.id);
-    const set = clients.get(uid) || new Set();
-    if (set.size >= maxPerUser) {
+  function connectionCount(user) {
+    const set = clients.get(Number(user.id));
+    return set ? set.size : 0;
+  }
+  function assertCanSubscribe(user) {
+    if (connectionCount(user) >= maxPerUser) {
       throw new ApiError(429, 'TOO_MANY_CONNECTIONS', '实时连接过多');
     }
+  }
+  function subscribe(user, res, {lastId} = {}) {
+    const uid = Number(user.id);
+    assertCanSubscribe(user);
+    const set = clients.get(uid) || new Set();
     if (lastId) {
       const missed = after.all(uid, Number(lastId) || 0, 200);
       for (const e of missed) {
@@ -40,28 +47,33 @@ export function createEvents(db, {now, maxPerUser = 4, heartbeatMs = 15000} = {}
         write(res, e.id, e.type, obj);
       }
     }
-    const conn = {res};
+    function cleanup() {
+      if (conn.dead) return;
+      conn.dead = true;
+      clearInterval(hb);
+      set.delete(conn);
+      if (!set.size) clients.delete(uid);
+    }
+    const conn = {res, cleanup, dead: false};
     set.add(conn);
     clients.set(uid, set);
     const hb = setInterval(() => {
       try { res.write(': ping\n\n'); } catch { cleanup(); }
     }, heartbeatMs);
-    function cleanup() {
-      clearInterval(hb);
-      set.delete(conn);
-      if (!set.size) clients.delete(uid);
-    }
     res.on('close', cleanup);
     if (res.socket) res.socket.on('close', cleanup);
     return cleanup;
   }
 
   function closeAll() {
-    for (const set of clients.values()) {
-      for (const c of set) { try { c.res.end(); } catch {} }
+    for (const set of [...clients.values()]) {
+      for (const c of [...set]) {
+        try { c.cleanup && c.cleanup(); } catch {}
+        try { c.res.end(); } catch {}
+      }
     }
     clients.clear();
   }
 
-  return {publish, subscribe, closeAll, clients};
+  return {publish, subscribe, closeAll, clients, maxPerUser, heartbeatMs, connectionCount, assertCanSubscribe};
 }
