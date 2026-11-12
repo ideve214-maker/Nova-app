@@ -20,6 +20,8 @@ import {createEvents} from './events.mjs';
 import {createMedia} from './media.mjs';
 import {createNotifications} from './notifications.mjs';
 import {createSearch} from './search.mjs';
+import {createAdmins} from './admin.mjs';
+import {createReports} from './reports.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 
@@ -31,7 +33,9 @@ const bad = (code, msg, s = 400) => new HttpError(s, code, msg);
 // env：只有严格等于 'development' 才会开启 VIP 测试切换（默认 production）；任何拼写变体都按生产处理。
 export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*', clock = Date.now,
   env = process.env.NOVA_ENV || 'production', vipTestToggle = process.env.NOVA_VIP_TEST_TOGGLE !== '0',
-  mediaDir, mediaScan, eventsOpts = {}} = {}) {
+  mediaDir, mediaScan, eventsOpts = {},
+  adminUsername = process.env.NOVA_ADMIN_USERNAME,
+  adminPassword = process.env.NOVA_ADMIN_PASSWORD} = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
   // CORS：未设置或 * 时与原先一致（允许任意来源）。逗号分隔白名单只回显匹配的 Origin。
@@ -87,6 +91,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   friends.attach({notifications, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   profile.attach({friends});
   const search = createSearch(db, {profile, vip, now});
+  const admins = createAdmins(db, {now});
+  const adminSeed = admins.seedFromEnv({username: adminUsername, password: adminPassword});
+  const reports = createReports(db, {now, notifications, profile});
+
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -134,6 +142,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     const u = q.userBy.get(s.user_id);
     if (!u || u.status !== 'active') throw bad('FORBIDDEN', '账号不可用', 403);
     return {user: u, hash: h};
+  }
+  function adminAuth(req) {
+    const m = /^Bearer (\S+)$/.exec(req.headers.authorization || '');
+    if (!m) throw bad('UNAUTHORIZED', '请先登录管理员账号', 401);
+    const admin = admins.fromToken(m[1]);
+    if (admin) return {admin, token: m[1]};
+    try {
+      const s = q.sess.get(tokenHash(m[1]));
+      if (s && s.expires_at >= now()) throw bad('FORBIDDEN', '需要管理员权限', 403);
+    } catch (e) { if (e instanceof HttpError || e instanceof ApiError) throw e; }
+    throw bad('UNAUTHORIZED', '登录已过期，请重新登录', 401);
   }
 
   const routes = {
@@ -665,6 +684,71 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return search.search(user, req.query || {});
     },
+    'POST /api/reports'(req, b) {
+      const {user} = auth(req);
+      const r = reports.submit(user, b || {});
+      audit(user.id, 'report.submit', 'report:' + r.report.id, ip(req), {targetType: r.report.targetType, targetId: r.report.targetId});
+      return r;
+    },
+
+    'POST /api/admin/auth/login'(req, b) {
+      const r = admins.login(b || {}, req);
+      audit(r.admin.id, 'admin.login', 'admin:' + r.admin.id, ip(req));
+      return r;
+    },
+    'POST /api/admin/auth/logout'(req) {
+      const {admin, token} = adminAuth(req);
+      admins.logout(token);
+      audit(admin.id, 'admin.logout', 'admin:' + admin.id, ip(req));
+      return {};
+    },
+    'GET /api/admin/me'(req) {
+      const {admin} = adminAuth(req);
+      return {admin};
+    },
+    'GET /api/admin/reports'(req) {
+      const {admin} = adminAuth(req);
+      return reports.list(req.query || {});
+    },
+    'GET /api/admin/reports/:id'(req) {
+      const {admin} = adminAuth(req);
+      const r = reports.get(req.params.id, {includeMessages: true});
+      audit(admin.id, 'admin.report.view', 'report:' + r.report.id, ip(req), {adminUsername: admin.username});
+      return r;
+    },
+    'POST /api/admin/reports/:id/decision'(req, b) {
+      const {admin} = adminAuth(req);
+      const r = reports.decide(admin, req.params.id, b || {});
+      audit(admin.id, 'admin.report.decision', 'report:' + r.report.id, ip(req), {action: (b && b.action), adminUsername: admin.username});
+      return r;
+    },
+    'GET /api/admin/audit'(req) {
+      const {admin} = adminAuth(req);
+      const limit = Math.min(Math.max(Number((req.query || {}).limit) || 50, 1), 100);
+      const cursor = (req.query || {}).cursor != null && (req.query || {}).cursor !== '' ? Number((req.query || {}).cursor) : null;
+      const action = String((req.query || {}).action || '');
+      const where = [];
+      const args = [];
+      if (action) { where.push('action LIKE ?'); args.push(action + '%'); }
+      if (cursor != null && Number.isFinite(cursor)) { where.push('id<?'); args.push(cursor); }
+      const sql = 'SELECT * FROM audit_log' + (where.length ? ' WHERE ' + where.join(' AND ') : '') + ' ORDER BY id DESC LIMIT ?';
+      const rows = db.prepare(sql).all(...args, limit + 1);
+      const more = rows.length > limit;
+      const slice = more ? rows.slice(0, limit) : rows;
+      const audits = slice.map(r => ({
+        id: String(r.id),
+        kind: String(r.action || '').startsWith('admin.') ? 'admin' : 'security',
+        action: r.action,
+        target: r.target || '',
+        time: r.at,
+        at: r.at,
+        ip: r.ip || '',
+        actorId: r.actor_id,
+        detail: r.detail ? (() => { try { return JSON.parse(r.detail); } catch { return r.detail; } })() : null,
+      }));
+      return {audits, nextCursor: more ? slice[slice.length - 1].id : null};
+    },
+
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -776,7 +860,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.adminSeed = adminSeed;
   return server;
 }
 

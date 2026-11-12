@@ -1,5 +1,14 @@
 # 更新日志（最新在上）
 
+## V7 M3.5 · 平台管理员与举报队列（2026-11-12）
+- **管理员鉴权：** 与普通用户分表、分令牌。`POST /api/admin/auth/login`（接受 `username` / `account`）、`GET /api/admin/me`、`POST /api/admin/auth/logout`。全部 `/api/admin/*` 需管理员 Bearer；普通用户令牌 403。
+- **创建第一个管理员（无内置默认密码）：**
+  - 命令行：`node server/admin-cli.mjs create --username 名称 --password '强密码'`（或 `npm run admin:create -- --username ... --password ...`）。
+  - 启动时环境变量：`NOVA_ADMIN_USERNAME` 与 `NOVA_ADMIN_PASSWORD` 同时提供，且该用户名尚不存在时才会创建；缺一或密码过弱则不创建、不回落到默认口令。
+- **举报：** `POST /api/reports`（登录用户）。`GET /api/admin/reports` 队列（`status=pending|reviewing|resolved|rejected|open|done`）。详情 `GET /api/admin/reports/:id` 对私聊**只返回用户勾选的 messageIds**，访问写审计。
+- **结论：** `POST /api/admin/reports/:id/decision`（`action=resolve|reject`），通过 `notifications.push` 通知举报人与被举报人，`dedupeKey` 为 `report:<id>:result`。`GET /api/admin/audit` 供管理端查阅。
+- CORS：未设置仍为 `*`（管理端可跨域）；若设白名单，请把管理端 Origin 一并列入 `NOVA_CORS_ORIGIN`。
+
 ## V7 M4.11.5 · E2EE UI 标识（2026-11-12）
 - 独立安全审查尚未进行。登录提示、聊天横幅、设置与账号安全统一写明「私聊尚未端到端加密」。
 - 测试锁定：构建产物与界面不得出现「已端到端加密」。审查通过前不得改文案。

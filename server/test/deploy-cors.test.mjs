@@ -98,3 +98,27 @@ test('白名单：只回显匹配的 Origin；未匹配不回显；预检与 SSE
     await sse.body.cancel();
   } finally { srv.close(); }
 });
+
+test('白名单包含管理端 Origin 时回显，预检允许 Authorization', async () => {
+  const adminOrigin = 'http://127.0.0.1:5173';
+  const srv = createApp({corsOrigin: adminOrigin + ', http://localhost:5173, https://admin.example.test'});
+  const base = await listen(srv);
+  try {
+    const r = await fetch(base + '/api/health', {headers: {Origin: adminOrigin}});
+    assert.equal(r.headers.get('access-control-allow-origin'), adminOrigin);
+    const opt = await fetch(base + '/api/admin/auth/login', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: adminOrigin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Authorization, Content-Type',
+      },
+    });
+    assert.equal(opt.status, 204);
+    assert.equal(opt.headers.get('access-control-allow-origin'), adminOrigin);
+    const allow = (opt.headers.get('access-control-allow-headers') || '').toLowerCase();
+    assert.match(allow, /authorization/);
+    const r2 = await fetch(base + '/api/health', {headers: {Origin: 'https://admin.example.test'}});
+    assert.equal(r2.headers.get('access-control-allow-origin'), 'https://admin.example.test');
+  } finally { srv.close(); }
+});
