@@ -53,7 +53,7 @@ test('新用户：Basic / none，权益为免费额度，带服务器时间', as
   assert.deepEqual(e.vip_badge, {value: false, enabled: false});
   assert.deepEqual(e.personal_saved_items_plus, {value: 20, enabled: true});
   assert.deepEqual(e.longer_post_text.value, {post: 280, chat: 500, channel: 280});
-  assert.deepEqual(e.media_quota_plus, {value: null, enabled: false});
+  assert.deepEqual(e.media_quota_plus, {value: 200, enabled: true});
 });
 
 test('有效 VIP：返回套餐、开始/到期时间、剩余天数与 VIP 额度', async () => {
@@ -66,6 +66,7 @@ test('有效 VIP：返回套餐、开始/到期时间、剩余天数与 VIP 额�
   assert.deepEqual(r.entitlements.vip_badge, {value: true, enabled: true});
   assert.deepEqual(r.entitlements.personal_saved_items_plus, {value: 100, enabled: true});
   assert.deepEqual(r.entitlements.longer_post_text.value, {post: 1000, chat: 1500, channel: 800});
+  assert.deepEqual(r.entitlements.media_quota_plus, {value: 2048, enabled: true});
   const me = (await call('GET', '/api/me', null, tok)).j.user;
   assert.equal(me.vip, true); assert.equal(me.vipUntil, T0 + 20 * DAY);
 });

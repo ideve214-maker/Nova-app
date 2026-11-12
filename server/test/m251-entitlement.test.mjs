@@ -93,12 +93,13 @@ test('服务层：文本长度按 Unicode 码点计，与前端 len() 一致；B
   assert.equal(catchVip(() => srv.vip.requireTextLength(basic, 'bogus', 'hi')).code, 'BAD_SCOPE');
 });
 
-test('服务层：未知权益 400；媒体额度尚未开放 403；仅隐藏按钮不算通过', () => {
+test('服务层：未知权益 400；媒体额度已开放，Basic 200MB、VIP 2GB', () => {
   const u = {id: 0, vip_until: T0 + DAY, vip_since: T0, vip_source: 'admin'};
   assert.equal(catchVip(() => srv.vip.requireEntitlement(u, 'not_a_real_key')).code, 'UNKNOWN_ENTITLEMENT');
-  assert.equal(catchVip(() => srv.vip.requireEntitlement({id: 0, vip_until: null}, 'media_quota_plus')).code, 'ENTITLEMENT_UNAVAILABLE');
-  // VIP 也还不能用尚未定价的媒体额度
-  assert.equal(catchVip(() => srv.vip.requireEntitlement(u, 'media_quota_plus')).code, 'ENTITLEMENT_UNAVAILABLE');
+  const basic = srv.vip.requireEntitlement({id: 0, vip_until: null}, 'media_quota_plus');
+  assert.equal(basic.value, 200); assert.equal(basic.plan, 'basic');
+  const vipE = srv.vip.requireEntitlement(u, 'media_quota_plus');
+  assert.equal(vipE.value, 2048); assert.equal(vipE.plan, 'vip');
 });
 
 test('HTTP：/api/vip/gate 需要登录；Basic 调 VIP 专属权益 403；VIP 通过；到期后同一令牌立刻 403', async () => {
