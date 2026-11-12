@@ -14,7 +14,7 @@ const NAME_MAX = 20;
 const RECALL_MS = 2 * 60 * 1000; // 撤回时间窗：2 分钟
 const PUBLIC_PIN_MAX = 5;
 
-export function createChats(db, {profile, vip, now, friends, onEvent, media, stickers} = {}) {
+export function createChats(db, {profile, vip, now, friends, onEvent, media, stickers, blockwords} = {}) {
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
   const insCv = db.prepare(`INSERT INTO conversations(id,kind,name,owner_id,created_at,dm_lo,dm_hi) VALUES(?,?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM conversations WHERE id=?');
@@ -361,7 +361,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   function pubMsg(row, me) {
     if (!row) return null;
     const enc = !!(hasE2ee && row.encrypted);
-    return {
+    const out = {
       id: row.id,
       conversationId: row.conversation_id,
       author: authorOf(row.author_id),
@@ -388,6 +388,11 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       forwardFrom: forwardFromOf(row, me),
       reactions: reactionsOf(row, me),
     };
+    if (!enc && !row.deleted_at && blockwords && blockwords.personalFilter && me) {
+      const f = blockwords.personalFilter(out.text, me, row.author_id);
+      if (f) { out.text = f.text; out.filtered = true; out.filteredBy = f.filteredBy; }
+    }
+    return out;
   }
   function hideForwardAuthor(authorId, viewerId) {
     if (authorId == null || viewerId == null) return false;
@@ -455,6 +460,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     }
     if (!wantEnc && !len(text) && !mediaId && !stickerObj) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
     if (vip && len(text) && !wantEnc) vip.requireTextLength(user, 'chat', text);
+    if (!wantEnc && text && blockwords && blockwords.assertPlatform) blockwords.assertPlatform(text);
     const wantAtAll = text.includes('@所有人');
     if (wantAtAll && row.kind === 'group') {
       const m = activeMem(id, user.id);

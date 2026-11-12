@@ -57,6 +57,10 @@ export function createPosts(db, {vip, profile, now}) {
       out.commentCount = extras.commentCount(row.id);
       if (extras.pollOf) out.poll = extras.pollOf(row.id, me);
       if (extras.hashtagsOf) out.hashtags = extras.hashtagsOf(row.id);
+      if (extras.personalFilter && me) {
+        const f = extras.personalFilter(out.text, me, row.author_id);
+        if (f) { out.text = f.text; out.filtered = true; out.filteredBy = f.filteredBy; }
+      }
     }
     return out;
   }

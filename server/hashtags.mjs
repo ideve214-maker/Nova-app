@@ -114,5 +114,6 @@ export function createHashtags(db, {now, posts, blockwords} = {}) {
     const {row, created} = getOrCreate(user, body.name || body.tag);
     return {tag: {name: row.name, createdAt: row.created_at}, created};
   }
-  return {syncPost, ofPost, search, trending, get, create, extractTags, MAX_TAGS_PER_POST, NEW_TAGS_PER_HOUR};
+  function attach(ex) { if (ex && ex.blockwords) blockwords = ex.blockwords; }
+  return {syncPost, ofPost, search, trending, get, create, extractTags, MAX_TAGS_PER_POST, NEW_TAGS_PER_HOUR, attach};
 }

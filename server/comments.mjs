@@ -8,6 +8,8 @@ export const COMMENT_MAX = 280;
 export const EMOJIS = Object.freeze(['❤️', '😂', '👍', '😮', '😢', '🔥']);
 
 export function createComments(db, {profile, vip, posts, now}) {
+  let extras = null;
+  function attach(ex) { extras = Object.assign(extras || {}, ex); }
   const insC = db.prepare(`INSERT INTO post_comments(id,post_id,author_id,parent_id,text,created_at) VALUES(?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM post_comments WHERE id=?');
   const listC = db.prepare('SELECT * FROM post_comments WHERE post_id=? AND (deleted_at IS NULL OR id IN (SELECT parent_id FROM post_comments WHERE post_id=? AND parent_id IS NOT NULL AND deleted_at IS NULL)) ORDER BY created_at ASC, id ASC');
@@ -41,7 +43,7 @@ export function createComments(db, {profile, vip, posts, now}) {
 
   function pubC(row, me) {
     const gone = !!row.deleted_at;
-    return {
+    const out = {
       id: row.id, postId: row.post_id, parentId: row.parent_id || null,
       author: authorOf(row.author_id),
       text: gone ? '' : row.text,
@@ -51,6 +53,11 @@ export function createComments(db, {profile, vip, posts, now}) {
       liked: !!(me && !gone && hasLike.get(row.id, me.id)),
       mine: !!(me && Number(me.id) === Number(row.author_id)),
     };
+    if (!gone && extras && extras.personalFilter && me) {
+      const f = extras.personalFilter(out.text, me, row.author_id);
+      if (f) { out.text = f.text; out.filtered = true; out.filteredBy = f.filteredBy; }
+    }
+    return out;
   }
   function ensurePost(id) {
     const row = posts.byId.get(id);
@@ -101,5 +108,5 @@ export function createComments(db, {profile, vip, posts, now}) {
     else insRx.run(postId, user.id, idx, now());
     return {postId, ...reactOf(postId, user)};
   }
-  return {add, list, remove, like, react, reactOf, commentCount, COMMENT_MAX, EMOJIS};
+  return {add, list, remove, like, react, reactOf, commentCount, COMMENT_MAX, EMOJIS, attach};
 }

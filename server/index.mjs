@@ -14,6 +14,7 @@ import {createPosts} from './posts.mjs';
 import {createPolls} from './polls.mjs';
 import {createHashtags} from './hashtags.mjs';
 import {createSchedule} from './schedule.mjs';
+import {createBlockwords} from './blockwords.mjs';
 import {createComments} from './comments.mjs';
 import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
@@ -98,7 +99,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     }
   };
-  const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent});
+  const blockwords = createBlockwords(db, {now});
+  const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
+  posts.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
+  comments.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
+  hashtags.attach({blockwords});
   notifications = createNotifications(db, {now, profile, vip, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   friends.attach({notifications, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   profile.attach({friends});
@@ -319,6 +324,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       const body = b || {};
       if (body.poll) polls.validateSpec(body.poll);
+      if (body.text) blockwords.assertPlatform(body.text);
+      if (body.poll && body.poll.question) blockwords.assertPlatform(body.poll.question);
       const r = posts.create(user, body);
       if (body.poll) {
         const pr = polls.createForPost(user, r.post.id, body.poll);
@@ -344,6 +351,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/posts/:id/edit'(req, b) {
       const {user} = auth(req);
+      if (b && b.text) blockwords.assertPlatform(b.text);
       const r = posts.edit(user, req.params.id, b || {});
       r.post.hashtags = hashtags.syncPost(user, r.post);
       audit(user.id, 'post.edit', 'post:' + r.post.id, ip(req));
@@ -361,6 +369,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/posts/:id/comments'(req, b) {
       const {user} = auth(req);
+      if (b && b.text) blockwords.assertPlatform(b.text);
       const r = comments.add(user, req.params.id, b || {});
       audit(user.id, 'post.comment', 'comment:' + r.comment.id, ip(req));
       const post = srvPostAuthor(req.params.id);
@@ -1022,12 +1031,41 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       };
     },
 
+    'GET /api/me/blockwords'(req) {
+      const {user} = auth(req);
+      return blockwords.listPersonal(user);
+    },
+    'POST /api/me/blockwords'(req, b) {
+      const {user} = auth(req);
+      return blockwords.addPersonal(user, b || {});
+    },
+    'POST /api/me/blockwords/remove'(req, b) {
+      const {user} = auth(req);
+      return blockwords.removePersonal(user, b || {});
+    },
+    'GET /api/admin/blockwords'(req) {
+      adminAuth(req);
+      return blockwords.listPlatform();
+    },
+    'POST /api/admin/blockwords'(req, b) {
+      const {admin} = adminAuth(req);
+      const r = blockwords.addPlatform(admin, b || {});
+      audit(admin.id, 'admin.blockword.add', 'blockword:' + r.blockword.id, ip(req), {word: r.blockword.word});
+      return r;
+    },
+    'POST /api/admin/blockwords/:id/delete'(req) {
+      const {admin} = adminAuth(req);
+      const r = blockwords.removePlatform(admin, req.params.id);
+      audit(admin.id, 'admin.blockword.delete', 'blockword:' + r.removed.id, ip(req), {word: r.removed.word});
+      return r;
+    },
     'GET /api/post-drafts'(req) {
       const {user} = auth(req);
       return schedule.list(user);
     },
     'POST /api/post-drafts'(req, b) {
       const {user} = auth(req);
+      if (b && b.text) blockwords.assertPlatform(b.text);
       return schedule.create(user, b || {});
     },
     'GET /api/post-drafts/:id'(req) {
@@ -1250,7 +1288,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
