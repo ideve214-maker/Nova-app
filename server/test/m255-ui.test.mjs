@@ -17,7 +17,7 @@ async function ensureDm(p, S) {
   }
   const me = await p.evaluate(() => ({tok: SESSION && SESSION.token, id: SESSION && SESSION.user && SESSION.user.id}));
   const u = 'fr' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const r = await fetch(S.base + '/api/auth/register', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, email: u + '@x.test', password: 'Passw0rd123'})});
+  const r = await fetch(S.base + '/api/auth/register', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({agree:true, username: u, email: u + '@x.test', password: 'Passw0rd123'})});
   const j = await r.json();
   if (!j.user) throw new Error('register friend failed: ' + JSON.stringify(j));
   S.srv.friends.setAccepted(Number(me.id), Number(j.user.id));

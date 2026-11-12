@@ -34,7 +34,7 @@ test('现网 /api/events 仍是 event-stream，不是 WebSocket 升级', async (
   try {
     const acc = await fetch(base + '/api/auth/register', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: 'm492a', email: 'm492a@x.test', password: 'Passw0rd123'}),
+      body: JSON.stringify({agree:true, username: 'm492a', email: 'm492a@x.test', password: 'Passw0rd123'}),
     });
     const j = await acc.json();
     const res = await fetch(base + '/api/events', {

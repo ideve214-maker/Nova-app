@@ -11,7 +11,7 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j: await r.json()};
 };
 let n = 0;
-const mk = async (name) => { const u = name || ('pf_' + (++n)); const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u, user: r.j.user}; };
+const mk = async (name) => { const u = name || ('pf_' + (++n)); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u, user: r.j.user}; };
 
 test('未登录 401；新用户返回默认资料（昵称=用户名，简介为空），并出现在 /api/me', async () => {
   assert.equal((await call('GET', '/api/me/profile')).s, 401);

@@ -14,7 +14,7 @@ const call = async (base, m, p, body, tok) => {
 };
 async function acc(base, n) {
   const u = n + (++seq);
-  const r = await call(base, 'POST', '/api/auth/register', {username: u, email: u + '@x.test', password: 'Passw0rd123'});
+  const r = await call(base, 'POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.test', password: 'Passw0rd123'});
   return {tok: r.j.token, id: r.j.user.id};
 }
 

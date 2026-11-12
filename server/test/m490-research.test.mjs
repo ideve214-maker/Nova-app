@@ -24,7 +24,7 @@ test('实现与结论一致：/api/events 是 event-stream；URL 带令牌 400',
   try {
     const acc = await fetch(base + '/api/auth/register', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: 'm490a', email: 'm490a@x.test', password: 'Passw0rd123'}),
+      body: JSON.stringify({agree:true, username: 'm490a', email: 'm490a@x.test', password: 'Passw0rd123'}),
     });
     const j = await acc.json();
     assert.equal(acc.status, 200, JSON.stringify(j));

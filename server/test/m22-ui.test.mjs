@@ -23,6 +23,7 @@ test('M2.2 网页注册登录刷新退出', { timeout: 90000 }, async () => {
     await page.fill('[data-d=re]', email);
     await page.fill('[data-d=rpw]', 'Passw0rd123');
     await page.fill('[data-d=rpw2]', 'Passw0rd123');
+    const ag=page.locator('[data-a=agreetog]'); if(await ag.count()) await ag.click();
     await page.click('[data-a=authgo]');
     await page.waitForSelector('nav');
   };
@@ -52,6 +53,7 @@ test('M2.2 网页注册登录刷新退出', { timeout: 90000 }, async () => {
 
     await page.fill('[data-d=rpw]', 'Passw0rd123');
     await page.fill('[data-d=rpw2]', 'Passw0rd123');
+    const ag=page.locator('[data-a=agreetog]'); if(await ag.count()) await ag.click();
     await page.click('[data-a=authgo]');
     await page.waitForSelector('nav');
     assert.match(await page.locator('.ban').first().innerText(), /friend_a/);

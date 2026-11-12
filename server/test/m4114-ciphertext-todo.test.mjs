@@ -39,8 +39,8 @@ test('加密私聊：服务端只存密文，对端用 Olm 可解密；夹带明
     return {s: r.status, j: await r.json()};
   };
   try {
-    const a = (await call('POST', '/api/auth/register', {username: 'ct4114x', email: 'ct4114x@x.test', password: 'Passw0rd123'})).j;
-    const b = (await call('POST', '/api/auth/register', {username: 'ct4114y', email: 'ct4114y@x.test', password: 'Passw0rd123'})).j;
+    const a = (await call('POST', '/api/auth/register', {agree:true, username: 'ct4114x', email: 'ct4114x@x.test', password: 'Passw0rd123'})).j;
+    const b = (await call('POST', '/api/auth/register', {agree:true, username: 'ct4114y', email: 'ct4114y@x.test', password: 'Passw0rd123'})).j;
     srv.friends.setAccepted(a.user.id, b.user.id);
     const accA = new Account(), accB = new Account();
     const upA = upload(accA, 'dv_ctxaaaaaaa1');
@@ -96,7 +96,7 @@ test('加密私聊：服务端只存密文，对端用 Olm 可解密；夹带明
       assert.match(String(ar.detail || ''), /messageId/);
     }
     // 群聊拒绝加密
-    const c3 = (await call('POST', '/api/auth/register', {username: 'ct4114z', email: 'ct4114z@x.test', password: 'Passw0rd123'})).j;
+    const c3 = (await call('POST', '/api/auth/register', {agree:true, username: 'ct4114z', email: 'ct4114z@x.test', password: 'Passw0rd123'})).j;
     srv.friends.setAccepted(a.user.id, c3.user.id);
     const g = (await call('POST', '/api/conversations', {kind: 'group', name: '组', userIds: [b.user.id]}, a.token)).j.conversation;
     const ge = await call('POST', '/api/conversations/' + g.id + '/messages', {encrypted: true, ciphertext}, a.token);

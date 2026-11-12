@@ -1,5 +1,7 @@
 # NOVA 生产运维备忘（阿里云香港 · Ubuntu 22.04 · Node 22）
 
+当前生产入口：**http://47.239.0.90**（尚无独立域名，HTTP only）。CORS、构建时的 API 根和 CSP `connect-src` 都按这个 Origin 配置，见 `.env.example`（`NOVA_CORS_ORIGIN` 须包含 `http://47.239.0.90`、`capacitor://localhost`、`http://localhost`；`NOVA_API_BASE=http://47.239.0.90`；`NOVA_COOKIE_SECURE=0`、`NOVA_HSTS=0`，配好 HTTPS 后再开）。
+
 本稿对应当前仓库的启动方式与脚本，按「nginx 监听 80，反代到 127.0.0.1:8787，systemd 在 `/opt/nova/app` 跑服务，数据库在 `/opt/nova/data/nova.db`」来写。按实际域名和单元名改占位即可。
 
 **当前 80 端口是纯 HTTP。** 建议尽快在 nginx 上配置 TLS（证书 + 443），然后再打开 `NOVA_HSTS=1` 与 `NOVA_COOKIE_SECURE=1`。在 HTTP 下不要开这两项，否则浏览器会拒绝明文访问或存不下 Secure Cookie。
@@ -153,3 +155,40 @@ sudo journalctl -u nova --since "1 hour ago"
 ```
 
 结构化错误日志是一行 JSON（`level`、`msg`，敏感字段已脱敏）。不要在日志或审计里查找明文密码、令牌或私聊正文——这些不应被记录。
+
+
+## 会话风险（简要）
+
+当前 Web 客户端把 Bearer 令牌存在 **localStorage**（`nova_session`）。它会被同源脚本读到：若出现 XSS，或服务器下发的脚本被替换，令牌可能被盗。已采取的缓解：禁止把令牌放进 URL、响应带 CSP 等安全头、可选 HttpOnly + SameSite Cookie 会话（`NOVA_COOKIE_SESSION=1`）并配合 CSRF。**当前是 HTTP，不要打开 `NOVA_COOKIE_SECURE` 和 `NOVA_HSTS`**，否则浏览器可能存不下 Cookie 或拒绝明文访问；上 HTTPS 后再打开，并优先让浏览器走 Cookie 会话以降低 XSS 偷令牌的风险。管理端（Agen）与 Capacitor 仍使用 `Authorization: Bearer`（管理员令牌以 `na_` 开头）。
+
+## 依赖与运行时（简要）
+
+本仓库 **没有 npm 生产依赖**。端到端加密使用的 vodozemac 在 `vendor/` 内。`node:sqlite` 在 Node 22 上仍带实验提示，且是**同步** API，大库或重查询会堵住事件循环；生产请保持定期 `VACUUM INTO` 备份（见上），避免在请求路径上做全表扫描，并关注 Node 发行说明。升级 Node 主版本前应跑一遍服务端测试。
+
+## 把本版本部署到 /opt/nova/app（http://47.239.0.90）
+
+以下按「已有 Ubuntu 22.04、Node 22、nginx 在 80 反代 127.0.0.1:8787、systemd 单元名为 nova」来写。
+
+1. 在本机打好发布包（或用仓库里的 `NOVA_V7_M6.1.zip`），先备份：
+   `sudo -u nova -E /opt/nova/app/scripts/backup.sh backup`
+2. 把新版本同步到 `/opt/nova/app`（保留现有 `.env` 和 `/opt/nova/data`，不要覆盖数据库）。例如：
+   `sudo rsync -a --delete --exclude .env --exclude data --exclude node_modules /tmp/NOVA_V7/ /opt/nova/app/`
+3. 若还没有 `.env`：`sudo cp /opt/nova/app/.env.example /opt/nova/app/.env`，按需修改。确保至少包含：
+   - `HOST=127.0.0.1`、`PORT=8787`、`NOVA_DB=/opt/nova/data/nova.db`
+   - `NOVA_ENV=production`、`NOVA_TRUST_PROXY=1`、`NOVA_TRUSTED_PROXIES=127.0.0.1,::1`
+   - `NOVA_CORS_ORIGIN=http://47.239.0.90,capacitor://localhost,http://localhost`
+   - `NOVA_API_BASE=http://47.239.0.90`
+   - `NOVA_COOKIE_SECURE=0`、`NOVA_HSTS=0`、`NOVA_COOKIE_SESSION=0`（上 HTTPS 后再改）
+   - `NOVA_RATE_LIMIT=strict`
+   - 法律文档运营者信息（已有默认值）：`NOVA_LEGAL_OPERATOR`、`NOVA_LEGAL_EMAIL`、`NOVA_LEGAL_EFFECTIVE`
+4. 在应用目录构建前端（关闭演示，写上 API 根）：
+   `cd /opt/nova/app && node scripts/build.mjs --api-base=http://47.239.0.90 --disable-demo`
+   可选：`export NOVA_GIT_COMMIT=$(git rev-parse HEAD)` 后启动，便于 `/api/version` 显示提交。
+5. `sudo systemctl restart nova`
+6. 检查：
+   - `curl -fsS http://127.0.0.1:8787/api/health` 应含 `"status":"ok"`、`"db":"ok"` 和 `"version"`
+   - `curl -fsS http://127.0.0.1:8787/api/version`
+   - `curl -fsS http://127.0.0.1/legal/privacy` 应看到运营者名称，且**没有**「草案」字样
+   - `sudo journalctl -u nova -n 50 --no-pager`
+
+回滚：换回上一份发布包，`systemctl restart nova`，必要时用备份恢复数据库（会停服务）。

@@ -13,7 +13,7 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j: await r.json()};
 };
 let n = 0;
-const mk = async () => { const u = 'stk_' + (++n); const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token}; };
+const mk = async () => { const u = 'stk_' + (++n); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token}; };
 const setVip = (id, until) => srv.db.prepare('UPDATE users SET vip_until=?, vip_since=?, vip_source=? WHERE id=?').run(until, T0, 'admin', id);
 
 test('目录公开：未登录也能看全部包（含专属包内容），专属包 usable=false；基础包人人可用', async () => {

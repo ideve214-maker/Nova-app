@@ -42,7 +42,13 @@ function pSec(){
 
   const pw=`<div class="card" style="padding:12px 16px;margin:8px 0" id="pwbox"><b>修改密码</b><p class="hint">改密后其他设备会退出，这台设备保持登录。</p><label class="lab">当前密码</label><input class="fld" data-d="opw" type="password" autocomplete="current-password"><label class="lab">新密码</label><input class="fld" data-d="npw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字"><label class="lab">再输入一次</label><input class="fld" data-d="npw2" type="password" autocomplete="new-password">${S.pwerr?`<div class="err" role="alert">${esc(S.pwerr)}</div>`:''}<button class="pb" style="width:100%;margin-top:8px" data-a="chpw">修改密码</button></div>`;
   const devices=acct?`<div class="shd">登录设备</div><p class="hint" style="padding:8px 16px 0" data-ndev="${sess.length}">只显示你自己的登录。IP 已脱敏。${sess.length>1?' 退出其他设备后，那些令牌会立即失效，这台设备保持登录。':''}</p>${sess.map(s=>`<div class="row" data-sid="${esc(s.id)}"><div class="gr"><b>${esc(s.device||'未知设备')}${s.current?' <span class="tag">当前设备</span>':''}</b><small>${esc(s.ip||'')} · ${s.createdAt?vipDate(s.createdAt):''}</small></div>${s.current?'':`<button class="pb sm d" data-a="revsess" data-v="${esc(s.id)}">退出</button>`}</div>`).join('')||'<p class="em">正在读取设备列表…</p>'}${sess.length>1?`<div style="padding:16px"><button class="pb d" style="width:100%" data-a="revothersq">退出其他 ${sess.length-1} 台设备</button><p class="hint" style="margin-top:8px">当前这台设备将保持登录。</p></div>`:''}`:'<p class="em">登录后可以管理设备和修改密码。</p>';
-  return `<div class="pg" id="secp">${sub('账号安全')}<div class="sc">${acct?pw:''}${devices}${e2eeBox}${acct?`<div class="shd">数据导出</div><p class="hint" style="padding:8px 16px 0">导出你的资料、动态和消息。端到端加密的消息会先在本机解密再写入文件；服务端只提供密文。</p><div style="padding:16px"><button class="pb" style="width:100%" data-a="exportme">导出我的数据</button></div>`:''}<p class="hint" style="padding:16px">密码在服务器上是加盐哈希，管理员也看不到原文。一对一私聊使用 Olm（vodozemac）加密，私钥只留在这台设备，服务端只保存密文。独立安全审查尚未完成，请先核对手友的安全号码。登录设备撤销不等于加密设备撤销。</p></div></div>`}
+  return `<div class="pg" id="secp">${sub('账号安全')}<div class="sc">${acct?pw:''}${devices}${e2eeBox}${acct?`<div class="shd">数据导出</div><p class="hint" style="padding:8px 16px 0">导出你的资料、动态和消息。端到端加密的消息会先在本机解密再写入文件；服务端只提供密文。</p><div style="padding:16px"><button class="pb" style="width:100%" data-a="exportme">导出我的数据</button></div>
+<div class="shd">注销账号</div><p class="hint" style="padding:8px 16px 0">注销后不能自行恢复。用户名和邮箱会匿名，密码作废，所有设备退出，VIP 取消；你的动态和评论不再对外展示；关注、好友、草稿、收藏和加密设备密钥会被清除。与他人的聊天密文、已上传媒体、支付和举报记录可能因对方或财务、安全需要而保留。请先导出需要保留的数据。</p>
+<label class="lab" style="padding:0 16px">输入密码以确认</label>
+<div style="padding:0 16px"><input class="fld" data-d="delpw" type="password" autocomplete="current-password" placeholder="当前密码"></div>
+<p class="hint" style="padding:8px 16px"><button type="button" class="lk" data-a="deltog">${S.d.delok==='1'?'☑':'☐'} 我了解上述后果，确认要注销</button></p>
+${S.delerr?`<div class="err" role="alert" style="margin:0 16px">${esc(S.delerr)}</div>`:''}
+<div style="padding:16px"><button class="pb d" style="width:100%" data-a="delacctq">注销并删除我的账号</button></div>`:''}<p class="hint" style="padding:16px">密码在服务器上是加盐哈希，管理员也看不到原文。一对一私聊使用 Olm（vodozemac）加密，私钥只留在这台设备，服务端只保存密文。独立安全审查尚未完成，请先核对手友的安全号码。登录设备撤销不等于加密设备撤销。</p></div></div>`}
 async function loadE2eeDevices(){
   if(MODE!=='account'||!SESSION)return;
   const r=await api('GET','/api/e2ee/keys');
@@ -77,3 +83,27 @@ async function revsess(id){
 
 function avcol(c){if(!AV_COLS.includes(c)&&!/^#[0-9A-Fa-f]{6}$/.test(c))return;S.d.avc=c;D.u.me[3]=c;if(MODE==='account'&&SESSION)return api('POST','/api/me/avatar',{avatar:{kind:'color',color:c,letter:(S.d.al||D.u.me[2]||'我')[0]}}).then(r=>{if(r.s!==200){T(errMsg(r,'头像保存失败'));return}if(r.j.user)SESSION.user=r.j.user;T('已保存头像')});T('已更换颜色')}
 function avlet(){const l=[...(S.d.al||D.u.me[2]||'我')][0];if(!l)return T('请输入一个字');D.u.me[2]=l;if(MODE==='account'&&SESSION)return api('POST','/api/me/avatar',{avatar:{kind:'color',color:S.d.avc||D.u.me[3],letter:l}}).then(r=>{if(r.s!==200){T(errMsg(r,'头像保存失败'));return}T('已保存头像')});T('已更换文字')}
+
+function deltog(){S.d.delok=S.d.delok==='1'?'':'1';S.delerr=''}
+function delacctq(){
+  S.delerr='';
+  if(!(S.d.delpw||'')){S.delerr='请输入密码';return}
+  if(S.d.delok!=='1'){S.delerr='请先确认你了解注销的后果';return}
+  S.sh={t:'delacct'};
+}
+async function delacct(){
+  S.sh=null;
+  const r=await api('POST','/api/me/delete',{password:S.d.delpw,confirm:true});
+  S.d.delpw='';S.d.delok='';
+  if(r.s!==200){S.delerr=errMsg(r,'注销失败');return}
+  T('账号已注销');
+  logout();
+}
+async function legal(kind){
+  const k=kind==='terms'?'terms':'privacy';
+  S.st.push('legal:'+k);
+  const r=await api('GET','/api/legal/'+k);
+  S.legal=S.legal||{};
+  if(r.s===200)S.legal[k]=r.j;
+  else S.legal[k]={title:k==='terms'?'用户协议':'隐私政策',body:'暂时无法加载文档。'};
+}

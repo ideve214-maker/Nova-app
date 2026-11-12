@@ -12,7 +12,7 @@ const call = async (m, p, body, tok) => {
 };
 async function acc(n) {
   const u = n + (++seq);
-  const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.test', password: 'Passw0rd123'});
+  const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.test', password: 'Passw0rd123'});
   return {tok: r.j.token, id: r.j.user.id};
 }
 function befriend(a, b) { srv.friends.setAccepted(a.id, b.id); }

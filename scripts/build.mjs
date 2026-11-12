@@ -47,12 +47,19 @@ export function build({apiBase = '', disableDemo = false, destDir} = {}) {
   }
   const assets = new URL('../assets/', import.meta.url);
   const destAssets = typeof destRoot === 'string' ? destRoot + (destRoot.endsWith('/') ? '' : '/') + 'assets/' : new URL('../dist/assets/', import.meta.url);
-  if (typeof destRoot !== 'string') {
-    fs.mkdirSync(destAssets, {recursive: true});
-    for (const f of fs.readdirSync(assets)) {
-      if (/\.(jpe?g|png|webp)$/i.test(f)) fs.copyFileSync(new URL(f, assets), new URL(f, destAssets));
+  const skip = new Set(['alipay.jpg', 'wechat.jpg']);
+  const ok = /\.(jpe?g|png|webp|svg|css|json|html|md)$/i;
+  function copyTree(srcDir, destDir) {
+    fs.mkdirSync(destDir, {recursive: true});
+    for (const f of fs.readdirSync(srcDir, {withFileTypes: true})) {
+      if (f.name.startsWith('.')) continue;
+      const from = typeof srcDir === 'string' ? srcDir + (srcDir.endsWith('/') ? '' : '/') + f.name : new URL(f.name + (f.isDirectory() ? '/' : ''), srcDir);
+      const to = typeof destDir === 'string' ? destDir + (destDir.endsWith('/') ? '' : '/') + f.name : new URL(f.name + (f.isDirectory() ? '/' : ''), destDir);
+      if (f.isDirectory()) copyTree(from, typeof to === 'string' ? to + (to.endsWith('/') ? '' : '/') : new URL(f.name + '/', destDir));
+      else if (!skip.has(f.name) && ok.test(f.name)) fs.copyFileSync(from, to);
     }
   }
+  copyTree(assets, destAssets);
   return {html: out, apiBase, disableDemo, bytes: out.length};
 }
 

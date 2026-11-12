@@ -40,7 +40,7 @@ const call = async (m, p, body, tok, {headers, raw} = {}) => {
 async function user(n = 's') {
   seq += 1;
   const un = n + seq + Date.now().toString(36).slice(-6);
-  const r = await call('POST', '/api/auth/register', {username: un, email: un + '@x.test', password: 'Passw0rd123'});
+  const r = await call('POST', '/api/auth/register', {agree:true, username: un, email: un + '@x.test', password: 'Passw0rd123'});
   assert.equal(r.status, 200, r.text);
   return {tok: r.j.token, id: r.j.user.id, username: r.j.user.username, password: 'Passw0rd123'};
 }
@@ -58,10 +58,10 @@ test('健康检查含数据库探测；响应带安全头，默认无 HSTS', asy
 });
 
 test('弱口令被拒；SQL 元字符不能当作用户名注入', async () => {
-  const weak = await call('POST', '/api/auth/register', {username: 'inj01', email: 'inj01@x.test', password: '12345678'});
+  const weak = await call('POST', '/api/auth/register', {agree:true, username: 'inj01', email: 'inj01@x.test', password: '12345678'});
   assert.equal(weak.status, 400);
   assert.equal(weak.j.error.code, 'WEAK_PASSWORD');
-  const inj = await call('POST', '/api/auth/register', {username: "a' OR 1=1--", email: 'sqli@x.test', password: 'Passw0rd123'});
+  const inj = await call('POST', '/api/auth/register', {agree:true, username: "a' OR 1=1--", email: 'sqli@x.test', password: 'Passw0rd123'});
   assert.equal(inj.status, 400);
   assert.equal(inj.j.error.code, 'BAD_USERNAME');
   const h = await call('GET', '/api/health');
@@ -93,7 +93,7 @@ test('访问令牌不得放进 URL（媒体与通用接口）', async () => {
 
 test('Cookie 会话：HttpOnly 会话 Cookie + CSRF；无 CSRF 的 POST 被拒；Bearer 仍可用', async () => {
   const un = 'ck' + Date.now().toString(36);
-  const reg = await call('POST', '/api/auth/register', {username: un, email: un + '@x.test', password: 'Passw0rd123', session: 'cookie'}, null, {headers: {'X-Nova-Session': 'cookie'}});
+  const reg = await call('POST', '/api/auth/register', {agree:true, username: un, email: un + '@x.test', password: 'Passw0rd123', session: 'cookie'}, null, {headers: {'X-Nova-Session': 'cookie'}});
   assert.equal(reg.status, 200, reg.text);
   assert.ok(reg.j.csrf);
   assert.ok(reg.j.token);
@@ -138,13 +138,13 @@ test('严格限流：注册超额返回 429，并写入安全事件供管理端�
   const S = createApp({adminUsername: 'ops_rl', adminPassword: 'OpsRlPass1', rateLimitMode: 'strict'});
   await new Promise(r => S.listen(0, '127.0.0.1', r));
   const b = 'http://127.0.0.1:' + S.address().port;
-  const ad = await fetch(b + '/api/admin/auth/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: 'ops_rl', password: 'OpsRlPass1'})});
+  const ad = await fetch(b + '/api/admin/auth/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({agree:true, username: 'ops_rl', password: 'OpsRlPass1'})});
   const at = (await ad.json()).token;
   let last = 200, hit = 0;
   for (let i = 0; i < 12; i++) {
     const r = await fetch(b + '/api/auth/register', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: 'rl' + i + Date.now().toString(36).slice(-4), email: 'rl' + i + Date.now() + '@x.test', password: 'Passw0rd123'}),
+      body: JSON.stringify({agree:true, username: 'rl' + i + Date.now().toString(36).slice(-4), email: 'rl' + i + Date.now() + '@x.test', password: 'Passw0rd123'}),
     });
     last = r.status;
     if (r.status === 429) { hit = i; break; }

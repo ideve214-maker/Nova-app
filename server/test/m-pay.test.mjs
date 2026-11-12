@@ -43,7 +43,7 @@ const call = async (m, p, body, tok, {raw, headers} = {}) => {
 const AH = () => adminTok;
 async function acc(n) {
   const u = n + (++seq);
-  const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.test', password: 'Passw0rd123'});
+  const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.test', password: 'Passw0rd123'});
   return {tok: r.j.token, id: r.j.user.id, u};
 }
 
@@ -204,7 +204,7 @@ test('每用户待处理订单上限', async () => {
     return {s: r.status, j: await r.json()};
   };
   try {
-    const reg = await f('POST', '/api/auth/register', {username: 'limu', email: 'limu@x.test', password: 'Passw0rd123'});
+    const reg = await f('POST', '/api/auth/register', {agree:true, username: 'limu', email: 'limu@x.test', password: 'Passw0rd123'});
     const tok = reg.j.token;
     const o1 = await f('POST', '/api/pay/orders', {period: 'month', method: 'wechat'}, tok);
     assert.equal(o1.s, 200, JSON.stringify(o1.j));
@@ -228,7 +228,7 @@ test('过期：到期后 pending 变为 expired，不能再提交付款', async 
     return {s: r.status, j: await r.json()};
   };
   try {
-    const reg = await f('POST', '/api/auth/register', {username: 'expu', email: 'expu@x.test', password: 'Passw0rd123'});
+    const reg = await f('POST', '/api/auth/register', {agree:true, username: 'expu', email: 'expu@x.test', password: 'Passw0rd123'});
     const tok = reg.j.token;
     const o = await f('POST', '/api/pay/orders', {period: 'month', method: 'wechat'}, tok);
     assert.equal(o.s, 200);
@@ -260,7 +260,7 @@ test('单渠道可关闭；关闭后目录与下单均不可用该方式', async
     assert.equal(alipay.enabled, true);
     const qr = await f('GET', '/api/pay/qr/wechat');
     assert.equal(qr.s, 404);
-    const reg = await f('POST', '/api/auth/register', {username: 'offu', email: 'offu@x.test', password: 'Passw0rd123'});
+    const reg = await f('POST', '/api/auth/register', {agree:true, username: 'offu', email: 'offu@x.test', password: 'Passw0rd123'});
     const tok = reg.j.token;
     const w = await f('POST', '/api/pay/orders', {period: 'month', method: 'wechat'}, tok);
     assert.equal(w.s, 400);
@@ -300,7 +300,7 @@ test('mock 回调：签名校验、幂等开通 VIP', async () => {
   try {
     const cat = await f('GET', '/api/vip/catalog');
     assert.equal(cat.j.plans.vip.purchase.enabled, true);
-    const reg = await f('POST', '/api/auth/register', {username: 'mocku', email: 'mocku@x.test', password: 'Passw0rd123'}, null, {sign: false});
+    const reg = await f('POST', '/api/auth/register', {agree:true, username: 'mocku', email: 'mocku@x.test', password: 'Passw0rd123'}, null, {sign: false});
     const tok = reg.j.token;
     const o = await f('POST', '/api/pay/orders', {period: 'month', provider: 'mock'}, tok, {sign: false});
     assert.equal(o.s, 200, JSON.stringify(o.j));

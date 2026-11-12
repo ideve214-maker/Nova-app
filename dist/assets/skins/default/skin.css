@@ -1,0 +1,30 @@
+/* 经典外观：Facebook 蓝、全胶囊按键，即星澜之前的默认样式。 */
+html[data-skin="default"]{
+  --cv:#101114;--bg:#0B0C0F;--sf:#14161A;--s2:#1B1E23;--s3:#22252B;--tx:#F5F6F7;--t2:#A4A9B2;--t3:#737985;--ln:#292D34;
+  --ac:#2D88FF;--ac-hover:#4A9AFF;--ac-pressed:#1B6FE0;--ac-soft:rgba(45,136,255,.16);--ac-grad:#2D88FF;
+  --onac:#fff;--dg:#D4655A;--dg-grad:#D4655A;--vip:#C8A96A;--r-btn:22px;--r-sm:50%;--sh-btn:none;--sh-dg:none;
+  --tracking-btn:0;--tracking-brand:-.5px;
+}
+html[data-skin="default"][data-theme="light"]{
+  --cv:#E6E8EC;--bg:#F0F2F5;--sf:#fff;--s2:#EEF0F3;--s3:#E4E7EB;--tx:#15171A;--t2:#5C6570;--t3:#8A9098;--ln:#E1E4E8;
+  --ac:#1877F2;--ac-hover:#3B8CFF;--ac-pressed:#0F62D0;--ac-soft:rgba(24,119,242,.12);--ac-grad:#1877F2;
+  --onac:#fff;--dg:#B42318;--dg-grad:#B42318;--vip:#8C7340;
+}
+html[data-skin="default"][data-theme="dark"][data-vip="gold"],
+html[data-skin="default"][data-theme="dark"] .gpv.g{--ac:#D6B86F;--ac-grad:#D6B86F;--onac:#1A1408;--vip:#D6B86F;--ln:#2E2B25}
+html[data-skin="default"][data-theme="light"][data-vip="gold"],
+html[data-skin="default"][data-theme="light"] .gpv.g{--ac:#7A5A10;--ac-grad:#7A5A10;--onac:#fff;--vip:#7A5A10;--ln:#E4DFD3}
+html[data-skin="default"][data-theme="dark"] .gpv.n{--ac:#2D88FF;--ac-grad:#2D88FF;--onac:#fff;--vip:#C8A96A;--ln:#292D34}
+html[data-skin="default"][data-theme="light"] .gpv.n{--ac:#1877F2;--ac-grad:#1877F2;--onac:#fff;--vip:#8C7340;--ln:#E1E4E8}
+html[data-skin="default"] .pb{border-radius:22px;background:var(--ac);color:var(--onac);box-shadow:none;letter-spacing:0;background-image:none}
+html[data-skin="default"] .pb:active{transform:scale(.97);box-shadow:none}
+html[data-skin="default"] .pb:disabled{opacity:.4}
+html[data-skin="default"] .pb.s{background:var(--s2);color:var(--tx);border:0}
+html[data-skin="default"] .pb.d{background:var(--dg)}
+html[data-skin="default"] .ib{border-radius:50%}
+html[data-skin="default"] nav svg,
+html[data-skin="default"] .ib svg,
+html[data-skin="default"] .bar svg{fill:currentColor;stroke:none}
+html[data-skin="default"] nav button.on{background:none;margin:0;border-radius:0;color:var(--ac)}
+html[data-skin="default"] .inrow input{border-radius:22px}
+html[data-skin="default"] .comp button.p{border-radius:22px}

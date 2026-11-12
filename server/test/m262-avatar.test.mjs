@@ -12,7 +12,7 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j: await r.json()};
 };
 let n = 0;
-const mk = async () => { const u = 'av_' + (++n); const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
+const mk = async () => { const u = 'av_' + (++n); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
 
 test('新用户有默认颜色和首字母；设置后入库，重新登录仍在', async () => {
   const {u, tok} = await mk();

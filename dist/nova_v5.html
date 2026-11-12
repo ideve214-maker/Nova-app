@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark"><head><meta charset="utf-8">
+<html lang="zh-CN" data-theme="dark" data-skin="xinglan"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>NOVA V5</title>
+<title>NOVA</title>
 <style>
-:root{--cv:#101114;--bg:#0B0C0F;--sf:#14161A;--s2:#1B1E23;--tx:#F5F6F7;--t2:#A4A9B2;--t3:#737985;--ln:#292D34;--ac:#2D88FF;--dg:#D4655A;--vip:#C8A96A;--onac:#fff;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-:root[data-theme=light]{--cv:#E6E8EC;--bg:#F0F2F5;--sf:#fff;--s2:#EEF0F3;--tx:#15171A;--t2:#5C6570;--t3:#8A9098;--ln:#E1E4E8;--ac:#1877F2;--dg:#B42318;--vip:#8C7340;--onac:#fff;color-scheme:light}
-/* 香槟金主题（M2.4.5）：只在服务端确认 VIP 有效时由脚本设置 data-vip=gold；.gpv 是会员中心里的静态预览，用同一组颜色 */
-:root[data-theme=dark][data-vip=gold],:root[data-theme=dark] .gpv.g{--ac:#D6B86F;--onac:#1A1408;--vip:#D6B86F;--ln:#2E2B25}
-:root[data-theme=light][data-vip=gold],:root[data-theme=light] .gpv.g{--ac:#7A5A10;--onac:#fff;--vip:#7A5A10;--ln:#E4DFD3}
-:root[data-theme=dark] .gpv.n{--ac:#2D88FF;--onac:#fff;--vip:#C8A96A;--ln:#292D34}
-:root[data-theme=light] .gpv.n{--ac:#1877F2;--onac:#fff;--vip:#8C7340;--ln:#E1E4E8}
+:root{--cv:#06070D;--bg:#0A0C14;--sf:#131622;--s2:#1B1F2E;--s3:#252A3C;--tx:#F4F6FC;--t2:#9AA3B8;--t3:#6B7388;--ln:#2A3044;--ln2:rgba(255,255,255,.06);--ac:#6E8BFF;--ac-hover:#8BA3FF;--ac-pressed:#5A75EE;--ac-soft:rgba(110,139,255,.16);--ac-grad:linear-gradient(180deg,#8BA3FF 0%,#6E8BFF 48%,#5B74F2 100%);--onac:#fff;--dg:#E5726A;--dg-hover:#F0857E;--dg-pressed:#D45A52;--dg-soft:rgba(229,114,106,.16);--dg-grad:linear-gradient(180deg,#F0857E 0%,#E5726A 55%,#D45A52 100%);--ok:#4ECDC4;--warn:#E8A03A;--vip:#D4B06A;--vip-grad:linear-gradient(135deg,#F0D9A0 0%,#D4B06A 55%,#C49A50 100%);--onvip:#1A1408;--r-xs:8px;--r-sm:12px;--r-md:16px;--r-lg:20px;--r-btn:14px;--r-pill:999px;--sh-sm:0 1px 2px rgba(0,0,0,.28);--sh-md:0 8px 28px rgba(0,0,0,.40);--sh-sheet:0 -8px 32px rgba(0,0,0,.45);--sh-btn:0 4px 14px rgba(110,139,255,.38),inset 0 1px 0 rgba(255,255,255,.18);--sh-dg:0 4px 14px rgba(229,114,106,.32),inset 0 1px 0 rgba(255,255,255,.14);--tracking-brand:.06em;--tracking-btn:.02em;--font-stack:"Noto Sans CJK SC","Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root[data-theme=light]{--cv:#E6E8F2;--bg:#F3F4F9;--sf:#fff;--s2:#EEEFF5;--s3:#E3E5EF;--tx:#13151C;--t2:#5C6478;--t3:#8B91A3;--ln:#E0E3EC;--ln2:rgba(19,21,28,.06);--ac:#4F6EF7;--ac-hover:#6B86FF;--ac-pressed:#3D58E0;--ac-soft:rgba(79,110,247,.12);--ac-grad:linear-gradient(180deg,#6B86FF 0%,#4F6EF7 50%,#3D58E0 100%);--onac:#fff;--dg:#C44840;--dg-hover:#D45A52;--dg-pressed:#A83832;--dg-soft:rgba(196,72,64,.14);--dg-grad:linear-gradient(180deg,#D45A52 0%,#C44840 55%,#A83832 100%);--ok:#1FA89F;--warn:#C4841A;--vip:#8B6E32;--vip-grad:linear-gradient(135deg,#C4A056 0%,#8B6E32 55%,#6E5424 100%);--onvip:#fff;--sh-sm:0 1px 2px rgba(19,21,28,.06);--sh-md:0 8px 28px rgba(19,21,28,.08);--sh-sheet:0 -8px 32px rgba(19,21,28,.12);--sh-btn:0 4px 14px rgba(79,110,247,.28),inset 0 1px 0 rgba(255,255,255,.45);--sh-dg:0 4px 14px rgba(196,72,64,.22),inset 0 1px 0 rgba(255,255,255,.35);color-scheme:light}
+/* 香槟金主题：只在服务端确认 VIP 有效时由脚本设置 data-vip=gold；.gpv 是会员中心里的静态预览 */
+:root[data-theme=dark][data-vip=gold],:root[data-theme=dark] .gpv.g{--ac:#E2C07A;--ac-hover:#F0D9A0;--ac-pressed:#C4A056;--ac-soft:rgba(226,192,122,.16);--ac-grad:linear-gradient(180deg,#F0D9A0 0%,#E2C07A 48%,#C4A056 100%);--onac:#1A1408;--vip:#E2C07A;--ln:#3A3426;--sh-btn:0 4px 14px rgba(226,192,122,.32),inset 0 1px 0 rgba(255,255,255,.28)}
+:root[data-theme=light][data-vip=gold],:root[data-theme=light] .gpv.g{--ac:#8B6E32;--ac-hover:#A68540;--ac-pressed:#6E5424;--ac-soft:rgba(139,110,50,.14);--ac-grad:linear-gradient(180deg,#A68540 0%,#8B6E32 50%,#6E5424 100%);--onac:#fff;--vip:#8B6E32;--ln:#E4DFD3;--sh-btn:0 4px 14px rgba(139,110,50,.22),inset 0 1px 0 rgba(255,255,255,.35)}
+:root[data-theme=dark] .gpv.n{--ac:#6E8BFF;--ac-hover:#8BA3FF;--ac-pressed:#5A75EE;--ac-soft:rgba(110,139,255,.16);--ac-grad:linear-gradient(180deg,#8BA3FF 0%,#6E8BFF 48%,#5B74F2 100%);--onac:#fff;--vip:#D4B06A;--ln:#2A3044}
+:root[data-theme=light] .gpv.n{--ac:#4F6EF7;--ac-hover:#6B86FF;--ac-pressed:#3D58E0;--ac-soft:rgba(79,110,247,.12);--ac-grad:linear-gradient(180deg,#6B86FF 0%,#4F6EF7 50%,#3D58E0 100%);--onac:#fff;--vip:#8B6E32;--ln:#E0E3EC}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--cv);color:var(--tx);overflow:hidden}
+body{font:16px/1.45 var(--font-stack,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif);background:var(--cv);color:var(--tx);overflow:hidden}
 button,input,textarea{font:inherit;color:inherit;background:none;border:0;outline:0}
 button{cursor:pointer}:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
 #app{touch-action:pan-y;width:100%;max-width:430px;height:100%;margin:0 auto;background:var(--bg);position:relative;overflow:hidden}
@@ -20,8 +20,8 @@ button{cursor:pointer}:focus-visible{outline:2px solid var(--ac);outline-offset:
 .pg{flex:1;min-height:0;display:flex;flex-direction:column}.sc{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
 .top{flex:none;height:52px;display:flex;align-items:center;gap:2px;padding:0 6px 0 16px;background:var(--sf);border-bottom:1px solid var(--ln)}
 .top.sub{padding-left:4px}.top h1{flex:1;font-size:22px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.top.sub h1{font-size:18px}.top h1.br{color:var(--ac);letter-spacing:-.5px}
-.ib{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;flex:none;position:relative}
+.top.sub h1{font-size:18px}.top h1.br{color:var(--ac);letter-spacing:var(--tracking-brand,.06em);font-weight:800}.br-logo{height:22px;width:auto;display:block}
+.ib{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-sm,12px);flex:none;position:relative}
 .ib svg{width:24px;height:24px;fill:currentColor}.ib:active{background:var(--s2)}
 .dot{position:absolute;top:9px;right:9px;width:10px;height:10px;border-radius:50%;background:var(--dg);border:2px solid var(--sf)}
 nav{flex:none;display:flex;height:60px;background:var(--sf);border-top:1px solid var(--ln)}
@@ -43,14 +43,14 @@ small{color:var(--t2);font-size:13px}
 .bar svg{width:20px;height:20px;fill:currentColor}.bar .on{color:var(--ac)}
 .em{text-align:center;color:var(--t3);padding:32px 16px}
 .comp{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--sf);border-bottom:8px solid var(--bg)}
-.comp button.p{flex:1;height:44px;border-radius:22px;background:var(--s2);color:var(--t2);text-align:left;padding:0 16px}
+.comp button.p{flex:1;height:44px;border-radius:var(--r-btn,14px);background:var(--s2);color:var(--t2);text-align:left;padding:0 16px}
 .ppl{display:flex;gap:14px;overflow-x:auto;padding:12px 16px;background:var(--sf);border-bottom:8px solid var(--bg)}
 .ppl button{flex:none;width:60px;font-size:12px;color:var(--t2);display:flex;flex-direction:column;align-items:center;gap:4px}
 .ppl .av{outline:2px solid var(--ac);outline-offset:2px}
-.pb{height:44px;padding:0 20px;border-radius:22px;background:var(--ac);color:var(--onac);font-weight:700;flex:none}.pb:active{transform:scale(.97)}
-.pb:disabled{opacity:.4}.pb.off:disabled{opacity:1;background:var(--s2);color:var(--t2);border:1px dashed var(--t3);width:100%;height:36px;padding:0;margin-top:8px;font-size:14px;cursor:not-allowed}.pb.s{background:var(--s2);color:var(--tx)}.pb.d{background:var(--dg)}.pb.sm{height:36px;padding:0 14px;font-size:14px}
+.pb{height:44px;padding:0 20px;border-radius:var(--r-btn,14px);background:var(--ac-grad,var(--ac));color:var(--onac);font-weight:700;letter-spacing:var(--tracking-btn,.02em);box-shadow:var(--sh-btn,none);flex:none}.pb:active{transform:scale(.97);background:var(--ac-pressed,var(--ac));box-shadow:none}
+.pb:disabled{opacity:.4;box-shadow:none}.pb.off:disabled{opacity:1;background:var(--s2);color:var(--t2);border:1px dashed var(--t3);width:100%;height:36px;padding:0;margin-top:8px;font-size:14px;cursor:not-allowed;box-shadow:none}.pb.s{background:var(--s2);color:var(--tx);box-shadow:none;border:1px solid var(--ln)}.pb.d{background:var(--dg-grad,var(--dg));box-shadow:var(--sh-dg,none)}.pb.sm{height:36px;padding:0 14px;font-size:14px}
 .inrow{flex:none;display:flex;gap:6px;align-items:center;padding:8px 8px 8px 12px;background:var(--sf);border-top:1px solid var(--ln)}
-.inrow input{flex:1;min-width:0;height:44px;background:var(--s2);border-radius:22px;padding:0 16px}
+.inrow input{flex:1;min-width:0;height:44px;background:var(--s2);border-radius:var(--r-btn,14px);padding:0 16px}
 .inrow .ib{color:var(--t2)}.nope{flex:none;padding:14px 16px;text-align:center;color:var(--t2);background:var(--sf);border-top:1px solid var(--ln);font-size:14px}
 .rt{flex:none;display:flex;justify-content:space-between;align-items:center;padding:6px 16px;background:var(--s2);color:var(--t2);font-size:13px}
 .fld{width:100%;background:var(--s2);border-radius:12px;padding:12px 14px;margin:6px 0 12px;display:block}textarea.fld{resize:none}
@@ -172,6 +172,11 @@ nav button:active{transform:scale(.94)}.ib:active{transform:scale(.9)}.mi:active
 .poll{margin:8px 16px;padding:10px;border:1px solid var(--ln);border-radius:12px;display:flex;flex-direction:column;gap:6px}.poll .pb{text-align:left}
 </style></head><body>
 <div id="app"><div id="v"></div><div id="tt" role="status"></div></div>
+<script>
+/* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */
+window.NOVA_API_BASE = window.NOVA_API_BASE || "http://47.239.0.90";
+window.NOVA_DISABLE_DEMO = window.NOVA_DISABLE_DEMO === undefined ? true : window.NOVA_DISABLE_DEMO;
+</script>
 <script>
 /* vendored @kinsh/vodozemac-wasm 0.4.2, Apache-2.0; crypto is official vodozemac (Olm). */
 (function(global){
@@ -1205,7 +1210,7 @@ const E=['❤️','😂','👍','😮','😢','🔥'],$=s=>document.querySelecto
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ok=(s,m)=>{const n=len(s.trim());return n>=1&&n<=m};
 const IC={home:'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',people:'M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',chat:'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z',person:'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',search:'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',bell:'M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z',back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',plus:'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',more:'M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',comment:'M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z',send:'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z',image:'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z',mic:'M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z'};
-const ic=n=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n]}"/></svg>`;
+const ic=n=>{if(typeof skinIcon==='function'){const s=skinIcon(n);if(s)return s}return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n]||''}"/></svg>`};
 const MB={cm_read:{chen:'所有者',su:'管理员',zhou:'成员'},cm_walk:{zhou:'所有者',he:'版主'},cm_game:{he:'所有者',jiang:'成员'},cm_cafe:{su:'所有者',chen:'成员',zhou:'版主'},cm_new:{jiang:'成员',pei:'成员'}};
 const D0=()=>({ver:5,pin:{},pf:{me:{g:'',b:'',gp:1,bp:1,ap:1,cv:0}},st:{theme:'dark',rm:0,sound:1,haptic:1},
 u:{me:['林知夏','zhixia','夏','#2F6F5E','把一天里值得留下的句子写下来。'],zhou:['周屿','zhouyu','屿','#5C4A3A','在城市里找能走路的路。'],chen:['陈晚','chenwan','晚','#243044','夜读，也负责把句子读短。'],su:['苏小满','suman','满','#6B3A4A','手帐和咖啡，都不赶时间。'],he:['何川','hechuan','川','#3A465C','独立游戏闲聊，不剧透结局。'],jiang:['江澄','jiangcheng','澄','#6A5A3C','社区新手，正在学怎么发第一条。'],pei:['裴宁','peining','宁','#C8A96A','只是一个演示用的会员标记。',1],notice:['社区助手','nova_notice','告','#3A3F46','用来演示公告，不是官方账号。']},
@@ -1257,19 +1262,20 @@ function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
 function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
-function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve(),typeof loadFollows==='function'?loadFollows():Promise.resolve(),typeof loadCommunities==='function'?loadCommunities():Promise.resolve(),typeof loadConversations==='function'?loadConversations():Promise.resolve(),typeof loadNotifications==='function'?loadNotifications():Promise.resolve(),typeof loadFriends==='function'?loadFriends():Promise.resolve(),typeof loadBlocks==='function'?loadBlocks():Promise.resolve(),typeof e2eeOnLogin==='function'?e2eeOnLogin():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}if(typeof startEvents==='function')startEvents();render()})}
+function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';if(user&&user.skin&&typeof applySkin==='function')applySkin(user.skin,{save:false});D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;S.saved=null;save();render();Promise.all([loadVip(),loadSaved(),loadStickers(),typeof loadPrivacy==='function'?loadPrivacy():Promise.resolve(),typeof loadFeed==='function'?loadFeed():Promise.resolve(),typeof loadFollows==='function'?loadFollows():Promise.resolve(),typeof loadCommunities==='function'?loadCommunities():Promise.resolve(),typeof loadConversations==='function'?loadConversations():Promise.resolve(),typeof loadNotifications==='function'?loadNotifications():Promise.resolve(),typeof loadFriends==='function'?loadFriends():Promise.resolve(),typeof loadBlocks==='function'?loadBlocks():Promise.resolve(),typeof e2eeOnLogin==='function'?e2eeOnLogin():Promise.resolve()]).then(()=>{if(S.priv&&D.pf&&D.pf.me){D.pf.me.bp=S.priv.showBirthday?1:0;D.pf.me.ap=S.priv.showAge?1:0;D.pf.me.gp=S.priv.showGender?1:0}if(typeof startEvents==='function')startEvents();render()})}
 async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(apiUrl(path),{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
-function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
-function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">NOVA</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
+function bootView(){return '<div class="pg"><div class="top"><h1 class="br">'+(typeof brandTitle==='function'?brandTitle():'NOVA')+'</h1></div><p class="em">正在连接…</p></div>'}
+function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
 function retryconnect(){return bootNet()}
 function gateView(){const reg=S.auth.pane==='reg',busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}</div>`:'';
-const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button></p>`;
-const join=`<label class="lab">用户名</label><input class="fld" data-d="ru" autocomplete="username" placeholder="3–20 位文字、数字或下划线" data-af ${busy?'disabled':''}><label class="lab">邮箱</label><input class="fld" data-d="re" type="email" autocomplete="email" placeholder="name@example.com" ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="rpw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" ${busy?'disabled':''}><label class="lab">再输入一次</label><input class="fld" data-d="rpw2" type="password" autocomplete="new-password" placeholder="再输入一次密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'注册中…':'注册并进入'}</button><p class="hint">已有账号？ <button class="lk" data-a="authpane" data-v="login" ${busy?'disabled':''}>去登录</button></p>`;
+const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button> · <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">隐私政策</a> · <a class="lk" href="/legal/terms" target="_blank" rel="noopener">用户协议</a></p>`;
+const join=`<label class="lab">用户名</label><input class="fld" data-d="ru" autocomplete="username" placeholder="3–20 位文字、数字或下划线" data-af ${busy?'disabled':''}><label class="lab">邮箱</label><input class="fld" data-d="re" type="email" autocomplete="email" placeholder="name@example.com" ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="rpw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" ${busy?'disabled':''}><label class="lab">再输入一次</label><input class="fld" data-d="rpw2" type="password" autocomplete="new-password" placeholder="再输入一次密码" ${busy?'disabled':''}>${e}<p class="hint" style="margin:12px 0 4px"><button type="button" class="lk" data-a="agreetog" aria-pressed="${S.d.ragree==='1'?'true':'false'}">${S.d.ragree==='1'?'☑':'☐'} 我已阅读并同意</button> <a class="lk" href="/legal/terms" target="_blank" rel="noopener">《用户协议》</a> 和 <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">《隐私政策》</a></p><button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'注册中…':'注册并进入'}</button><p class="hint">已有账号？ <button class="lk" data-a="authpane" data-v="login" ${busy?'disabled':''}>去登录</button></p>`;
 const demoBtn=demoDisabled()?'':`<button class="pb s" style="width:100%" data-a="authdemo" ${busy?'disabled':''}>先用演示看看</button><p class="hint">演示内容只留在这台设备，和真实账号的内容分开存，不会互相覆盖。</p>`;
-return `<div class="pg" id="gate"><div class="top"><h1 class="br">NOVA</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码不会以明文保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
+return `<div class="pg" id="gate"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码不会以明文保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
 function modeChip(){if(!NET||MODE==='boot'||MODE==='gate')return '';if(MODE==='account'&&SESSION&&SESSION.user)return `<div class="ban ok"><b>已登录 ${esc(SESSION.user.username)}</b>私聊使用 Olm（vodozemac）加密，服务端只存密文。独立安全审查尚未完成，请核对安全号码。换账号不会串数据。</div>`;return `<div class="ban"><b>演示模式</b>这些内容只在这台设备。 <button class="lk" data-a="toacct" style="color:var(--ac)">${SESSION&&SESSION.user?'回到账号':'登录'}</button></div>`}
 function authpane(v){S.auth.pane=v==='reg'?'reg':'login';S.auth.err=''}
+function agreetog(){S.d.ragree=S.d.ragree==='1'?'':'1';S.auth.err=''}
 async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.auth.err='';
   if(!reg){const account=(S.d.ac||'').trim(),password=S.d.pw||'';if(!account||!password){S.auth.err='请输入账号和密码';return}S.auth.busy=1;render();const r=await api('POST','/api/auth/login',{account,password});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'登录失败');return}S.d.pw='';enterAccount(r.j.user,r.j.token);return}
   const username=(S.d.ru||'').trim(),email=(S.d.re||'').trim(),password=S.d.rpw||'',p2=S.d.rpw2||'';
@@ -1277,7 +1283,8 @@ async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.au
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){S.auth.err='邮箱格式不正确';return}
   if(!(password.length>=8&&password.length<=128&&/[A-Za-z]/.test(password)&&/\d/.test(password))){S.auth.err='密码需 8–128 位，且同时包含字母和数字';return}
   if(password!==p2){S.auth.err='两次输入的密码不一致';return}
-  S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'注册失败');return}
+  if(S.d.ragree!=='1'){S.auth.err='请先阅读并同意《用户协议》和《隐私政策》';return}
+  S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password,agree:true});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'注册失败');return}
   S.d.rpw='';S.d.rpw2='';enterAccount(r.j.user,r.j.token)}
 function authdemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(S.auth.busy)return;localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('演示数据只存在这台设备')}
 function logout(){if(typeof stopEvents==='function')stopEvents();const tok=SESSION&&SESSION.token;VIP.me=null;if(MODE==='account')save();clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':(demoDisabled()?'offline':'demo');if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch(apiUrl('/api/auth/logout'),{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
@@ -1598,7 +1605,13 @@ function pSec(){
 
   const pw=`<div class="card" style="padding:12px 16px;margin:8px 0" id="pwbox"><b>修改密码</b><p class="hint">改密后其他设备会退出，这台设备保持登录。</p><label class="lab">当前密码</label><input class="fld" data-d="opw" type="password" autocomplete="current-password"><label class="lab">新密码</label><input class="fld" data-d="npw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字"><label class="lab">再输入一次</label><input class="fld" data-d="npw2" type="password" autocomplete="new-password">${S.pwerr?`<div class="err" role="alert">${esc(S.pwerr)}</div>`:''}<button class="pb" style="width:100%;margin-top:8px" data-a="chpw">修改密码</button></div>`;
   const devices=acct?`<div class="shd">登录设备</div><p class="hint" style="padding:8px 16px 0" data-ndev="${sess.length}">只显示你自己的登录。IP 已脱敏。${sess.length>1?' 退出其他设备后，那些令牌会立即失效，这台设备保持登录。':''}</p>${sess.map(s=>`<div class="row" data-sid="${esc(s.id)}"><div class="gr"><b>${esc(s.device||'未知设备')}${s.current?' <span class="tag">当前设备</span>':''}</b><small>${esc(s.ip||'')} · ${s.createdAt?vipDate(s.createdAt):''}</small></div>${s.current?'':`<button class="pb sm d" data-a="revsess" data-v="${esc(s.id)}">退出</button>`}</div>`).join('')||'<p class="em">正在读取设备列表…</p>'}${sess.length>1?`<div style="padding:16px"><button class="pb d" style="width:100%" data-a="revothersq">退出其他 ${sess.length-1} 台设备</button><p class="hint" style="margin-top:8px">当前这台设备将保持登录。</p></div>`:''}`:'<p class="em">登录后可以管理设备和修改密码。</p>';
-  return `<div class="pg" id="secp">${sub('账号安全')}<div class="sc">${acct?pw:''}${devices}${e2eeBox}${acct?`<div class="shd">数据导出</div><p class="hint" style="padding:8px 16px 0">导出你的资料、动态和消息。端到端加密的消息会先在本机解密再写入文件；服务端只提供密文。</p><div style="padding:16px"><button class="pb" style="width:100%" data-a="exportme">导出我的数据</button></div>`:''}<p class="hint" style="padding:16px">密码在服务器上是加盐哈希，管理员也看不到原文。一对一私聊使用 Olm（vodozemac）加密，私钥只留在这台设备，服务端只保存密文。独立安全审查尚未完成，请先核对手友的安全号码。登录设备撤销不等于加密设备撤销。</p></div></div>`}
+  return `<div class="pg" id="secp">${sub('账号安全')}<div class="sc">${acct?pw:''}${devices}${e2eeBox}${acct?`<div class="shd">数据导出</div><p class="hint" style="padding:8px 16px 0">导出你的资料、动态和消息。端到端加密的消息会先在本机解密再写入文件；服务端只提供密文。</p><div style="padding:16px"><button class="pb" style="width:100%" data-a="exportme">导出我的数据</button></div>
+<div class="shd">注销账号</div><p class="hint" style="padding:8px 16px 0">注销后不能自行恢复。用户名和邮箱会匿名，密码作废，所有设备退出，VIP 取消；你的动态和评论不再对外展示；关注、好友、草稿、收藏和加密设备密钥会被清除。与他人的聊天密文、已上传媒体、支付和举报记录可能因对方或财务、安全需要而保留。请先导出需要保留的数据。</p>
+<label class="lab" style="padding:0 16px">输入密码以确认</label>
+<div style="padding:0 16px"><input class="fld" data-d="delpw" type="password" autocomplete="current-password" placeholder="当前密码"></div>
+<p class="hint" style="padding:8px 16px"><button type="button" class="lk" data-a="deltog">${S.d.delok==='1'?'☑':'☐'} 我了解上述后果，确认要注销</button></p>
+${S.delerr?`<div class="err" role="alert" style="margin:0 16px">${esc(S.delerr)}</div>`:''}
+<div style="padding:16px"><button class="pb d" style="width:100%" data-a="delacctq">注销并删除我的账号</button></div>`:''}<p class="hint" style="padding:16px">密码在服务器上是加盐哈希，管理员也看不到原文。一对一私聊使用 Olm（vodozemac）加密，私钥只留在这台设备，服务端只保存密文。独立安全审查尚未完成，请先核对手友的安全号码。登录设备撤销不等于加密设备撤销。</p></div></div>`}
 async function loadE2eeDevices(){
   if(MODE!=='account'||!SESSION)return;
   const r=await api('GET','/api/e2ee/keys');
@@ -1633,6 +1646,30 @@ async function revsess(id){
 
 function avcol(c){if(!AV_COLS.includes(c)&&!/^#[0-9A-Fa-f]{6}$/.test(c))return;S.d.avc=c;D.u.me[3]=c;if(MODE==='account'&&SESSION)return api('POST','/api/me/avatar',{avatar:{kind:'color',color:c,letter:(S.d.al||D.u.me[2]||'我')[0]}}).then(r=>{if(r.s!==200){T(errMsg(r,'头像保存失败'));return}if(r.j.user)SESSION.user=r.j.user;T('已保存头像')});T('已更换颜色')}
 function avlet(){const l=[...(S.d.al||D.u.me[2]||'我')][0];if(!l)return T('请输入一个字');D.u.me[2]=l;if(MODE==='account'&&SESSION)return api('POST','/api/me/avatar',{avatar:{kind:'color',color:S.d.avc||D.u.me[3],letter:l}}).then(r=>{if(r.s!==200){T(errMsg(r,'头像保存失败'));return}T('已保存头像')});T('已更换文字')}
+
+function deltog(){S.d.delok=S.d.delok==='1'?'':'1';S.delerr=''}
+function delacctq(){
+  S.delerr='';
+  if(!(S.d.delpw||'')){S.delerr='请输入密码';return}
+  if(S.d.delok!=='1'){S.delerr='请先确认你了解注销的后果';return}
+  S.sh={t:'delacct'};
+}
+async function delacct(){
+  S.sh=null;
+  const r=await api('POST','/api/me/delete',{password:S.d.delpw,confirm:true});
+  S.d.delpw='';S.d.delok='';
+  if(r.s!==200){S.delerr=errMsg(r,'注销失败');return}
+  T('账号已注销');
+  logout();
+}
+async function legal(kind){
+  const k=kind==='terms'?'terms':'privacy';
+  S.st.push('legal:'+k);
+  const r=await api('GET','/api/legal/'+k);
+  S.legal=S.legal||{};
+  if(r.s===200)S.legal[k]=r.j;
+  else S.legal[k]={title:k==='terms'?'用户协议':'隐私政策',body:'暂时无法加载文档。'};
+}
 
 /* ===== 18_stk.js ===== */
 /* 专属表情包（M2.5.5）。香槟金系列是原创 Unicode 白名单。
@@ -2792,10 +2829,170 @@ Object.assign(globalThis,{
 });
 })();
 
+/* ===== 27_skins.js ===== */
+/* 按键皮肤：从 assets/skins/index.json 加载清单，用 CSS 变量/样式表切换，失败回退默认。
+   新增皮肤只需加文件夹和注册表条目，不必改本文件的业务逻辑。 */
+const SKIN_ROOT='assets/skins';
+const SKIN_FALLBACK='xinglan';
+const SKINS={list:[],byId:{},current:null,icons:{},logo:'',ready:false,failed:0};
+
+function skinBase(id){return SKIN_ROOT+'/'+id}
+function skinStorageKey(){return (SESSION&&SESSION.user&&SESSION.user.id!=null)?('nova_skin_u_'+SESSION.user.id):'nova_skin'}
+function rememberedSkin(){
+  try{
+    const per=localStorage.getItem(skinStorageKey());
+    if(per)return per;
+    return localStorage.getItem('nova_skin')||'';
+  }catch(e){return ''}
+}
+function persistSkin(id){
+  try{
+    localStorage.setItem(skinStorageKey(),id);
+    localStorage.setItem('nova_skin',id);
+  }catch(e){}
+}
+function skinIcon(n){
+  const aliases={people:'community',person:'profile'};
+  const k=SKINS.icons[n]?n:(aliases[n]&&SKINS.icons[aliases[n]]?aliases[n]:'');
+  return k&&SKINS.icons[k]?SKINS.icons[k]:'';
+}
+function brandTitle(){
+  const src=SKINS.logo;
+  if(src)return '<img class="br-logo" src="'+esc(src)+'" alt="NOVA">';
+  return 'NOVA';
+}
+function resolvedTheme(){
+  const t=D&&D.st&&D.st.theme;
+  if(t==='system'){
+    try{return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}catch(e){return 'dark'}
+  }
+  return t==='light'?'light':'dark';
+}
+function applyResolvedTheme(){
+  try{document.documentElement.dataset.theme=resolvedTheme()}catch(e){}
+}
+
+async function fetchJson(url){
+  const r=await fetch(url,{cache:'no-cache'});
+  if(!r.ok)throw new Error('http '+r.status);
+  return r.json();
+}
+function loadSheet(href,id){
+  return new Promise(res=>{
+    const old=document.getElementById(id);
+    if(old)old.remove();
+    if(!href){res(true);return}
+    const el=document.createElement('link');
+    el.id=id;el.rel='stylesheet';el.href=href;
+    el.onload=()=>res(true);
+    el.onerror=()=>res(false);
+    document.head.appendChild(el);
+  });
+}
+async function loadSkinIcons(meta){
+  const map={}, icons=meta&&meta.icons||{};
+  const ids=Object.keys(icons);
+  await Promise.all(ids.map(async k=>{
+    const rel=icons[k];
+    if(!rel)return;
+    try{
+      const r=await fetch(skinBase(meta.id)+'/'+rel,{cache:'force-cache'});
+      if(!r.ok)return;
+      let svg=await r.text();
+      svg=svg.replace(/<svg\b/,'<svg aria-hidden="true" width="24" height="24"');
+      map[k]=svg;
+    }catch(e){}
+  }));
+  SKINS.icons=map;
+}
+async function applySkin(id,opts){
+  const save=!(opts&&opts.save===false);
+  const want=id||SKIN_FALLBACK;
+  let meta=SKINS.byId[want];
+  if(!meta){
+    if(want!=='default'&&SKINS.byId.default){return applySkin('default',{save:false})}
+    document.documentElement.dataset.skin=SKIN_FALLBACK;
+    SKINS.current=SKIN_FALLBACK;
+    return;
+  }
+  const okCss=await loadSheet(meta.css?(skinBase(meta.id)+'/'+meta.css):'', 'nova-skin-css');
+  if(!okCss && meta.id!=='default'){
+    SKINS.failed++;
+    return applySkin('default',{save:false});
+  }
+  document.documentElement.dataset.skin=meta.id;
+  SKINS.current=meta.id;
+  SKINS.logo=meta.logo?skinBase(meta.id)+'/'+meta.logo:'';
+  try{await loadSkinIcons(meta)}catch(e){SKINS.icons={}}
+  if(save){
+    persistSkin(meta.id);
+    if(MODE==='account'&&SESSION&&typeof api==='function'){
+      api('POST','/api/me/prefs',{skin:meta.id}).catch(()=>{});
+    }
+  }
+  if(typeof render==='function')try{render()}catch(e){}
+}
+function skinRow(){
+  const list=SKINS.list||[];
+  if(!list.length)return '';
+  const cur=SKINS.current||SKIN_FALLBACK;
+  const picks=list.map(s=>{
+    const on=s.id===cur;
+    const prev=s.preview?(skinBase(s.id)+'/'+s.preview):'';
+    const img=prev?`<img src="${esc(prev)}" alt="" style="height:36px;width:auto;border-radius:8px;display:block">`:'';
+    return `<button type="button" class="pb sm${on?'':' s'}" data-a="setskin" data-v="${esc(s.id)}" aria-pressed="${on?'true':'false'}" style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;height:auto;padding:8px 12px">${img}<span>${esc(s.name||s.id)}</span></button>`;
+  }).join('');
+  return `<div class="shd">按键皮肤</div><p class="hint" style="padding:8px 16px 0">换一套按键和主题色彩。加载失败时会回到可用的皮肤。</p><div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px">${picks}</div>`;
+}
+function setskin(id){return applySkin(id)}
+
+async function bootSkins(){
+  try{
+    const idx=await fetchJson(SKIN_ROOT+'/index.json');
+    const entries=(idx&&idx.skins)||[];
+    const defaultId=(idx&&idx.defaultSkin)||SKIN_FALLBACK;
+    const loaded=[];
+    for(const e of entries){
+      const id=e.id||e.path;
+      if(!id||!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(id))continue;
+      try{
+        const meta=await fetchJson(skinBase(id)+'/skin.json');
+        meta.id=meta.id||id;
+        meta.name=meta.name||e.name||meta.id;
+        meta.path=e.path||id;
+        SKINS.byId[meta.id]=meta;
+        loaded.push(meta);
+      }catch(err){}
+    }
+    SKINS.list=loaded;
+    SKINS.ready=true;
+    let pick='';
+    if(SESSION&&SESSION.user&&SESSION.user.skin)pick=SESSION.user.skin;
+    if(!pick)pick=rememberedSkin();
+    if(!pick||!SKINS.byId[pick])pick=defaultId;
+    if(!SKINS.byId[pick])pick=loaded[0]&&loaded[0].id;
+    await applySkin(pick||SKIN_FALLBACK,{save:false});
+  }catch(e){
+    SKINS.ready=true;
+    document.documentElement.dataset.skin=SKIN_FALLBACK;
+    SKINS.current=SKIN_FALLBACK;
+  }
+  applyResolvedTheme();
+}
+if(typeof window!=='undefined'){
+  try{document.documentElement.dataset.skin=rememberedSkin()||SKIN_FALLBACK}catch(e){}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{bootSkins()});
+  else bootSkins();
+  try{
+    const mq=matchMedia('(prefers-color-scheme: light)');
+    if(mq&&mq.addEventListener)mq.addEventListener('change',()=>{if(D&&D.st&&D.st.theme==='system'){applyResolvedTheme();if(typeof render==='function')render()}});
+  }catch(e){}
+}
+
 /* ===== 30_tabs.js ===== */
 /* ---- tabs ---- */
 const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
-return `<div class="pg"><div class="top"><h1 class="br">NOVA</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
+return `<div class="pg"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
 <div class="seg"><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">关注</button><button data-a="feed" data-v="rec" class="${S.feed=='rec'?'on':''}">推荐</button></div>
 <div class="sc"><div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">写点什么</button><button class="ib" data-a="compose" aria-label="发帖" style="color:var(--ac)">${ic('plus')}</button></div>
@@ -2872,9 +3069,10 @@ const INF={privacy:['隐私','资料可见范围（所有人 / 仅好友 / 仅�
 const pSet=()=>{const t=D.st.theme,r=D.st.rm,s=D.st.sound!==0,h=D.st.haptic!==0,acct=MODE==='account'&&SESSION&&SESSION.user,held=MODE==='demo'&&SESSION&&SESSION.user;
 const demoSwitch=(!demoDisabled()&&acct)?`<div class="row"><div class="gr"><b>切换到演示数据</b><small>和这个账号的本地内容分开保存，不会互相覆盖</small></div><button class="pb sm s" data-a="todemo">切换</button></div>`:'';
 const who=NET?(acct?`<div class="row"><div class="gr"><b>真实账号</b><small>@${esc(SESSION.user.username)} · ${esc(maskEmail(SESSION.user.email))}${SESSION.user.vip?' · VIP':''}</small></div><button class="pb sm" data-a="logout">退出</button></div>`+demoSwitch:`<div class="row"><div class="gr"><b>${held?'演示数据（登录还在）':'演示数据'}</b><small>${held?'@'+esc(SESSION.user.username)+' 还登录着，可以回去':'未登录。内容只存在这台设备'}</small></div><button class="pb sm" data-a="toacct">${held?'回到账号':'登录'}</button></div>`):(demoDisabled()?`<div class="row"><div class="gr"><b>无法连接服务器</b><small>当前版本未开放本机演示。</small></div><button class="pb sm" data-a="retryconnect">重试</button></div>`:`<div class="row"><div class="gr"><b>当前是离线演示</b><small>没有连上服务器，所以不能登录。数据只在这台设备。</small></div></div>`);
-return `<div class="pg">${sub('设置')}<div class="sc">${who}${typeof friendsRow==="function"?friendsRow():""}${vipRow()}${savedRow()}<div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button></div></div><div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div><button class="row" style="width:100%;text-align:left" data-a="priv" id="privrow"><div class="gr"><b>隐私</b><small>资料可见、好友请求等，保存在服务器</small></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="sec" id="secrow"><div class="gr"><b>账号安全</b><small>修改密码、登录设备、退出其他设备</small></div><small>›</small></button>${['help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>NOVA</b><small style="display:block;margin-top:5px">${acct?'已登录真实账号。动态、社区和聊天仍在这台设备。':'演示数据只在这台设备。'}一对一私聊使用 Olm（vodozemac）加密，服务端只存密文；群聊暂不加密。独立安全审查尚未完成，请核对安全号码。</small></div></div></div>`};
+return `<div class="pg">${sub('设置')}<div class="sc">${who}${typeof friendsRow==="function"?friendsRow():""}${vipRow()}${savedRow()}<div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button><button class="pb${t=='system'?'':' s'}" data-a="theme" data-v="system">跟随系统</button></div></div>${typeof skinRow==='function'?skinRow():''}<div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div><button class="row" style="width:100%;text-align:left" data-a="priv" id="privrow"><div class="gr"><b>隐私</b><small>资料可见、好友请求等，保存在服务器</small></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="sec" id="secrow"><div class="gr"><b>账号安全</b><small>修改密码、登录设备、退出其他设备</small></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="privacy"><div class="gr"><b>隐私政策</b></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="terms"><div class="gr"><b>用户协议</b></div><small>›</small></button>${['help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>NOVA</b><small style="display:block;margin-top:5px">${acct?'已登录真实账号。动态、社区和聊天仍在这台设备。':'演示数据只在这台设备。'}一对一私聊使用 Olm（vodozemac）加密，服务端只存密文；群聊暂不加密。独立安全审查尚未完成，请核对安全号码。</small></div></div></div>`};
 const pInfo=k=>`<div class="pg">${sub(INF[k][0])}<div class="sc"><p style="padding:16px;white-space:pre-line">${INF[k][1]}</p></div></div>`;
-const page=cur=>{const[t,a,b]=cur.split(':');return t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='vip'?pVip():t=='saved'?pSaved():t=='priv'?pPriv():t=='sec'?pSec():t=='set'?pSet():t=='friends'?pFriends():pInfo(a)};
+const pLegal=k=>{const d=(S.legal&&S.legal[k])||{};const title=d.title||(k==='terms'?'用户协议':'隐私政策');const body=d.body||'正在加载…';return `<div class="pg">${sub(esc(title))}<div class="sc"><p class="hint" style="padding:16px 16px 0">${d.effectiveDate?esc('生效日期：'+d.effectiveDate)+' · ':''}${d.version?esc('版本 '+d.version):''}</p><div style="padding:16px;white-space:pre-wrap;font-size:14px;line-height:1.65">${esc(body)}</div></div></div>`};
+const page=cur=>{const[t,a,b]=cur.split(':');return t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='vip'?pVip():t=='saved'?pSaved():t=='priv'?pPriv():t=='sec'?pSec():t=='set'?pSet():t=='friends'?pFriends():t=='legal'?pLegal(a):pInfo(a)};
 
 /* ===== 50_sheets.js ===== */
 function pickPeople(exclude){
@@ -2896,6 +3094,7 @@ if(s.t=='search')h=`<input class="fld" id="sq" data-af placeholder="搜索" valu
 if(s.t=='notif')h='<h3>通知</h3>'+((typeof nSrc==='function'?nSrc():D.n).length?(typeof nSrc==='function'?nSrc():D.n).map(n=>swrow(`data-a="nr" data-v="${n.id}"`,`<i class="${n.u?'':'z'}"></i><span class="gr"><b>${esc(n.x)}</b><small>${(typeof fmtTime==='function'&&n.at)?fmtTime(n.at):n.t}</small></span>`,[['nrtog',n.u?'标为已读':'标为未读','#2D88FF',n.id],['nrdel','删除','#D4655A',n.id]],'nr')).join(''):'<p class="em">没有通知</p>')+'<p class="lab" style="padding-top:8px">提示：通知可以左滑</p>';
 if(s.t=='leave')h=`<h3>退出这个社区？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="leave2" data-v="${s.id}">确定</button></div>`;
 if(s.t=='resetq')h='<h3>重置当前数据？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="reset">确定</button></div>';
+if(s.t=='delacct')h='<h3>确认注销账号？</h3><p class="hint">此操作不能自行撤销。建议已经完成数据导出。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="delacct">确认注销</button></div>';
 if(s.t=='newcm')h='<h3>创建社区</h3><span class="lab">名称（2–20 字）</span><input class="fld" data-d="cn" data-af><span class="lab">简介（最多 80 字，可空）</span><input class="fld" data-d="cd"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="mkcm">创建</button></div>';
 if(s.t=='cvm'){const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==s.id);h=`<h3>${esc(c.n)}</h3><button class="mi" data-a="cvpin" data-v="${c.id}">${c.pin?'取消置顶':'置顶'}</button><button class="mi" data-a="cvmute" data-v="${c.id}">${c.mute?'取消静音':'静音'}</button><button class="mi" data-a="cvhide" data-v="${c.id}">隐藏会话</button>${c.g?`<button class="mi" data-a="ginfo" data-v="${c.id}">群聊信息</button>`:`<button class="mi" data-a="safenum" data-v="${c.id}">查看安全号码</button><button class="mi dg" data-a="cvdel" data-v="${c.id}">删除会话</button>`}<button class="mi" data-a="reportcv" data-v="${c.id}">举报会话</button>`}
 if(s.t=='cvdel')h=`<h3>删除这个会话？</h3><p style="color:var(--t2);margin-bottom:8px">消息记录会被清除，只影响你这一侧。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="cvdel2" data-v="${s.id}">删除</button></div>`;
@@ -2933,9 +3132,9 @@ return `<div class="ov" data-a="x"></div><div class="pn" role="dialog">${h}</div
 /* ===== 60_render.js ===== */
 const chk=t=>{const k=t.dataset.d,mx=+t.dataset.max||0,raw=len(t.value),b=$(`[data-for=${k}]`),c=$(`[data-cnt=${k}]`);if(b)b.disabled=!ok(t.value,mx||1e9);if(c){c.textContent=raw>mx?`已超出 ${raw-mx} 字`:`${raw}/${mx}`;c.style.color=raw>mx?'var(--dg)':''}};
 function renderCore(){
-if(MODE==='boot'||MODE==='gate'||MODE==='offline'){document.documentElement.dataset.theme=(D.st&&D.st.theme)||'dark';applyVipTheme(false);document.body.classList.toggle('rm',!!(D.st&&D.st.rm));$('#v').innerHTML=MODE==='boot'?bootView():MODE==='offline'?offlineView():gateView();if(MODE==='gate'){document.querySelectorAll('#v [data-d]').forEach(el=>{if(S.d[el.dataset.d]!=null)el.value=S.d[el.dataset.d]});const af=$('#v [data-af]');if(af&&!af.value)af.focus()}return}
+if(MODE==='boot'||MODE==='gate'||MODE==='offline'){document.documentElement.dataset.theme=typeof resolvedTheme==='function'?resolvedTheme():((D.st&&D.st.theme)||'dark');applyVipTheme(false);document.body.classList.toggle('rm',!!(D.st&&D.st.rm));$('#v').innerHTML=MODE==='boot'?bootView():MODE==='offline'?offlineView():gateView();if(MODE==='gate'){document.querySelectorAll('#v [data-d]').forEach(el=>{if(S.d[el.dataset.d]!=null)el.value=S.d[el.dataset.d]});const af=$('#v [data-af]');if(af&&!af.value)af.focus()}return}
 fixIds();const cur=S.st[S.st.length-1],key=cur||S.tab,old=$('#v .sc'),y=old&&S.k==key?old.scrollTop:0;S.k=key;
-document.documentElement.dataset.theme=D.st.theme;syncVipUser();applyVipTheme(vipThemeOn());document.body.classList.toggle('rm',!!D.st.rm);
+document.documentElement.dataset.theme=typeof resolvedTheme==='function'?resolvedTheme():(D.st.theme||'dark');syncVipUser();applyVipTheme(vipThemeOn());document.body.classList.toggle('rm',!!D.st.rm);
 $('#v').innerHTML=(cur?page(cur):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='chat'?tChat():tMe())+nav()+sheet();
 document.querySelectorAll('#v [data-d]').forEach(el=>{el.value=S.d[el.dataset.d]||'';chk(el)});
 const sc=$('#v .sc');if(sc)sc.scrollTop=(cur&&cur.startsWith('chat:'))||S.bot?1e9:y;S.bot=0;if(S.jump&&sc){const el=sc.querySelector('[data-mid="'+S.jump+'"]');if(el){sc.scrollTop=el.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-70;el.classList.add('flash')}S.jump=null}
@@ -3288,10 +3487,10 @@ chren2:v=>{const[c,h]=v.split('|'),m=cmp(c),n=(S.d.chn||'').trim();const mx=(MOD
 rmch:v=>{const[c,h]=v.split('|');S.sh={t:'rmch',cm:c,ch:h}},
 rmch2:v=>{const[c,h]=v.split('|'),m=cmp(c);const go=()=>{m.ch=m.ch.filter(x=>x[0]!=h);delete D.cmsg[h];if(S.ch[c]==h)delete S.ch[c];S.sh={t:'chmgr',id:c};T('已删除频道')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/channels/'+h+'/delete',{}).then(r=>{if(r.s!==200){T(errMsg(r,'不能删除'));return}go()});if(!canC(m.r,'delChannel')||(m.ch[0]&&m.ch[0][0]==h)||m.ch.length<=1)return T('不能删除');go()},
 gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.split('|'),c=cvf(i);c.adm=c.adm||[];const on=!c.adm.includes(u);c.adm=on?[...c.adm,u]:c.adm.filter(x=>x!=u);gm(i,on?'你将 '+P(u).n+' 设为了管理员':'你取消了 '+P(u).n+' 的管理员身份');S.sh=null},
-theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
+theme:v=>{D.st.theme=v;if(typeof applyResolvedTheme==="function")applyResolvedTheme()},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
 
 /* ===== 80_events.js ===== */
-Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,retryconnect,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,vipbuy:vipBuyGo,vipmethod:vipMethodGo,vippaid:vipPaidGo,vipord:vipOrdGo,vipshow:vipShowGo,vippayclose:vipPayClose,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen,rpreason,rptog,rpsubmit,reportp:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'post',targetId:v})},reportu:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'user',targetId:v,targetUserId:v})},reportcv:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'conversation',targetId:v,conversationId:v})},reportm:v=>{const p=String(v).split('|');const cid=p[1],mid=p[2];if(typeof reportOpen==='function')reportOpen({targetType:'message',targetId:mid,conversationId:cid,messageIds:[mid]})},blockq:blockAsk,block2:blockUser,unblock:unblockUser,safenum,safeok,e2eerev});
+Object.assign(A,{authpane,authgo,agreetog,authdemo,logout,todemo,toacct,retryconnect,setskin,legal,deltog,delacctq,delacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,vipbuy:vipBuyGo,vipmethod:vipMethodGo,vippaid:vipPaidGo,vipord:vipOrdGo,vipshow:vipShowGo,vippayclose:vipPayClose,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen,rpreason,rptog,rpsubmit,reportp:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'post',targetId:v})},reportu:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'user',targetId:v,targetUserId:v})},reportcv:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'conversation',targetId:v,conversationId:v})},reportm:v=>{const p=String(v).split('|');const cid=p[1],mid=p[2];if(typeof reportOpen==='function')reportOpen({targetType:'message',targetId:mid,conversationId:cid,messageIds:[mid]})},blockq:blockAsk,block2:blockUser,unblock:unblockUser,safenum,safeok,e2eerev});
 document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;const ret=f(el.dataset.v);S.bot=k=='cmsend';if(ret&&typeof ret.then==='function')ret.then(()=>render(),()=>render());else render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t);if(t.dataset.d==='chin'){if(typeof sendTyping==='function'){const cur=S.st&&S.st[S.st.length-1];if(cur&&String(cur).startsWith('chat:'))sendTyping(String(cur).slice(5))}if(typeof persistChatDraft==='function'){const cur=S.st&&S.st[S.st.length-1];if(cur&&String(cur).startsWith('chat:'))persistChatDraft(String(cur).slice(5))}}}else if(t.id=='sq'){S.sq=t.value;if(typeof usingNet==='function'&&usingNet()&&typeof loadSearch==='function'){loadSearch(t.value).then(()=>{const el=$('#sr');if(el)el.innerHTML=srch(S.sq)})}else $('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&document.getElementById('gate')){const b=document.querySelector('#gate [data-a=authgo]');if(b)b.click();return}if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});

@@ -145,8 +145,9 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
       text: row.text,
       title: String(row.text || '').slice(0, 40),
       authorId: row.author_id,
-      author: u ? {id: u.id, username: u.username, displayName: (p && p.displayName) || u.username} : null,
+      author: u ? {id: u.id, username: u.username, displayName: ((p && p.displayName && String(p.displayName).trim()) || u.username)} : null,
       createdAt: row.created_at,
+      createdAtUtc: new Date(row.created_at).toISOString(),
       updatedAt: row.updated_at || null,
       deleted: !!row.deleted_at,
       deletedAt: row.deleted_at || null,
@@ -349,7 +350,11 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
   function pubAnn(r) {
     return {
       id: r.id, title: r.title, body: r.body, published: !!r.published,
-      createdAt: r.created_at, updatedAt: r.updated_at || null, authorAdminId: r.author_admin_id,
+      createdAt: r.created_at,
+      createdAtUtc: r.created_at != null ? new Date(r.created_at).toISOString() : null,
+      updatedAt: r.updated_at || null,
+      updatedAtUtc: r.updated_at ? new Date(r.updated_at).toISOString() : null,
+      authorAdminId: r.author_admin_id,
       withdrawn: !r.published,
     };
   }
@@ -418,7 +423,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
         const u = db.prepare('SELECT * FROM users WHERE id=?').get(r.author_id);
         return {
           id: r.id, channelId: ch.id, authorId: r.author_id,
-          author: u ? {id: u.id, username: u.username, displayName: u.display_name} : null,
+          author: u ? {id: u.id, username: u.username, displayName: (profile && profile.publicOf ? (String((profile.publicOf(u).displayName||'')).trim() || u.username) : u.username)} : null,
           text: r.text, createdAt: r.created_at, createdAtUtc: new Date(r.created_at).toISOString(),
         };
       })};

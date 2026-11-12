@@ -1,0 +1,7 @@
+{
+  "defaultSkin": "xinglan",
+  "skins": [
+    {"id": "xinglan", "name": "星澜", "path": "xinglan"},
+    {"id": "default", "name": "经典", "path": "default"}
+  ]
+}

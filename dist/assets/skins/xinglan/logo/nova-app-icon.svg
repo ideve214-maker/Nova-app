@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="lg-mask"><rect width="1024" height="1024" rx="228" ry="228"/></clipPath>
+  </defs>
+  <g clip-path="url(#lg-mask)">
+    
+  <title>NOVA 用户端图标 · 星澜</title>
+  <defs>
+    <linearGradient id="iu-bg" x1="160" y1="0" x2="900" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1C2750"/>
+      <stop offset=".42" stop-color="#0E1328"/>
+      <stop offset="1" stop-color="#06070D"/>
+    </linearGradient>
+    <radialGradient id="iu-glow" cx="50%" cy="34%" r="58%">
+      <stop offset="0" stop-color="#6E8BFF" stop-opacity=".48"/>
+      <stop offset=".55" stop-color="#6E8BFF" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#6E8BFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#iu-bg)"/>
+  <rect width="1024" height="1024" fill="url(#iu-glow)"/>
+  <!-- faint top sheen -->
+  <rect width="1024" height="420" fill="url(#iu-glow)" opacity=".5"/>
+  <g transform="translate(512 500) scale(10.9) translate(-32 -30)">
+    <g id="iu-mark" fill-rule="evenodd">
+  <defs>
+    <linearGradient id="iu-star" x1="32" y1="2" x2="32" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0F3FF"/>
+      <stop offset=".35" stop-color="#C5D0FF"/>
+      <stop offset=".75" stop-color="#8BA3FF"/>
+      <stop offset="1" stop-color="#5B74F2"/>
+    </linearGradient>
+    <linearGradient id="iu-wave" x1="6" y1="48" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ECDC4"/>
+      <stop offset=".5" stop-color="#6E8BFF"/>
+      <stop offset="1" stop-color="#A8BAFF"/>
+    </linearGradient>
+  </defs>
+  <!-- main 4-point nova -->
+  <path fill="url(#iu-star)" d="M32 2.8
+    C33.35 16.4 36.1 22.7 48.2 25.15
+    C36.1 27.6 33.35 33.9 32 47.5
+    C30.65 33.9 27.9 27.6 15.8 25.15
+    C27.9 22.7 30.65 16.4 32 2.8Z"/>
+  <!-- diagonal inner spark, forming an 8-point nova -->
+  <path fill="url(#iu-star)" opacity=".92" transform="rotate(45 32 25.15)" d="M32 12.2
+    C32.7 18.5 34.4 21.7 41.2 23.15
+    C34.4 24.6 32.7 27.8 32 34.1
+    C31.3 27.8 29.6 24.6 22.8 23.15
+    C29.6 21.7 31.3 18.5 32 12.2Z"/>
+  <!-- star dust -->
+  <circle cx="11.5" cy="12.5" r="1.2" fill="#A8BAFF" opacity=".9"/>
+  <circle cx="53" cy="11" r=".85" fill="#F0F3FF" opacity=".95"/>
+  <circle cx="54.5" cy="21.5" r="1.05" fill="#6E8BFF" opacity=".8"/>
+  <circle cx="9.5" cy="23" r=".7" fill="#4ECDC4" opacity=".75"/>
+  <!-- double tide -->
+  <path fill="none" stroke="url(#iu-wave)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+        d="M7.5 48.2c6.8-5.6 13-5.6 19.6 0s13 5.6 19.6 0 10.2-5.3 11.3-5"/>
+  <path fill="none" stroke="url(#iu-wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55"
+        d="M11.5 55.4c5.7-4.3 11.4-4.3 17.1 0s11.4 4.3 17.1 0 8.6-4.1 9.6-3.9"/>
+</g>
+  </g>
+
+  </g>
+</svg>

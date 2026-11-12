@@ -45,7 +45,8 @@ export function createCommunities(db, {profile, vip, now}) {
   function authorOf(id) {
     const u = userBy.get(id); if (!u) return {id, username: 'unknown', displayName: 'unknown'};
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active};
+    const dn = p && p.displayName != null ? String(p.displayName).trim() : '';
+    return {id: u.id, username: u.username, displayName: dn || u.username, avatar: p.avatar, vip: !!vip.status(u).active};
   }
   function roleOf(cmId, userId) {
     const m = mem.get(cmId, userId);

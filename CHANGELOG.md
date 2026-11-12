@@ -1,10 +1,15 @@
 # 更新日志（最新在上）
 
-## V7 0.7.0-m6.1 · 安全核心与生产运维备忘（2026-11-12）
+## V7 0.7.0-m6.1 · 安全核心、合规上线、星澜主题与生产运维（2026-11-12）
+
+本版号保持 `0.7.0-m6.1`（已含获准的 M7.2 视觉）。当前生产入口 `http://47.239.0.90`（HTTP，暂无域名）。
 
 - **安全核心（前一提交起）：** 输入校验与 XSS 纯文本保存、SQL 参数化与失败迁移回滚、上传魔数校验、严格限流与 `GET /api/admin/security/events`、登录锁定退避、可选 HttpOnly Cookie + CSRF（Bearer / 管理员 `na_` 不变）、禁止令牌进 URL、安全响应头、可信代理、日志脱敏、敏感管理读取审计、`/api/health` 探测数据库、账号注销与申诉、VACUUM INTO 备份。
-- **部署备忘：** `.env.example` 列出服务端读取的全部环境变量（仅占位，无真实密钥）；默认面向阿里云香港 + nginx 反代 127.0.0.1:8787 + 库路径 `/opt/nova/data/nova.db`，`NOVA_TRUST_PROXY=1`，CORS 须含管理端 Origin、`capacitor://localhost`、`http://localhost`。当前 80 端口为 HTTP，示例中 `NOVA_HSTS` 与 `NOVA_COOKIE_SECURE` 保持关闭，配好 HTTPS 后再开。
-- **备份：** `scripts/backup.sh` / `npm run backup` 用 `VACUUM INTO` 做一致性快照，默认保留 14 份；恢复脚本先停 systemd 再换文件。说明与 nginx、systemd、管理员创建、更新/回滚、`journalctl` 见 `docs/OPS.md`。
+- **部署备忘：** `.env.example` 列出服务端读取的全部环境变量；默认面向阿里云香港 + nginx 反代 127.0.0.1:8787 + 库路径 `/opt/nova/data/nova.db`，`NOVA_TRUST_PROXY=1`，CORS 含 `http://47.239.0.90`、`capacitor://localhost`、`http://localhost`。`NOVA_HSTS` 与 `NOVA_COOKIE_SECURE` 在 HTTP 下关闭。把本版本部署到 `/opt/nova/app` 的步骤、会话风险和 `node:sqlite` 简要说明见 `docs/OPS.md`。
+- **备份：** `scripts/backup.sh` / `npm run backup` 用 `VACUUM INTO` 做一致性快照，默认保留 14 份；恢复脚本先停 systemd 再换文件。
+- **合规文档（正式稿，非草案）：** 《隐私政策》《用户协议》在 `docs/compliance/`，运营者信息来自配置（默认：Sterling ideve，ideve217@gmail.com，生效 2026年11月20日），页面与接口按此渲染。`GET /legal/privacy`、`GET /legal/terms` 与 `/api/legal/*`。注册须勾选同意并记录版本；设置中有入口。账号安全页提供注销（密码确认、后果说明、可先导出，调用 `POST /api/me/delete` 后退出）。
+- **管理端（Agen）：** `GET /api/version`（版本、提交、Node）；`/api/health` 增加 `version`/`commit`；动态与公告响应含 ISO `createdAtUtc`；频道消息 `author.displayName` 取用户显示名，空则回退用户名。
+- **M7.2 星澜主题与按键皮肤：** 星澜令牌映射到现有 CSS 变量，深色为默认、浅色可跟随系统或在设置中覆盖；使用星澜图标与标志；用户端应用图标和启动屏在 `capacitor/resources/`（仅 user，不含 Agen）。按键皮肤系统见 `docs/SKINS.md`：注册表 `assets/skins/index.json`，新增皮肤只需加文件夹和条目。默认选星澜，「经典」可切回旧外观。选择按账号存在本机，并写入 `POST /api/me/prefs`。许可见 `docs/LICENSES-xinglan.md`。不打包完整 Noto 字体，使用系统 CJK 字体栈。
 
 ## V7 0.7.0-m5.1 · M5 消息与社区增强、楼中楼、真实数据与管理端补强（2026-11-12）
 

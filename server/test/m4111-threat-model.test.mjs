@@ -33,8 +33,8 @@ test('当前实现仍把私聊以明文存取（与威胁模型一致，未伪�
     return {s: r.status, j: await r.json()};
   };
   try {
-    const a = (await call('POST', '/api/auth/register', {username: 'tm4111a', email: 'tm4111a@x.test', password: 'Passw0rd123'})).j;
-    const b = (await call('POST', '/api/auth/register', {username: 'tm4111b', email: 'tm4111b@x.test', password: 'Passw0rd123'})).j;
+    const a = (await call('POST', '/api/auth/register', {agree:true, username: 'tm4111a', email: 'tm4111a@x.test', password: 'Passw0rd123'})).j;
+    const b = (await call('POST', '/api/auth/register', {agree:true, username: 'tm4111b', email: 'tm4111b@x.test', password: 'Passw0rd123'})).j;
     srv.friends.setAccepted(a.user.id, b.user.id);
     const cv = (await call('POST', '/api/conversations', {kind: 'dm', userId: b.user.id}, a.token)).j.conversation;
     const marker = 'PLAINTEXT_MARKER_4111';

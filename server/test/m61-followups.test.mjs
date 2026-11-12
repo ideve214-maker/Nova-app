@@ -36,7 +36,7 @@ const call = async (m, p, body, tok, {raw, headers} = {}) => {
 async function user(name) {
   seq += 1;
   const un = (name || 'fu') + seq + Date.now().toString(36);
-  const r = await call('POST', '/api/auth/register', {username: un, email: un + '@x.test', password: 'Passw0rd123'});
+  const r = await call('POST', '/api/auth/register', {agree:true, username: un, email: un + '@x.test', password: 'Passw0rd123'});
   assert.equal(r.status, 200, text(r));
   return {tok: r.j.token, id: r.j.user.id, username: r.j.user.username};
 }

@@ -40,6 +40,8 @@ import {createAccount} from './account.mjs';
 import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
+import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} from './legal.mjs';
+import {appVersion} from './version.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 
@@ -144,7 +146,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const reports = createReports(db, {now, notifications, profile});
 
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
-  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
+  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, legalVersion: u.legal_version || null, legalAgreedAt: u.legal_agreed_at || null, skin: u.ui_skin || null, profile: profile.publicOf(u)}; };
   const q = {
     userBy: db.prepare('SELECT * FROM users WHERE id=?'),
     userByLogin: db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE OR email = ?'),
@@ -246,23 +248,29 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   }
 
   function legalDoc(kind) {
-    const name = kind === 'terms' ? '04_user-agreement.md' : '04_privacy-policy.md';
-    const fp = pathJoin(dirname(fileURLToPath(import.meta.url)), '../docs/compliance', name);
-    let body = '';
-    try { body = _readLegal(fp, 'utf8'); } catch { body = '文档尚未生成。本接口仅提供草案，需专业审阅，不构成法律意见。'; }
-    return {kind, body, language: 'zh-CN', reviewRequired: true, disclaimer: '本稿为草案，须经专业人士审阅，不构成法律意见。'};
+    return loadLegal(kind, process.env);
   }
+  const verInfo = appVersion();
   const routes = {
     'POST /api/auth/register'(req, b) {
       const username = String(b.username || '').trim(), email = String(b.email || '').trim().toLowerCase(), pw = b.password;
       if (!validate.username(username)) throw bad('BAD_USERNAME', '用户名需 3–20 位，仅限文字、数字、下划线');
       if (!validate.email(email)) throw bad('BAD_EMAIL', '邮箱格式不正确');
       if (!validate.password(pw)) throw bad('WEAK_PASSWORD', PW_MSG);
+      if (b.agree === false || b.agree === 0 || b.agree === '0' || b.agree === 'no' || b.agree === 'false') {
+        throw bad('AGREE_REQUIRED', '请阅读并同意《用户协议》和《隐私政策》');
+      }
+      if (!(b.agree === true || b.agree === '1' || b.agree === 'yes' || b.agree === 'on')) {
+        throw bad('AGREE_REQUIRED', '请阅读并同意《用户协议》和《隐私政策》');
+      }
       if (q.userByLogin.get(username, email)) throw bad('EXISTS', '用户名或邮箱已被注册', 409);
       const r = q.insUser.run(username, email, hashPassword(pw), now());
-      const u = q.userBy.get(Number(r.lastInsertRowid));
-      audit(u.id, 'user.register', 'user:' + u.id, ip(req));
-      return {user: pubUser(u), ...issue(u, req, b)};
+      const u0 = q.userBy.get(Number(r.lastInsertRowid));
+      const lv = legalConfig(process.env).version;
+      try { db.prepare('UPDATE users SET legal_version=?, legal_agreed_at=? WHERE id=?').run(lv, now(), u0.id); } catch {}
+      const u = q.userBy.get(u0.id);
+      audit(u.id, 'user.register', 'user:' + u.id, ip(req), {legalVersion: lv});
+      return {user: pubUser(u), legalVersion: lv, ...issue(u, req, b)};
     },
     'POST /api/auth/login'(req, b) {
       const id = String(b.account || '').trim().toLowerCase(), pw = String(b.password || ''), key = 'a:' + id;
@@ -1308,8 +1316,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return {
         status: 'ok', time: now(), db: 'ok',
         uptime: Math.round(process.uptime()),
+        version: verInfo.version, commit: verInfo.commit,
         disk: disk && disk.free != null ? {free: disk.free, low: !!disk.low} : undefined,
       };
+    },
+    'GET /api/version'() {
+      return verInfo;
     },
     'GET /api/metrics'(req) {
       const {admin} = adminAuth(req);
@@ -1366,6 +1378,18 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'GET /api/legal/privacy'() { return legalDoc('privacy'); },
     'GET /api/legal/terms'() { return legalDoc('terms'); },
+    'POST /api/me/prefs'(req, b) {
+      const {user} = auth(req);
+      const body = b || {};
+      const out = {skin: user.ui_skin || null, legalVersion: user.legal_version || null};
+      if (body.skin !== undefined) {
+        const skin = String(body.skin || '').trim();
+        if (skin && !/^[a-z0-9][a-z0-9_-]{0,31}$/.test(skin)) throw bad('BAD_SKIN', '皮肤编号不正确');
+        try { db.prepare('UPDATE users SET ui_skin=? WHERE id=?').run(skin || null, user.id); } catch {}
+        out.skin = skin || null;
+      }
+      return out;
+    },
     'GET /api/auth/csrf'(req) {
       const csrf = newCsrf();
       req._setCookies = [
@@ -1418,7 +1442,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     const path = parsed.pathname;
     req.query = Object.fromEntries(parsed.searchParams);
     req.params = {};
-    if (rate && path !== '/api/health') {
+    if (rate && path !== '/api/health' && path !== '/api/version' && !path.startsWith('/legal/')) {
       try {
         const id = ip(req) || 'unknown';
         let kind = 'global';
@@ -1437,12 +1461,29 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         throw e;
       }
     }
+    if (req.method === 'GET' && (path === '/legal/privacy' || path === '/legal/terms')) {
+      const doc = legalDoc(path.endsWith('terms') ? 'terms' : 'privacy');
+      const html = renderLegalHtml(doc);
+      res.writeHead(200, {...h, ...securityHeaders({hsts: !!hsts, html: true, connectSrc: process.env.NOVA_API_BASE || ''}), 'Content-Type': 'text/html; charset=utf-8'});
+      return res.end(html);
+    }
     if (req.method === 'GET' && path.startsWith('/assets/')) {
       const name = decodeURIComponent(path.slice('/assets/'.length));
-      if (!/^[\w.-]+$/.test(name)) return send(400, {error: {code: 'BAD_PATH', message: '路径不正确'}});
+      if (!name || name.includes('..') || name.startsWith('/') || !/^(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/.test(name)) {
+        return send(400, {error: {code: 'BAD_PATH', message: '路径不正确'}});
+      }
       const fp = join(assetRoot, name);
       if (!existsSync(fp)) return send(404, {error: {code: 'NOT_FOUND', message: '文件不存在'}});
-      const ext = name.endsWith('.png') ? 'image/png' : name.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+      const lower = name.toLowerCase();
+      const ext = lower.endsWith('.svg') ? 'image/svg+xml'
+        : lower.endsWith('.css') ? 'text/css; charset=utf-8'
+        : lower.endsWith('.json') ? 'application/json; charset=utf-8'
+        : lower.endsWith('.png') ? 'image/png'
+        : lower.endsWith('.webp') ? 'image/webp'
+        : lower.endsWith('.woff2') ? 'font/woff2'
+        : lower.endsWith('.js') ? 'text/javascript; charset=utf-8'
+        : lower.endsWith('.html') ? 'text/html; charset=utf-8'
+        : 'image/jpeg';
       res.writeHead(200, {...h, 'Content-Type': ext, 'Cache-Control': 'public, max-age=86400'});
       return createReadStream(fp).pipe(res);
     }

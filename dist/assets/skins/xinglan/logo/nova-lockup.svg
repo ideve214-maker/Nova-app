@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" role="img" aria-label="NOVA 星澜">
+  <title>NOVA Lockup · 星澜</title>
+  <defs>
+    <linearGradient id="star" x1="48" y1="8" x2="48" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C5D0FF"/>
+      <stop offset=".45" stop-color="#8BA3FF"/>
+      <stop offset="1" stop-color="#5B74F2"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="10" y1="88" x2="86" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ECDC4"/>
+      <stop offset="1" stop-color="#6E8BFF"/>
+    </linearGradient>
+    <linearGradient id="type" x1="130" y1="20" x2="400" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F4F6FC"/>
+      <stop offset="1" stop-color="#C5D0FF"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(8 8) scale(1.62)">
+    <path fill="url(#star)" d="M32 3.5 C33.2 16.2 35.6 22.6 46.8 25.2 C35.6 27.8 33.2 34.2 32 46.8 C30.8 34.2 28.4 27.8 17.2 25.2 C28.4 22.6 30.8 16.2 32 3.5Z"/>
+    <path fill="url(#star)" opacity=".9" d="M32 16.5 C32.7 22.4 34.2 25.6 40.6 27 C34.2 28.4 32.7 31.6 32 37.5 C31.3 31.6 29.8 28.4 23.4 27 C29.8 25.6 31.3 22.4 32 16.5Z" transform="rotate(45 32 27)"/>
+    <path fill="none" stroke="url(#wave)" stroke-width="2.4" stroke-linecap="round"
+          d="M8 48.5c6.5-5.5 12.5-5.5 19 0s12.5 5.5 19 0 10.5-5.2 11.5-5"/>
+    <path fill="none" stroke="url(#wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55"
+          d="M12 55.5c5.5-4.2 11-4.2 16.5 0s11 4.2 16.5 0 8.5-4 9.5-3.8"/>
+  </g>
+  <!-- Geometric wordmark NOVA, original letterforms, 800-ish weight -->
+  <g fill="url(#type)" transform="translate(128 28)">
+    <!-- N -->
+    <path d="M0 4h18.2V56.5H0V4zm7.4 11.2v17.8L16.2 15.2h1.9v30.1h-7.4V27.6L3.9 45.3H2V15.2h5.4z"/>
+    <!-- O -->
+    <path d="M47.2 5.2c12.6 0 20.8 9.2 20.8 25.6S59.8 56.5 47.2 56.5 26.3 47.2 26.3 30.8 34.6 5.2 47.2 5.2zm0 8.4c-7.3 0-12.3 6.3-12.3 17.2s5 17.3 12.3 17.3 12.3-6.4 12.3-17.3-5-17.2-12.3-17.2z"/>
+    <!-- V -->
+    <path d="M73.2 15.2h8.4L92.4 51h-8.2L76.8 24.6 69.3 51h-8.1l10.7-35.8h1.3z"/>
+    <!-- A -->
+    <path d="M115.6 15.2 129 56.5h-8.4l-2.5-8.3H100.6l-2.6 8.3h-8.1L103.4 15.2h12.2zm-3.6 11.2-5.1 16.2h10.3l-5.2-16.2z"/>
+  </g>
+  <text x="132" y="108" font-family="Noto Sans CJK SC, Noto Sans SC, sans-serif" font-size="13" font-weight="600" fill="#6B7388" letter-spacing="4">星澜  XINGLAN</text>
+</svg>

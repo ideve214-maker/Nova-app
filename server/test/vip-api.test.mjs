@@ -19,7 +19,7 @@ const call = async (m, p, body, tok, headers = {}) => {
   return {s: r.status, j: await r.json()};
 };
 let n = 0;
-const mk = async () => { const u = 'vipuser_' + (++n); const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
+const mk = async () => { const u = 'vipuser_' + (++n); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
 const setVip = (id, until, since = null, source = 'admin') => srv.db.prepare('UPDATE users SET vip_until=?, vip_since=?, vip_source=? WHERE id=?').run(until, since, source, id);
 
 test('目录公开可读：套餐、价格占位、权益表、到期规则，且不含用户信息', async () => {
@@ -92,7 +92,7 @@ test('到期由服务端按时间自动回落 Basic（不需要任何人操作�
 });
 
 test('客户端无法自行设置 VIP：多余字段、伪造头部、写接口一律无效', async () => {
-  const r = await call('POST', '/api/auth/register', {username: 'sneaky_1', email: 's1@x.com', password: 'Passw0rd123', vip: true, vip_until: T0 + 999 * DAY, vipUntil: T0 + 999 * DAY, role: 'admin'},
+  const r = await call('POST', '/api/auth/register', {agree:true, username: 'sneaky_1', email: 's1@x.com', password: 'Passw0rd123', vip: true, vip_until: T0 + 999 * DAY, vipUntil: T0 + 999 * DAY, role: 'admin'},
     null, {'X-Nova-Vip': '1', 'X-Vip': 'true'});
   assert.equal(r.s, 200); assert.equal(r.j.user.vip, false); assert.equal(r.j.user.role, 'user');
   const tok = r.j.token;

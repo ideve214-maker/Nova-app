@@ -26,6 +26,7 @@ export async function register(page, name, email = name + '@x.test', pw = 'Passw
   await page.click('[data-a=authpane][data-v=reg]');
   await page.fill('[data-d=ru]', name); await page.fill('[data-d=re]', email);
   await page.fill('[data-d=rpw]', pw); await page.fill('[data-d=rpw2]', pw);
+  const ag=page.locator('[data-a=agreetog]'); if(await ag.count()) await ag.click();
   await page.click('[data-a=authgo]');
   await page.waitForSelector('nav');
 }

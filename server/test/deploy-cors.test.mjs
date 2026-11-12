@@ -79,7 +79,7 @@ test('白名单：只回显匹配的 Origin；未匹配不回显；预检与 SSE
     const acc = await fetch(base + '/api/auth/register', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: 'cors_sse', email: 'cors_sse@x.test', password: 'Passw0rd123'}),
+      body: JSON.stringify({agree:true, username: 'cors_sse', email: 'cors_sse@x.test', password: 'Passw0rd123'}),
     });
     const j = await acc.json();
     assert.equal(acc.status, 200, JSON.stringify(j));

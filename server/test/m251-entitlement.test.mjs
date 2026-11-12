@@ -14,7 +14,7 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j: await r.json()};
 };
 let n = 0;
-const mk = async () => { const u = 'ent_' + (++n); const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
+const mk = async () => { const u = 'ent_' + (++n); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
 const setVip = (id, until, since = T0 - DAY, source = 'admin') => srv.db.prepare('UPDATE users SET vip_until=?, vip_since=?, vip_source=? WHERE id=?').run(until, since, source, id);
 const user = id => srv.db.prepare('SELECT * FROM users WHERE id=?').get(id);
 const catchVip = fn => { try { fn(); return null; } catch (e) { assert.ok(e instanceof VipError, '必须抛 VipError，不能静默放行'); return e; } };

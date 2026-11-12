@@ -81,7 +81,7 @@ test('普通用户令牌访问 /api/admin/* 返回 403；弱密码/残缺环境�
   const srv = createApp({adminUsername: 'ops_cara', adminPassword: 'CaraPass1x'});
   const base = await listen(srv);
   try {
-    const u = await call(base, 'POST', '/api/auth/register', {username: 'normalu', email: 'n@x.test', password: 'Passw0rd123'});
+    const u = await call(base, 'POST', '/api/auth/register', {agree:true, username: 'normalu', email: 'n@x.test', password: 'Passw0rd123'});
     assert.equal(u.s, 200);
     const r = await call(base, 'GET', '/api/admin/me', null, u.j.token);
     assert.equal(r.s, 403);

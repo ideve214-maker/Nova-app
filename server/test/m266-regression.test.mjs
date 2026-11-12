@@ -11,7 +11,7 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j: await r.json()};
 };
 let n = 0;
-const mk = async () => { const u = 'rg_' + (++n); const r = await call('POST', '/api/auth/register', {username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
+const mk = async () => { const u = 'rg_' + (++n); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token, u}; };
 
 test('一条链路：改资料+头像+隐私后重登全部还在；改密后其他设备下线、本设备仍在；A 读不到 B', async () => {
   const a = await mk(), b = await mk();

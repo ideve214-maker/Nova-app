@@ -44,8 +44,8 @@ test('上传公钥与一次性密钥；领取后密钥被消耗；服务端无�
     return {s: r.status, j: await r.json()};
   };
   try {
-    const a = (await call('POST', '/api/auth/register', {username: 'ek4113a', email: 'ek4113a@x.test', password: 'Passw0rd123'})).j;
-    const b = (await call('POST', '/api/auth/register', {username: 'ek4113b', email: 'ek4113b@x.test', password: 'Passw0rd123'})).j;
+    const a = (await call('POST', '/api/auth/register', {agree:true, username: 'ek4113a', email: 'ek4113a@x.test', password: 'Passw0rd123'})).j;
+    const b = (await call('POST', '/api/auth/register', {agree:true, username: 'ek4113b', email: 'ek4113b@x.test', password: 'Passw0rd123'})).j;
     srv.friends.setAccepted(a.user.id, b.user.id);
     const accA = new Account();
     const bodyA = {deviceId: 'dv_alice11111111', ...keysOf(accA, 5)};
@@ -58,7 +58,7 @@ test('上传公钥与一次性密钥；领取后密钥被消耗；服务端无�
     assert.equal(bad.s, 400);
     assert.equal(bad.j.error.code, 'PRIVATE_KEY_REJECTED');
     // 非好友看不到
-    const stranger = (await call('POST', '/api/auth/register', {username: 'ek4113c', email: 'ek4113c@x.test', password: 'Passw0rd123'})).j;
+    const stranger = (await call('POST', '/api/auth/register', {agree:true, username: 'ek4113c', email: 'ek4113c@x.test', password: 'Passw0rd123'})).j;
     assert.equal((await call('GET', '/api/e2ee/keys/' + a.user.id, null, stranger.token)).s, 403);
     const listed = await call('GET', '/api/e2ee/keys/' + a.user.id, null, b.token);
     assert.equal(listed.s, 200);

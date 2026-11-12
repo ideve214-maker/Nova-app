@@ -14,7 +14,7 @@ const call = async (base, m, p, body, tok) => {
   return {s: r.status, j: await r.json().catch(() => ({}))};
 };
 const acc = async (base, n) => {
-  const r = await call(base, 'POST', '/api/auth/register', {username: n + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), email: n + Date.now() + '@x.test', password: 'Passw0rd123'});
+  const r = await call(base, 'POST', '/api/auth/register', {agree:true, username: n + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), email: n + Date.now() + '@x.test', password: 'Passw0rd123'});
   return {tok: r.j.token, id: r.j.user.id};
 };
 
