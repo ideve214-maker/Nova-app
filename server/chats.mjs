@@ -31,6 +31,24 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     WHERE c.deleted_at IS NULL AND m.user_id=? AND m.left_at IS NULL
     ORDER BY c.created_at DESC, c.id DESC`);
   const nMem = db.prepare(`SELECT COUNT(*) AS n FROM conversation_members WHERE conversation_id=? AND left_at IS NULL`);
+  const hasMsg = (() => { try { db.prepare('SELECT 1 FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
+  const nidMsg = () => nid('mg');
+  const insMsg = hasMsg ? db.prepare(`INSERT INTO messages(id,conversation_id,author_id,kind,text,created_at,client_id) VALUES(?,?,?,?,?,?,?)`) : null;
+  const msgById = hasMsg ? db.prepare('SELECT * FROM messages WHERE id=?') : null;
+  const msgByClient = hasMsg ? db.prepare('SELECT * FROM messages WHERE conversation_id=? AND author_id=? AND client_id=?') : null;
+  const lastMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1`) : null;
+  const newestMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+    ORDER BY created_at DESC, id DESC LIMIT ?`) : null;
+  const olderMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+    AND (created_at < ? OR (created_at = ? AND id < ?))
+    ORDER BY created_at DESC, id DESC LIMIT ?`) : null;
+  const afterMsg = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+    AND (created_at > ? OR (created_at = ? AND id > ?))
+    ORDER BY created_at ASC, id ASC LIMIT ?`) : null;
+  const afterById = hasMsg ? db.prepare(`SELECT * FROM messages WHERE conversation_id=? AND deleted_at IS NULL
+    AND created_at >= (SELECT created_at FROM messages WHERE id=?)
+    ORDER BY created_at ASC, id ASC LIMIT ?`) : null;
+
 
   let sendMsg = null, listMsg = null; // 由 attachMessages 在 M4.3.2 挂上
 
@@ -266,10 +284,109 @@ export function createChats(db, {profile, vip, now, friends, onEvent} = {}) {
     return {conversation: pub(byId.get(id), user)};
   }
 
+
+  function pubMsg(row, me) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      conversationId: row.conversation_id,
+      author: authorOf(row.author_id),
+      kind: row.kind,
+      text: row.deleted_at ? '' : row.text,
+      deleted: !!row.deleted_at,
+      createdAt: row.created_at,
+      mine: !!(me && Number(me.id) === Number(row.author_id)),
+      clientId: row.client_id || undefined,
+    };
+  }
+  function parseCursor(c) {
+    if (!c) return null;
+    const s = String(c);
+    const i = s.indexOf(':');
+    if (i < 1) {
+      const row = msgById && msgById.get(s);
+      return row ? {at: row.created_at, id: row.id} : null;
+    }
+    return {at: Number(s.slice(0, i)), id: s.slice(i + 1)};
+  }
+  function send(user, id, body) {
+    if (!insMsg) throw new ApiError(503, 'NO_MESSAGES', '消息功能尚未就绪');
+    const row = requireConv(id);
+    requireMem(row, user);
+    if (row.kind === 'dm') {
+      const other = mems.all(id).find(m => Number(m.user_id) !== Number(user.id));
+      if (other) checkDmGate(user.id, other.user_id);
+    }
+    const text = String((body && body.text) != null ? body.text : '').trim();
+    if (!len(text)) throw new ApiError(400, 'BAD_TEXT', '请输入消息');
+    if (vip) vip.requireTextLength(user, 'chat', text);
+    let clientId = body && body.clientId != null ? String(body.clientId).trim() : '';
+    if (clientId) {
+      if (clientId.length > 80) throw new ApiError(400, 'BAD_CLIENT_ID', 'clientId 过长');
+      const existed = msgByClient.get(id, Number(user.id), clientId);
+      if (existed) {
+        if (existed.deleted_at) throw new ApiError(409, 'GONE', '这条消息已被删除');
+        return {message: pubMsg(existed, user), idempotent: true};
+      }
+    } else clientId = null;
+    const mid = nidMsg(), t = now();
+    try { insMsg.run(mid, id, Number(user.id), 'text', text, t, clientId); }
+    catch (e) {
+      if (clientId && /UNIQUE/i.test(String(e.message))) {
+        const existed = msgByClient.get(id, Number(user.id), clientId);
+        if (existed && !existed.deleted_at) return {message: pubMsg(existed, user), idempotent: true};
+      }
+      throw e;
+    }
+    const msg = pubMsg(msgById.get(mid), user);
+    const others = mems.all(id).map(m => m.user_id);
+    emit(others, 'conversation.message', {conversationId: id, message: msg});
+    return {message: msg};
+  }
+  function listMessages(user, id, q = {}) {
+    if (!newestMsg) throw new ApiError(503, 'NO_MESSAGES', '消息功能尚未就绪');
+    const row = requireConv(id);
+    requireMem(row, user);
+    const limit = Math.min(Math.max(Number(q.limit) || 50, 1), 100);
+    if (q.after) {
+      const cur = parseCursor(q.after);
+      if (!cur) return {messages: [], nextCursor: null, hasMore: false};
+      const rows = afterMsg.all(id, cur.at, cur.at, cur.id, limit + 1);
+      const more = rows.length > limit;
+      const page = more ? rows.slice(0, limit) : rows;
+      return {
+        messages: page.map(r => pubMsg(r, user)),
+        nextCursor: more ? page[page.length - 1].created_at + ':' + page[page.length - 1].id : null,
+        hasMore: more,
+        direction: 'after',
+      };
+    }
+    const cur = parseCursor(q.cursor);
+    const rows = cur
+      ? olderMsg.all(id, cur.at, cur.at, cur.id, limit + 1)
+      : newestMsg.all(id, limit + 1);
+    const more = rows.length > limit;
+    const page = (more ? rows.slice(0, limit) : rows).reverse();
+    const next = more ? page[0] : null; // oldest in this page — next older page starts here
+    return {
+      messages: page.map(r => pubMsg(r, user)),
+      nextCursor: next ? next.created_at + ':' + next.id : null,
+      hasMore: more,
+    };
+  }
+  function lastOf(id) {
+    if (!lastMsg) return null;
+    const r = lastMsg.get(id);
+    return r ? pubMsg(r, {id: -1}) : null;
+  }
+
   function attachMessages(api) { sendMsg = api.send; listMsg = api; }
+  // 自挂：本模块已含消息
+  listMsg = {last: lastOf, list: listMessages};
 
   return {
     create, list, get, addMember, setMemberRole, kick, leave, rename,
+    send, listMessages, pubMsg,
     attachMessages,
     requireConv, requireMem, activeMem, authorOf, checkDmGate, pub,
     ROLE_CN, ROLES, NEED, MAX_GROUP,

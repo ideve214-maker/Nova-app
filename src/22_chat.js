@@ -51,3 +51,43 @@ async function createGroupChat(name,userIds){
   S.conversations.unshift(c);
   return c;
 }
+
+function adoptMsg(m){
+  if(!m)return null;
+  rememberAuthor(m.author);
+  const me=SESSION&&SESSION.user&&m.author&&Number(SESSION.user.id)===Number(m.author.id);
+  return [me?'me':String(m.author.id),'t',typeof ago==='function'?ago(m.createdAt):'',me?'已发送':'',m.deleted?'（已撤回）':m.text,m.id];
+}
+function msgSrc(id){
+  if(typeof usingNet==='function'&&usingNet())return (S.messages&&S.messages[id])||[];
+  return D.m[id]||[];
+}
+async function loadMessages(id,cursor){
+  if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
+  const q=(cursor?'?cursor='+encodeURIComponent(cursor)+'&limit=50':'?limit=50');
+  const r=await api('GET','/api/conversations/'+id+'/messages'+q);
+  S.messages=S.messages||{};S.msgCursor=S.msgCursor||{};
+  if(r.s!==200){S.messages[id]=S.messages[id]||[];return}
+  const page=(r.j.messages||[]).map(adoptMsg);
+  if(!cursor)S.messages[id]=page;
+  else{
+    const old=S.messages[id]||[];
+    const seen=new Set(old.map(m=>m[5]));
+    S.messages[id]=[...page.filter(m=>!seen.has(m[5])),...old];
+  }
+  S.msgCursor[id]=r.j.nextCursor||null;
+}
+async function sendNet(cid,text){
+  const clientId='c'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+  const r=await api('POST','/api/conversations/'+cid+'/messages',{text,clientId});
+  if(r.s!==200){T(errMsg(r,'发送失败'));return null}
+  const m=adoptMsg(r.j.message);
+  S.messages=S.messages||{};
+  S.messages[cid]=S.messages[cid]||[];
+  if(!S.messages[cid].some(x=>x[5]===m[5]))S.messages[cid].push(m);
+  if(Array.isArray(S.conversations)){
+    const i=S.conversations.findIndex(c=>c.id==cid);
+    if(i>=0){const c=S.conversations.splice(i,1)[0];c.last=r.j.message;S.conversations.unshift(c)}
+  }
+  return r.j.message;
+}

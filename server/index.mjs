@@ -422,6 +422,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(user.id, 'chat.rename', 'conversation:' + req.params.id, ip(req));
       return r;
     },
+
+    'POST /api/conversations/:id/messages'(req, b) {
+      const {user} = auth(req);
+      const r = chats.send(user, req.params.id, b || {});
+      audit(user.id, 'chat.message', 'conversation:' + req.params.id, ip(req), {messageId: r.message && r.message.id});
+      return r;
+    },
+    'GET /api/conversations/:id/messages'(req) {
+      const {user} = auth(req);
+      return chats.listMessages(user, req.params.id, req.query || {});
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
