@@ -1,4 +1,4 @@
-# NOVA 后端（M4.2.1）
+# NOVA 后端（M4.2.2）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
 环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
@@ -50,6 +50,9 @@
 | GET /api/communities/:id | 社区详情 |
 | POST /api/communities/:id/join | 加入 |
 | POST /api/communities/:id/leave | 退出 |
+| GET /api/communities/:id/members | 成员列表 |
+| POST /api/communities/:id/role | 设置成员角色 |
+| POST /api/communities/:id/kick | 移出 / 封禁成员 |
 | GET /api/health | 健康检查 |
 
 请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
