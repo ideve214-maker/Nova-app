@@ -19,4 +19,15 @@ describe("hash routing", () => {
   it("rejects unknown paths", () => {
     assert.equal(hashToNav("#/not-a-page"), null);
   });
+  it("maps community, channel and blockwords", () => {
+    assert.equal(navToHash({ name: "communities" }), "#/communities");
+    assert.equal(navToHash({ name: "community", userId: "cm_1" }), "#/community/cm_1");
+    assert.deepEqual(hashToNav("#/community/cm_1"), { name: "community", userId: "cm_1" });
+    assert.equal(navToHash({ name: "channel", channelId: "ch_1" }), "#/channel/ch_1");
+    assert.deepEqual(hashToNav("#/channel/ch_1"), { name: "channel", channelId: "ch_1", userId: undefined });
+    assert.equal(navToHash({ name: "channel", channelId: "ch_1", userId: "cm_1" }), "#/channel/ch_1/cm_1");
+    assert.deepEqual(hashToNav("#/channel/ch_1/cm_1"), { name: "channel", channelId: "ch_1", userId: "cm_1" });
+    assert.equal(navToHash({ name: "blockwords" }), "#/blockwords");
+    assert.deepEqual(hashToNav("#/blockwords"), { name: "blockwords" });
+  });
 });

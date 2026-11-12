@@ -1,5 +1,5 @@
 /**
- * 管理端对 0.7.0-m4.12 后端的实际调用。
+ * 管理端对 0.7.0-m5.1 后端的实际调用。
  * 路径仍走 backend.ts 的对照表与别名，便于以后换版本。
  */
 import {
@@ -14,6 +14,10 @@ import {
   mapRemoteReport,
   mapRemoteStats,
   mapRemoteUser,
+  mapRemoteBlockword,
+  mapRemoteChannel,
+  mapRemoteChannelMessage,
+  mapRemoteCommunity,
   pickToken,
   readErrorMessage,
   saveConfig,
@@ -21,6 +25,10 @@ import {
   type MappedAdmin,
   type MappedAnnouncement,
   type MappedAudit,
+  type MappedBlockword,
+  type MappedChannel,
+  type MappedChannelMessage,
+  type MappedCommunity,
   type MappedContent,
   type MappedMember,
   type MappedPayment,
@@ -291,4 +299,94 @@ export async function remoteDecideReport(id: string, action: "resolve" | "reject
   const rec = asRecord(res.json);
   const item = mapRemoteReport(rec && rec.report ? rec.report : res.json);
   return item ? ok(res, item) : fail(res, "处理举报失败");
+}
+
+
+export async function remoteEditAnnouncement(id: string, title: string, body: string, published?: boolean): Promise<Remote<MappedAnnouncement>> {
+  const payload: Record<string, unknown> = { title, body };
+  if (published != null) payload.published = published;
+  let res = await apiRequest("adminAnnouncementPatch", { method: "PATCH", params: { id }, body: payload, timeoutMs: 8000 });
+  if (res.status === 404 || res.status === 405) {
+    res = await apiRequest("adminAnnouncementEdit", { method: "POST", params: { id }, body: payload, timeoutMs: 8000 });
+  }
+  if (!res.ok) return fail(res, "编辑公告失败");
+  const rec = asRecord(res.json);
+  const item = mapRemoteAnnouncement(rec && rec.announcement ? rec.announcement : res.json);
+  return item ? ok(res, item) : fail(res, "编辑公告失败");
+}
+
+export async function remoteWithdrawAnnouncement(id: string): Promise<Remote<MappedAnnouncement>> {
+  const res = await apiRequest("adminAnnouncementWithdraw", { method: "POST", params: { id }, body: {}, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "撤回公告失败");
+  const rec = asRecord(res.json);
+  const item = mapRemoteAnnouncement(rec && rec.announcement ? rec.announcement : res.json);
+  return item ? ok(res, item) : fail(res, "撤回公告失败");
+}
+
+export async function remoteCommunities(): Promise<Remote<MappedCommunity[]>> {
+  const res = await apiRequest("adminCommunities", { query: { limit: 100 }, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法获取社区列表");
+  const rows = extractList(res.json)
+    .map(mapRemoteCommunity)
+    .filter((x): x is MappedCommunity => !!x);
+  return ok(res, rows);
+}
+
+export async function remoteCommunity(id: string): Promise<Remote<MappedCommunity>> {
+  const res = await apiRequest("adminCommunity", { params: { id }, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法获取社区");
+  const item = mapRemoteCommunity(res.json);
+  return item ? ok(res, item) : fail(res, "无法解析社区");
+}
+
+export async function remoteChannelMessages(id: string, limit = 80): Promise<Remote<{ channel: MappedChannel | null; messages: MappedChannelMessage[] }>> {
+  const res = await apiRequest("adminChannelMessages", { params: { id }, query: { limit }, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法获取频道消息");
+  const rec = asRecord(res.json);
+  const channel = rec ? mapRemoteChannel(rec.channel, asStringSafe(rec, "communityId")) : null;
+  const raw = rec && Array.isArray(rec.messages) ? rec.messages : extractList(res.json);
+  const messages = raw.map(mapRemoteChannelMessage).filter((x): x is MappedChannelMessage => !!x);
+  return ok(res, { channel, messages });
+}
+
+function asStringSafe(rec: Record<string, unknown> | null, key: string): string {
+  if (!rec) return "";
+  const ch = rec.channel;
+  if (ch && typeof ch === "object" && ch !== null && "communityId" in (ch as object)) {
+    const v = (ch as Record<string, unknown>).communityId;
+    if (v != null) return String(v);
+  }
+  return "";
+}
+
+export async function remoteContentItem(type: string, id: string): Promise<Remote<MappedContent>> {
+  const res = await apiRequest("adminContentItem", { params: { type, id }, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法获取内容");
+  const rec = asRecord(res.json);
+  const item = mapRemoteContent(rec && rec.item ? rec.item : res.json, type === "comment" ? "comment" : "post");
+  return item ? ok(res, item) : fail(res, "无法解析内容");
+}
+
+export async function remoteBlockwords(): Promise<Remote<MappedBlockword[]>> {
+  const res = await apiRequest("adminBlockwords", { timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法获取屏蔽词");
+  const rows = extractList(res.json)
+    .map(mapRemoteBlockword)
+    .filter((x): x is MappedBlockword => !!x);
+  return ok(res, rows);
+}
+
+export async function remoteAddBlockword(word: string, note?: string): Promise<Remote<{ item: MappedBlockword; existed: boolean }>> {
+  const res = await apiRequest("adminBlockwords", { method: "POST", body: { word, note }, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "添加屏蔽词失败");
+  const rec = asRecord(res.json);
+  const item = mapRemoteBlockword(rec && rec.blockword ? rec.blockword : res.json);
+  if (!item) return fail(res, "添加屏蔽词失败");
+  return ok(res, { item, existed: !!(rec && rec.existed) });
+}
+
+export async function remoteDeleteBlockword(id: string): Promise<Remote<{ removed: string }>> {
+  const res = await apiRequest("adminBlockwordDelete", { method: "POST", params: { id }, body: {}, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "删除屏蔽词失败");
+  return ok(res, { removed: id });
 }

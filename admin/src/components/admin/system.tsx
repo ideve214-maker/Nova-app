@@ -3,9 +3,6 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { Bell, ChevronRight, LockKeyhole, Megaphone, ScrollText, Server, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import {
   ENTITLEMENTS,
-  TREND_30,
-  TREND_7,
-  TREND_90,
   fmtUntil,
   useAdmin,
   vipPhase,
@@ -146,7 +143,7 @@ export function AuditScreen() {
           <div className="min-w-0">
             <h2 className="font-semibold">{item.action}</h2>
             <p className="truncate text-sm text-muted">对象：{item.target}</p>
-            <p className="text-xs text-muted">{item.time} · IP {item.ip}</p>
+            <p className="text-xs text-muted">{item.time}{item.ip ? ` · IP ${item.ip}` : ""}</p>
           </div>
         </article>
       ))}
@@ -521,8 +518,10 @@ export function AnnounceScreen() {
   const announcements = useAdmin((s) => s.announcements);
   const saveAnnouncement = useAdmin((s) => s.saveAnnouncement);
   const deleteAnnouncement = useAdmin((s) => s.deleteAnnouncement);
+  const withdrawAnnouncement = useAdmin((s) => s.withdrawAnnouncement);
   const refreshAnnouncements = useAdmin((s) => s.refreshAnnouncements);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
@@ -538,6 +537,7 @@ export function AnnounceScreen() {
             type="button"
             className="h-11 w-full rounded-full bg-primary font-semibold text-on-primary"
             onClick={() => {
+              setEditing(null);
               setTitle("");
               setBody("");
               setError("");
@@ -549,20 +549,41 @@ export function AnnounceScreen() {
         </div>
       }
     >
-      <DemoBanner />
-      <p className="px-4 py-2 text-[13px] text-muted">发布即生效。后端不支持编辑或撤回，需要撤下请删除。外部推送通道未接。</p>
+      <p className="px-4 py-2 text-[13px] text-muted">发布即对用户可见。可编辑正文，撤回后 published 为否。外部推送通道未接。</p>
       {announcements.length === 0 && <EmptyState title="暂无公告" hint="点下方按钮发布第一条。" />}
       {announcements.map((item) => (
         <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-semibold">{item.title}</h2>
             <Pill tone={item.status === "published" ? "ok" : "muted"}>
-              {item.status === "published" ? "已发布" : "未发布"}
+              {item.status === "published" ? "已发布" : "已撤回"}
             </Pill>
           </div>
           <p className="mt-1 text-sm text-muted">{item.body}</p>
           <p className="mt-1 text-xs text-muted">{item.time}</p>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="h-9 rounded-full bg-subtle px-3 text-sm font-semibold"
+              onClick={() => {
+                setEditing(item.id);
+                setTitle(item.title);
+                setBody(item.body);
+                setError("");
+                setOpen(true);
+              }}
+            >
+              编辑
+            </button>
+            {item.status === "published" && (
+              <button
+                type="button"
+                className="h-9 rounded-full bg-subtle px-3 text-sm font-semibold"
+                onClick={() => void withdrawAnnouncement(item.id)}
+              >
+                撤回
+              </button>
+            )}
             <button
               type="button"
               className="h-9 rounded-full nova-danger-soft px-3 text-sm font-semibold"
@@ -573,7 +594,7 @@ export function AnnounceScreen() {
           </div>
         </article>
       ))}
-      <Sheet open={open} title="发布公告" onClose={() => setOpen(false)}>
+      <Sheet open={open} title={editing ? "编辑公告" : "发布公告"} onClose={() => setOpen(false)}>
         <Field label="标题">
           <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="标题" />
         </Field>
@@ -585,14 +606,14 @@ export function AnnounceScreen() {
           disabled={busy}
           onClick={() => {
             setBusy(true);
-            void saveAnnouncement({ title, body }).then((msg) => {
+            void saveAnnouncement({ id: editing || undefined, title, body }).then((msg) => {
               setBusy(false);
               setError(msg ?? "");
               if (!msg) setOpen(false);
             });
           }}
         >
-          {busy ? "正在发布…" : "发布"}
+          {busy ? "正在保存…" : editing ? "保存" : "发布"}
         </PrimaryButton>
       </Sheet>
     </Screen>

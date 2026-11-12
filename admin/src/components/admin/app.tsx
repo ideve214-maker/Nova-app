@@ -7,11 +7,12 @@ import { HomeScreen, ManageScreen, MeScreen, MessagesScreen } from "./browse";
 import { UserScreen, UsersScreen } from "./people";
 import { ContentScreen, ReportsScreen } from "./queue";
 import { PaymentsScreen } from "./payments";
+import { BlockwordsScreen } from "./blockwords";
+import { ChannelMessagesScreen, CommunitiesScreen, CommunityDetailScreen } from "./communities";
 import {
   AdminsScreen,
   AnnounceScreen,
   AuditScreen,
-  CommunityScreen,
   DevicesScreen,
   SecurityScreen,
   SettingsScreen,
@@ -33,6 +34,7 @@ export function AdminApp() {
   const bootError = useAdmin((s) => s.bootError);
   const authed = useAdmin((s) => s.authed);
   const name = useAdmin((s) => s.nav.name);
+  const userId = useAdmin((s) => s.nav.userId);
   const toast = useAdmin((s) => s.toast);
   const tab = useAdmin((s) => s.tab);
   const unread = useAdmin((s) => s.notices.filter((item) => !item.read).length);
@@ -106,12 +108,16 @@ export function AdminApp() {
         {name === "user" && <UserScreen />}
         {name === "content" && <ContentScreen />}
         {name === "payments" && <PaymentsScreen />}
+        {name === "communities" && <CommunitiesScreen />}
+        {name === "community" && (userId ? <CommunityDetailScreen /> : <CommunitiesScreen />)}
+        {name === "channel" && <ChannelMessagesScreen />}
+        {name === "blockwords" && <BlockwordsScreen />}
         {name === "reports" && <ReportsScreen />}
         {name === "stats" && <StatsScreen />}
         {name === "settings" && <SettingsScreen />}
         {name === "audit" && <AuditScreen />}
         {name === "security" && <SecurityScreen />}
-        {name === "community" && <CommunityScreen />}
+        
         {name === "vip" && <VipScreen />}
         {name === "announce" && <AnnounceScreen />}
         {name === "devices" && <DevicesScreen />}

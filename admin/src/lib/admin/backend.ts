@@ -6,7 +6,7 @@
  * 2. 路径集中在 DEFAULT_ENDPOINT_MAP，设置页可覆盖；主路径 404 时再试别名。
  * 3. 通过 /api/health、/api/version 或响应头尽量识别后端版本；识别不到也不算失败。
  * 4. 字段名容错：username/name/displayName、vip_until/vipUntil 等都能读；未知字段忽略。
- * 5. 后端不可达或管理接口尚未实现时，列表与指标保持为空并标明「接口待接入」，绝不阻塞进入管理端；虚构数据仅在用户手动打开演示模式时出现。
+ * 5. 后端不可达或管理接口尚未实现时，列表与指标保持为空并标明「接口待接入」，绝不阻塞进入管理端；没有虚构数据，也没有演示模式。
  */
 
 export const CONFIG_KEY = "nova-admin-api-config-v1";
@@ -46,6 +46,14 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminPaymentReceipt: "/api/admin/payments/:id/receipt",
   adminReport: "/api/admin/reports/:id",
   adminReportDecision: "/api/admin/reports/:id/decision",
+  adminAnnouncementEdit: "/api/admin/announcements/:id/edit",
+  adminAnnouncementPatch: "/api/admin/announcements/:id",
+  adminAnnouncementWithdraw: "/api/admin/announcements/:id/withdraw",
+  adminCommunities: "/api/admin/communities",
+  adminCommunity: "/api/admin/communities/:id",
+  adminChannelMessages: "/api/admin/channels/:id/messages",
+  adminBlockwords: "/api/admin/blockwords",
+  adminBlockwordDelete: "/api/admin/blockwords/:id/delete",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",
@@ -78,6 +86,14 @@ export const ENDPOINT_ALIASES: Partial<Record<EndpointName, string[]>> = {
   adminPaymentReject: ["/api/admin/payments/:id/reject"],
   adminPaymentRefund: ["/api/admin/payments/:id/refund"],
   adminPaymentReceipt: ["/api/admin/payments/:id/receipt"],
+  adminAnnouncementEdit: ["/api/admin/announcements/:id/edit"],
+  adminAnnouncementPatch: ["/api/admin/announcements/:id"],
+  adminAnnouncementWithdraw: ["/api/admin/announcements/:id/withdraw"],
+  adminCommunities: ["/api/admin/communities", "/api/admin/community"],
+  adminCommunity: ["/api/admin/communities/:id"],
+  adminChannelMessages: ["/api/admin/channels/:id/messages"],
+  adminBlockwords: ["/api/admin/blockwords", "/api/admin/block-words"],
+  adminBlockwordDelete: ["/api/admin/blockwords/:id/delete"],
   adminVipGrant: ["/api/admin/vip/grant", "/api/admin/vip"],
   adminVipRevoke: ["/api/admin/vip/revoke"],
   posts: ["/api/posts"],
@@ -116,7 +132,7 @@ export const emptyConnection = (baseUrl = ""): ConnectionStatus => ({
   reachable: false,
   detectedVersion: null,
   available: {},
-  message: "未连接后端。列表与统计为空，没有虚构数字。可在「我的」中手动打开演示模式。",
+  message: "未连接后端。列表与统计为空，没有虚构数字。",
   lastChecked: 0,
   catalog: null,
   rawHealth: null,
@@ -170,13 +186,9 @@ export function saveConfig(patch: Partial<ApiConfig>) {
  * 优先级见 resolveBase：用户在「设置服务器」里保存的地址 > 此值 > 网页同源。
  */
 export function builtInApiBase(): string {
-  try {
-    const meta = import.meta as ImportMeta & { env?: { VITE_NOVA_API_BASE?: string } };
-    const v = meta.env && meta.env.VITE_NOVA_API_BASE;
-    return typeof v === "string" ? v.trim().replace(/\/+$/, "") : "";
-  } catch {
-    return "";
-  }
+  // Must be a static `import.meta.env.VITE_*` access so Vite inlines the value at build time.
+  const v = import.meta.env.VITE_NOVA_API_BASE;
+  return typeof v === "string" ? v.trim().replace(/\/+$/, "") : "";
 }
 
 export function isNativeShell(): boolean {
@@ -385,7 +397,7 @@ export function pick(obj: unknown, ...keys: string[]): unknown {
 export function extractList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (!isRecord(data)) return [];
-  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records", "orders", "payments", "audits", "announcements", "reports", "posts", "comments"]) {
+  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records", "orders", "payments", "audits", "announcements", "reports", "posts", "comments", "communities", "blockwords", "messages", "channels"]) {
     const v = data[key];
     if (Array.isArray(v)) return v;
     if (isRecord(v) && Array.isArray(v.items)) return v.items;
@@ -399,16 +411,47 @@ function asString(v: unknown, fallback = ""): string {
   return String(v);
 }
 
-function asTime(v: unknown): string {
-  if (v === undefined || v === null || v === "") return "";
-  if (typeof v === "number") {
-    const ms = v < 1e12 ? v * 1000 : v;
+/**
+ * 把后端给出的 UTC 时间点解析成 Date。
+ * 优先 ISO（createdAtUtc，带 Z 或偏移）；数字按 UTC 纪元；
+ * 无时区的 "YYYY-MM-DD HH:mm[:ss]" 视为 UTC。显示时用本机时区。
+ */
+export function parseUtcDate(v: unknown): Date | null {
+  if (v === undefined || v === null || v === "") return null;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    const ms = v > 0 && v < 1e12 ? v * 1000 : v;
     const d = new Date(ms);
-    if (Number.isNaN(d.getTime())) return String(v);
-    const p = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    return Number.isNaN(d.getTime()) ? null : d;
   }
-  return String(v);
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+    if (/^\d+$/.test(s)) return parseUtcDate(Number(s));
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+      const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] || 0)));
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+/** 在设备本地时区格式化 UTC 时间。所有管理端展示时间都走这里。 */
+export function formatAdminTime(v: unknown, fallback = ""): string {
+  const d = parseUtcDate(v);
+  if (!d) return fallback;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function asTime(v: unknown): string {
+  return formatAdminTime(v, "");
 }
 
 function asVipUntil(v: unknown): number | null {
@@ -468,8 +511,8 @@ export function mapRemoteUser(raw: unknown): MappedMember | null {
     status: banned ? "banned" : "active",
     presence,
     vipUntil,
-    joinedAt: asTime(pick(raw, "joinedAt", "createdAt", "created_at", "registeredAt")),
-    lastLogin: asTime(pick(raw, "lastLogin", "last_login_at", "lastLoginAt", "seenAt")),
+    joinedAt: asTime(pick(raw, "createdAtUtc", "joinedAt", "createdAt", "created_at", "registeredAt")),
+    lastLogin: asTime(pick(raw, "lastLoginAtUtc", "lastLogin", "last_login_at", "lastLoginAt", "seenAt")),
     violations: Number(pick(raw, "violations", "violationCount", "strikes") ?? 0) || 0,
     bio: asString(pick(raw, "bio", "profile.bio", "introduction", "intro")),
     posts: Number(pick(raw, "posts", "postCount", "postsCount") ?? 0) || 0,
@@ -540,6 +583,8 @@ const PROBE_GET: EndpointName[] = [
   "adminAudit",
   "adminAnnouncements",
   "adminPayments",
+  "adminCommunities",
+  "adminBlockwords",
 ];
 
 const QUICK_PROBE: EndpointName[] = ["stickers", "posts", "communities", "notifications"];
@@ -668,6 +713,14 @@ export function pickToken(raw: unknown): string {
   return typeof t === "string" ? t.trim() : "";
 }
 
+export type MappedReplyTo = {
+  id: string;
+  deleted: boolean;
+  missing?: boolean;
+  authorName: string;
+  text: string;
+};
+
 export type MappedContent = {
   id: string;
   type: "post" | "comment";
@@ -681,6 +734,11 @@ export type MappedContent = {
   postId: string;
   adminReason: string;
   adminHidden: boolean;
+  parentId: string;
+  rootId: string;
+  depth: number;
+  replyTo: MappedReplyTo | null;
+  replyCount: number;
 };
 
 export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" = "post"): MappedContent | null {
@@ -692,6 +750,17 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
   const author = isRecord(raw.author) ? raw.author : {};
   const deleted = raw.deleted === true || raw.status === "removed" || raw.status === "deleted" || !!pick(raw, "deletedAt", "deleted_at");
   const text = asString(pick(raw, "text", "body", "content", "excerpt"));
+  const replyRaw = isRecord(raw.replyTo) ? raw.replyTo : isRecord(raw.reply_to) ? raw.reply_to : null;
+  const replyAuthor = replyRaw && isRecord(replyRaw.author) ? replyRaw.author : {};
+  const replyTo: MappedReplyTo | null = replyRaw
+    ? {
+        id: asString(pick(replyRaw, "id")),
+        deleted: replyRaw.deleted === true || replyRaw.missing === true,
+        missing: replyRaw.missing === true,
+        authorName: asString(pick(replyAuthor, "displayName", "username", "name") ?? pick(replyRaw, "authorName"), ""),
+        text: asString(pick(replyRaw, "text", "excerpt")),
+      }
+    : null;
   return {
     id,
     type,
@@ -699,12 +768,17 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
     text,
     authorId: asString(pick(raw, "authorId", "author_id", "userId") ?? pick(author, "id")),
     authorName: asString(pick(raw, "authorName") ?? pick(author, "displayName", "username", "name"), "未知"),
-    time: asTime(pick(raw, "createdAt", "created_at", "time")),
+    time: asTime(pick(raw, "createdAtUtc", "created_at_utc", "createdAt", "created_at", "time")),
     status: deleted ? "removed" : "approved",
     image: asString(pick(raw, "image", "imageUrl", "cover")),
     postId: asString(pick(raw, "postId", "post_id")),
     adminReason: asString(pick(raw, "adminReason", "admin_reason", "reason")),
     adminHidden: raw.adminHidden === true || raw.admin_hidden === true,
+    parentId: asString(pick(raw, "parentId", "parent_id")),
+    rootId: asString(pick(raw, "rootId", "root_id"), id),
+    depth: Number(pick(raw, "depth") ?? 0) || 0,
+    replyTo,
+    replyCount: Number(pick(raw, "replyCount", "reply_count") ?? 0) || 0,
   };
 }
 
@@ -771,9 +845,9 @@ export function mapRemotePayment(raw: unknown): MappedPayment | null {
     status,
     note: asString(pick(raw, "note")),
     rejectReason: asString(pick(raw, "rejectReason", "reject_reason", "reason")),
-    expiresAt: asTime(pick(raw, "expiresAt", "expires_at")),
-    createdAt: asTime(pick(raw, "createdAt", "created_at")),
-    paidAt: asTime(pick(raw, "paidAt", "paid_at")),
+    expiresAt: asTime(pick(raw, "expiresAtUtc", "expiresAt", "expires_at")),
+    createdAt: asTime(pick(raw, "createdAtUtc", "created_at_utc", "createdAt", "created_at")),
+    paidAt: asTime(pick(raw, "paidAtUtc", "paidAt", "paid_at")),
     hasReceipt: raw.hasReceipt === true || !!pick(raw, "receiptUrl", "receipt_url", "receiptPath"),
     receiptUrl: asString(pick(raw, "receiptUrl", "receipt_url")),
     receiptMime: asString(pick(raw, "receiptMime", "receipt_mime")),
@@ -811,7 +885,7 @@ export function mapRemoteAudit(raw: unknown): MappedAudit | null {
     kind,
     action: action || "操作",
     target: asString(pick(raw, "target", "resource")),
-    time: asTime(pick(raw, "time", "at", "createdAt", "created_at")),
+    time: asTime(pick(raw, "createdAtUtc", "time", "at", "createdAt", "created_at")),
     ip: asString(pick(raw, "ip")),
     actorId: asString(pick(raw, "actorId", "actor_id")),
     detail: pick(raw, "detail") ?? null,
@@ -823,6 +897,7 @@ export type MappedAnnouncement = {
   title: string;
   body: string;
   published: boolean;
+  withdrawn: boolean;
   time: string;
 };
 
@@ -830,12 +905,21 @@ export function mapRemoteAnnouncement(raw: unknown): MappedAnnouncement | null {
   if (!isRecord(raw)) return null;
   const id = asString(pick(raw, "id"));
   if (!id) return null;
+  const publishedFlag = pick(raw, "published");
+  const published = raw.withdrawn === true || raw.status === "draft" || raw.status === "withdrawn"
+    ? false
+    : publishedFlag === false || publishedFlag === 0 || publishedFlag === "0" || publishedFlag === "false"
+      ? false
+      : publishedFlag === true || publishedFlag === 1 || publishedFlag === "1" || publishedFlag == null
+        ? true
+        : !!publishedFlag;
   return {
     id,
     title: asString(pick(raw, "title")),
     body: asString(pick(raw, "body", "content", "text")),
-    published: raw.published !== false && raw.status !== "draft" && raw.status !== "withdrawn",
-    time: asTime(pick(raw, "createdAt", "created_at", "time", "updatedAt")),
+    published,
+    withdrawn: raw.withdrawn === true || raw.withdrawn === 1 || !published,
+    time: asTime(pick(raw, "createdAtUtc", "updatedAt", "updated_at", "createdAt", "created_at", "time")),
   };
 }
 
@@ -923,7 +1007,7 @@ export function mapRemoteReport(raw: unknown): MappedReport | null {
     reason: asString(pick(raw, "reason", "detail")),
     reporter: asString(pick(reporter, "displayName", "username", "name"), asString(pick(raw, "reporter"))),
     target: asString(pick(raw, "target"), targetType && targetId ? `${targetType}:${targetId}` : ""),
-    time: asTime(pick(raw, "time", "createdAt", "created_at")),
+    time: asTime(pick(raw, "createdAtUtc", "time", "createdAt", "created_at")),
     status: done ? "done" : "open",
     resolution: asString(pick(decision, "resolution", "note") ?? pick(raw, "resolution")) || undefined,
     postId: targetType === "post" ? targetId : undefined,
@@ -1043,4 +1127,126 @@ export function formatCents(cents: number, currency = "CNY"): string {
   const n = cents / 100;
   const prefix = currency === "CNY" || currency === "RMB" ? "¥" : "";
   return prefix + (Number.isInteger(n) ? String(n) : n.toFixed(1));
+}
+
+
+export type MappedCommunity = {
+  id: string;
+  name: string;
+  description: string;
+  visibility: string;
+  ownerId: string;
+  memberCount: number;
+  createdAt: string;
+  members: MappedCommunityMember[];
+  channels: MappedChannel[];
+};
+
+export type MappedCommunityMember = {
+  userId: string;
+  username: string;
+  role: string;
+  status: string;
+  joinedAt: string;
+};
+
+export type MappedChannel = {
+  id: string;
+  name: string;
+  kind: string;
+  isDefault: boolean;
+  messageCount: number;
+  communityId: string;
+};
+
+export type MappedChannelMessage = {
+  id: string;
+  channelId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  time: string;
+};
+
+export function mapRemoteCommunity(raw: unknown): MappedCommunity | null {
+  const src = isRecord(raw) && isRecord(raw.community) ? raw.community : raw;
+  if (!isRecord(src)) return null;
+  const id = asString(pick(src, "id"));
+  if (!id) return null;
+  const membersRaw = Array.isArray(src.members) ? src.members : [];
+  const channelsRaw = Array.isArray(src.channels) ? src.channels : [];
+  return {
+    id,
+    name: asString(pick(src, "name"), "未命名社区"),
+    description: asString(pick(src, "description", "desc")),
+    visibility: asString(pick(src, "visibility"), "public"),
+    ownerId: asString(pick(src, "ownerId", "owner_id") ?? (isRecord(src.owner) ? src.owner.id : "")),
+    memberCount: Number(pick(src, "memberCount", "member_count", "membersCount") ?? membersRaw.length) || 0,
+    createdAt: asTime(pick(src, "createdAtUtc", "createdAt", "created_at")),
+    members: membersRaw.map((m): MappedCommunityMember | null => {
+      if (!isRecord(m)) return null;
+      const user = isRecord(m.user) ? m.user : {};
+      return {
+        userId: asString(pick(m, "userId", "user_id", "id") ?? pick(user, "id")),
+        username: asString(pick(m, "username", "displayName", "name") ?? pick(user, "username", "displayName"), ""),
+        role: asString(pick(m, "role"), "member"),
+        status: asString(pick(m, "status"), "active"),
+        joinedAt: asTime(pick(m, "joinedAtUtc", "joinedAt", "joined_at")),
+      };
+    }).filter((x): x is MappedCommunityMember => !!x && !!x.userId),
+    channels: channelsRaw.map((c) => mapRemoteChannel(c, id)).filter((x): x is MappedChannel => !!x),
+  };
+}
+
+export function mapRemoteChannel(raw: unknown, communityId = ""): MappedChannel | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id"));
+  if (!id) return null;
+  return {
+    id,
+    name: asString(pick(raw, "name"), "频道"),
+    kind: asString(pick(raw, "kind", "kindKey"), "text"),
+    isDefault: raw.isDefault === true || raw.is_default === true,
+    messageCount: Number(pick(raw, "messageCount", "message_count") ?? 0) || 0,
+    communityId: asString(pick(raw, "communityId", "community_id"), communityId),
+  };
+}
+
+export function mapRemoteChannelMessage(raw: unknown): MappedChannelMessage | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id"));
+  if (!id) return null;
+  const author = isRecord(raw.author) ? raw.author : {};
+  return {
+    id,
+    channelId: asString(pick(raw, "channelId", "channel_id")),
+    authorId: asString(pick(raw, "authorId", "author_id") ?? pick(author, "id")),
+    authorName: asString(pick(author, "displayName", "username", "name") ?? pick(raw, "authorName"), "未知"),
+    text: asString(pick(raw, "text", "body")),
+    time: asTime(pick(raw, "createdAtUtc", "created_at_utc", "createdAt", "created_at")),
+  };
+}
+
+export type MappedBlockword = {
+  id: string;
+  word: string;
+  note: string;
+  createdAt: string;
+  createdBy: string;
+  scope: string;
+};
+
+export function mapRemoteBlockword(raw: unknown): MappedBlockword | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id"));
+  const word = asString(pick(raw, "word", "text"));
+  if (!id && !word) return null;
+  return {
+    id: id || word,
+    word,
+    note: asString(pick(raw, "note")),
+    createdAt: asTime(pick(raw, "createdAtUtc", "createdAt", "created_at")),
+    createdBy: asString(pick(raw, "createdBy", "created_by")),
+    scope: asString(pick(raw, "scope"), "platform"),
+  };
 }

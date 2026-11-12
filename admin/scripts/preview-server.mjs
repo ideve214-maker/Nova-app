@@ -44,7 +44,7 @@ function proxy(req, res) {
     const out = { ...up.headers };
     out["access-control-allow-origin"] = req.headers.origin || "*";
     out["access-control-allow-headers"] = "Authorization, Content-Type";
-    out["access-control-allow-methods"] = "GET,POST,OPTIONS";
+    out["access-control-allow-methods"] = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
     res.writeHead(up.statusCode || 502, out);
     up.pipe(res);
   });
@@ -71,7 +71,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(204, {
       "access-control-allow-origin": req.headers.origin || "*",
       "access-control-allow-headers": "Authorization, Content-Type",
-      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-methods": "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS",
     });
     res.end();
     return;

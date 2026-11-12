@@ -17,14 +17,22 @@ export const PAGE_NAMES = [
   "devices",
   "admins",
   "payments",
+  "communities",
+  "channel",
+  "blockwords",
 ] as const;
 
 export type HashPageName = (typeof PAGE_NAMES)[number];
-export type HashNav = { name: HashPageName; userId?: string };
+export type HashNav = { name: HashPageName; userId?: string; channelId?: string };
 
 export function navToHash(nav: HashNav): string {
   if (!nav || nav.name === "home") return "#/";
   if (nav.name === "user" && nav.userId) return `#/user/${encodeURIComponent(nav.userId)}`;
+  if (nav.name === "community" && nav.userId) return `#/community/${encodeURIComponent(nav.userId)}`;
+  if (nav.name === "channel" && nav.channelId) {
+    const ch = encodeURIComponent(nav.channelId);
+    return nav.userId ? `#/channel/${ch}/${encodeURIComponent(nav.userId)}` : `#/channel/${ch}`;
+  }
   return `#/${nav.name}`;
 }
 
@@ -34,8 +42,11 @@ export function hashToNav(hash: string): HashNav | null {
   if (parts.length === 0) return { name: "home" };
   const name = parts[0] as HashPageName;
   if (!(PAGE_NAMES as readonly string[]).includes(name)) return null;
-  if (name === "user") {
-    return { name: "user", userId: parts[1] ? decodeURIComponent(parts[1]) : undefined };
+  if (name === "user" || name === "community") {
+    return { name, userId: parts[1] ? decodeURIComponent(parts[1]) : undefined };
+  }
+  if (name === "channel") {
+    return { name: "channel", channelId: parts[1] ? decodeURIComponent(parts[1]) : undefined, userId: parts[2] ? decodeURIComponent(parts[2]) : undefined };
   }
   return { name };
 }

@@ -1,4 +1,4 @@
-# NOVA 管理端（v4 · 对接后端 0.7.0-m4.12）
+# NOVA 管理端（v5 · 对接后端 0.7.0-m5.1）
 
 这是 NOVA 社区的**管理端**网页 / Capacitor App。它连到用户端的同一套后端，用真实管理员账号和真实数据。
 
@@ -61,7 +61,7 @@ npm run test:admin          # 适配层单测
 
 ## 3. 和用户端后端怎么联通（适配未来版本）
 
-当前对接用户端后端 **0.7.0-m4.12**。管理端专用接口已经齐了（登录、用户、封禁、重置密码、VIP、内容、付款、公告、审计、统计、举报）。路径仍集中在 `DEFAULT_ENDPOINT_MAP`，设置页可用 JSON 覆盖，主路径 404 时试别名，方便以后换版本。
+当前对接用户端后端 **0.7.0-m5.1**。管理端接口包括：登录、用户、封禁、重置密码、VIP、内容（含嵌套评论）、付款（退款会返回 `vipRevoked`）、公告（编辑 / 撤回）、社区、频道消息、屏蔽词、审计（含 IP）、统计、举报。路径仍集中在 `DEFAULT_ENDPOINT_MAP`，设置页可用 JSON 覆盖，主路径 404 时试别名。
 
 ### 使用步骤
 
@@ -83,7 +83,7 @@ npm run test:admin          # 适配层单测
 | 版本检测 | 读 `X-Nova-Version` / `X-Api-Version` 响应头，或 JSON 里的 `version` / `apiVersion` 等；当前 M2.6 的 `/api/health` 只有 `{status,time}`，会显示「健康检查正常，未声明版本号」 |
 | 字段容错 | 用户对象兼容 `id`/`user_id`、`username`/`displayName`、`vipUntil`/`vip_until` 等；多出来的未知字段直接忽略，不会把页面打挂 |
 | 列表包装 | 兼容直接数组，以及 `{users}`、`{data:{items}}` 等常见包法 |
-| 空状态 | 超时、网络错误、404 都不会卡住启动；页面标明「未连接后端」或「后端已通 · 管理接口待接入」，列表为空。只有手动打开演示模式才出现「演示模式」徽章和虚构数据 |
+| 空状态 | 超时、网络错误、404 都不会卡住启动；页面标明「未连接后端」或「后端已通 · 管理接口待接入」，列表为空。没有演示模式，也不再填充虚构数据。时间一律按 UTC 解析，用设备本地时区显示。 |
 | VIP 目录 | 当前后端已有 `GET /api/vip/catalog`，连通后会读取并尽量对到管理端的权益开关 |
 
 已对接的管理接口见第 5 节。路径对不上时，在「设置服务器 → 高级」用 JSON 覆盖即可，不必再改一版前端。
@@ -112,14 +112,15 @@ npm run test:admin          # 适配层单测
 src/components/admin/   管理端界面（登录、首页、用户、内容、付款审核、系统设置等）
 src/lib/admin/store.ts  状态与真实接口调用
 src/lib/admin/backend.ts 后端适配层（路径对照、别名、字段容错）
-src/lib/admin/remote.ts  对 0.7.0-m4.12 各接口的实际请求
+src/lib/admin/remote.ts  对 0.7.0-m5.1 各接口的实际请求
 src/spa-main.tsx        单文件 / 静态预览的入口（不走服务端渲染）
 spa.html                带启动保护的静态壳
 scripts/preview-server.mjs  预览服务（静态页 + /api 反代）
 dist-spa/                   Capacitor webDir：index.html + assets/（相对路径）
 dist-spa/NOVA_Admin.html    构建后的单文件（额外产物）
 capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未安装 iOS 平台）
-.env.production.example     打包默认后端地址的示例（生产域名未定）
+.env.production            生产默认后端 http://47.239.0.90（已提交，无密钥）
+.env.production.example     同上说明与混合内容注意事项
 ```
 
 环境变量（预览服务）：
@@ -129,9 +130,9 @@ capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未�
 - `NOVA_API` 默认 `http://127.0.0.1:8787`
 
 
-## 5. 数据从哪来（0.7.0-m4.12）
+## 5. 数据从哪来（0.7.0-m5.1）
 
-管理端对接用户端后端 **0.7.0-m4.12**（副本可放在仓库旁的 `nova-v7-m412/`，**不要改** `/workspace/nova` 或 Bob 的用户端仓库）。所有下表数据都是真实接口，没有虚构数字。
+管理端对接用户端后端 **0.7.0-m5.1**（副本在 `nova-v7-m51/`，**不要改** `/workspace/nova/src/NOVA_V7` 或 Bob 的用户端仓库）。所有下表数据都是真实接口，没有虚构数字。时间字段优先用 `createdAtUtc`（ISO UTC），在设备本地时区显示。
 
 | 数据 | 接口 |
 |---|---|
@@ -140,17 +141,19 @@ capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未�
 | 封禁 / 解封 | `POST /api/admin/users/:id/ban`、`/unban`（可选 `reason`） |
 | 重置用户密码 | `POST /api/admin/users/:id/reset-password`，返回 `temporaryPassword`（不是 `tempCode`），并设 `mustChangePw` |
 | 开通 / 撤销 VIP | `POST /api/admin/vip/grant` `{userId, days, reason}`（原因必填）；`POST /api/admin/vip/revoke` `{userId, reason}` |
-| 内容审核 | `GET /api/admin/content?type=post\|comment&status=all\|visible\|removed`；`POST /api/admin/content/:type/:id/delete`（可选 reason）、`/restore` |
-| 付款审核 | `GET /api/admin/payments`、`GET /api/admin/payments/:id`；截图 `GET /api/admin/payments/:id/receipt`（需鉴权，前端用 blob 显示）；`POST …/confirm`（开通或续期 VIP）、`POST …/reject`（原因必填）、`POST …/refund` |
+| 内容审核 | `GET /api/admin/content?type=post\|comment&status=all\|visible\|removed`；详情 `GET /api/admin/content/:type/:id`（评论含 `parentId`、`rootId`、`depth`、`replyTo`、`replyCount`、`createdAtUtc`）；`POST …/delete`、`/restore` |
+| 付款审核 | `GET /api/admin/payments`、`GET /api/admin/payments/:id`；截图 `GET`/`HEAD /api/admin/payments/:id/receipt`（需鉴权，前端用 blob 显示）；`POST …/confirm`、`POST …/reject`（原因必填）、`POST …/refund`（响应含 `vipRevoked`） |
 | 统计 | `GET /api/admin/stats`（当前汇总；后端不提供按日趋势，页面不画虚构折线） |
-| 审计日志 | `GET /api/admin/audit` |
-| 公告 | `GET/POST /api/admin/announcements`（发布即生效）；`POST /api/admin/announcements/:id/delete`。没有编辑或撤回接口 |
+| 审计日志 | `GET /api/admin/audit`（每条含 `ip`） |
+| 公告 | `GET/POST /api/admin/announcements`；`PATCH /api/admin/announcements/:id` 或 `POST …/:id/edit`；`POST …/:id/withdraw`（`published=false`）；`POST …/:id/delete` |
+| 社区 | `GET /api/admin/communities`、`GET /api/admin/communities/:id`（真实 `memberCount`、成员、频道及消息数）；`GET /api/admin/channels/:id/messages` |
+| 屏蔽词 | `GET/POST /api/admin/blockwords`（平台规则）；`POST /api/admin/blockwords/:id/delete` |
 | 举报 | `GET /api/admin/reports`；`POST /api/admin/reports/:id/decision` `{action: resolve\|reject\|review, note}` |
 | 健康检查、VIP 目录 | `GET /api/health`、`GET /api/vip/catalog`（公开） |
 
 付款说明：用户扫个人微信 / 支付宝收款码，转账备注订单码（NV + 6 位）。价格每月 ¥9.9（30 天）、每年 ¥99（365 天）。确认开通前用户须先点「我已付款」（否则 409 `NOT_CLAIMED`）。
 
-**退款与 VIP：** 当前 m4.12 的 `POST /api/admin/payments/:id/refund` 只把订单标为 `refunded`，响应里 `vipRevoked: false`，**不会自动撤销 VIP**（审计备注也写了这一点）。Bob 正在改为退款时撤销 VIP。管理端按钮按「退款并撤销 VIP」标注，若响应未撤销会提示去用户详情手动撤销。
+**退款与 VIP：** m5.1 的 `POST /api/admin/payments/:id/refund` 会撤销该订单开通的 VIP，响应 `vipRevoked: true`（重复退款也是 true，幂等）。管理端只在 `vipRevoked` 为 false 时提示去用户详情手动撤销。
 
 管理员不能在管理端直接创建用户（无此接口），请用户在用户端自行注册。编辑用户资料、发帖/评论开关、站内通知尚无管理接口，页面已标明「未接入」，不会假装已写入服务器。
 

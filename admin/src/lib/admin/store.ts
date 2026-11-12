@@ -13,6 +13,11 @@ import {
   type MappedAdmin,
   type MappedPayment,
   type MappedStats,
+  type MappedCommunity,
+  type MappedBlockword,
+  type MappedChannelMessage,
+  type MappedChannel,
+  formatAdminTime,
 } from "./backend";
 import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
 import * as remote from "./remote";
@@ -51,9 +56,12 @@ export type PageName =
   | "announce"
   | "devices"
   | "admins"
-  | "payments";
+  | "payments"
+  | "communities"
+  | "channel"
+  | "blockwords";
 
-export type Nav = { name: PageName; userId?: string };
+export type Nav = { name: PageName; userId?: string; channelId?: string };
 
 export type Member = {
   id: string;
@@ -87,6 +95,12 @@ export type PostItem = {
   adminReason?: string;
   authorName?: string;
   postId?: string;
+  parentId?: string;
+  rootId?: string;
+  depth?: number;
+  replyToName?: string;
+  replyToText?: string;
+  replyCount?: number;
 };
 
 export type ReportItem = {
@@ -126,6 +140,7 @@ export type Announcement = {
   body: string;
   status: "draft" | "published" | "withdrawn";
   time: string;
+  published?: boolean;
 };
 
 export type Topic = { id: string; name: string; heat: string };
@@ -149,37 +164,11 @@ export const ENTITLEMENTS = [
   { key: "safety.core", label: "举报 / 拉黑 / 好友", basic: "可用", vip: "可用，不设付费门槛" },
 ] as const;
 
-export const TREND_7 = [
-  { d: "11/6", active: 980, added: 86 },
-  { d: "11/7", active: 1040, added: 92 },
-  { d: "11/8", active: 1010, added: 110 },
-  { d: "11/9", active: 1180, added: 124 },
-  { d: "11/10", active: 1120, added: 108 },
-  { d: "11/11", active: 1260, added: 141 },
-  { d: "11/12", active: 1248, added: 156 },
-];
-
-export const TREND_30 = [
-  { d: "10/14", active: 760, added: 64 },
-  { d: "10/21", active: 840, added: 78 },
-  { d: "10/28", active: 910, added: 90 },
-  { d: "11/4", active: 1020, added: 104 },
-  { d: "11/11", active: 1248, added: 156 },
-];
-
-export const TREND_90 = [
-  { d: "8月", active: 420, added: 40 },
-  { d: "9月", active: 610, added: 58 },
-  { d: "10月", active: 880, added: 86 },
-  { d: "11月", active: 1248, added: 156 },
-];
 
 const KEY = "nova-admin-v2";
 
 function stamp() {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return formatAdminTime(Date.now());
 }
 
 function uid(prefix: string) {
@@ -194,7 +183,7 @@ function tempCode() {
 }
 
 function makeAudit(partial: Omit<AuditItem, "id" | "time" | "ip">): AuditItem {
-  return { id: uid("a"), time: stamp(), ip: "192.168.1.1", ...partial };
+  return { id: uid("a"), time: stamp(), ip: "", ...partial };
 }
 
 export function maskEmail(email: string) {
@@ -218,301 +207,13 @@ export function vipPhase(member: Member): VipPhase {
 
 export function fmtUntil(ms: number | null) {
   if (!ms) return "未开通";
-  const d = new Date(ms);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return formatAdminTime(ms, "未开通");
 }
 
 export function daysLeft(ms: number | null) {
   if (!ms) return null;
   return Math.ceil((ms - Date.now()) / 86400000);
 }
-
-const seedMembers: Member[] = [
-  {
-    id: "10004",
-    name: "AliceWang",
-    email: "alice@nova.com",
-    avatar: "/media/av-pei.jpg",
-    status: "active",
-    presence: "online",
-    vipUntil: Date.parse("2026-11-20T23:59:00"),
-    joinedAt: "2025-10-20 14:30",
-    lastLogin: "2026-11-12 09:45",
-    violations: 0,
-    bio: "喜欢旅行和摄影",
-    posts: 36,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10001",
-    name: "Sunny123",
-    email: "sunny@nova.com",
-    avatar: "/media/av-su.jpg",
-    status: "active",
-    presence: "online",
-    vipUntil: null,
-    joinedAt: "2025-08-02 11:20",
-    lastLogin: "2026-11-12 10:02",
-    violations: 0,
-    bio: "收集海边日落",
-    posts: 128,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10002",
-    name: "NOVA_fan",
-    email: "fan@nova.com",
-    avatar: "/media/av-jiang.jpg",
-    status: "active",
-    presence: "online",
-    vipUntil: null,
-    joinedAt: "2025-09-18 19:12",
-    lastLogin: "2026-11-12 08:16",
-    violations: 1,
-    bio: "社区日常",
-    posts: 54,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10003",
-    name: "TechDream",
-    email: "tech@nova.com",
-    avatar: "/media/av-he.jpg",
-    status: "active",
-    presence: "offline",
-    vipUntil: null,
-    joinedAt: "2025-06-11 09:40",
-    lastLogin: "2026-11-11 22:18",
-    violations: 2,
-    bio: "科技与产品",
-    posts: 77,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10005",
-    name: "MikeChen",
-    email: "mike@nova.com",
-    avatar: "/media/av-chen.jpg",
-    status: "active",
-    presence: "online",
-    vipUntil: null,
-    joinedAt: "2026-01-09 16:05",
-    lastLogin: "2026-11-12 07:55",
-    violations: 0,
-    bio: "夜里读书",
-    posts: 19,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10006",
-    name: "NovaUser001",
-    email: "user001@nova.com",
-    avatar: "/media/av-zhou.jpg",
-    status: "active",
-    presence: "away",
-    vipUntil: Date.parse("2026-12-31T23:59:00"),
-    joinedAt: "2025-11-02 13:22",
-    lastLogin: "2026-11-12 06:40",
-    violations: 0,
-    bio: "早起看河",
-    posts: 41,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10007",
-    name: "星空之旅",
-    email: "star@nova.com",
-    avatar: "/media/av-notice.jpg",
-    status: "active",
-    presence: "offline",
-    vipUntil: null,
-    joinedAt: "2026-03-14 20:11",
-    lastLogin: "2026-11-10 18:26",
-    violations: 0,
-    bio: "周末徒步",
-    posts: 22,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10008",
-    name: "快乐的用户",
-    email: "happy@nova.com",
-    avatar: "/media/av-me.jpg",
-    status: "active",
-    presence: "online",
-    vipUntil: null,
-    joinedAt: "2026-04-02 12:48",
-    lastLogin: "2026-11-12 09:12",
-    violations: 0,
-    bio: "分享日常",
-    posts: 15,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-  {
-    id: "10009",
-    name: "旧日星辰",
-    email: "old@nova.com",
-    avatar: "",
-    status: "active",
-    presence: "offline",
-    vipUntil: Date.parse("2026-11-01T00:00:00"),
-    joinedAt: "2025-04-19 08:30",
-    lastLogin: "2026-10-28 21:02",
-    violations: 0,
-    bio: "会员已到期",
-    posts: 8,
-    canPost: true,
-    canComment: true,
-    tempCode: null,
-  },
-];
-
-const seedPosts: PostItem[] = [
-  {
-    id: "p1",
-    title: "美丽的海边风景",
-    authorId: "10001",
-    image: "/media/post-beach.jpg",
-    time: "2小时前",
-    kind: "post",
-    status: "pending",
-    excerpt: "傍晚的海面很安静。",
-  },
-  {
-    id: "p2",
-    title: "这个话题有点敏感",
-    authorId: "10003",
-    image: "/media/post-object.jpg",
-    time: "3小时前",
-    kind: "post",
-    status: "pending",
-    excerpt: "想听听大家怎么看。",
-  },
-  {
-    id: "p3",
-    title: "分享一下旅行攻略",
-    authorId: "10004",
-    image: "/media/post-town.jpg",
-    time: "昨天",
-    kind: "post",
-    status: "pending",
-    excerpt: "沿海小镇适合慢慢走。",
-  },
-  {
-    id: "p4",
-    title: "周末一起去爬山",
-    authorId: "10002",
-    image: "/media/post-hike.jpg",
-    time: "昨天",
-    kind: "post",
-    status: "approved",
-    excerpt: "天气好的话日落很漂亮。",
-  },
-  {
-    id: "p5",
-    title: "这条评论不太合适",
-    authorId: "10003",
-    image: "",
-    time: "5小时前",
-    kind: "comment",
-    status: "pending",
-    excerpt: "含有人身攻击，等待处理。",
-  },
-];
-
-const seedReports: ReportItem[] = [
-  {
-    id: "r1",
-    title: "举报：不当内容",
-    reason: "包含广告信息",
-    reporter: "user123",
-    target: "帖子 · 这个话题有点敏感",
-    time: "2小时前",
-    status: "open",
-    postId: "p2",
-    userId: "10003",
-  },
-  {
-    id: "r2",
-    title: "举报：恶意言论",
-    reason: "人身攻击",
-    reporter: "nova_fan",
-    target: "评论 · 这条评论不太合适",
-    time: "3小时前",
-    status: "open",
-    postId: "p5",
-    userId: "10003",
-  },
-  {
-    id: "r3",
-    title: "举报：垃圾营销",
-    reason: "重复引流",
-    reporter: "star",
-    target: "用户 · 旧日星辰",
-    time: "昨天",
-    status: "done",
-    resolution: "已驳回，证据不足",
-    userId: "10009",
-  },
-];
-
-const seedAudits: AuditItem[] = [
-  { id: "a1", kind: "security", action: "管理员登录", target: "admin", time: "11-12 08:02", ip: "192.168.1.1" },
-  { id: "a2", kind: "admin", action: "通过内容", target: "周末一起去爬山", time: "11-11 19:40", ip: "192.168.1.1" },
-  { id: "a3", kind: "security", action: "查看审计日志", target: "近 7 日", time: "11-11 18:12", ip: "192.168.1.1" },
-];
-
-const seedNotices: NoticeItem[] = [
-  {
-    id: "n1",
-    kind: "system",
-    title: "系统更新通知",
-    body: "管理端已更新到 M3 预览，支付仍未接入。",
-    time: "今天 08:00",
-    read: false,
-  },
-  {
-    id: "n2",
-    kind: "review",
-    title: "内容审核提醒",
-    body: "有新的帖子和评论等待处理。",
-    time: "今天 07:30",
-    read: false,
-  },
-  {
-    id: "n3",
-    kind: "system",
-    title: "新用户注册",
-    body: "用户 快乐的用户 已完成注册。",
-    time: "昨天 19:12",
-    read: true,
-  },
-  {
-    id: "n4",
-    kind: "violation",
-    title: "违规提醒",
-    body: "TechDream 有 2 次违规记录，请留意审核队列。",
-    time: "昨天 16:20",
-    read: true,
-  },
-];
 
 function entitlementMap() {
   return Object.fromEntries(ENTITLEMENTS.map((item) => [item.key, true]));
@@ -550,12 +251,17 @@ export type AdminState = Persisted & {
   toast: string | null;
   flash: (toast: string) => void;
   connectServer: (baseUrl: string, endpoints?: Partial<EndpointMap>) => Promise<ConnectionStatus>;
-  go: (name: PageName, userId?: string) => void;
+  go: (name: PageName, userId?: string, channelId?: string) => void;
   back: () => void;
   tab: (name: PageName) => void;
   adminProfile: MappedAdmin | null;
   stats: MappedStats | null;
   payments: MappedPayment[];
+  communities: MappedCommunity[];
+  communityDetail: MappedCommunity | null;
+  channelMessages: MappedChannelMessage[];
+  channelInfo: MappedChannel | null;
+  blockwords: MappedBlockword[];
   attemptLogin: (account: string, password: string, remember?: boolean) => Promise<string | null>;
   confirmTotp: (code: string) => string | null;
   logout: () => Promise<void>;
@@ -586,6 +292,14 @@ export type AdminState = Persisted & {
   grantVip: (id: string, days: number, reason: string) => Promise<string | null>;
   revokeVip: (id: string, reason: string) => Promise<string | null>;
   deleteAnnouncement: (id: string) => Promise<string | null>;
+  withdrawAnnouncement: (id: string) => Promise<string | null>;
+  refreshCommunities: () => Promise<void>;
+  openCommunity: (id: string, navigate?: boolean) => Promise<string | null>;
+  openChannel: (communityId: string, channelId: string, navigate?: boolean) => Promise<string | null>;
+  refreshBlockwords: () => Promise<void>;
+  addBlockword: (word: string, note?: string) => Promise<string | null>;
+  deleteBlockword: (id: string) => Promise<string | null>;
+  openContentItem: (type: "post" | "comment", id: string) => Promise<import("./backend").MappedContent | null>;
   toggleEntitlement: (key: string) => void;
   addTopic: (name: string) => void;
   toggleBoard: (id: string) => void;
@@ -628,66 +342,6 @@ const emptyPersisted = (): Persisted => ({
   lockedUntil: 0,
 });
 
-const demoPersisted = (): Persisted => ({
-  authed: false,
-  rememberLogin: true,
-  password: "",
-  adminName: "admin",
-  demoMode: true,
-  members: seedMembers,
-  posts: seedPosts,
-  reports: seedReports,
-  audits: seedAudits,
-  notices: seedNotices,
-  announcements: [
-    {
-      id: "an1",
-      title: "社区守则更新",
-      body: "请友善交流。禁止骚扰、广告和人身攻击。",
-      status: "published",
-      time: "11-10 09:00",
-    },
-    {
-      id: "an2",
-      title: "周末维护预告",
-      body: "11 月 15 日 02:00–04:00 短时维护，聊天记录不受影响。",
-      status: "draft",
-      time: "11-12 10:00",
-    },
-  ],
-  topics: [
-    { id: "t1", name: "旅行分享", heat: "12.5k" },
-    { id: "t2", name: "生活日常", heat: "8.7k" },
-    { id: "t3", name: "科技前沿", heat: "6.3k" },
-    { id: "t4", name: "美食推荐", heat: "5.1k" },
-    { id: "t5", name: "运动健康", heat: "4.2k" },
-  ],
-  boards: [
-    { id: "b1", name: "公告", members: "全员", locked: true },
-    { id: "b2", name: "闲聊", members: "8.2k", locked: false },
-    { id: "b3", name: "摄影", members: "3.4k", locked: false },
-    { id: "b4", name: "求助", members: "1.1k", locked: false },
-  ],
-  devices: [
-    { id: "d1", name: "iPhone · Safari", current: true, ip: "本机", time: "现在" },
-    { id: "d2", name: "Mac · Chrome", current: false, ip: "192.168.1.18", time: "昨天 21:06" },
-  ],
-  admins: [
-    { id: "root", name: "admin", role: "root", active: true },
-    { id: "m1", name: "值班审核", role: "moderator", active: true },
-  ],
-  invites: [],
-  flags: {
-    loginProtect: true,
-    registrationOpen: true,
-    maintenance: false,
-    reviewRequired: true,
-  },
-  entitlements: entitlementMap(),
-  failedLogins: 0,
-  lockedUntil: 0,
-});
-
 function withAudit(state: AdminState, item: Omit<AuditItem, "id" | "time" | "ip">, patch: Partial<AdminState>) {
   return { ...patch, audits: [makeAudit(item), ...state.audits].slice(0, 80) };
 }
@@ -713,19 +367,15 @@ function restoreLocal(): Partial<Persisted> {
       ...data,
       authed,
       rememberLogin,
-      demoMode: !!data.demoMode,
-      // 未打开演示时不要把上次残留的虚构列表带回来
-      ...(!data.demoMode
-        ? {
-            members: data.members || [],
-            posts: data.posts || [],
-            reports: data.reports || [],
-            notices: data.notices || [],
-            announcements: data.announcements || [],
-            topics: data.topics || [],
-            boards: data.boards || [],
-          }
-        : {}),
+      demoMode: false,
+      members: [],
+      posts: [],
+      reports: [],
+      notices: [],
+      announcements: [],
+      topics: [],
+      boards: [],
+      audits: [],
       entitlements: { ...entitlementMap(), ...(data.entitlements || {}) },
       flags: { ...emptyPersisted().flags, ...(data.flags || {}) },
     };
@@ -757,6 +407,12 @@ function toPost(c: import("./backend").MappedContent): PostItem {
     adminReason: c.adminReason || undefined,
     authorName: c.authorName,
     postId: c.postId || undefined,
+    parentId: c.parentId || undefined,
+    rootId: c.rootId || undefined,
+    depth: c.depth || 0,
+    replyToName: c.replyTo && !c.replyTo.deleted ? c.replyTo.authorName : c.replyTo ? "已删除的评论" : undefined,
+    replyToText: c.replyTo && !c.replyTo.deleted ? c.replyTo.text : undefined,
+    replyCount: c.replyCount || 0,
   };
 }
 
@@ -765,8 +421,9 @@ function toAnnouncement(a: import("./backend").MappedAnnouncement): Announcement
     id: a.id,
     title: a.title,
     body: a.body,
-    status: a.published ? "published" : "draft",
+    status: a.published ? "published" : "withdrawn",
     time: a.time,
+    published: a.published,
   };
 }
 
@@ -841,6 +498,11 @@ export const useAdmin = create<AdminState>((set, get) => ({
   adminProfile: null,
   stats: null,
   payments: [],
+  communities: [],
+  communityDetail: null,
+  channelMessages: [],
+  channelInfo: null,
+  blockwords: [],
   nav: { name: "home" },
   history: [],
   toast: null,
@@ -855,12 +517,12 @@ export const useAdmin = create<AdminState>((set, get) => ({
     saveConfig({ baseUrl: (baseUrl || "").trim(), ...(endpoints ? { endpoints } : {}) });
     const status = await probeConnection(baseUrl);
     applyConnection(status);
-    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "后端已通，管理接口仍待接入，列表保持为空") : "后端不可达，列表保持为空（未打开演示模式）");
+    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "后端已通，管理接口仍待接入，列表保持为空") : "后端不可达，列表保持为空");
     return status;
   },
-  go: (name, userId) => {
-    set((s) => ({ history: [...s.history, s.nav], nav: { name, userId } }));
-    writeHash({ name, userId });
+  go: (name, userId, channelId) => {
+    set((s) => ({ history: [...s.history, s.nav], nav: { name, userId, channelId } }));
+    writeHash({ name, userId, channelId });
   },
   back: () => {
     set((s) => {
@@ -939,11 +601,11 @@ export const useAdmin = create<AdminState>((set, get) => ({
       adminProfile: null,
       nav: { name: "home" },
       history: [],
-      members: get().demoMode ? get().members : [],
-      posts: get().demoMode ? get().posts : [],
-      reports: get().demoMode ? get().reports : [],
-      audits: get().demoMode ? get().audits : [],
-      announcements: get().demoMode ? get().announcements : [],
+      members: [],
+      posts: [],
+      reports: [],
+      audits: [],
+      announcements: [],
       payments: [],
       stats: null,
     });
@@ -953,16 +615,19 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return "管理员密码请用服务器命令 node server/admin-cli.mjs 管理，管理端不能改口令";
   },
   resetDemo: () => {
-    const on = get().demoMode;
-    const fresh = on ? demoPersisted() : emptyPersisted();
     saveConfig({ token: "" });
+    const fresh = emptyPersisted();
     set({
       ...fresh,
-      demoMode: on,
+      demoMode: false,
       authed: false,
       adminProfile: null,
       payments: [],
       stats: null,
+      communities: [],
+      communityDetail: null,
+      channelMessages: [],
+      blockwords: [],
       nav: { name: "home" },
       history: [],
       booted: true,
@@ -971,51 +636,10 @@ export const useAdmin = create<AdminState>((set, get) => ({
     writeHash({ name: "home" });
     get().flash("已退出并清空本机会话");
   },
-  setDemoMode: (on) => {
-    const cur = get();
-    if (on) {
-      const fresh = demoPersisted();
-      set({
-        ...fresh,
-        authed: cur.authed,
-        adminProfile: cur.adminProfile,
-        adminName: cur.adminName,
-        booted: true,
-        connection: cur.connection,
-        nav: cur.nav,
-        history: cur.history,
-        demoMode: true,
-      });
-      get().flash("已打开演示模式：页面数据均为本地虚构，已标明");
-      return;
-    }
-    const fresh = emptyPersisted();
-    set({
-      ...fresh,
-      authed: cur.authed,
-      adminProfile: cur.adminProfile,
-      adminName: cur.adminName,
-      booted: true,
-      connection: cur.connection,
-      nav: cur.nav,
-      history: cur.history,
-      demoMode: false,
-    });
-    get().flash("已关闭演示模式，仅展示后端真实数据");
-    if (cur.authed) void refreshLiveData();
+  setDemoMode: (_on) => {
+    get().flash("演示模式已移除，只展示服务器真实数据");
   },
   banUser: async (id, reason) => {
-    if (get().demoMode) {
-      const member = get().members.find((item) => item.id === id);
-      if (!member || member.status === "banned") return null;
-      set((s) => ({
-        members: s.members.map((item) =>
-          item.id === id ? { ...item, status: "banned" as const, presence: "offline" as const } : item,
-        ),
-      }));
-      get().flash(`已封禁 ${member.name}`);
-      return null;
-    }
     const result = await remote.remoteBan(id, reason);
     if (!result.ok) {
       get().flash(result.error);
@@ -1027,15 +651,6 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return null;
   },
   unbanUser: async (id, reason) => {
-    if (get().demoMode) {
-      const member = get().members.find((item) => item.id === id);
-      if (!member || member.status !== "banned") return null;
-      set((s) => ({
-        members: s.members.map((item) => (item.id === id ? { ...item, status: "active" as const } : item)),
-      }));
-      get().flash(`已解除 ${member.name} 的封禁`);
-      return null;
-    }
     const result = await remote.remoteUnban(id, reason);
     if (!result.ok) {
       get().flash(result.error);
@@ -1109,7 +724,6 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return "后端没有待审状态";
   },
   refreshContent: async (opts) => {
-    if (get().demoMode) return;
     const type = opts?.type;
     const status = opts?.status || "all";
     const q = opts?.q;
@@ -1134,7 +748,6 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ posts: result.data.map(toPost) });
   },
   refreshUsers: async (opts) => {
-    if (get().demoMode) return;
     const result = await remote.remoteUsers({ status: opts?.status, q: opts?.q, limit: 100 });
     if (!result.ok) {
       get().flash(result.error);
@@ -1143,7 +756,6 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ members: result.data.map(toMember) });
   },
   refreshPayments: async (opts) => {
-    if (get().demoMode) return;
     const result = await remote.remotePayments({ status: opts?.status, q: opts?.q, limit: 50 });
     if (!result.ok) {
       get().flash(result.error);
@@ -1152,25 +764,21 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ payments: result.data });
   },
   refreshAudit: async () => {
-    if (get().demoMode) return;
     const result = await remote.remoteAudit({ limit: 80 });
     if (!result.ok) return;
     set({ audits: result.data.map(toAudit) });
   },
   refreshAnnouncements: async () => {
-    if (get().demoMode) return;
     const result = await remote.remoteAnnouncements();
     if (!result.ok) return;
     set({ announcements: result.data.map(toAnnouncement) });
   },
   refreshStats: async () => {
-    if (get().demoMode) return;
     const result = await remote.remoteStats();
     if (!result.ok) return;
     set({ stats: result.data });
   },
   refreshReports: async () => {
-    if (get().demoMode) return;
     const result = await remote.remoteReports({ limit: 50 });
     if (!result.ok) return;
     set({ reports: result.data.map(toReport) });
@@ -1316,8 +924,17 @@ export const useAdmin = create<AdminState>((set, get) => ({
       return "标题和正文都要填写";
     }
     if (id) {
-      get().flash("后端不支持编辑公告，请删除后重新发布");
-      return "后端不支持编辑公告，请删除后重新发布";
+      const result = await remote.remoteEditAnnouncement(id, title.trim(), body.trim());
+      if (!result.ok) {
+        get().flash(result.error);
+        return result.error;
+      }
+      set((s) => ({
+        announcements: s.announcements.map((item) => (item.id === id ? toAnnouncement(result.data) : item)),
+      }));
+      get().flash("公告已更新");
+      void get().refreshAudit();
+      return null;
     }
     const result = await remote.remoteAddAnnouncement(title.trim(), body.trim(), true);
     if (!result.ok) {
@@ -1329,8 +946,92 @@ export const useAdmin = create<AdminState>((set, get) => ({
     void get().refreshAudit();
     return null;
   },
-  setAnnouncement: (_id, _status) => {
-    get().flash("后端没有撤回或改草稿接口，需要撤下请直接删除");
+  setAnnouncement: (id, status) => {
+    if (status === "withdrawn") void get().withdrawAnnouncement(id);
+  },
+  withdrawAnnouncement: async (id) => {
+    const result = await remote.remoteWithdrawAnnouncement(id);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({
+      announcements: s.announcements.map((item) => (item.id === id ? toAnnouncement(result.data) : item)),
+    }));
+    get().flash(result.json && (result.json as { already?: boolean }).already ? "公告本已撤回" : "公告已撤回");
+    void get().refreshAudit();
+    return null;
+  },
+  refreshCommunities: async () => {
+    const result = await remote.remoteCommunities();
+    if (!result.ok) {
+      get().flash(result.error);
+      return;
+    }
+    set({ communities: result.data });
+  },
+  openCommunity: async (id, navigate = true) => {
+    const result = await remote.remoteCommunity(id);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set({ communityDetail: result.data });
+    const nav = get().nav;
+    if (navigate && (nav.name !== "community" || nav.userId !== id)) get().go("community", id);
+    return null;
+  },
+  openChannel: async (communityId, channelId, navigate = true) => {
+    const result = await remote.remoteChannelMessages(channelId);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set({ channelMessages: result.data.messages, channelInfo: result.data.channel });
+    const nav = get().nav;
+    if (navigate && (nav.name !== "channel" || nav.channelId !== channelId)) get().go("channel", communityId, channelId);
+    return null;
+  },
+  refreshBlockwords: async () => {
+    const result = await remote.remoteBlockwords();
+    if (!result.ok) {
+      get().flash(result.error);
+      return;
+    }
+    set({ blockwords: result.data });
+  },
+  addBlockword: async (word, note) => {
+    const w = (word || "").trim();
+    if (!w) return "请填写屏蔽词";
+    const result = await remote.remoteAddBlockword(w, note);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    get().flash(result.data.existed ? "该屏蔽词已存在" : "已添加平台屏蔽词");
+    await get().refreshBlockwords();
+    void get().refreshAudit();
+    return null;
+  },
+  deleteBlockword: async (id) => {
+    const result = await remote.remoteDeleteBlockword(id);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ blockwords: s.blockwords.filter((item) => item.id !== id) }));
+    get().flash("已删除屏蔽词");
+    void get().refreshAudit();
+    return null;
+  },
+  openContentItem: async (type, id) => {
+    const result = await remote.remoteContentItem(type, id);
+    if (!result.ok) {
+      get().flash(result.error);
+      return null;
+    }
+    set((s) => ({ posts: upsertPost(s.posts, toPost(result.data)) }));
+    return result.data;
   },
   toggleFlag: (key) => {
     set((s) => {
@@ -1448,7 +1149,7 @@ export async function pullRemoteUsers(): Promise<number> {
 
 export async function refreshLiveData() {
   const s = useAdmin.getState();
-  if (!s.authed || s.demoMode) return;
+  if (!s.authed) return;
   await Promise.all([
     s.refreshUsers(),
     s.refreshContent({ type: "all", status: "all" }),
@@ -1457,6 +1158,8 @@ export async function refreshLiveData() {
     s.refreshAnnouncements(),
     s.refreshStats(),
     s.refreshReports(),
+    s.refreshCommunities(),
+    s.refreshBlockwords(),
   ]);
 }
 
@@ -1512,7 +1215,7 @@ export function hydrateAdmin() {
         const s = useAdmin.getState();
         if (!s.authed) return;
         if (s.nav.name === next.name && s.nav.userId === next.userId) return;
-        useAdmin.setState({ nav: { name: next.name, userId: next.userId }, history: s.history });
+        useAdmin.setState({ nav: { name: next.name, userId: next.userId, channelId: next.channelId }, history: s.history });
       });
     } catch (err) {
       useAdmin.setState({
@@ -1532,7 +1235,7 @@ export function hydrateAdmin() {
     if (!useAdmin.getState().booted) {
       useAdmin.setState({
         booted: true,
-        bootError: "启动超时。可在「设置服务器」填写后端地址后重试；列表在未打开演示模式时保持为空。",
+        bootError: "启动超时。可在「设置服务器」填写后端地址后重试；列表在未登录时保持为空。",
       });
       markAppBooted();
     }
@@ -1575,7 +1278,7 @@ export function hydrateAdmin() {
           ),
         ]);
         applyConnection(status);
-        if (useAdmin.getState().authed && !useAdmin.getState().demoMode) {
+        if (useAdmin.getState().authed) {
           try {
             await refreshLiveData();
           } catch {

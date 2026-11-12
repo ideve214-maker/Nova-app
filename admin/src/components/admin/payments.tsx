@@ -225,7 +225,7 @@ export function PaymentsScreen() {
             {refundOpen && (
               <div className="mt-3">
                 <p className="mb-2 text-[13px] leading-5 text-muted">
-                  将订单标为已退款。后端正在改为同时撤销该订单开通的 VIP；若本次返回未撤销，请到用户详情手动撤销。
+                  将订单标为已退款，并撤销该订单开通的 VIP。
                 </p>
                 <Field label="备注（可选）">
                   <input className={inputClass} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="退款说明" />

@@ -17,6 +17,10 @@ import {
   resolveBase,
   pickToken,
   mapRemoteAdmin,
+  formatAdminTime,
+  mapRemoteBlockword,
+  mapRemoteChannelMessage,
+  mapRemoteCommunity,
 } from "./backend.ts";
 
 describe("pick / joinUrl / pathTemplate", () => {
@@ -192,5 +196,84 @@ describe("m4.12 admin mappers", () => {
     const u = mapRemoteUser({ id: 2, username: "zhou", temporaryPassword: "Tmpabc1a", mustChangePw: true, status: "active" });
     assert.equal(u!.tempCode, "Tmpabc1a");
     assert.equal(u!.mustChangePw, true);
+  });
+});
+
+
+describe("formatAdminTime", () => {
+  it("renders ISO UTC and epoch milliseconds as the same local time", () => {
+    const iso = "2026-01-01T12:00:00.000Z";
+    const ms = Date.parse(iso);
+    assert.equal(formatAdminTime(iso), formatAdminTime(ms));
+    assert.equal(formatAdminTime("2026-01-01 12:00:00"), formatAdminTime(iso));
+    assert.equal(formatAdminTime(""), "");
+    assert.ok(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(formatAdminTime(iso)));
+  });
+  it("treats second-scale epoch as UTC", () => {
+    const sec = 1762944000; // 2025-11-12T10:40:00Z-ish depending
+    const a = formatAdminTime(sec);
+    const b = formatAdminTime(sec * 1000);
+    assert.equal(a, b);
+  });
+});
+
+describe("m5.1 mappers", () => {
+  it("maps nested comment thread fields and createdAtUtc", () => {
+    const iso = "2026-11-12T04:00:00.000Z";
+    const c = mapRemoteContent({
+      id: "c1",
+      type: "comment",
+      text: "回你一句",
+      parentId: "c0",
+      rootId: "c0",
+      depth: 1,
+      replyCount: 2,
+      createdAtUtc: iso,
+      replyTo: { id: "c0", deleted: false, author: { id: 1, username: "zhou", displayName: "周周" }, text: "原评" },
+      author: { id: 2, username: "li", displayName: "李李" },
+    }, "comment");
+    assert.ok(c);
+    assert.equal(c!.parentId, "c0");
+    assert.equal(c!.rootId, "c0");
+    assert.equal(c!.depth, 1);
+    assert.equal(c!.replyCount, 2);
+    assert.equal(c!.replyTo!.authorName, "周周");
+    assert.equal(c!.replyTo!.text, "原评");
+    assert.equal(c!.time, formatAdminTime(iso));
+  });
+  it("maps withdrawn announcement when published is 0", () => {
+    const n = mapRemoteAnnouncement({ id: 3, title: "旧", body: "文", published: 0, withdrawn: true, createdAt: 1700000000000 });
+    assert.equal(n!.published, false);
+    assert.equal(n!.withdrawn, true);
+  });
+  it("maps community detail with real member and message counts", () => {
+    const c = mapRemoteCommunity({
+      community: {
+        id: "cm_1",
+        name: "清晨",
+        description: "散步",
+        visibility: "public",
+        ownerId: 1,
+        memberCount: 3,
+        createdAt: 1700000000000,
+        members: [{ userId: 1, username: "zhou", role: "owner", status: "active", joinedAt: 1700000000000 }],
+        channels: [{ id: "ch_1", name: "大厅", kind: "text", isDefault: true, messageCount: 12 }],
+      },
+    });
+    assert.ok(c);
+    assert.equal(c!.memberCount, 3);
+    assert.equal(c!.members[0].username, "zhou");
+    assert.equal(c!.channels[0].messageCount, 12);
+  });
+  it("maps channel message createdAtUtc and blockwords", () => {
+    const iso = "2026-11-12T04:00:00.000Z";
+    const m = mapRemoteChannelMessage({
+      id: "m1", channelId: "ch_1", authorId: 1, author: { username: "zhou", displayName: "周周" }, text: "你好", createdAtUtc: iso,
+    });
+    assert.equal(m!.authorName, "周周");
+    assert.equal(m!.time, formatAdminTime(iso));
+    const w = mapRemoteBlockword({ id: 9, word: "spam", note: "广告", createdAt: 1700000000000, scope: "platform" });
+    assert.equal(w!.word, "spam");
+    assert.equal(w!.scope, "platform");
   });
 });

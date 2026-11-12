@@ -18,6 +18,8 @@ export function ContentScreen() {
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [threadOf, setThreadOf] = useState<PostItem | null>(null);
+  const openContentItem = useAdmin((s) => s.openContentItem);
 
   useEffect(() => {
     void refreshContent({ type: kind, status });
@@ -79,7 +81,37 @@ export function ContentScreen() {
                   <button type="button" className="mt-1 flex items-center gap-2 text-[13px] text-muted" onClick={() => post.authorId && go("user", post.authorId)}>
                     @{name} · {post.time}
                   </button>
+                  {post.kind === "comment" && post.replyToName && (
+                    <p className="mt-1 text-[12px] text-muted">回复 @{post.replyToName}{post.replyToText ? `：${post.replyToText}` : ""}</p>
+                  )}
                   <p className="mt-1 text-[13px] text-muted">{post.excerpt}</p>
+                  {post.kind === "comment" && (
+                    <button
+                      type="button"
+                      className="mt-1 text-[12px] font-medium text-primary"
+                      onClick={async () => {
+                        const fresh = await openContentItem("comment", post.id);
+                        if (fresh && fresh.rootId && fresh.rootId !== fresh.id) {
+                          await openContentItem("comment", fresh.rootId);
+                        }
+                        if (fresh && fresh.parentId && fresh.parentId !== fresh.id && fresh.parentId !== fresh.rootId) {
+                          await openContentItem("comment", fresh.parentId);
+                        }
+                        setThreadOf(fresh ? {
+                          ...post,
+                          parentId: fresh.parentId,
+                          rootId: fresh.rootId,
+                          depth: fresh.depth,
+                          replyToName: fresh.replyTo && !fresh.replyTo.deleted ? fresh.replyTo.authorName : post.replyToName,
+                          replyToText: fresh.replyTo && !fresh.replyTo.deleted ? fresh.replyTo.text : post.replyToText,
+                          replyCount: fresh.replyCount,
+                          excerpt: fresh.text,
+                        } : post);
+                      }}
+                    >
+                      查看楼层{post.depth ? ` · ${post.depth} 层` : ""}{post.replyCount ? ` · ${post.replyCount} 条回复` : ""}
+                    </button>
+                  )}
                   {post.adminReason && <p className="mt-1 text-[12px] text-warn">删除原因：{post.adminReason}</p>}
                 </div>
               </div>
@@ -137,7 +169,41 @@ export function ContentScreen() {
           </>
         )}
       </Sheet>
+      <Sheet open={!!threadOf} title="评论楼层" onClose={() => setThreadOf(null)}>
+        {threadOf && (
+          <ThreadView rootId={threadOf.rootId || threadOf.id} currentId={threadOf.id} comments={posts} />
+        )}
+      </Sheet>
     </Screen>
+  );
+}
+
+function ThreadView({ rootId, currentId, comments }: { rootId: string; currentId: string; comments: PostItem[] }) {
+  const thread = comments
+    .filter((c) => c.kind === "comment" && (c.id === rootId || c.rootId === rootId || c.parentId === rootId))
+    .slice()
+    .sort((a, b) => (a.depth || 0) - (b.depth || 0) || a.time.localeCompare(b.time));
+  if (thread.length === 0) {
+    return <p className="text-[13px] text-muted">这条评论的楼层里暂时只有它自己。可在「评论」列表里看到其他回复。</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {thread.map((c) => (
+        <div
+          key={c.id}
+          className="rounded-2xl bg-subtle px-3 py-2"
+          style={{ marginLeft: Math.min(c.depth || 0, 4) * 12 }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[13px] font-semibold">{c.authorName || "未知"}{c.id === currentId ? "（当前）" : ""}</span>
+            <span className="text-[11px] text-muted">{c.time}</span>
+          </div>
+          {c.replyToName && <p className="text-[11px] text-muted">回复 @{c.replyToName}</p>}
+          <p className="mt-0.5 text-[14px]">{c.excerpt}</p>
+          {c.replyCount ? <p className="text-[11px] text-muted">{c.replyCount} 条回复</p> : null}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -154,7 +220,6 @@ export function ReportsScreen() {
   const back = useAdmin((s) => s.back);
   const resolveReport = useAdmin((s) => s.resolveReport);
   const refreshReports = useAdmin((s) => s.refreshReports);
-  const demoMode = useAdmin((s) => s.demoMode);
   const hasReportApi = useAdmin((s) => !!s.connection.available.adminReports || s.authed);
   useEffect(() => { void refreshReports(); }, [refreshReports]);
   const [tab, setTab] = useState<"open" | "done">("open");
@@ -175,7 +240,7 @@ export function ReportsScreen() {
         onChange={(id) => setTab(id as "open" | "done")}
       />
       <div className="space-y-3 p-4">
-        {list.length === 0 && (demoMode || hasReportApi ? <p className="py-10 text-center text-[15px] text-muted">没有{tab === "open" ? "待处理" : "已处理"}举报</p> : <PendingApi name="举报队列" />)}
+        {list.length === 0 && (hasReportApi ? <p className="py-10 text-center text-[15px] text-muted">没有{tab === "open" ? "待处理" : "已处理"}举报</p> : <PendingApi name="举报队列" />)}
         {list.map((item) => (
           <article key={item.id} className="rounded-card bg-surface p-3 shadow-card">
             <div className="flex items-start justify-between gap-3">

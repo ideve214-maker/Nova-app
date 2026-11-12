@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   BarChart3,
   Bell,
@@ -7,7 +6,9 @@ import {
   CreditCard,
   Crown,
   Flag,
+  Ban,
   Hash,
+  MessagesSquare,
   KeyRound,
   LogOut,
   Megaphone,
@@ -17,7 +18,7 @@ import {
   Smartphone,
   Users,
 } from "lucide-react";
-import { TREND_7, overviewOf, useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
+import { overviewOf, useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
 import { DataHint, DemoBanner, EmptyState, Pill, PendingApi, RowLink, Seg, StarMark } from "./ui";
 import { ConnectionBadge } from "./server-panel";
 
@@ -26,10 +27,11 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
   { name: "content", label: "内容审核", desc: "帖子与评论", icon: Bell },
   { name: "payments", label: "付款审核", desc: "收款码人工核对", icon: CreditCard },
   { name: "reports", label: "举报处理", desc: "待处理队列", icon: Flag },
-  { name: "community", label: "社区管理", desc: "话题与版块", icon: Hash },
-  { name: "vip", label: "会员权益", desc: "目录、开通、续期", icon: Crown },
+  { name: "communities", label: "社区管理", desc: "成员、频道、消息", icon: MessagesSquare },
+  { name: "blockwords", label: "屏蔽词", desc: "平台拦截规则", icon: Ban },
+  { name: "vip", label: "会员权益", desc: "开通与撤销", icon: Crown },
   { name: "stats", label: "数据统计", desc: "用户与内容", icon: BarChart3 },
-  { name: "announce", label: "公告通知", desc: "发布与删除", icon: Megaphone },
+  { name: "announce", label: "公告通知", desc: "发布、编辑、撤回", icon: Megaphone },
   { name: "settings", label: "系统设置", desc: "开关与服务器", icon: Settings },
   { name: "audit", label: "审计日志", desc: "操作可追溯", icon: ScrollText },
   { name: "security", label: "安全中心", desc: "设备、邀请、权限", icon: ShieldCheck },
@@ -41,7 +43,6 @@ export function HomeScreen() {
   const posts = useAdmin((s) => s.posts);
   const reports = useAdmin((s) => s.reports);
   const liveStats = useAdmin((s) => s.stats);
-  const demoMode = useAdmin((s) => s.demoMode);
   const connection = useAdmin((s) => s.connection);
   const refreshStats = useAdmin((s) => s.refreshStats);
   const local = overviewOf(members, posts);
@@ -52,9 +53,9 @@ export function HomeScreen() {
   const pendingPay = liveStats ? liveStats.paymentsReview : 0;
   const hasUserApi = !!connection.available.adminUsers || !!connection.available.adminStats;
   const hasStatsApi = !!connection.available.adminStats || !!liveStats;
-  const showCounts = demoMode || hasUserApi || hasStatsApi || !!liveStats;
+  const showCounts = hasUserApi || hasStatsApi || !!liveStats;
   const dash = "—";
-  useEffect(() => { if (!demoMode) void refreshStats(); }, [demoMode, refreshStats]);
+  useEffect(() => { void refreshStats(); }, [refreshStats]);
 
   return (
     <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-3">
@@ -77,7 +78,7 @@ export function HomeScreen() {
           <span>平台概览</span>
           <ConnectionBadge />
         </div>
-        <p className="mt-2 text-[12px] text-on-primary/80">{demoMode ? "演示数据（虚构）" : showCounts ? "来自已接入的接口" : "今日数据"}</p>
+        <p className="mt-2 text-[12px] text-on-primary/80">{showCounts ? "来自已接入的接口" : "今日数据"}</p>
         <div className="mt-1.5 grid grid-cols-3 gap-2">
           <Metric value={showCounts ? stats.users.toLocaleString("zh-CN") : dash} label="总用户" />
           <Metric value={showCounts ? stats.active.toLocaleString("zh-CN") : dash} label="活跃用户" />
@@ -85,7 +86,7 @@ export function HomeScreen() {
         </div>
       </div>
 
-      {!demoMode && !hasStatsApi && !liveStats && (
+      {!hasStatsApi && !liveStats && (
         <DataHint>
           {connection.reachable
             ? "还没有读到管理统计。登录后会从 GET /api/admin/stats 拉取真实数字。"
@@ -93,32 +94,10 @@ export function HomeScreen() {
         </DataHint>
       )}
 
-      {demoMode ? (
-        <div className="mx-4 mt-2 rounded-card bg-surface p-3 shadow-card">
-          <div className="mb-1.5 flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold">近 7 日活跃趋势</h2>
-            <span className="text-[12px] text-warn">演示</span>
-          </div>
-          <div className="h-28">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={TREND_7}>
-                <XAxis dataKey="d" tick={{ fill: "var(--color-muted)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis hide domain={["dataMin - 80", "dataMax + 40"]} />
-                <Tooltip
-                  formatter={(value) => [String(value), "活跃"]}
-                  contentStyle={{ borderRadius: 10, border: "1px solid var(--color-line)", fontSize: 12 }}
-                />
-                <Area type="monotone" dataKey="active" stroke="var(--color-primary)" fill="var(--color-primary)" fillOpacity={0.18} strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      ) : (
-        <div className="mx-4 mt-2 rounded-card bg-surface px-3 py-3 shadow-card">
-          <h2 className="text-[15px] font-semibold">近 7 日活跃趋势</h2>
-          <p className="mt-1 text-[13px] leading-5 text-muted">接口待接入，暂无趋势图。</p>
-        </div>
-      )}
+      <div className="mx-4 mt-2 rounded-card bg-surface px-3 py-3 shadow-card">
+        <h2 className="text-[15px] font-semibold">近 7 日活跃趋势</h2>
+        <p className="mt-1 text-[13px] leading-5 text-muted">后端目前不提供按日活跃序列，这里不展示虚构曲线。</p>
+      </div>
 
       <div className="mx-4 mt-2 grid grid-cols-4 gap-1">
         <Shortcut label="用户管理" badge={showCounts && members.length ? String(members.length) : undefined} onClick={() => go("users")} icon={<Users className="size-4" />} />
@@ -167,7 +146,6 @@ function Shortcut({
 
 export function ManageScreen() {
   const go = useAdmin((s) => s.go);
-  const demoMode = useAdmin((s) => s.demoMode);
   const pending = useAdmin((s) => s.stats?.paymentsReview || 0);
   const openReports = useAdmin((s) => s.stats?.reportsPending || s.reports.filter((item) => item.status === "open").length);
   return (
@@ -212,7 +190,6 @@ const noticeTabs: { id: NoticeItem["kind"] | "all"; label: string }[] = [
 export function MessagesScreen() {
   const notices = useAdmin((s) => s.notices);
   const markNotices = useAdmin((s) => s.markNotices);
-  const demoMode = useAdmin((s) => s.demoMode);
   const noticeNeedsAuth = useAdmin((s) => !!s.connection.authRequired.notifications);
   const [tab, setTab] = useState<(typeof noticeTabs)[number]["id"]>("all");
   const list = notices.filter((item) => tab === "all" || item.kind === tab);
@@ -233,12 +210,7 @@ export function MessagesScreen() {
         onChange={(id) => setTab(id as typeof tab)}
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {list.length === 0 &&
-          (demoMode ? (
-            <EmptyState title="没有消息" />
-          ) : (
-            <PendingApi name="通知（GET /api/notifications）" needsAuth={noticeNeedsAuth} />
-          ))}
+        {list.length === 0 && <EmptyState title="没有消息" hint="管理端通知接口尚未提供，这里不会显示虚构消息。" />}
         {list.map((item) => (
           <article key={item.id} className="flex gap-3 border-b border-line bg-surface px-4 py-2.5">
             <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" style={{ opacity: item.read ? 0 : 1 }} />

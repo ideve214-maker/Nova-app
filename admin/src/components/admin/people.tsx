@@ -20,9 +20,8 @@ export function UsersScreen() {
   const back = useAdmin((s) => s.back);
   const banUser = useAdmin((s) => s.banUser);
   const refreshUsers = useAdmin((s) => s.refreshUsers);
-  const demoMode = useAdmin((s) => s.demoMode);
   const connection = useAdmin((s) => s.connection);
-  const canMutate = demoMode || !!connection.available.adminUsers || !!useAdmin.getState().authed;
+  const canMutate = !!connection.available.adminUsers || !!useAdmin.getState().authed;
   useEffect(() => { void refreshUsers(); }, [refreshUsers]);
   const [tab, setTab] = useState<UserTab>("all");
   const [query, setQuery] = useState("");
@@ -81,7 +80,7 @@ export function UsersScreen() {
         </label>
       </div>
       {list.length === 0 && (
-        members.length === 0 && !demoMode ? (
+        members.length === 0 ? (
           connection.available.adminUsers ? (
             <p className="px-4 py-10 text-center text-[15px] text-muted">暂无用户</p>
           ) : (
