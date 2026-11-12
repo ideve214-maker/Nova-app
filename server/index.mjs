@@ -18,6 +18,7 @@ import {createChats} from './chats.mjs';
 import {createFriends} from './friends.mjs';
 import {createEvents} from './events.mjs';
 import {createMedia} from './media.mjs';
+import {createNotifications} from './notifications.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 
@@ -46,7 +47,24 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const events = createEvents(db, {now});
   const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
   const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan});
-  const chats = createChats(db, {profile, vip, now, friends, media, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
+  let notifications;
+  const onEvent = (ids, type, payload) => {
+    events.publish(ids, type, payload);
+    if (notifications && type === 'conversation.message' && payload && payload.message && payload.message.atAll) {
+      const actor = payload.message.author && payload.message.author.id;
+      const text = String(payload.message.text || '').slice(0, 120);
+      for (const uid of ids) {
+        if (Number(uid) === Number(actor)) continue;
+        notifications.push(uid, {
+          kind: 'at_all', title: '有人@了所有人', body: text,
+          refType: 'conversation', refId: payload.conversationId,
+          actorId: actor, dedupeKey: 'at_all:' + payload.message.id,
+        });
+      }
+    }
+  };
+  const chats = createChats(db, {profile, vip, now, friends, media, onEvent});
+  notifications = createNotifications(db, {now, profile, vip, onEvent: (ids, type, payload) => events.publish(ids, type, payload)});
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, profile: profile.publicOf(u)}; };
   const q = {
@@ -69,6 +87,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     delSid: db.prepare('DELETE FROM sessions WHERE public_id=? AND user_id=? AND token_hash<>?'),
   };
   const audit = (actor, action, target, ip, detail) => q.audit.run(now(), actor || null, action, target || null, ip || null, detail ? JSON.stringify(detail) : null);
+  const srvPostAuthor = (postId) => {
+    const r = db.prepare('SELECT author_id FROM posts WHERE id=? AND deleted_at IS NULL').get(postId);
+    return r ? r.author_id : null;
+  };
 
   const validate = {
     username: v => /^[\p{L}\p{N}_]{3,20}$/u.test(v || ''),
@@ -265,6 +287,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       const r = comments.add(user, req.params.id, b || {});
       audit(user.id, 'post.comment', 'comment:' + r.comment.id, ip(req));
+      const post = srvPostAuthor(req.params.id);
+      if (post) notifications.push(post, {
+        kind: 'comment', title: '有人评论了你的动态', body: String((r.comment && r.comment.text) || '').slice(0, 120),
+        refType: 'post', refId: req.params.id, actorId: user.id, dedupeKey: 'comment:' + r.comment.id,
+      });
       return r;
     },
     'POST /api/comments/:id/delete'(req) {
@@ -275,16 +302,36 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/comments/:id/like'(req) {
       const {user} = auth(req);
-      return comments.like(user, req.params.id);
+      const r = comments.like(user, req.params.id);
+      if (r && r.comment && r.comment.liked) {
+        const c = db.prepare('SELECT author_id, post_id FROM post_comments WHERE id=?').get(req.params.id);
+        if (c) notifications.push(c.author_id, {
+          kind: 'like', title: '有人赞了你的评论', body: '',
+          refType: 'comment', refId: req.params.id, actorId: user.id, dedupeKey: 'like:' + req.params.id + ':' + user.id,
+        });
+      }
+      return r;
     },
     'POST /api/posts/:id/react'(req, b) {
       const {user} = auth(req);
-      return comments.react(user, req.params.id, b || {});
+      const r = comments.react(user, req.params.id, b || {});
+      if (r && (r.myReaction != null && r.myReaction >= 0 || r.reacted)) {
+        const post = srvPostAuthor(req.params.id);
+        if (post) notifications.push(post, {
+          kind: 'react', title: '有人对你的动态表态', body: '',
+          refType: 'post', refId: req.params.id, actorId: user.id, dedupeKey: 'react:' + req.params.id + ':' + user.id,
+        });
+      }
+      return r;
     },
     'POST /api/follows'(req, b) {
       const {user} = auth(req);
       const r = follows.add(user, b || {});
       audit(user.id, 'follow.add', 'user:' + (b && (b.userId || b.id)), ip(req));
+      if (r && r.following && r.user) notifications.push(r.user.id, {
+        kind: 'follow', title: '有人关注了你', body: '',
+        refType: 'user', refId: String(user.id), actorId: user.id, dedupeKey: 'follow:' + user.id,
+      });
       return r;
     },
     'POST /api/follows/remove'(req, b) {
@@ -522,6 +569,23 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(user.id, 'media.delete', 'media:' + req.params.id, ip(req));
       return r;
     },
+
+    'GET /api/notifications'(req) {
+      const {user} = auth(req);
+      return notifications.list(user, req.query || {});
+    },
+    'POST /api/notifications/:id/read'(req) {
+      const {user} = auth(req);
+      return notifications.markRead(user, req.params.id);
+    },
+    'POST /api/notifications/read-all'(req) {
+      const {user} = auth(req);
+      return notifications.markAll(user);
+    },
+    'GET /api/notifications/unread'(req) {
+      const {user} = auth(req);
+      return notifications.unread(user);
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
 
 
@@ -633,7 +697,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications;
   return server;
 }
 

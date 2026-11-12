@@ -1,6 +1,6 @@
 /* ---- tabs ---- */
 const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts),L=src.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
-return `<div class="pg"><div class="top"><h1 class="br">NOVA</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${D.n.some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
+return `<div class="pg"><div class="top"><h1 class="br">NOVA</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
 <div class="seg"><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">关注</button><button data-a="feed" data-v="rec" class="${S.feed=='rec'?'on':''}">推荐</button></div>
 <div class="sc"><div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">写点什么</button><button class="ib" data-a="compose" aria-label="发帖" style="color:var(--ac)">${ic('plus')}</button></div>
