@@ -63,29 +63,34 @@ PY
 # Show resulting plist snippet
 /usr/libexec/PlistBuddy -c 'Print :NSAppTransportSecurity' "$INFO" || true
 
-# Prefer workspace if CocoaPods created one
+# CocoaPods: .xcworkspace is a BUNDLE (directory). Never test it with [ -f ].
 if [ -f ios/App/Podfile ]; then
-  echo "==> pod install"
-  (cd ios/App && pod install --silent)
+  echo "==> pod install (ios/App)"
+  (cd ios/App && pod install)
 fi
 
-if [ -f ios/App/App.xcworkspace ] || [ -f ios/App/Pods/Manifest.lock ]; then
-  if [ -f ios/App/App.xcworkspace ]; then
-    XCODE_PROJ=(-workspace ios/App/App.xcworkspace)
-  else
-    XCODE_PROJ=(-project ios/App/App.xcodeproj)
-  fi
-else
+if [ -e ios/App/App.xcworkspace ]; then
+  XCODE_PROJ=(-workspace ios/App/App.xcworkspace)
+elif [ -e ios/App.xcworkspace ]; then
+  XCODE_PROJ=(-workspace ios/App.xcworkspace)
+elif [ -e ios/App/App.xcodeproj ]; then
   XCODE_PROJ=(-project ios/App/App.xcodeproj)
+else
+  echo "ERROR: no Xcode workspace or project under ios/"
+  find ios -maxdepth 3 -print
+  exit 1
 fi
+echo "==> using xcodebuild ${XCODE_PROJ[*]}"
+ls -ld ios/App/App.xcworkspace ios/App/App.xcodeproj ios/App/Pods 2>/dev/null || true
 
 SCHEME=App
 DERIVED="$PWD/derived"
 ARCHIVE="$PWD/build/App.xcarchive"
-mkdir -p "$PWD/build" "$DERIVED"
+mkdir -p "$PWD/build"
 rm -rf "$DERIVED" "$ARCHIVE"
 mkdir -p "$DERIVED"
 
+# Unsigned + disable Xcode 16+/26 Swift explicit modules (breaks CocoaPods modules)
 SIGN_FLAGS=(
   CODE_SIGNING_ALLOWED=NO
   CODE_SIGNING_REQUIRED=NO
@@ -93,27 +98,45 @@ SIGN_FLAGS=(
   DEVELOPMENT_TEAM=
   PROVISIONING_PROFILE_SPECIFIER=
   SKIP_INSTALL=NO
+  SWIFT_ENABLE_EXPLICIT_MODULES=NO
+  COMPILER_INDEX_STORE_ENABLE=NO
 )
 
-echo "==> resolve Swift packages (if any)"
-xcodebuild "${XCODE_PROJ[@]}" -scheme "$SCHEME" -resolvePackageDependencies \
-  -derivedDataPath "$DERIVED" \
-  -destination 'generic/platform=iOS' \
-  || echo "WARN: resolvePackageDependencies returned $?"
-
-# Shared log
 LOG="$PWD/build/xcodebuild.log"
-mkdir -p "$PWD/build"
+
+app_is_complete() {
+  local APP="$1"
+  [ -n "$APP" ] && [ -d "$APP" ] || return 1
+  [ -f "$APP/Info.plist" ] || return 1
+  local exec_name
+  exec_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist" 2>/dev/null || true)"
+  if [ -n "$exec_name" ] && [ -f "$APP/$exec_name" ]; then
+    return 0
+  fi
+  # fallback: any Mach-O executable besides Info.plist
+  [ -f "$APP/App" ] && return 0
+  return 1
+}
 
 find_app() {
-  # Prefer archive product, then device Release build
-  local found
-  found="$(find "$ARCHIVE" "$DERIVED" -path '*/Applications/*.app' -type d 2>/dev/null | head -n 1 || true)"
+  local found="" c
+  for c in \
+    "$ARCHIVE"/Products/Applications/*.app \
+    "$DERIVED"/Build/Intermediates.noindex/ArchiveIntermediates/App/InstallationBuildProductsLocation/Applications/*.app \
+    "$DERIVED"/Build/Products/Release-iphoneos/*.app
+  do
+    if app_is_complete "$c"; then
+      found="$c"
+      break
+    fi
+  done
   if [ -z "$found" ]; then
-    found="$(find "$DERIVED" -path '*Release-iphoneos*.app' -type d 2>/dev/null | head -n 1 || true)"
-  fi
-  if [ -z "$found" ]; then
-    found="$(find "$DERIVED" -name '*.app' -type d 2>/dev/null | grep -v Simulator | grep -v iphonesimulator | head -n 1 || true)"
+    while IFS= read -r c; do
+      if app_is_complete "$c"; then
+        found="$c"
+        break
+      fi
+    done < <(find "$ARCHIVE" "$DERIVED" -name '*.app' -type d 2>/dev/null | grep -v -i simulator | grep -v iphonesimulator || true)
   fi
   printf '%s' "$found"
 }
@@ -121,29 +144,30 @@ find_app() {
 package_ipa() {
   local APP="$1"
   local DEST="$2"
-  if [ -z "$APP" ] || [ ! -d "$APP" ]; then
-    echo "ERROR: .app not found"
-    find "$DERIVED" "$PWD/build" -name '*.app' -o -name '*.xcarchive' | head -50
+  if ! app_is_complete "$APP"; then
+    echo "ERROR: complete .app not found (need Info.plist + executable)"
+    find "$DERIVED" "$PWD/build" -name '*.app' -type d | head -50
     return 1
   fi
   echo "==> packaging $APP  ($(du -sh "$APP" | awk '{print $1}'))"
-  # Basic sanity
   ls -la "$APP" | head
   /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" || true
   /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Info.plist" || true
+  /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist" || true
   /usr/libexec/PlistBuddy -c 'Print :NSAppTransportSecurity' "$APP/Info.plist" || true
   local STAGE
   STAGE="$(mktemp -d)"
   mkdir -p "$STAGE/Payload"
   cp -a "$APP" "$STAGE/Payload/"
-  # zip must have Payload at the root; .ipa is a zip
   mkdir -p "$(dirname "$DEST")"
   (cd "$STAGE" && zip -qry "$DEST" Payload)
   ls -lh "$DEST"
+  # sanity: IPA is a zip with Payload/*.app
+  unzip -l "$DEST" | head -20
   echo "IPA_OK $DEST"
 }
 
-echo "==> xcodebuild archive (unsigned)"
+echo "==> xcodebuild archive (unsigned, workspace-aware)"
 set +e
 xcodebuild archive \
   "${XCODE_PROJ[@]}" \
@@ -153,15 +177,16 @@ xcodebuild archive \
   -archivePath "$ARCHIVE" \
   -derivedDataPath "$DERIVED" \
   "${SIGN_FLAGS[@]}" \
-  2>&1 | tee "$LOG" | tail -n 80
+  2>&1 | tee "$LOG"
 ARC_RC=${PIPESTATUS[0]}
 set -e
 echo "archive exit: $ARC_RC"
+# keep the last 40 lines visible
+tail -n 40 "$LOG" || true
 
 APP="$(find_app)"
-if [ "$ARC_RC" -ne 0 ] || [ -z "$APP" ]; then
-  echo "==> archive did not produce an .app, falling back to xcodebuild build"
-  tail -n 80 "$LOG" || true
+if [ "$ARC_RC" -ne 0 ] || ! app_is_complete "$APP"; then
+  echo "==> archive did not produce a complete .app, falling back to xcodebuild build"
   set +e
   xcodebuild build \
     "${XCODE_PROJ[@]}" \
@@ -171,20 +196,19 @@ if [ "$ARC_RC" -ne 0 ] || [ -z "$APP" ]; then
     -destination 'generic/platform=iOS' \
     -derivedDataPath "$DERIVED" \
     "${SIGN_FLAGS[@]}" \
-    2>&1 | tee "$LOG" | tail -n 80
+    2>&1 | tee "$LOG"
   BLD_RC=${PIPESTATUS[0]}
   set -e
   echo "build exit: $BLD_RC"
+  tail -n 40 "$LOG" || true
   APP="$(find_app)"
-  if [ "$BLD_RC" -ne 0 ] || [ -z "$APP" ]; then
+  if [ "$BLD_RC" -ne 0 ] || ! app_is_complete "$APP"; then
     echo "ERROR: unsigned build failed"
-    tail -n 120 "$LOG" || true
-    find "$DERIVED" -name '*.app' | head
+    grep -E "error:|ERROR:|fatal|unable to resolve" "$LOG" | head -40 || true
     exit 1
   fi
 fi
 
-# Absolute output path
 if [[ "$OUT_IPA" != /* ]]; then
   OUT_IPA="$ROOT/$OUT_IPA"
 fi
