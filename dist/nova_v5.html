@@ -117,6 +117,15 @@ nav button:active{transform:scale(.94)}.ib:active{transform:scale(.9)}.mi:active
 .crophelp{color:var(--t2);text-align:center;font-size:13px;padding:4px 20px 8px}
 .cropz{display:flex;align-items:center;gap:10px;padding:8px 20px 16px;color:var(--t2);font-size:14px}
 .cropz input{flex:1;accent-color:var(--ac)}
+/* 会员中心 */
+.vp{padding:12px 16px}.vp b{display:block;font-size:17px;margin-bottom:4px}.vp small{display:block;margin-top:2px}
+.vp[data-vs=active] b,.vp[data-vs=expiring] b{color:var(--vip)}
+.plans{display:flex;gap:8px;padding:12px 16px 4px;background:var(--sf)}
+.plan{flex:1;min-width:0;border:1px solid var(--ln);border-radius:14px;padding:12px}.plan.v{border-color:var(--vip)}
+.plan b{display:block;font-size:16px}.plan .pp{font-size:15px;font-weight:700;margin:6px 0 4px;min-height:42px}.plan.v .pp{color:var(--vip)}
+.vpn{padding:4px 16px 12px;background:var(--sf);border-bottom:8px solid var(--bg);color:var(--t2);font-size:13px}
+.ent{padding:12px 16px;background:var(--sf);border-bottom:1px solid var(--ln)}.ent .et b{display:inline}.ent .et small{display:block;margin-top:2px}
+.ev{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.ev span{background:var(--s2);border-radius:10px;padding:4px 10px;font-size:13px}.ev i{font-style:normal;color:var(--t3);margin-right:6px}.ev .v{color:var(--vip)}
 </style></head><body>
 <div id="app"><div id="v"></div><div id="tt" role="status"></div></div>
 <script>
@@ -156,7 +165,7 @@ function writeTok(token){localStorage.setItem(SK_SESS,JSON.stringify({token}))}
 function clearTok(){localStorage.removeItem(SK_SESS);SESSION=null}
 function maskEmail(e){const p=String(e||'').split('@');if(p.length<2||!p[0])return '';const a=p[0];return (a.length<=2?a[0]+'***':a.slice(0,2)+'***')+'@'+p[1]}
 function applyUser(user){const u=D.u.me;if(!u[0]||u[0]==='林知夏')u[0]=user.username;u[1]=user.username;u[2]=[...u[0]][0]||'我';u[5]=user.vip?1:0;D.acct=user.id}
-function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;save();render()}
+function enterAccount(user,token){SESSION={token,user};writeTok(token);localStorage.setItem('nova_mode','account');MODE='account';D=load();applyUser(user);S.st=[];S.tab='home';S.sh=null;save();render();loadVip().then(()=>render())}
 async function api(method,path,body,token){const headers={'Content-Type':'application/json'};const t=token||(SESSION&&SESSION.token);if(t)headers.Authorization='Bearer '+t;try{const r=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined});const j=await r.json();return {s:r.status,j}}catch(e){return {s:0,j:{error:{code:'NETWORK',message:'连不上服务器，请稍后再试'}}}}}
 function errMsg(r,fallback){return (r.j&&r.j.error&&r.j.error.message)||fallback}
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">NOVA</h1></div><p class="em">正在连接…</p></div>'}
@@ -176,11 +185,66 @@ async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.au
   S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'注册失败');return}
   S.d.rpw='';S.d.rpw2='';enterAccount(r.j.user,r.j.token)}
 function authdemo(){if(S.auth.busy)return;localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('演示数据只存在这台设备')}
-function logout(){const tok=SESSION&&SESSION.token;if(MODE==='account')save();clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':'demo';if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch('/api/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+function logout(){const tok=SESSION&&SESSION.token;VIP.me=null;if(MODE==='account')save();clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':'demo';if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch('/api/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
 function todemo(){if(MODE==='account')save();localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('已切换到本机演示数据')}
 async function toacct(){if(MODE!=='gate')save();const tok=readTok();localStorage.setItem('nova_mode','account');if(!tok){MODE='gate';S.auth={pane:'login',err:'',busy:0};S.st=[];S.sh=null;return}const me=await api('GET','/api/me',null,tok);if(me.s!==200){clearTok();MODE='gate';S.auth={pane:'login',err:'登录已过期，请重新登录',busy:0};S.st=[];return}enterAccount(me.j.user,tok)}
 async function bootNet(){MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch('/api/health',{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){MODE='demo';D=load();render();return}const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()}
 function boot(){if(location.protocol==='file:'){NET=false;MODE='demo';D=load();render();return}bootNet()}
+
+/* ===== 13_vip.js ===== */
+/* VIP 状态与会员中心（M2.4.3）。
+   数据全部来自服务端：/api/vip/catalog（公开目录）和 /api/vip/me（登录后）。
+   这里只缓存服务端返回的结果用于显示；客户端既不保存也不能设置 VIP 身份。 */
+const VIP={cat:null,me:null,busy:0,err:''};
+const pad2=n=>String(n).padStart(2,'0');
+const vipDate=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())};
+/* 把「权益在某套餐下的取值」写成人能读的文字；数字都来自服务端目录。 */
+function vipFmt(e,plan){const v=e[plan];if(v===null||v===undefined)return '待定';if(e.kind==='flag')return v?'✓ 有':'— 无';
+  if(typeof v==='object')return Object.keys(v).map(k=>((e.scopeNames&&e.scopeNames[k])||k)+' '+v[k]).join(' · ')+(e.unit?' '+e.unit:'');
+  return v+(e.unit?' '+e.unit:'')}
+/* 读取目录与当前状态。离线/演示模式不请求；失败只记录错误文字，由页面显示并允许重试。 */
+async function loadVip(){
+  if(!NET)return;VIP.busy=1;VIP.err='';
+  const acct=MODE==='account'&&SESSION&&SESSION.token;
+  const [c,m]=await Promise.all([VIP.cat?null:api('GET','/api/vip/catalog'),acct?api('GET','/api/vip/me'):null]);
+  VIP.busy=0;
+  if(c){if(c.s===200)VIP.cat=c.j;else VIP.err=errMsg(c,'读取会员信息失败')}
+  if(m){if(m.s===200)VIP.me=m.j;else{VIP.me=null;VIP.err=errMsg(m,'读取会员状态失败')}}
+  if(!acct)VIP.me=null;
+  syncVipUser();
+}
+/* 服务端说你是 VIP，个人资料里的标识才亮；到期回落后同样由服务端结果驱动。 */
+function syncVipUser(){if(MODE==='account'&&D&&D.u&&D.u.me)D.u.me[5]=VIP.me&&VIP.me.vip.active?1:0}
+function vipStatusCard(){
+  if(MODE!=='account')return `<div class="card vp" data-vs="anon"><b>登录后查看你的会员状态</b><small>会员状态保存在服务器上，由服务器判断，不能在本机修改。</small></div>`;
+  const m=VIP.me;if(!m)return `<div class="card vp" data-vs="loading"><b>正在读取会员状态…</b></div>`;
+  const v=m.vip,until=v.until&&vipDate(v.until),since=v.since&&vipDate(v.since);
+  const T={
+    none:['当前套餐：Basic','免费使用。核心的社交、聊天、安全能力都已包含。'],
+    active:['当前套餐：NOVA VIP',(since?'开通于 '+since+' · ':'')+'到期 '+until+'（剩余 '+v.daysLeft+' 天）'],
+    expiring:['NOVA VIP · 即将到期','到期 '+until+'，还剩 '+v.daysLeft+' 天。到期后自动回到 Basic，你的内容都会保留。'],
+    expired:['VIP 已过期','已于 '+(v.expiredAt?vipDate(v.expiredAt):'—')+' 回到 Basic。你发过、收藏过的内容都还在。'],
+    revoked:['VIP 已被撤销','已回到 Basic，你的内容都还在。如有疑问请联系管理员。']}[v.state]||['当前套餐：Basic',''];
+  return `<div class="card vp" data-vs="${esc(v.state)}"><b>${esc(T[0])}</b><small>${esc(T[1])}</small></div>`}
+function vipPlans(c){
+  const b=c.plans.basic,v=c.plans.vip;
+  return `<div class="plans"><div class="plan" data-plan="basic"><b>${esc(b.name)}</b><div class="pp">免费</div><small>${esc(b.tagline)}</small></div><div class="plan v" data-plan="vip"><b>${esc(v.name)}</b><div class="pp">${v.prices.map(p=>esc(p.label)).join('<br>')}</div><small>${esc(v.tagline)}</small></div></div><p class="vpn">${esc(v.priceNote)}</p>`}
+function vipCompare(c){
+  return `<div class="shd">权益对比</div>`+c.entitlements.map(e=>`<div class="ent" data-ent="${esc(e.key)}"><div class="et"><b>${esc(e.title)}</b>${e.status==='live'?'':'<span class="tag">即将推出</span>'}<small>${esc(e.description)}</small></div><div class="ev"><span data-p="basic"><i>Basic</i>${esc(vipFmt(e,'basic'))}</span><span class="v" data-p="vip"><i>VIP</i>${esc(vipFmt(e,'vip'))}</span></div></div>`).join('')}
+function vipRules(c){
+  return `<div class="card vp" style="margin-top:8px"><b>到期后会怎样</b><small>${esc(c.expiry.rule)}${esc(c.expiry.dataPolicy)}</small></div><div class="card vp"><b>这些永远免费</b>${c.alwaysFree.map(x=>`<small>· ${esc(x)}</small>`).join('')}<small style="margin-top:6px">我们不出售：${c.neverSold.map(esc).join('、')}。</small></div>`}
+const pVip=()=>{
+  const c=VIP.cat;let body;
+  if(!NET)body='<div class="card vp"><b>没有连上服务器</b><small>会员信息保存在服务器上。离线演示模式下无法读取。</small></div>';
+  else if(!c)body=VIP.err?`<div class="card vp"><div class="err" role="alert">${esc(VIP.err)}</div><button class="pb" data-a="vipretry">重试</button></div>`:'<p class="em" data-vs="loading">正在读取会员信息…</p>';
+  else body=vipStatusCard()+(VIP.err?`<div class="err" role="alert" style="margin:8px 16px">${esc(VIP.err)}</div>`:'')+vipPlans(c)+vipCompare(c)+vipRules(c);
+  return `<div class="pg" id="vipc">${sub('会员中心')}<div class="sc">${body}</div></div>`};
+/* 设置页里的入口行 */
+const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip;
+  const t=MODE!=='account'?'登录后查看会员状态':!v?'Basic · 免费':v.active?'NOVA VIP · 剩余 '+v.daysLeft+' 天':'Basic · 免费';
+  return `<button class="row" style="width:100%;text-align:left" data-a="vip"><div class="gr"><b>会员中心</b><small>${esc(t)}</small></div><small>›</small></button>`};
+const vipOpen=()=>{S.sh=null;S.st.push('vip');loadVip().then(()=>render())};
+const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
 
 /* ===== 15_perm.js ===== */
 /* NOVA V5 权限表（纯逻辑，无界面依赖，可在 node 里单测）。
@@ -280,7 +344,7 @@ const info=id=>{const f=D.pf[id];if(!f)return[];const me=id=='me',w=k=>me||f[k],
 const prof=id=>{const u=P(id),me=id=='me',n=k=>D.f.filter(e=>e[k]==id).length,f=fol('me',id),IN=info(id),fl=D.f.filter(e=>e[0]==id).map(e=>e[1]),ab=S.mt=='about';
 const bio=`<div class="card" style="padding:12px 16px"><b style="font-size:17px">简介</b><p style="margin-top:6px">${esc(u.b)}</p></div>`;
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">编辑</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
-return `<div class="cvr" style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2"><div class="avw">${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div><h2>${esc(u.n)}${u.v?' <i class="vip">VIP</i>':''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${D.p.filter(p=>p.a==id).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>':`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${D.p.filter(p=>p.a==id).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
+return `<div class="cvr" style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2"><div class="avw">${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div><h2>${esc(u.n)}${u.v?' <i class="vip">VIP</i>':''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${D.p.filter(p=>p.a==id).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>'+(MODE==='account'?'<button class="pb s" data-a="vip">会员中心</button>':''):`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${D.p.filter(p=>p.a==id).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
 const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
 
 /* ===== 40_pages.js ===== */
@@ -309,9 +373,9 @@ return `<div class="pg">${sub('成员')}<div class="sc"><p style="padding:12px 1
 const INF={privacy:['隐私','主页公开范围还没接到服务器。邮箱在设置里默认打码。不要在演示聊天里写真实的隐私。'],security:['安全','密码在服务器上是加盐哈希，管理员也看不到原文。退出登录会使这台设备的令牌失效。私聊端到端加密还没接入。'],help:['帮助','这是给自己和朋友用的版本。登录后刷新仍会保持登录；「先用演示看看」和真实账号的内容分开存在这台设备。'],about:['关于','NOVA\n真实账号已接入（注册、登录、退出）。\n动态、社区和聊天内容仍在这台设备，按账号分开保存。\n图片视频、好友、私聊端到端加密在后面的步骤做。']};
 const pSet=()=>{const t=D.st.theme,r=D.st.rm,s=D.st.sound!==0,h=D.st.haptic!==0,acct=MODE==='account'&&SESSION&&SESSION.user,held=MODE==='demo'&&SESSION&&SESSION.user;
 const who=NET?(acct?`<div class="row"><div class="gr"><b>真实账号</b><small>@${esc(SESSION.user.username)} · ${esc(maskEmail(SESSION.user.email))}${SESSION.user.vip?' · VIP':''}</small></div><button class="pb sm" data-a="logout">退出</button></div><div class="row"><div class="gr"><b>切换到演示数据</b><small>和这个账号的本地内容分开保存，不会互相覆盖</small></div><button class="pb sm s" data-a="todemo">切换</button></div>`:`<div class="row"><div class="gr"><b>${held?'演示数据（登录还在）':'演示数据'}</b><small>${held?'@'+esc(SESSION.user.username)+' 还登录着，可以回去':'未登录。内容只存在这台设备'}</small></div><button class="pb sm" data-a="toacct">${held?'回到账号':'登录'}</button></div>`):`<div class="row"><div class="gr"><b>当前是离线演示</b><small>没有连上服务器，所以不能登录。数据只在这台设备。</small></div></div>`;
-return `<div class="pg">${sub('设置')}<div class="sc">${who}<div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button></div></div><div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div>${['privacy','security','help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>NOVA</b><small style="display:block;margin-top:5px">${acct?'已登录真实账号。动态、社区和聊天仍在这台设备。':'演示数据只在这台设备。'}图片、视频、好友和私聊加密还没做。</small></div></div></div>`};
+return `<div class="pg">${sub('设置')}<div class="sc">${who}${vipRow()}<div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button></div></div><div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div>${['privacy','security','help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>NOVA</b><small style="display:block;margin-top:5px">${acct?'已登录真实账号。动态、社区和聊天仍在这台设备。':'演示数据只在这台设备。'}图片、视频、好友和私聊加密还没做。</small></div></div></div>`};
 const pInfo=k=>`<div class="pg">${sub(INF[k][0])}<div class="sc"><p style="padding:16px;white-space:pre-line">${INF[k][1]}</p></div></div>`;
-const page=cur=>{const[t,a,b]=cur.split(':');return t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='set'?pSet():pInfo(a)};
+const page=cur=>{const[t,a,b]=cur.split(':');return t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='vip'?pVip():t=='set'?pSet():pInfo(a)};
 
 /* ===== 50_sheets.js ===== */
 const srch=q=>{q=q.trim().toLowerCase();if(!q)return '<p class="em">搜索帖子、用户和社区</p>';
@@ -701,7 +765,7 @@ gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.s
 theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},feeltest:()=>{T('音效 + 震动测试')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();if(MODE==='account'&&SESSION&&SESSION.user)applyUser(SESSION.user);S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置当前数据')}};
 
 /* ===== 80_events.js ===== */
-Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct});
+Object.assign(A,{authpane,authgo,authdemo,logout,todemo,toacct,vip:vipOpen,vipretry:vipRetry});
 document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;const ret=f(el.dataset.v);S.bot=k=='cmsend';if(ret&&typeof ret.then==='function')ret.then(()=>render(),()=>render());else render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t)}else if(t.id=='sq'){S.sq=t.value;$('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&document.getElementById('gate')){const b=document.querySelector('#gate [data-a=authgo]');if(b)b.click();return}if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});
