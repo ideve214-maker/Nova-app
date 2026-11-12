@@ -1,4 +1,4 @@
-/* M4.3 单聊/群聊联网：登录后会话走服务器。演示会话仍只在本机。私聊在 M4.11 完成前标明尚未端到端加密。 */
+/* M4.3 单聊/群聊联网：登录后会话走服务器。演示会话仍只在本机。私聊尚未端到端加密（独立安全审查未通过前保持该标识，不用自制算法冒充）。 */
 function adoptCv(c){
   if(!c)return null;
   const me=SESSION&&SESSION.user&&SESSION.user.id;
