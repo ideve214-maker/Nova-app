@@ -1,0 +1,27 @@
+/* NOVA 默认皮肤：规范色板，实心强调色，12px 圆角，无星澜渐变光晕。 */
+html[data-skin="nova"]{
+  --cv:#0B0C0F;--bg:#0B0C0F;--sf:#14161A;--s2:#1B1E23;--s3:#23262C;--tx:#F5F6F7;--t2:#A4A9B2;--t3:#737985;--ln:#292D34;
+  --ac:#2D88FF;--ac-hover:#4A9AFF;--ac-pressed:#1B6FE0;--ac-soft:rgba(45,136,255,.16);--ac-grad:#2D88FF;
+  --onac:#fff;--dg:#D4655A;--dg-grad:#D4655A;--vip:#C8A96A;--vip-grad:linear-gradient(135deg,#EBD9A8,#C8A96A);--onvip:#1A1408;
+  --r-btn:12px;--r-sm:10px;--sh-btn:none;--sh-dg:none;--tracking-btn:0;--tracking-brand:0;
+}
+html[data-skin="nova"][data-theme="light"]{
+  --cv:#F0F2F5;--bg:#F0F2F5;--sf:#fff;--s2:#EEF0F3;--s3:#E4E6EB;--tx:#15171A;--t2:#65676B;--t3:#8A8D91;--ln:#CED0D4;
+  --ac:#2D88FF;--ac-hover:#4A9AFF;--ac-pressed:#1B6FE0;--ac-soft:rgba(45,136,255,.12);--ac-grad:#2D88FF;
+  --onac:#fff;--dg:#B42318;--dg-grad:#B42318;--vip:#8C7340;--ln2:rgba(0,0,0,.08);
+}
+html[data-skin="nova"][data-theme="dark"][data-vip="gold"],
+html[data-skin="nova"][data-theme="dark"] .gpv.g{--ac:#C8A96A;--ac-grad:#C8A96A;--ac-hover:#D6B86F;--ac-pressed:#B39455;--onac:#1A1408;--vip:#C8A96A;--ln:#2E2B25}
+html[data-skin="nova"][data-theme="light"][data-vip="gold"],
+html[data-skin="nova"][data-theme="light"] .gpv.g{--ac:#8C7340;--ac-grad:#8C7340;--onac:#fff;--vip:#8C7340;--ln:#E4DFD3}
+html[data-skin="nova"][data-theme="dark"] .gpv.n{--ac:#2D88FF;--ac-grad:#2D88FF;--onac:#fff;--vip:#C8A96A;--ln:#292D34}
+html[data-skin="nova"][data-theme="light"] .gpv.n{--ac:#2D88FF;--ac-grad:#2D88FF;--onac:#fff;--vip:#8C7340;--ln:#CED0D4}
+html[data-skin="nova"] .pb{border-radius:var(--r-btn,12px);background:var(--ac);color:var(--onac);box-shadow:none;letter-spacing:0;background-image:none}
+html[data-skin="nova"] .pb:active{background:var(--ac-pressed);box-shadow:none}
+html[data-skin="nova"] .pb.s{background:var(--s2);color:var(--tx);border:0}
+html[data-skin="nova"] .pb.d{background:var(--dg)}
+html[data-skin="nova"] nav svg,
+html[data-skin="nova"] .ib svg,
+html[data-skin="nova"] .bar svg{fill:currentColor;stroke:none}
+html[data-skin="nova"] nav button.on{background:none;margin:0;border-radius:0;color:var(--ac);font-weight:600}
+html[data-skin="nova"] .ib{border-radius:var(--r-sm,10px)}

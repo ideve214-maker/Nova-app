@@ -1,7 +1,7 @@
 /* 按键皮肤：从 assets/skins/index.json 加载清单，用 CSS 变量/样式表切换，失败回退默认。
    新增皮肤只需加文件夹和注册表条目，不必改本文件的业务逻辑。 */
 const SKIN_ROOT='assets/skins';
-const SKIN_FALLBACK='xinglan';
+const SKIN_FALLBACK='nova';
 const SKINS={list:[],byId:{},current:null,icons:{},logo:'',ready:false,failed:0};
 
 function skinBase(id){return SKIN_ROOT+'/'+id}
@@ -78,15 +78,16 @@ async function applySkin(id,opts){
   const want=id||SKIN_FALLBACK;
   let meta=SKINS.byId[want];
   if(!meta){
+    if(want!==SKIN_FALLBACK&&SKINS.byId[SKIN_FALLBACK]){return applySkin(SKIN_FALLBACK,{save:false})}
     if(want!=='default'&&SKINS.byId.default){return applySkin('default',{save:false})}
     document.documentElement.dataset.skin=SKIN_FALLBACK;
     SKINS.current=SKIN_FALLBACK;
     return;
   }
   const okCss=await loadSheet(meta.css?(skinBase(meta.id)+'/'+meta.css):'', 'nova-skin-css');
-  if(!okCss && meta.id!=='default'){
+  if(!okCss && meta.id!==SKIN_FALLBACK && meta.id!=='default'){
     SKINS.failed++;
-    return applySkin('default',{save:false});
+    return applySkin(SKIN_FALLBACK,{save:false});
   }
   document.documentElement.dataset.skin=meta.id;
   SKINS.current=meta.id;
@@ -99,6 +100,22 @@ async function applySkin(id,opts){
     }
   }
   if(typeof render==='function')try{render()}catch(e){}
+}
+
+function uiSizeId(){try{return localStorage.getItem('nova_ui_size')||'md'}catch(e){return 'md'}}
+function applyUiSize(id,save,doRender){
+  const ok={sm:1,md:1,lg:1}[id]?id:'md';
+  try{document.documentElement.dataset.uiSize=ok}catch(e){}
+  if(save!==false){try{localStorage.setItem('nova_ui_size',ok)}catch(e){}}
+  if(doRender!==false&&save!==false&&typeof render==='function')try{render()}catch(e){}
+  return ok;
+}
+function bootUiSize(){applyUiSize(uiSizeId(),false,false)}
+function uiSizeRow(){
+  const cur=uiSizeId();
+  const btns=[['sm','小'],['md','标准'],['lg','大']].map(([id,l])=>`<button type="button" class="pb${cur===id?'':' s'}" data-a="uisize" data-v="${id}" aria-pressed="${cur===id?'true':'false'}">${l}</button>`).join('');
+  const val=cur==='sm'?0:cur==='lg'?2:1;
+  return `<div class="row" style="flex-wrap:wrap;align-items:flex-start"><div class="gr"><b>界面大小</b><small>缩放字体、按钮和间距。偏好保存在本机。</small></div><div class="sw uis">${btns}</div><div class="uisz-col" style="width:100%;margin-top:8px"><input type="range" min="0" max="2" step="1" value="${val}" id="uiszrange" aria-label="界面大小"></div><div class="uisz labs" style="width:100%"><span>小</span><span>标准</span><span>大</span></div></div>`;
 }
 function skinRow(){
   const list=SKINS.list||[];
@@ -148,6 +165,7 @@ async function bootSkins(){
   applyResolvedTheme();
 }
 if(typeof window!=='undefined'){
+  try{bootUiSize()}catch(e){}
   try{document.documentElement.dataset.skin=rememberedSkin()||SKIN_FALLBACK}catch(e){}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{bootSkins()});
   else bootSkins();

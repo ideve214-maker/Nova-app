@@ -1,6 +1,7 @@
 {
-  "defaultSkin": "xinglan",
+  "defaultSkin": "nova",
   "skins": [
+    {"id": "nova", "name": "NOVA", "path": "nova"},
     {"id": "xinglan", "name": "星澜", "path": "xinglan"},
     {"id": "default", "name": "经典", "path": "default"}
   ]

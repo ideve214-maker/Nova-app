@@ -26,3 +26,18 @@ const rs=p=>{const t=p.r.reduce((a,b)=>a+b,0);return t?p.r.map((n,i)=>[n,i]).fil
 const pc=(p,det)=>{const u=P(p.a),n=ncm(p.id);return `<div class="card"><div class="row"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b>${esc(u.n)}${u.v?' '+vipBadge():''}</b><small>@${u.h} · ${typeof fmtTime==='function'&&p.at?fmtTime(p.at):(p.t||'')}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div><div class="bd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${p.poll?pollBox(p.poll):''}<div class="sum"><span>${rs(p)}</span><span>${n?n+' 条评论':''}</span></div><div class="bar"><button data-a="rx" data-v="${p.id}" class="${p.m>=0?'on':''}">${p.m>=0?E[p.m]+' 已表态':'👍 表态'}</button><button data-a="post" data-v="${p.id}">${ic('comment')} 评论</button></div></div>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0);return '<nav>'+[['home','首页','home'],['cm','社区','people'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
 const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊使用 Olm（vodozemac）加密</b>一对一私聊在发送前加密，服务端只保存密文。群聊暂不加密。独立安全审查尚未完成，请先核对手友的安全号码。Web 客户端由服务器下发，被替换的脚本可以在加密前取走明文。</div>':'<div class="ban"><b>演示模式 · 未加密</b>此页面仅展示交互效果，不发送真实消息，也不提供端到端加密。</div>';
+
+function hasSafeArea(){
+  if(hasSafeArea._v!=null)return hasSafeArea._v;
+  try{
+    const v=parseFloat(getComputedStyle(document.documentElement).paddingTop)||0;
+    hasSafeArea._v=v>=20;
+    if(hasSafeArea._v)document.documentElement.classList.add('has-safe-area');
+  }catch(e){hasSafeArea._v=false}
+  return hasSafeArea._v;
+}
+function iosStatus(){
+  if(hasSafeArea())return '';
+  const n=new Date(),m=String(n.getMinutes()).padStart(2,'0');
+  return `<div class="ios-sb" aria-hidden="true"><span class="ios-time">${n.getHours()}:${m}</span><span class="ios-inds"><span class="ios-sig"><i></i><i></i><i></i><i></i></span><span class="ios-wifi"></span><span class="ios-bat"></span></span></div>`;
+}
