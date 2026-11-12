@@ -5,15 +5,19 @@ import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {openDb} from './db.mjs';
 import {hashPassword, verifyPassword, newToken, tokenHash} from './auth.mjs';
+import {createVip} from './vip.mjs';
 
 const SESSION_MS = 30 * 864e5, LOCK_FAILS = 5, LOCK_MS = 15 * 60e3;
-const now = () => Date.now();
 class HttpError extends Error { constructor(s, code, msg) { super(msg); this.s = s; this.code = code; } }
 const bad = (code, msg, s = 400) => new HttpError(s, code, msg);
-const pubUser = u => ({id: u.id, username: u.username, email: u.email, role: u.role, vip: !!(u.vip_until && u.vip_until > now()), vipUntil: u.vip_until || null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at});
 
-export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*'} = {}) {
+// clock 仅用于测试注入固定时间；生产一律用系统时间。
+export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*', clock = Date.now} = {}) {
+  const now = () => clock();
   const db = openDb(dbPath);
+  const vip = createVip(db, {clock});
+  // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
+  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at}; };
   const q = {
     userBy: db.prepare('SELECT * FROM users WHERE id=?'),
     userByLogin: db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE OR email = ?'),
@@ -97,6 +101,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user, hash} = auth(req);
       return {sessions: q.mySess.all(user.id).map(s => ({id: s.token_hash.slice(0, 12), current: s.token_hash === hash, createdAt: s.created_at, ip: s.ip, ua: s.ua}))};
     },
+    // ---- VIP（M2.4.2）----
+    'GET /api/vip/catalog'() { return vip.catalog(); },
+    'GET /api/vip/me'(req) {
+      const {user} = auth(req);
+      return {now: now(), vip: vip.status(user), entitlements: vip.entitlements(user)};
+    },
     'GET /api/health'() { return {status: 'ok', time: now()}; },
   };
 
@@ -139,7 +149,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db;
+  server.db = db; server.vip = vip;
   return server;
 }
 

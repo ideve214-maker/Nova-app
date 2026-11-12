@@ -1,5 +1,14 @@
 # 更新日志（最新在上）
 
+## V7 M2.4.2 · VIP 状态 API（2026-11-12）
+- 新增迁移 `002_vip.sql`：`users.vip_since`、`users.vip_source`、`vip_events`（VIP 事件流水，后续测试开关/管理员操作都会写入）。老库自动升级，已有 `vip_until` 的历史用户继续按到期时间判断（有测试）。
+- 新增 `server/vip.mjs`：状态计算（`none / active / expiring / expired / revoked`）、权益取值、公开目录。
+- 新接口 `GET /api/vip/catalog`（公开：套餐、价格占位、权益表、到期规则）与 `GET /api/vip/me`（当前用户的套餐、开始/到期时间、剩余天数、每项权益的取值）。
+- VIP 是否有效只看服务器时间与 `vip_until`：到期自动回落 Basic；`/api/me` 的 `vip`、`vipUntil` 同步改为按此计算（过期后 `vipUntil` 为空）。
+- 客户端无法设置 VIP：注册/改密时夹带的 `vip`、`vip_until`、`role` 字段、伪造请求头、`POST/PUT/PATCH` 写接口都无效（有测试）。
+- `createApp` 新增可注入时钟 `clock`，仅供测试使用。
+- 测试：`npm run test:server` 25 项（新增 7 项）全绿；另做了一次变异检查，故意破坏到期判断会让测试失败。
+
 ## V7 M2.4.1 · 权益与额度配置（2026-11-12）
 - 新增 `server/vip-config.mjs`：VIP 权益与额度的唯一数据源。包含 Basic / NOVA VIP 两个套餐、7 个服务端 entitlement key（`vip_badge`、`profile_theme_gold`、`profile_decoration`、`personal_saved_items_plus`、`longer_post_text`、`premium_emoji_pack`、`media_quota_plus`）、免费额度与 VIP 额度、到期后的行为。
 - 额度：个人收藏 20→100 条；发帖 280→1000 字、聊天 500→1500 字、频道发言 280→800 字（Basic 数值保持现有产品行为）。媒体额度待 M4.5 之后再定，标为占位。
