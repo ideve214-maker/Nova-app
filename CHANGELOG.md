@@ -1,5 +1,10 @@
 # 更新日志（最新在上）
 
+## V7 M4.10.2 · 删除好友与好友列表（2026-11-12）
+- `GET /api/friends` 双方看到同一组已接受的好友；`POST /api/friends/remove` 删除后双方同步，不再是好友。
+- 私聊规则：删除后不能再发送（403 `NOT_FRIENDS`）；**不删除会话和历史消息**；重新加好友后可在原会话继续。
+- 设置页「好友」：待处理申请、发出的申请、好友列表与删除。
+
 ## V7 M4.10.1 · 好友申请/同意/拒绝/取消（2026-11-12）
 - `POST /api/friends/request|accept|decline|cancel`，`GET /api/friends`、`GET /api/friends/requests`、`GET /api/friends/status`。状态：`pending` / `accepted` / `declined`。重复申请或同意幂等；对方已向你申请时再申请 409 `ALREADY_INCOMING`。拉黑 403 `BLOCKED`；对方 `friendRequests=nobody` 时 403 `REQUESTS_CLOSED`。关注不算好友。
 - 申请与通过会写入站内通知（`friend_request` / `friend_accepted`）并经 SSE 推送 `friend.*`。
