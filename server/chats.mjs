@@ -753,10 +753,14 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     const replyToId = body.replyToId ? String(body.replyToId) : null;
     if (!text.trim()) {
       delDraft.run(Number(user.id), cv.id);
-      return {draft: pubDraft(null), conversationId: cv.id, cleared: true};
+      const out = {draft: pubDraft(null), conversationId: cv.id, cleared: true};
+      emit([Number(user.id)], 'draft.sync', {conversationId: cv.id, draft: out.draft, cleared: true});
+      return out;
     }
     upsDraft.run(Number(user.id), cv.id, text, replyToId, now());
-    return {draft: pubDraft(getDraft.get(Number(user.id), cv.id)), conversationId: cv.id, cleared: false};
+    const out = {draft: pubDraft(getDraft.get(Number(user.id), cv.id)), conversationId: cv.id, cleared: false};
+    emit([Number(user.id)], 'draft.sync', {conversationId: cv.id, draft: out.draft, cleared: false});
+    return out;
   }
   function clearMessageDraft(user, cid) {
     return putMessageDraft(user, cid, {text: ''});

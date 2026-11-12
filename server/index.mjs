@@ -16,6 +16,7 @@ import {createHashtags} from './hashtags.mjs';
 import {createSchedule} from './schedule.mjs';
 import {createBlockwords} from './blockwords.mjs';
 import {createPresence} from './presence.mjs';
+import {createExporter} from './export.mjs';
 import {createComments} from './comments.mjs';
 import {createFollows} from './follows.mjs';
 import {createCommunities} from './communities.mjs';
@@ -104,6 +105,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const presence = createPresence(db, {now, friends, events, chats: null});
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
   presence.attach({chats, events, friends});
+  const exporter = createExporter(db, {now, posts, profile, chats, vip, saved});
   posts.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
   comments.attach({personalFilter: (text, me, authorId) => blockwords.personalFilter(text, me, authorId)});
   hashtags.attach({blockwords});
@@ -231,7 +233,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         if (!sid) { sid = newSessionId(); q.setSid.run(sid, s.token_hash); }
         return {id: sid, current: s.token_hash === hash, createdAt: s.created_at, ip: maskIp(s.ip), device: deviceOf(s.ua)};
       });
-      return {sessions};
+      let e2eeDevices = [];
+      try { e2eeDevices = (e2ee.listMine(user).devices) || []; } catch {}
+      return {sessions, e2eeDevices, e2eeRevokeHint: 'POST /api/e2ee/devices/:id/revoke', e2eeNote: '撤销登录会话不会自动撤销 E2EE 设备。'};
     },
     // 退出其他设备：其他令牌服务端立即失效；当前设备默认保留。
     'POST /api/me/sessions/revoke-others'(req) {
@@ -1035,6 +1039,35 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       };
     },
 
+    'GET /api/me/sync-policy'(req) {
+      auth(req);
+      return {
+        policy: {
+          sessions: '所有登录会话可在 GET /api/me/sessions 查看。POST /api/me/sessions/revoke 不能撤销当前设备；revoke-others 保留当前会话。',
+          readState: '已读状态通过 conversation.read 事件同步到同一用户的其他在线设备。',
+          drafts: '非加密会话草稿经 PUT /api/conversations/:id/draft 写入服务端，并通过 draft.sync 推到其他设备。端到端私聊草稿默认只留在本机，避免把明文上传到服务器。',
+          e2eeDevices: '每个设备有独立密钥，服务端不保存 pickle、不同步加密私钥。撤销登录会话不会自动撤销 E2EE 设备，需另外调用 POST /api/e2ee/devices/:id/revoke。',
+        },
+        endpoints: {
+          sessions: 'GET /api/me/sessions',
+          revoke: 'POST /api/me/sessions/revoke',
+          revokeOthers: 'POST /api/me/sessions/revoke-others',
+          e2eeDevices: 'GET /api/e2ee/devices',
+          e2eeRevoke: 'POST /api/e2ee/devices/:id/revoke',
+          drafts: 'GET/PUT /api/conversations/:id/draft',
+          read: 'POST /api/conversations/:id/read',
+        },
+      };
+    },
+    'GET /api/me/export'(req) {
+      const {user} = auth(req);
+      return {export: exporter.exportAll(user)};
+    },
+    'POST /api/me/export'(req) {
+      const {user} = auth(req);
+      audit(user.id, 'user.export', 'user:' + user.id, ip(req));
+      return {export: exporter.exportAll(user)};
+    },
     'GET /api/me/presence'(req) {
       const {user} = auth(req);
       return {presence: presence.mine(user)};
@@ -1315,7 +1348,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence; server.exporter = exporter;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
