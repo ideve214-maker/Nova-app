@@ -1,0 +1,51 @@
+// 头像和背景：样板是照片；相册/文件上传后裁剪，刷新仍在。
+const T = require('./lib');
+const path = require('path');
+module.exports = async () => {
+  await T.group('头像背景：样板照片与裁剪', async () => {
+    const p = await T.open();
+    await p.click('nav [data-v=me]');
+    await T.wait(400);
+    const info = await p.evaluate(() => {
+      const img = document.querySelector('.avw .av img');
+      const cvr = document.querySelector('.cvr');
+      return { src: img && img.getAttribute('src'), bg: cvr && cvr.getAttribute('style') || '' };
+    });
+    T.ok(info.src && info.src.includes('assets/av-me.jpg'), '我的头像是人像样板，不是色块');
+    T.ok(info.bg.includes('assets/bg-'), '我的背景是风景样板，不是色块');
+    const box = await p.evaluate(() => cropBox(1000, 800, 200, 200, 1, 0, 0));
+    T.ok(box.sx >= 0 && box.sy >= 0 && box.sx + box.sw <= 1000 && box.sy + box.sh <= 800, '裁剪区域在图片内');
+    T.ok(Math.abs(box.sw - box.sh) < 1, '正方形取景裁出来是正方形');
+    const pushed = await p.evaluate(() => cropBox(400, 400, 200, 200, 1, 9999, -9999));
+    T.ok(pushed.x === 0 && pushed.y === 0, '缩放为 1 时不能拖出空白');
+    await p.click('[data-a=cover]');
+    await T.wait(200);
+    T.ok(await p.locator('input[data-pick=av]').count() === 1, '头像可以从相册或文件选择');
+    T.ok(await p.locator('input[data-pick=bg]').count() === 1, '背景可以从相册或文件选择');
+    T.ok(await p.locator('[data-a=setph]').count() >= 8, '至少 8 张头像样板');
+    T.ok(await p.locator('[data-a=setbg]').count() >= 2, '至少 2 张背景样板');
+    await p.setInputFiles('input[data-pick=av]', path.resolve(__dirname, '../assets/av-zhou.jpg'));
+    await p.waitForSelector('#cropstage.av');
+    T.ok((await p.locator('.cropbar b').innerText()) === '裁剪头像', '上传后进入头像裁剪');
+    await p.evaluate(() => { S.crop.zoom = 1.4; S.crop.x = 12; S.crop.y = -8; layoutCrop(); });
+    await p.click('[data-a=cropok]');
+    await T.wait(300);
+    const saved = await p.evaluate(() => D.pf.me.ph || '');
+    T.ok(saved.startsWith('data:image/jpeg'), '裁剪结果保存成 jpeg');
+    await p.click('[data-a=cover]');
+    await p.click('[data-a=setbg]');
+    T.ok(await p.evaluate(() => D.pf.me.bg) === 'assets/bg-river.jpg', '点样板直接换成风景');
+    await p.reload();
+    await p.waitForSelector('nav');
+    await p.click('nav [data-v=me]');
+    await T.wait(300);
+    const again = await p.evaluate(() => ({ ph: D.pf.me.ph || '', bg: D.pf.me.bg || '', src: (document.querySelector('.avw img') || {}).src || '' }));
+    T.ok(again.ph.startsWith('data:image/jpeg') && again.src.startsWith('data:image/jpeg'), '刷新后裁剪过的头像还在');
+    T.ok(again.bg.includes('bg-river'), '刷新后样板背景还在');
+    await p.click('[data-a=cover]');
+    await p.click('[data-a=rstlook]');
+    T.ok(await p.evaluate(() => !D.pf.me.ph && !D.pf.me.bg), '可以恢复默认样板');
+    T.eq(p.errors, [], '无控制台报错');
+    await p.ctx.close();
+  });
+};

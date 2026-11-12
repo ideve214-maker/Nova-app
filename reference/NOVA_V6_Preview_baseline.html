@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NOVA V6 · Interactive Preview</title>
+<style>
+:root{--cv:#101114;--bg:#0B0C0F;--sf:#14161A;--s2:#1B1E23;--tx:#F5F6F7;--t2:#A4A9B2;--t3:#737985;--ln:#292D34;--ac:#2D88FF;--dg:#D4655A;--vip:#C8A96A;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root[data-theme=light]{--cv:#E6E8EC;--bg:#F0F2F5;--sf:#fff;--s2:#EEF0F3;--tx:#15171A;--t2:#5C6570;--t3:#8A9098;--ln:#E1E4E8;--ac:#1877F2;--dg:#B42318;--vip:#8C7340;color-scheme:light}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--cv);color:var(--tx);overflow:hidden}
+button,input,textarea{font:inherit;color:inherit;background:none;border:0;outline:0}
+button{cursor:pointer}:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
+#app{width:100%;max-width:430px;height:100%;margin:0 auto;background:var(--bg);position:relative;overflow:hidden}
+#v{display:flex;flex-direction:column;height:100%}
+.pg{flex:1;min-height:0;display:flex;flex-direction:column}.sc{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.top{flex:none;height:52px;display:flex;align-items:center;gap:2px;padding:0 6px 0 16px;background:var(--sf);border-bottom:1px solid var(--ln)}
+.top.sub{padding-left:4px}.top h1{flex:1;font-size:22px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top.sub h1{font-size:18px}.top h1.br{color:var(--ac);letter-spacing:-.5px}
+.ib{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;flex:none;position:relative}
+.ib svg{width:24px;height:24px;fill:currentColor}.ib:active{background:var(--s2)}
+.dot{position:absolute;top:9px;right:9px;width:10px;height:10px;border-radius:50%;background:var(--dg);border:2px solid var(--sf)}
+nav{flex:none;display:flex;height:60px;background:var(--sf);border-top:1px solid var(--ln)}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;color:var(--t2);position:relative}
+nav button.on{color:var(--ac);font-weight:700}nav svg{width:24px;height:24px;fill:currentColor}
+.bdg{position:absolute;top:5px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--dg);color:#fff;font:700 11px/18px sans-serif;text-align:center;font-style:normal}
+.seg{flex:none;display:flex;background:var(--sf);border-bottom:1px solid var(--ln)}
+.seg button{flex:1;height:44px;font-weight:600;color:var(--t2);position:relative}.seg .on{color:var(--ac)}
+.seg .on:after{content:"";position:absolute;left:25%;right:25%;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--ac)}
+.card{background:var(--sf);margin-bottom:8px;border-block:1px solid var(--ln)}
+.row{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--sf);border-bottom:1px solid var(--ln)}.card .row{border:0}
+.gr{flex:1;min-width:0}.gr b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gr small{display:block;color:var(--t2);font-size:13px;line-height:1.35}
+small{color:var(--t2);font-size:13px}
+.av{border-radius:50%;display:inline-grid;place-items:center;font-weight:700;flex:none}
+.vip{font-style:normal;font-size:11px;color:var(--vip);font-weight:700}
+.bd{padding:0 16px 12px;white-space:pre-wrap;word-break:break-word}
+.sum{display:flex;justify-content:space-between;padding:0 16px 8px;color:var(--t2);font-size:13px;min-height:22px}
+.bar{display:flex;border-top:1px solid var(--ln)}.bar button{flex:1;height:44px;color:var(--t2);font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px}
+.bar svg{width:20px;height:20px;fill:currentColor}.bar .on{color:var(--ac)}
+.em{text-align:center;color:var(--t3);padding:32px 16px}
+.comp{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--sf);border-bottom:8px solid var(--bg)}
+.comp button.p{flex:1;height:44px;border-radius:22px;background:var(--s2);color:var(--t2);text-align:left;padding:0 16px}
+.ppl{display:flex;gap:14px;overflow-x:auto;padding:12px 16px;background:var(--sf);border-bottom:8px solid var(--bg)}
+.ppl button{flex:none;width:60px;font-size:12px;color:var(--t2);display:flex;flex-direction:column;align-items:center;gap:4px}
+.ppl .av{outline:2px solid var(--ac);outline-offset:2px}
+.pb{height:44px;padding:0 20px;border-radius:22px;background:var(--ac);color:#fff;font-weight:700;flex:none}.pb:active{transform:scale(.97)}
+.pb:disabled{opacity:.4}.pb.s{background:var(--s2);color:var(--tx)}.pb.d{background:var(--dg)}.pb.sm{height:36px;padding:0 14px;font-size:14px}
+.inrow{flex:none;display:flex;gap:6px;align-items:center;padding:8px 8px 8px 12px;background:var(--sf);border-top:1px solid var(--ln)}
+.inrow input{flex:1;min-width:0;height:44px;background:var(--s2);border-radius:22px;padding:0 16px}
+.inrow .ib{color:var(--t2)}.nope{flex:none;padding:14px 16px;text-align:center;color:var(--t2);background:var(--sf);border-top:1px solid var(--ln);font-size:14px}
+.rt{flex:none;display:flex;justify-content:space-between;align-items:center;padding:6px 16px;background:var(--s2);color:var(--t2);font-size:13px}
+.fld{width:100%;background:var(--s2);border-radius:12px;padding:12px 14px;margin:6px 0 12px;display:block}textarea.fld{resize:none}
+.lab{font-size:13px;color:var(--t2)}.fr{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding-top:4px}.fr .cn{margin-right:auto;font-size:13px;color:var(--t2)}
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:20}
+.pn{position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;background:var(--sf);border-radius:16px 16px 0 0;padding:16px;z-index:21;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.pn h3{font-size:17px;margin-bottom:8px}.mi{display:block;width:100%;text-align:left;height:48px;font-weight:600}.mi.dg{color:var(--dg)}
+.rxs{display:flex;justify-content:space-between;padding:8px 0}.rxs button{font-size:32px;width:52px;height:52px;border-radius:50%}.rxs button:active{background:var(--s2)}
+.cm{display:flex;gap:8px;padding:8px 16px}.cm.sub{padding-left:52px}
+.cb{background:var(--s2);border-radius:16px;padding:8px 12px;display:inline-block;max-width:100%;word-break:break-word}.cb b{display:block;font-size:14px}
+.lk{font-size:13px;color:var(--t2);font-weight:600;padding:8px 2px}.lk.on{color:var(--ac)}
+.ban{flex:none;background:var(--s2);padding:8px 16px;border-bottom:1px solid var(--ln);font-size:13px;color:var(--t2)}.ban b{display:block;color:var(--dg);font-size:15px}
+.mr{display:flex;gap:8px;padding:4px 12px;align-items:flex-end}.mr.me{flex-direction:row-reverse}
+.bub{max-width:100%;padding:9px 13px;border-radius:18px;background:var(--s2);word-break:break-word;white-space:pre-wrap}.me .bub{background:var(--ac);color:#fff}
+.mw{max-width:75%;display:flex;flex-direction:column}.me .mw{align-items:flex-end}.mt{font-size:11px;color:var(--t3);margin-top:2px}
+.ph2{border:1px dashed var(--t3);border-radius:12px;padding:20px 28px;margin-bottom:4px;text-align:center;font-size:13px}
+.pf{background:var(--sf);padding:16px;border-bottom:8px solid var(--bg)}.pr{display:flex;align-items:center;gap:20px;margin-bottom:12px}
+.st{flex:1;display:flex;justify-content:space-around}.st button{display:flex;flex-direction:column;align-items:center;min-width:56px;min-height:44px;color:var(--t2);font-size:13px}.st b{font-size:18px;color:var(--tx)}
+.pf h2{font-size:20px}.pf p{margin:6px 0 12px}.pf .fr{justify-content:stretch}.pf .fr .pb{flex:1}
+.shd{padding:12px 16px;font-weight:700;font-size:17px}
+.cover{height:84px;display:grid;place-items:center;font-size:40px;font-weight:800;color:#fff}
+.chs{display:flex;gap:8px;overflow-x:auto;padding:10px 16px;background:var(--sf);border-bottom:1px solid var(--ln)}
+.chs button{flex:none;height:36px;padding:0 14px;border-radius:18px;background:var(--s2);color:var(--t2);font-weight:600;font-size:14px}.chs .on{background:var(--ac);color:#fff}
+.cmi{padding:12px 16px;background:var(--sf);border-bottom:1px solid var(--ln)}.tag{font-size:12px;padding:2px 8px;border-radius:10px;background:var(--s2);color:var(--t2);margin-left:6px;font-weight:400}
+.nr{display:flex;gap:10px;align-items:center;width:100%;text-align:left;min-height:52px;border-bottom:1px solid var(--ln)}.nr i{width:10px;height:10px;border-radius:50%;background:var(--ac);flex:none}.nr i.z{background:none}
+.sw{display:flex;gap:8px}.sw .pb{height:36px;padding:0 16px}
+.cvr{height:150px;position:relative}
+.cam{position:absolute;right:12px;bottom:12px;height:36px;padding:0 14px;border-radius:18px;background:rgba(0,0,0,.55);color:#fff;font-size:14px;font-weight:600}
+.pf2{text-align:center}.avw{position:relative;width:104px;height:104px;margin:-52px auto 8px;border-radius:50%;border:4px solid var(--sf);background:var(--sf);display:grid;place-items:center}
+.avw .cam{right:-12px;bottom:-4px;height:32px;padding:0 10px;font-size:13px}
+.sts{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:2px 6px;color:var(--t2);font-size:14px;margin-bottom:12px}.sts button{min-height:44px;color:var(--t2)}.sts b{color:var(--tx)}
+.ln2{padding:10px 0;border-bottom:1px solid var(--ln);text-align:left}.sq{width:56px;height:56px;border-radius:12px;border:2px solid var(--ln)}
+.swr{position:relative;overflow:hidden;background:var(--sf)}.swa{position:absolute;right:0;top:0;bottom:0;display:flex}.swa button{width:72px;color:#fff;font-weight:600;font-size:14px}
+.swc{position:relative;transition:transform .24s cubic-bezier(.2,.8,.2,1);touch-action:pan-y;user-select:none;-webkit-user-select:none}
+#tt{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;z-index:40;display:none;white-space:nowrap;max-width:90%}
+body:not(.rm) .pn{animation:up .18s ease-out}@keyframes up{from{transform:translateY(30px);opacity:0}}
+
+/* NOVA V6: softer page transitions and tactile affordances */
+.pg.v6-enter-push{animation:novaPagePush .30s cubic-bezier(.18,.78,.22,1) both}
+.pg.v6-enter-pop{animation:novaPagePop .26s cubic-bezier(.2,.75,.25,1) both}
+.pg.v6-enter-tab{animation:novaTabFade .22s ease-out both}
+nav button{transition:color .18s ease,background-color .18s ease,transform .16s ease}
+nav button:active{transform:scale(.96)}
+.pb,.ib,.lk,.mi,.nr,.row{transition:transform .16s ease,background-color .18s ease,opacity .18s ease}
+@keyframes novaPagePush{from{opacity:.68;transform:translate3d(20px,0,0);filter:blur(1.5px)}to{opacity:1;transform:translate3d(0,0,0);filter:blur(0)}}
+@keyframes novaPagePop{from{opacity:.72;transform:translate3d(-14px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes novaTabFade{from{opacity:.62;transform:translate3d(0,7px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@media(prefers-reduced-motion:reduce){.pg.v6-enter-push,.pg.v6-enter-pop,.pg.v6-enter-tab{animation:none!important}nav button,.pb,.ib,.lk,.mi,.nr,.row{transition:none!important}}
+body.rm .pg.v6-enter-push,body.rm .pg.v6-enter-pop,body.rm .pg.v6-enter-tab{animation:none!important}
+</style></head><body>
+<div id="app"><div id="v"></div><div id="tt" role="status"></div></div>
+<script>
+const E=['❤️','😂','👍','😮','😢','🔥'],$=s=>document.querySelector(s),len=s=>[...s].length;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ok=(s,m)=>{const n=len(s.trim());return n>=1&&n<=m};
+const IC={home:'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',people:'M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',chat:'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z',person:'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',search:'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',bell:'M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z',back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',plus:'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',more:'M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',comment:'M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z',send:'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z',image:'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z',mic:'M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z'};
+const ic=n=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n]}"/></svg>`;
+const MB={cm_read:{chen:'所有者',su:'管理员',zhou:'成员'},cm_walk:{zhou:'所有者',he:'版主'},cm_game:{he:'所有者',jiang:'成员'},cm_cafe:{su:'所有者',chen:'成员'},cm_new:{jiang:'成员',pei:'成员'}};
+const D0=()=>({ver:6,pin:{},pf:{me:{g:'',b:'',gp:1,bp:1,ap:1,cv:0}},st:{theme:'dark',rm:0,sound:1,haptic:1},
+u:{me:['林知夏','zhixia','夏','#2F6F5E','把一天里值得留下的句子写下来。'],zhou:['周屿','zhouyu','屿','#5C4A3A','在城市里找能走路的路。'],chen:['陈晚','chenwan','晚','#243044','夜读，也负责把句子读短。'],su:['苏小满','suman','满','#6B3A4A','手帐和咖啡，都不赶时间。'],he:['何川','hechuan','川','#3A465C','独立游戏闲聊，不剧透结局。'],jiang:['江澄','jiangcheng','澄','#6A5A3C','社区新手，正在学怎么发第一条。'],pei:['裴宁','peining','宁','#C8A96A','只是一个演示用的会员标记。',1],notice:['社区助手','nova_notice','告','#3A3F46','用来演示公告，不是官方账号。']},
+f:[['me','zhou'],['me','chen'],['me','su'],['zhou','me'],['zhou','chen'],['chen','me'],['chen','su'],['su','me'],['he','me'],['he','jiang'],['jiang','he'],['pei','zhou']],
+p:[['p1','me','刚刚','今晚只留一句：把没写完的段落折起来，明天再打开。',[3,0,1,0,0,0],0],['p2','zhou','12 分钟前','沿河的路灯坏了两盏，步道反而更好走。',[0,2,0,1,0,0],-1],['p3','chen','1 小时前','读到一段话说，慢不是停，是把句子放回原位。',[2,0,2,0,0,0],2],['p4','su','2 小时前','今日手帐只记了三种味道：烘豆、纸页、雨后的车站。',[1,0,0,0,0,1],-1],['p5','he','昨天','新关卡的门不是锁，是一段还没听完的对话。不说结局。',[0,1,0,2,0,1],-1],['p6','jiang','昨天','第一次发帖。如果这算帖，那我算开始了。',[1,0,3,0,0,0],2],['p7','pei','2 天前','会员标记只是颜色，不是插队。今天的句子也排在队里。',[0,0,1,0,0,2],-1],['p8','me','3 天前','关注是单行道。对方走不走回来，都不叫好友。',[2,0,0,0,0,0],-1],['p9','me','4 天前','如果一个按钮不能点，就写明为什么，而不是让人猜。',[0,0,1,0,0,0],-1],['p10','me','上周','演示里的字刷新就没了。所以重要的话不要写在这里。',[1,0,0,0,1,0],4]].map(a=>({id:a[0],a:a[1],t:a[2],x:a[3],r:a[4],m:a[5]})),
+c:[['c1','p1',0,'chen','20 分钟前',2,0,'这句可以留下来。'],['c2','p1','c1','me','10 分钟前',0,0,'那就先折在这里。'],['c3','p1',0,'su','8 分钟前',1,1,'明天打开时，别改第一句。'],['c4','p3',0,'he','40 分钟前',1,0,'慢下来以后，路反而清楚。'],['c5','p3','c4','chen','30 分钟前',0,0,'谢谢，我把这句抄进扉页了。']].map(a=>({id:a[0],p:a[1],pa:a[2],a:a[3],t:a[4],l:a[5],ml:a[6],x:a[7]})),
+n:[['n1','周屿 关注了你','1 小时前',1],['n2','陈晚 评论了你的帖子','昨天',1],['n3','夜读角 有一条新公告','2 天前',0],['n4','苏小满 对你的帖子表态','3 天前',0]].map(a=>({id:a[0],x:a[1],t:a[2],u:a[3]})),
+cm:[['cm_read','夜读角','只讨论句子，不比较阅读量。',128,1,'版主',[['ch_read_general','大厅','文字'],['ch_read_ann','公告','公告'],['ch_read_quotes','摘抄','文字']]],['cm_walk','城市步行','交换能走路的路线，不发定位。',86,1,'成员',[['ch_walk_general','大厅','文字'],['ch_walk_ann','公告','公告'],['ch_walk_route','路线','文字']]],['cm_game','独立游戏闲聊','可以说喜欢，不要写结局。',240,0,'',[['ch_game_general','大厅','文字'],['ch_game_ann','公告','公告'],['ch_game_safe','无剧透','文字']]],['cm_cafe','咖啡手帐','记录味道和纸页，不比设备。',64,1,'成员',[['ch_cafe_general','大厅','文字'],['ch_cafe_ann','公告','公告']]],['cm_new','产品新手村','给第一次做产品的人留的练习社区。',42,1,'所有者',[['ch_new_general','大厅','文字'],['ch_new_ann','公告','公告']]]].map(a=>({id:a[0],n:a[1],d:a[2],m:a[3],j:a[4],r:a[5],ch:a[6],mb:MB[a[0]]||{}})),
+cmsg:{ch_read_general:[['chen','1 小时前','今晚只读短句，不读长章。'],['me','昨天','我把没读完的那页折上了。']],ch_read_ann:[['notice','2 天前','公告：讨论只针对句子本身。']],ch_read_quotes:[['su','昨天','摘一句：纸页比进度重要。']],ch_walk_general:[['zhou','12 分钟前','桥南今天不用绕。']],ch_walk_ann:[['notice','3 天前','公告：不要发送具体定位。']],ch_walk_route:[['zhou','昨天','沿河两盏灯坏了，路还在。']],ch_game_general:[['he','昨天','门在对话里。到这里为止。']],ch_game_ann:[['notice','4 天前','公告：结局写在这里会被藏起。']],ch_game_safe:[['he','2 天前','可以说手感，不能说最后一战。']],ch_cafe_general:[['su','2 小时前','烘豆、纸页、雨后的车站。']],ch_cafe_ann:[['notice','上周','公告：不比较器材。']],ch_new_general:[['me','3 天前','这是练习社区，可在设置里重置。']],ch_new_ann:[['notice','上周','公告：所有者在演示里不能退出。']]},
+cv:[['cv_zhou',0,'周屿',['zhou'],1],['cv_chen',0,'陈晚',['chen'],0],['cv_read',1,'夜读角小组',['chen','su'],2],['cv_su',0,'苏小满',['su'],0],['cv_walk',1,'步行三人',['zhou','he'],0],['cv_he',0,'何川',['he'],0]].map(a=>({id:a[0],g:a[1],n:a[2],mem:a[3],u:a[4],own:a[1]?'me':''})),
+m:{cv_zhou:[['zhou','t','1 小时前','已读','沿河那段，你走了吗？'],['me','t','30 分钟前','已读','走到桥南，没有绕路。'],['zhou','t','12 分钟前','已送达','今晚的路灯那段，我走到了。']],cv_chen:[['chen','t','2 小时前','已读','短句比长章更适合今晚。'],['me','t','1 小时前','已读','那一行我留下了。'],['chen','i','1 小时前','已读','一张虚构的书页，没有真实图片。']],cv_read:[['su','t','昨天','已读','纸页的味道不用打分。'],['chen','t','昨天','已送达','@所有人 明天继续读短句。'],['me','v','昨天','已发送','0:12 的语音条，不能播放。']],cv_su:[['su','t','昨天','已读','三种味道都记下来了。'],['me','t','昨天','已读','车站那段我也很轻地写了。']],cv_walk:[['he','t','2 天前','已读','不剧透，只问路好不好走。'],['zhou','t','2 天前','已读','桥南不用绕。']],cv_he:[['he','t','3 天前','已读','我不剧透，只说门在对话里。'],['me','t','3 天前','已发送','那就停在门口。']]},
+rq:[['rq_jiang','jiang','想把第一条帖子的感受发给你。','昨天'],['rq_pei','pei','不是广告，只是打个招呼。','2 天前'],['rq_notice','notice','公告账号不能私聊，这条用来演示拒绝。','3 天前']].map(a=>({id:a[0],u:a[1],x:a[2],t:a[3],s:'p'}))});
+const up=s=>{s.ver=6;s.pin=s.pin||{};s.pf=s.pf||{me:{g:'',b:'',gp:1,bp:1,ap:1,cv:0}};s.st=s.st||{};s.st.sound=s.st.sound===0?0:1;s.st.haptic=s.st.haptic===0?0:1;s.cm.forEach(c=>{c.mb=c.mb||{}});return s};
+const load=()=>{try{const s=JSON.parse(localStorage.getItem('nova_v6')||localStorage.getItem('nova_v5')||localStorage.getItem('nova_v4')||localStorage.getItem('nova_v3'));if(s&&s.ver>=3)return up(s)}catch(e){}const d=D0();if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)d.st.rm=1;return d};
+let D=load();const save=()=>{try{localStorage.setItem('nova_v6',JSON.stringify(D))}catch(e){}};
+const S={tab:'home',feed:'rec',st:[],sh:null,reply:null,cs:'j',cseg:'in',ch:{},d:{},cq:'',sq:'',xq:'',gp:[]};
+const P=id=>{const a=D.u[id]||D.u.me;return{id,n:a[0],h:a[1],l:a[2],c:a[3],b:a[4],v:a[5]}};
+const avx=(c,l,s)=>`<span class="av" style="width:${s}px;height:${s}px;background:${c};color:${c=='#C8A96A'?'#1A1408':'#fff'};font-size:${Math.round(s*.42)}px">${esc(l)}</span>`;
+const av=(id,s)=>{const u=P(id);return avx(u.c,u.l,s)};
+const PAL=['#2F6F5E','#5C4A3A','#243044','#6B3A4A','#3A465C','#6A5A3C'],hc=s=>PAL[[...s].reduce((a,c)=>a+c.charCodeAt(0),0)%6];
+const fol=(a,b)=>D.f.some(e=>e[0]==a&&e[1]==b),ncm=id=>D.c.filter(c=>c.p==id).length;
+const T=m=>{const t=$('#tt');t.textContent=m;t.style.display='block';clearTimeout(T.h);T.h=setTimeout(()=>t.style.display='none',1800)};
+const sub=(t,r='')=>`<div class="top sub"><button class="ib" data-a="back" aria-label="返回">${ic('back')}</button><h1>${t}</h1>${r}</div>`;
+const rs=p=>{const t=p.r.reduce((a,b)=>a+b,0);return t?p.r.map((n,i)=>[n,i]).filter(a=>a[0]).sort((a,b)=>b[0]-a[0]).slice(0,3).map(a=>E[a[1]]).join('')+' '+t:''};
+const pc=(p,det)=>{const u=P(p.a),n=ncm(p.id);return `<div class="card"><div class="row"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b>${esc(u.n)}${u.v?' <i class="vip">VIP</i>':''}</b><small>@${u.h} · ${p.t}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div><div class="bd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div><div class="sum"><span>${rs(p)}</span><span>${n?n+' 条评论':''}</span></div><div class="bar"><button data-a="rx" data-v="${p.id}" class="${p.m>=0?'on':''}">${p.m>=0?E[p.m]+' 已表态':'👍 表态'}</button><button data-a="post" data-v="${p.id}">${ic('comment')} 评论</button></div></div>`};
+const nav=()=>{const un=D.cv.reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0);return '<nav>'+[['home','首页','home'],['cm','社区','people'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
+const ban=()=>'<div class="ban"><b>演示模式 · 未加密</b>此页面仅展示交互效果，不发送真实消息，也不提供端到端加密。</div>';
+/* ---- tabs ---- */
+const tHome=()=>{const fl=D.f.filter(e=>e[0]=='me').map(e=>e[1]),L=D.p.filter(p=>S.feed=='rec'||p.a=='me'||fl.includes(p.a));
+return `<div class="pg"><div class="top"><h1 class="br">NOVA</h1><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${D.n.some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
+<div class="seg"><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">关注</button><button data-a="feed" data-v="rec" class="${S.feed=='rec'?'on':''}">推荐</button></div>
+<div class="sc"><div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">写点什么</button><button class="ib" data-a="compose" aria-label="发帖" style="color:var(--ac)">${ic('plus')}</button></div>
+${fl.length?`<div class="ppl">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div>`:''}
+${L.length?L.map(p=>pc(p)).join(''):`<p class="em">${S.feed=='rec'?'推荐里还没有帖子':'你还没有关注任何人'}</p>`}</div></div>`};
+const cml=()=>{const q=S.cq.trim().toLowerCase(),L=D.cm.filter(c=>!!c.j==(S.cs=='j')&&(!q||(c.n+c.d).toLowerCase().includes(q)));
+return L.length?L.map(c=>`<div class="row" data-a="cm" data-v="${c.id}">${avx(hc(c.id),c.n[0],48)}<div class="gr"><b>${esc(c.n)}</b><small>${esc(c.d)}</small><small>${c.m} 名成员 · ${c.ch.length} 个频道</small></div><button class="pb sm${c.j?' s':''}" data-a="${c.j?'cm':'join'}" data-v="${c.id}">${c.j?'已加入':'加入'}</button></div>`).join(''):'<p class="em">没有社区</p>'};
+const tCm=()=>`<div class="pg"><div class="top"><h1>社区</h1><button class="ib" data-a="newcm" aria-label="创建社区">${ic('plus')}</button></div><div class="seg"><button data-a="cmseg" data-v="j" class="${S.cs=='j'?'on':''}">已加入</button><button data-a="cmseg" data-v="d" class="${S.cs=='d'?'on':''}">发现</button></div><div class="sc"><div style="padding:8px 16px 0"><input class="fld" id="cq" placeholder="搜索" value="${esc(S.cq)}"></div><div id="cl">${cml()}</div></div></div>`;
+const last=id=>{const a=D.m[id]||[],m=a[a.length-1];return m?{x:m[1]=='i'?'图片占位':m[1]=='v'?'语音占位':m[4],t:m[2]}:{x:'',t:''}};
+const rowc=(c,hd)=>{const l=last(c.id),at=c.u>0&&(D.m[c.id]||[]).slice(-c.u).some(m=>m[0]!='me'&&String(m[4]).includes('@所有人')),W=c.g?216:288;
+const row=`<div class="row swc" data-w="${W}" data-a="${hd?'unhide':'conv'}" data-v="${c.id}">${c.g?avx(c.gc||hc(c.id),[...c.n][0],48):av(c.mem[0],48)}<div class="gr"><b>${c.pin?'📌 ':''}${esc(c.n)}${c.g?'<span class="tag">群聊</span>':''}${c.mute?' 🔕':''}</b><small>${at?'<span style="color:var(--dg)">[@所有人] </span>':''}${esc(l.x)}</small></div><div style="text-align:right"><small>${hd?'点击恢复':l.t}</small>${c.u&&!hd?`<br><i class="bdg" style="position:static;display:inline-block${c.mute?';background:var(--t3)':''}">${c.u}</i>`:''}</div>${hd?'':`<button class="ib" data-a="cvm" data-v="${c.id}" aria-label="更多">${ic('more')}</button>`}</div>`;
+return hd?row.replace(' swc"','"'):`<div class="swr"><div class="swa">${[['cvpin',c.pin?'取消置顶':'置顶','#2D88FF'],['cvmute',c.mute?'取消静音':'静音','#E8870E'],['cvhide','隐藏','#737985'],...(c.g?[]:[['cvdel','删除','#D4655A']])].map(a=>`<button style="background:${a[2]}" data-a="${a[0]}" data-v="${c.id}">${a[1]}</button>`).join('')}</div>${row}</div>`};
+const xl=()=>{const q=S.xq.trim().toLowerCase(),V=D.cv.filter(c=>!c.hid&&(!q||(c.n+last(c.id).x).toLowerCase().includes(q))).sort((a,b)=>(b.pin||0)-(a.pin||0)),H=D.cv.filter(c=>c.hid);return (V.length?V.map(c=>rowc(c)).join(''):`<p class="em">${q?'没有匹配结果':'没有会话'}</p>`)+(H.length&&!q?`<button class="nope" style="width:100%" data-a="showhid">${S.sh2?'收起已隐藏的会话':'已隐藏的会话 '+H.length}</button>${S.sh2?H.map(c=>rowc(c,1)).join(''):''}`:'')};
+const tChat=()=>{const np=D.rq.filter(r=>r.s=='p').length;let h;
+if(S.cseg=='in')h=`<div style="padding:8px 16px 0"><input class="fld" id="xq" placeholder="搜索" value="${esc(S.xq)}"></div><div id="xl">${xl()}</div>`;
+else h=D.rq.length?D.rq.map(r=>`<div class="row">${av(r.u,48)}<div class="gr"><b>${esc(P(r.u).n)}</b><small>${esc(r.x)}</small><small>${r.t}</small></div>${r.s=='p'?`<div class="sw"><button class="pb sm" data-a="acc" data-v="${r.id}">接受</button><button class="pb sm s" data-a="rej" data-v="${r.id}">拒绝</button></div>`:`<small>${r.s=='a'?'已接受':'已拒绝'}</small>`}</div>`).join(''):'<p class="em">没有申请</p>';
+return `<div class="pg"><div class="top"><h1>聊天</h1><button class="ib" data-a="newg" aria-label="新建群聊">${ic('plus')}</button></div>${ban()}<div class="seg"><button data-a="seg" data-v="in" class="${S.cseg=='in'?'on':''}">消息</button><button data-a="seg" data-v="rq" class="${S.cseg=='rq'?'on':''}">申请${np?' '+np:''}</button></div><div class="sc">${h}</div></div>`};
+const COV=['linear-gradient(135deg,#243044,#3A465C)','linear-gradient(135deg,#2F6F5E,#1d3b33)','linear-gradient(135deg,#6B3A4A,#3a2430)','linear-gradient(135deg,#5C4A3A,#2a2119)','linear-gradient(135deg,#2D88FF,#243044)','linear-gradient(135deg,#6A5A3C,#C8A96A)'];
+const age=b=>{const d=new Date(b),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n<new Date(n.getFullYear(),d.getMonth(),d.getDate()))a--;return a};
+const info=id=>{const f=D.pf[id];if(!f)return[];const me=id=='me',w=k=>me||f[k],t=k=>me&&!f[k]?'（仅自己可见）':'',r=[];if(f.b&&w('bp'))r.push('🎂 出生于 '+f.b.replace(/^(\d+)-(\d+)-(\d+)$/,'$1年$2月$3日')+t('bp'));if(f.b&&w('ap'))r.push('🎈 '+age(f.b)+' 岁'+t('ap'));if(f.g&&w('gp'))r.push('👤 '+f.g+t('gp'));return r};
+const prof=id=>{const u=P(id),me=id=='me',n=k=>D.f.filter(e=>e[k]==id).length,f=fol('me',id),IN=info(id),fl=D.f.filter(e=>e[0]==id).map(e=>e[1]),ab=S.mt=='about';
+const bio=`<div class="card" style="padding:12px 16px"><b style="font-size:17px">简介</b><p style="margin-top:6px">${esc(u.b)}</p></div>`;
+const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">编辑</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
+return `<div class="cvr" style="background:${me?COV[D.pf.me.cv]:hc(id)}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf pf2"><div class="avw">${av(id,96)}${me?'<button class="cam" data-a="cover" aria-label="更换头像颜色">换色</button>':''}</div><h2>${esc(u.n)}${u.v?' <i class="vip">VIP</i>':''}</h2><small>@${u.h}</small><p>${esc(u.b)}</p><div class="sts"><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b> 位粉丝</button>·<button data-a="fl" data-v="following|${id}">关注 <b>${n(0)}</b> 人</button>·<span><b>${D.p.filter(p=>p.a==id).length}</b> 条帖子</span></div><div class="fr">${me?'<button class="pb" data-a="edit">编辑资料</button><button class="pb s" data-a="go" data-v="set">设置</button>':`<button class="pb${f?' s':''}" data-a="fol" data-v="${id}">${f?'已关注':'关注'}</button>${id=='notice'?'':`<button class="pb s" data-a="dm" data-v="${id}">私信</button>`}`}</div></div><div class="seg"><button data-a="mt" data-v="all" class="${ab?'':'on'}">全部</button><button data-a="mt" data-v="about" class="${ab?'on':''}">简介</button></div>${ab?bio+ov:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">关注的人</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp" style="border-bottom:1px solid var(--ln)"><span>${av('me',40)}</span><button class="p" data-a="compose">写点什么</button></div>`:''}<div class="shd">所有帖子</div>${D.p.filter(p=>p.a==id).map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`}`};
+const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
+/* ---- pages ---- */
+const cmts=id=>{const all=D.c.filter(c=>c.p==id),top=all.filter(c=>!c.pa);return top.length?top.map(c=>ci(c,0)+all.filter(r=>r.pa==c.id).map(r=>ci(r,1)).join('')).join(''):'<p class="em">还没有评论</p>'};
+const ci=(c,s)=>`<div class="cm${s?' sub':''}">${av(c.a,s?28:34)}<div class="gr"><div class="cb"><b>${esc(P(c.a).n)}</b>${esc(c.x)}</div><small style="display:block;padding-left:4px">${c.t} · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button>${s?'':` · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>`}</small></div></div>`;
+const inbar=(k,ph,btn,v,extra='')=>`<div class="inrow">${extra}<input data-d="${k}" data-max="${k=='chin'?500:280}" placeholder="${ph}" autocomplete="off"><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`;
+const pPost=id=>{const p=D.p.find(x=>x.id==id);if(!p)return sub('帖子')+'<p class="em">帖子不存在</p>';const rc=S.reply&&D.c.find(c=>c.id==S.reply);
+return `<div class="pg">${sub('帖子')}<div class="sc">${pc(p,1)}<div class="shd">评论</div>${cmts(id)}</div>${rc?`<div class="rt">回复 ${esc(P(rc.a).n)}<button class="lk" data-a="rpx">取消</button></div>`:''}${inbar('cin',rc?'写一条回复':'写一条评论','cs',id)}</div>`};
+const pUser=id=>`<div class="pg">${sub(esc(P(id).n))}<div class="sc">${prof(id)}</div></div>`;
+const pFl=(k,id)=>{const i=k=='following'?0:1,L=D.f.filter(e=>e[i]==id).map(e=>e[1-i]);return `<div class="pg">${sub(k=='following'?'关注':'粉丝')}<div class="sc">${L.length?L.map(u=>`<div class="row" data-a="user" data-v="${u}">${av(u,48)}<div class="gr"><b>${esc(P(u).n)}</b><small>@${P(u).h} · ${esc(P(u).b)}</small></div>${u=='me'?'':`<button class="pb sm${fol('me',u)?' s':''}" data-a="fol" data-v="${u}">${fol('me',u)?'已关注':'关注'}</button>`}</div>`).join(''):'<p class="em">名单是空的</p>'}</div></div>`};
+const pCm=id=>{const c=D.cm.find(x=>x.id==id),cur=c.ch.find(x=>x[0]==S.ch[id])||c.ch[0],ms=D.cmsg[cur[0]]||[],adm=MOD.includes(c.r),can=c.j&&(cur[2]!='公告'||adm);
+return `<div class="pg">${sub(esc(c.n))}<div class="sc"><div class="cover" style="background:${hc(c.id)}">${esc(c.n[0])}</div><div class="cmi"><b style="font-size:18px">${esc(c.n)}</b><p>${esc(c.d)}</p><small>${c.m} 名成员 · ${c.ch.length} 个频道</small>${c.j?`<p><span class="tag" style="margin:0">${c.r}</span> <small>角色标记只用于演示，不代表真的权限</small></p>`:''}<div class="fr" style="justify-content:flex-start">${!c.j?`<button class="pb" data-a="join" data-v="${c.id}">加入</button>`:c.r=='所有者'?'<small style="flex:1">你是所有者，演示中不能退出</small><button class="pb sm d" data-a="dis" data-v="'+c.id+'">解散社区</button>':`<button class="pb s" data-a="leave" data-v="${c.id}">退出</button>`}<button class="pb sm s" data-a="go" data-v="cmm:${c.id}">成员</button></div></div><div class="chs">${c.ch.map(h=>`<button data-a="chan" data-v="${c.id}|${h[0]}" class="${h[0]==cur[0]?'on':''}">${h[2]=='公告'?'📢':'#'} ${h[1]}</button>`).join('')}</div>${ms.length?ms.map(m=>`<div class="cm">${av(m[0],36)}<div class="gr"><b style="display:inline">${esc(P(m[0]).n)}</b> <small>${m[1]}</small><div style="word-break:break-word">${esc(m[2])}</div></div></div>`).join(''):'<p class="em">这个频道还没有演示消息</p>'}${c.j?'':'<p class="em">加入后才在演示里出现在你的列表顶部</p>'}</div>${can?inbar('cmin','在 '+cur[1]+' 发言','cmsend',c.id+'|'+cur[0]):`<div class="nope">${c.j?'只有所有者、管理员和版主能在公告频道发言':'加入后才能发言'}</div>`}</div>`};
+const bubble=(m,g)=>{if(m[1]=='s')return `<div class="mt" style="text-align:center;padding:6px 16px">${esc(m[4])}</div>`;const me=m[0]=='me',b=m[1]=='i'?`<div class="ph2">图片占位</div>${esc(m[4])}`:m[1]=='v'?`🎙 语音占位 · ${esc(m[4])}`:esc(m[4]);
+return `<div class="mr${me?' me':''}">${me?'':av(m[0],32)}<div class="mw">${g&&!me?`<small>${esc(P(m[0]).n)}</small>`:''}<div class="bub">${b}</div><div class="mt">${m[2]}${me?' · '+m[3]:''}</div></div></div>`};
+const pChat=id=>{const c=D.cv.find(x=>x.id==id),ms=D.m[id]||[];
+return `<div class="pg">${sub(esc(c.n)+(c.g?'<span class="tag">群聊</span>':''),`<button class="ib" data-a="${c.g?'ginfo':'cvm'}" data-v="${id}" aria-label="更多">${ic('more')}</button>`)}${ban()}<div class="sc" style="padding:8px 0">${ms.map(m=>bubble(m,c.g)).join('')||'<p class="em">发一条演示消息吧</p>'}</div>${inbar('chin','输入演示消息','send',id,`<button class="ib" data-a="media" aria-label="图片（演示中不可用）">${ic('image')}</button><button class="ib" data-a="media" aria-label="语音（演示中不可用）">${ic('mic')}</button>`)}</div>`};
+const pEdit=()=>{const g=S.d.eg||'',row=(k,l)=>`<div class="row" style="padding:6px 0;background:none;border:0"><div class="gr"><b style="font-weight:600">${l}</b></div><button class="pb sm${S.d['v'+k]?'':' s'}" data-a="vis" data-v="${k}" aria-pressed="${!!S.d['v'+k]}">${S.d['v'+k]?'公开':'仅自己'}</button></div>`;
+return `<div class="pg">${sub('编辑资料')}<div class="sc" style="padding:16px"><span class="lab">显示名（1–20 字）</span><input class="fld" data-d="en"><span class="lab">账号（4–15 位小写字母、数字、下划线）</span><input class="fld" data-d="eh" autocapitalize="none"><span class="lab">简介（最多 80 字）</span><textarea class="fld" data-d="eb" rows="3"></textarea><span class="lab">性别</span><div class="sw" style="margin:6px 0 12px">${['男','女','其他',''].map(x=>`<button class="pb sm${g==x?'':' s'}" data-a="gen" data-v="${x}">${x||'不填'}</button>`).join('')}</div><span class="lab">生日</span><input class="fld" type="date" data-d="ebd"><div class="shd" style="padding:8px 0 4px">谁能看到</div>${row('bp','生日')}${row('ap','年龄')}${row('gp','性别')}<div class="fr"><button class="pb" data-a="saveedit">保存</button></div></div></div>`};
+const pGi=id=>{const c=D.cv.find(x=>x.id==id);if(!c)return sub('群聊信息');const ow=c.own||'me',own=ow=='me',mine=gAdm(c),ids=['me',...c.mem];
+return `<div class="pg">${sub('群聊信息')}<div class="sc"><div class="pf pf2" style="padding-top:24px">${avx(c.gc||hc(c.id),[...c.n][0],80)}<h2 style="margin-top:8px">${esc(c.n)}</h2><small>${ids.length} 位成员</small>${mine?`<div class="fr" style="margin-top:12px"><button class="pb s" data-a="grn" data-v="${id}">修改群名</button><button class="pb s" data-a="gav" data-v="${id}">更换群头像</button></div>`:''}</div><div class="shd">成员</div><button class="row" style="width:100%;text-align:left;color:var(--ac);font-weight:600" data-a="gadd" data-v="${id}">＋ 添加成员</button>${ids.map(u=>`<div class="row" data-a="user" data-v="${u}">${av(u,40)}<div class="gr"><b>${u=='me'?'我':esc(P(u).n)}${gRole(c,u)!='成员'?`<span class="tag">${gRole(c,u)}</span>`:''}</b><small>@${P(u).h}</small></div>${mine&&u!='me'&&gRole(c,u)=='成员'||own&&u!='me'?`<button class="pb sm s" data-a="gmr" data-v="${id}|${u}">管理</button>`:''}</div>`).join('')}<div style="padding:16px"><button class="pb d" style="width:100%" data-a="gleave" data-v="${id}">退出群聊</button></div></div></div>`};
+const pCmm=id=>{const c=cmp(id),own=c.r=='所有者'&&c.j,rows=[...(c.j?[['me',c.r]]:[]),...Object.entries(c.mb||{})];
+return `<div class="pg">${sub('成员')}<div class="sc"><p style="padding:12px 16px 0;color:var(--t2);font-size:13px">角色标记只用于演示，不代表真的权限</p>${rows.map(([u,r])=>`<div class="row" data-a="user" data-v="${u}">${av(u,40)}<div class="gr"><b>${u=='me'?'我':esc(P(u).n)}<span class="tag">${r}</span></b><small>@${P(u).h}</small></div>${own&&u!='me'?`<button class="pb sm s" data-a="rolem" data-v="${id}|${u}">管理</button>`:''}</div>`).join('')||'<p class="em">还没有成员</p>'}</div></div>`};
+const INF={privacy:['隐私','正式产品计划支持私密主页。这一版只展示说明，不会真的隐藏内容，也不会记住开关。'],security:['安全','这里没有账号，没有密码，也没有加密。不要输入真实隐私。'],help:['帮助','帮助中心尚未建立。当前只是演示版本。'],about:['关于','NOVA V6 本地交互预览\n数据只保存在这台设备的浏览器里，可在设置中重置\n真实云端服务尚未接入']};
+const pSet=()=>{const t=D.st.theme,r=D.st.rm,s=D.st.sound!==0,h=D.st.haptic!==0;return `<div class="pg">${sub('设置')}<div class="sc"><div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button></div></div><div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>设备和浏览器支持时提供轻触反馈</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div>${['privacy','security','help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>重置演示数据</b><small>清除你发的帖子、评论、消息和修改</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>NOVA V6 交互预览</b><small style="display:block;margin-top:5px">当前为本地演示版本。真实账号、云端消息、推送、媒体上传和端到端加密尚未接入。</small></div></div></div>`};
+const pInfo=k=>`<div class="pg">${sub(INF[k][0])}<div class="sc"><p style="padding:16px;white-space:pre-line">${INF[k][1]}</p></div></div>`;
+const page=cur=>{const[t,a,b]=cur.split(':');return t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='set'?pSet():pInfo(a)};
+const srch=q=>{q=q.trim().toLowerCase();if(!q)return '<p class="em">搜索帖子、用户和社区</p>';
+const U=Object.keys(D.u).filter(i=>(P(i).n+P(i).h).toLowerCase().includes(q)),Po=D.p.filter(p=>(p.x+P(p.a).n+P(p.a).h).toLowerCase().includes(q)),C=D.cm.filter(c=>(c.n+c.d).toLowerCase().includes(q));
+return U.length+Po.length+C.length?U.map(i=>`<div class="row" style="padding:8px 0" data-a="user" data-v="${i}">${av(i,40)}<div class="gr"><b>${esc(P(i).n)}</b><small>@${P(i).h}</small></div></div>`).join('')+C.map(c=>`<div class="row" style="padding:8px 0" data-a="cm" data-v="${c.id}">${avx(hc(c.id),c.n[0],40)}<div class="gr"><b>${esc(c.n)}</b><small>社区 · ${esc(c.d)}</small></div></div>`).join('')+Po.map(p=>`<div class="row" style="padding:8px 0" data-a="post" data-v="${p.id}">${av(p.a,40)}<div class="gr"><b>${esc(P(p.a).n)}</b><small>${esc(p.x)}</small></div></div>`).join(''):'<p class="em">没有匹配结果</p>'};
+const sheet=()=>{const s=S.sh;if(!s)return '';let h='';
+if(s.t=='rx')h=`<h3>表态</h3><div class="rxs">${E.map((e,i)=>`<button data-a="rxp" data-v="${s.id}|${i}" aria-label="${e}">${e}</button>`).join('')}</div>`;
+if(s.t=='more'){const p=D.p.find(x=>x.id==s.id);h=`<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="report">举报（仅演示）</button>${p&&p.a=='me'?`<button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
+if(s.t=='compose')h='<h3>发帖</h3><textarea class="fld" data-d="pin" data-max="280" data-af rows="5" placeholder="写点什么"></textarea><div class="fr"><span class="cn" data-cnt="pin"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pub" data-for="pin" disabled>发布</button></div>';
+if(s.t=='search')h=`<input class="fld" id="sq" data-af placeholder="搜索" value="${esc(S.sq)}"><div id="sr">${srch(S.sq)}</div>`;
+if(s.t=='notif')h='<h3>通知</h3>'+D.n.map(n=>`<button class="nr" data-a="nr" data-v="${n.id}"><i class="${n.u?'':'z'}"></i><span class="gr"><b>${esc(n.x)}</b><small>${n.t}</small></span></button>`).join('');
+if(s.t=='leave')h=`<h3>退出这个社区？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="leave2" data-v="${s.id}">确定</button></div>`;
+if(s.t=='resetq')h='<h3>重置演示数据？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="reset">确定</button></div>';
+if(s.t=='newcm')h='<h3>创建社区</h3><span class="lab">名称（2–20 字）</span><input class="fld" data-d="cn" data-af><span class="lab">简介（最多 80 字，可空）</span><input class="fld" data-d="cd"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="mkcm">创建</button></div>';
+if(s.t=='cvm'){const c=D.cv.find(x=>x.id==s.id);h=`<h3>${esc(c.n)}</h3><button class="mi" data-a="cvpin" data-v="${c.id}">${c.pin?'取消置顶':'置顶'}</button><button class="mi" data-a="cvmute" data-v="${c.id}">${c.mute?'取消静音':'静音'}</button><button class="mi" data-a="cvhide" data-v="${c.id}">隐藏会话</button>${c.g?`<button class="mi" data-a="ginfo" data-v="${c.id}">群聊信息</button>`:`<button class="mi dg" data-a="cvdel" data-v="${c.id}">删除会话</button>`}`}
+if(s.t=='cvdel')h=`<h3>删除这个会话？</h3><p style="color:var(--t2);margin-bottom:8px">消息记录会被清除，只影响你这一侧。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="cvdel2" data-v="${s.id}">删除</button></div>`;
+if(s.t=='grn')h=`<h3>修改群名</h3><input class="fld" data-d="gn" data-af placeholder="群名（1–20 字）"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="grn2" data-v="${s.id}">保存</button></div>`;
+if(s.t=='gav')h=`<h3>群头像颜色</h3><div class="sw" style="flex-wrap:wrap">${PAL.map(c=>`<button class="sq" style="background:${c};border-radius:50%" data-a="gav2" data-v="${s.id}|${c}" aria-label="头像颜色"></button>`).join('')}</div><p style="color:var(--t2);margin-top:8px;font-size:13px">头像是色块加群名首字，群名改了首字会跟着变。</p><div class="fr"><button class="pb" data-a="x">完成</button></div>`;
+if(s.t=='gadd'){const c=D.cv.find(x=>x.id==s.id),L=Object.keys(D.u).filter(i=>i!='me'&&i!='notice'&&!c.mem.includes(i));h=`<h3>添加成员</h3>${L.length?L.map(i=>`<div class="nr">${av(i,36)}<span class="gr"><b>${esc(P(i).n)}</b></span><button class="pb sm" data-a="gadd2" data-v="${s.id}|${i}">添加</button></div>`).join(''):'<p class="em">没有可添加的人</p>'}<div class="fr"><button class="pb s" data-a="x">完成</button></div>`}
+if(s.t=='gleave'){const c=D.cv.find(x=>x.id==s.id),ow=(c.own||'me')=='me';h=ow&&c.mem.length?`<h3>先转让群主</h3><p style="color:var(--t2);margin-bottom:8px">你是群主，退出前请选择新群主。</p>${c.mem.map(i=>`<button class="nr" data-a="gown" data-v="${s.id}|${i}">${av(i,36)}<span class="gr"><b>${esc(P(i).n)}</b></span><small>转让并退出</small></button>`).join('')}`:`<h3>退出这个群聊？</h3>${ow?'<p style="color:var(--t2);margin-bottom:8px">群里没有其他成员了，退出后群聊会被解散。</p>':''}<div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="gleave2" data-v="${s.id}">${ow?'退出并解散':'退出'}</button></div>`}
+if(s.t=='newg')h=`<h3>新建群聊</h3><input class="fld" data-d="gn" data-af placeholder="群名（1–20 字）"><span class="lab">选择成员</span>${Object.keys(D.u).filter(i=>i!='me'&&i!='notice').map(i=>`<button class="nr" data-a="gsel" data-v="${i}">${av(i,36)}<span class="gr"><b>${esc(P(i).n)}</b></span><span>${S.gp.includes(i)?'☑':'☐'}</span></button>`).join('')}<div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="mkg">创建</button></div>`;
+if(s.t=='rolem'){const c=cmp(s.cm),r=c.mb[s.u];h=`<h3>${esc(P(s.u).n)}</h3>${['管理员','版主','成员'].map(x=>`<button class="mi" data-a="setrole" data-v="${s.cm}|${s.u}|${x}">${r==x?'✓ ':''}设为${x}</button>`).join('')}<button class="mi dg" data-a="kick" data-v="${s.cm}|${s.u}">移出社区</button>`}
+if(s.t=='gmr'){const c=cvf(s.id),own=(c.own||'me')=='me',a=(c.adm||[]).includes(s.u);h=`<h3>${esc(P(s.u).n)}</h3>${own?`<button class="mi" data-a="gadmin" data-v="${s.id}|${s.u}">${a?'取消管理员':'设为管理员'}</button>`:''}<button class="mi dg" data-a="grm" data-v="${s.id}|${s.u}">移出群聊</button>`}
+if(s.t=='cover')h=`<h3>背景</h3><div class="sw" style="flex-wrap:wrap">${COV.map((c,i)=>`<button class="sq" style="background:${c}" data-a="setcv" data-v="${i}" aria-label="背景 ${i+1}"></button>`).join('')}</div><h3 style="margin-top:16px">头像颜色</h3><div class="sw" style="flex-wrap:wrap">${PAL.map(c=>`<button class="sq" style="background:${c};border-radius:50%" data-a="setav" data-v="${c}" aria-label="头像颜色"></button>`).join('')}</div><div class="fr" style="margin-top:12px"><button class="pb" data-a="x">完成</button></div>`;
+if(s.t=='dis')h=`<h3>解散这个社区？</h3><p style="color:var(--t2);margin-bottom:8px">解散后，频道和消息都会被删除，成员也无法再进入。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="dis2" data-v="${s.id}">确定解散</button></div>`;
+return `<div class="ov" data-a="x"></div><div class="pn" role="dialog">${h}</div>`};
+const chk=t=>{const k=t.dataset.d,mx=+t.dataset.max||0,raw=len(t.value),b=$(`[data-for=${k}]`),c=$(`[data-cnt=${k}]`);if(b)b.disabled=!ok(t.value,mx||1e9);if(c){c.textContent=raw>mx?`已超出 ${raw-mx} 字`:`${raw}/${mx}`;c.style.color=raw>mx?'var(--dg)':''}};
+function render(){const cur=S.st[S.st.length-1],key=cur||S.tab,old=$('#v .sc'),y=old&&S.k==key?old.scrollTop:0;S.k=key;
+document.documentElement.dataset.theme=D.st.theme;document.body.classList.toggle('rm',!!D.st.rm);
+$('#v').innerHTML=(cur?page(cur):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='chat'?tChat():tMe())+nav()+sheet();
+document.querySelectorAll('#v [data-d]').forEach(el=>{el.value=S.d[el.dataset.d]||'';chk(el)});
+const sc=$('#v .sc');if(sc)sc.scrollTop=(cur&&cur.startsWith('chat:'))||S.bot?1e9:y;S.bot=0;
+const af=$('#v [data-af]');if(af)af.focus();save()}
+/* NOVA V6 navigation transition wrapper and tactile feedback. */
+const __novaV6RenderCore=render;
+window.__novaV6View={key:null,tab:null,depth:0};
+render=function(){
+  const before=window.__novaV6View||{key:null,tab:null,depth:0};
+  __novaV6RenderCore();
+  const after={key:S.k||S.tab,tab:S.tab,depth:S.st.length};
+  if(before.key!==null&&before.key!==after.key){
+    const pageEl=$('#v .pg');
+    if(pageEl&&!D.st.rm){
+      pageEl.classList.remove('v6-enter-push','v6-enter-pop','v6-enter-tab');
+      void pageEl.offsetWidth;
+      pageEl.classList.add(before.tab!==after.tab?'v6-enter-tab':after.depth>before.depth?'v6-enter-push':after.depth<before.depth?'v6-enter-pop':'v6-enter-tab');
+    }
+  }
+  window.__novaV6View=after;
+};
+let __novaV6Audio=null;
+function __novaV6Beep(kind){
+  if(D.st.sound===0)return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    __novaV6Audio=__novaV6Audio||new AC();if(__novaV6Audio.state==='suspended')__novaV6Audio.resume();
+    const notes=kind==='send'?[[620,.055,.028,0],[920,.065,.024,.065]]:kind==='switch'?[[510,.04,.018,0]]:kind==='warn'?[[210,.075,.024,0]]:[[740,.035,.016,0]];
+    for(const [freq,dur,gain,delay] of notes){const t=__novaV6Audio.currentTime+delay,o=__novaV6Audio.createOscillator(),g=__novaV6Audio.createGain();o.type='sine';o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(gain,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(__novaV6Audio.destination);o.start(t);o.stop(t+dur+.015)}
+  }catch(e){/* Browser audio policy can block sound without blocking UI. */}
+}
+function __novaV6Press(kind){
+  __novaV6Beep(kind);
+  if(D.st.haptic===0||!navigator.vibrate)return;
+  try{navigator.vibrate(kind==='send'?[10,24,12]:kind==='warn'?[18,30,18]:kind==='switch'?7:10)}catch(e){}
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-a]');if(!el||el.disabled)return;
+  const action=el.dataset.a;
+  const kind=['send','cs','cmsend','pub'].includes(action)?'send':(['tab','go','back','user','post','cm','conv','chan','feed','cmseg','seg','mt'].includes(action)?'switch':(['report','delp','reset','dis2','kick','grm','gleave2'].includes(action)?'warn':'tap'));
+  __novaV6Press(kind);
+},{capture:true});
+
+/* ---- actions ---- */
+const MOD=['所有者','管理员','版主'],ADM=['所有者','管理员'],cmp=id=>D.cm.find(c=>c.id==id);
+const gRole=(c,u)=>u==(c.own||'me')?'群主':(c.adm||[]).includes(u)?'管理员':'成员',gAdm=c=>gRole(c,'me')!='成员';
+const gm=(id,x)=>{(D.m[id]=D.m[id]||[]).push(['me','s','刚刚','',x])};
+const gx=id=>{D.cv=D.cv.filter(c=>c.id!=id);delete D.m[id];S.st=S.st.filter(p=>p!='chat:'+id&&p!='gi:'+id);S.sh=null;T('已退出群聊')};
+const cvf=v=>D.cv.find(c=>c.id==v);
+const A={tab:v=>{S.tab=v;S.st=[];S.sh=null;S.reply=null},go:v=>{S.st.push(v);S.sh=null},back:()=>{S.st.pop();S.reply=null},x:()=>{S.sh=null},feed:v=>{S.feed=v},
+user:v=>{if(v=='me'){S.tab='me';S.st=[];S.sh=null}else A.go('user:'+v)},post:v=>A.go('post:'+v),
+rx:v=>{S.sh={t:'rx',id:v}},rxp:v=>{const[i,j]=v.split('|'),p=D.p.find(x=>x.id==i),k=+j;if(p.m==k){p.r[k]--;p.m=-1}else{if(p.m>=0)p.r[p.m]--;p.r[k]++;p.m=k}S.sh=null},
+more:v=>{S.sh={t:'more',id:v}},copy:v=>{try{navigator.clipboard.writeText(D.p.find(x=>x.id==v).x).catch(()=>{})}catch(e){}S.sh=null;T('已复制')},report:()=>{S.sh=null;T('已记录（仅演示，不会发送给任何人）')},
+delp:v=>{D.p=D.p.filter(p=>p.id!=v);D.c=D.c.filter(c=>c.p!=v);S.sh=null;if(S.st[S.st.length-1]=='post:'+v)S.st.pop();T('已删除')},
+compose:()=>{S.sh={t:'compose'}},pub:()=>{const x=(S.d.pin||'').trim();if(!ok(x,280))return;D.p.unshift({id:'p'+Date.now(),a:'me',t:'刚刚',x,r:[0,0,0,0,0,0],m:-1});S.d.pin='';S.sh=null;S.st=[];S.tab='home';T('已发布')},
+search:()=>{S.sh={t:'search'};S.sq=''},notif:()=>{S.sh={t:'notif'}},nr:v=>{D.n.find(n=>n.id==v).u=0},
+rp:v=>{S.reply=v},rpx:()=>{S.reply=null},cs:v=>{const x=(S.d.cin||'').trim();if(!ok(x,280))return;const c={id:'c'+Date.now(),p:v,pa:S.reply||0,a:'me',t:'刚刚',l:0,ml:0,x};S.reply?D.c.push(c):D.c.unshift(c);S.d.cin='';S.reply=null},
+cl:v=>{const c=D.c.find(x=>x.id==v);c.ml?(c.ml=0,c.l--):(c.ml=1,c.l++)},
+fol:v=>{if(v=='me')return;const i=D.f.findIndex(e=>e[0]=='me'&&e[1]==v);i>=0?D.f.splice(i,1):D.f.push(['me',v])},
+fl:v=>A.go('fl:'+v.replace('|',':')),
+dm:v=>{let c=D.cv.find(x=>!x.g&&x.mem[0]==v);if(!c){c={id:'cv'+Date.now(),g:0,n:P(v).n,mem:[v],u:0};D.cv.unshift(c);D.m[c.id]=[]}S.tab='chat';S.st=['chat:'+c.id];c.u=0;c.hid=0},
+seg:v=>{S.cseg=v},conv:v=>{D.cv.find(c=>c.id==v).u=0;A.go('chat:'+v)},media:()=>T('演示中不可用'),
+send:v=>{const x=(S.d.chin||'').trim();if(!ok(x,500))return;(D.m[v]=D.m[v]||[]).push(['me','t','刚刚','已发送',x]);const i=D.cv.findIndex(c=>c.id==v),c=D.cv.splice(i,1)[0];D.cv.unshift(c);S.d.chin=''},
+acc:v=>{const r=D.rq.find(x=>x.id==v);if(r.s!='p')return;r.s='a';const id='cv_'+v;D.cv.unshift({id,g:0,n:P(r.u).n,mem:[r.u],u:1});D.m[id]=[[r.u,'t',r.t,'已送达',r.x]]},rej:v=>{const r=D.rq.find(x=>x.id==v);if(r.s=='p')r.s='r'},
+cmseg:v=>{S.cs=v},cm:v=>A.go('cm:'+v),chan:v=>{const[c,h]=v.split('|');S.ch[c]=h},
+join:v=>{const c=D.cm.find(x=>x.id==v);if(!c.j){c.j=1;c.m++;c.r='成员'}T('已加入')},leave:v=>{S.sh={t:'leave',id:v}},leave2:v=>{const c=D.cm.find(x=>x.id==v);if(c.j&&c.r!='所有者'){c.j=0;c.m--;c.r=''}S.sh=null},
+cmsend:v=>{const[c,h]=v.split('|'),x=(S.d.cmin||'').trim();if(!ok(x,280))return;(D.cmsg[h]=D.cmsg[h]||[]).push(['me','刚刚',x]);S.d.cmin=''},
+newcm:()=>{S.sh={t:'newcm'};S.d.cn='';S.d.cd=''},mkcm:()=>{const n=(S.d.cn||'').trim(),d=(S.d.cd||'').trim();if(len(n)<2||len(n)>20)return T('名称需要 2 到 20 个字');if(len(d)>80)return T('简介最多 80 字');const id='cm_'+Date.now(),g=id+'_g',a=id+'_a';D.cm.unshift({id,n,d,m:1,j:1,r:'所有者',ch:[[g,'大厅','文字'],[a,'公告','公告']]});D.cmsg[g]=[];D.cmsg[a]=[['notice','刚刚','公告：这是新建的演示社区。']];S.sh=null;S.cs='j';S.cq='';T('已创建')},
+edit:()=>{const u=P('me'),f=D.pf.me;S.d.en=u.n;S.d.eh=u.h;S.d.eb=u.b;S.d.eg=f.g;S.d.ebd=f.b;S.d.vbp=f.bp;S.d.vap=f.ap;S.d.vgp=f.gp;A.go('edit')},gen:v=>{S.d.eg=v},vis:v=>{S.d['v'+v]=S.d['v'+v]?0:1},mt:v=>{S.mt=v},cover:()=>{S.sh={t:'cover'}},setcv:v=>{D.pf.me.cv=+v},setav:v=>{D.u.me[3]=v},dis:v=>{S.sh={t:'dis',id:v}},dis2:v=>{const c=D.cm.find(x=>x.id==v);if(c&&c.r=='所有者'){c.ch.forEach(h=>delete D.cmsg[h[0]]);D.cm=D.cm.filter(x=>x.id!=v);S.st=S.st.filter(p=>p!='cm:'+v);delete S.ch[v];T('社区已解散')}S.sh=null},
+saveedit:()=>{const n=(S.d.en||'').trim(),h=(S.d.eh||'').trim(),b=(S.d.eb||'').trim();if(len(n)<1||len(n)>20)return T('显示名需要 1 到 20 个字');if(!/^[a-z0-9_]{4,15}$/.test(h))return T('账号需要 4 到 15 位小写字母、数字或下划线');if(Object.keys(D.u).some(i=>i!='me'&&D.u[i][1]==h))return T('这个账号已被演示数据使用');if(len(b)>80)return T('简介最多 80 字');const bd=S.d.ebd||'';if(bd&&(isNaN(new Date(bd))||new Date(bd)>new Date()||age(bd)>120))return T('生日不正确');Object.assign(D.pf.me,{g:S.d.eg||'',b:bd,gp:S.d.vgp?1:0,bp:S.d.vbp?1:0,ap:S.d.vap?1:0});const u=D.u.me;u[0]=n;u[1]=h;u[2]=[...n][0];u[4]=b;S.st.pop();T('已保存')},
+cvm:v=>{S.sh={t:'cvm',id:v}},cvpin:v=>{const c=cvf(v);c.pin=c.pin?0:1;S.sh=null},cvmute:v=>{const c=cvf(v);c.mute=c.mute?0:1;S.sh=null},
+cvhide:v=>{cvf(v).hid=1;S.st=S.st.filter(p=>p!='chat:'+v);S.sh=null;T('已隐藏，可在列表底部找回')},unhide:v=>{cvf(v).hid=0;T('已恢复')},showhid:()=>{S.sh2=!S.sh2},
+cvdel:v=>{S.sh={t:'cvdel',id:v}},cvdel2:v=>{D.cv=D.cv.filter(c=>c.id!=v);delete D.m[v];S.st=S.st.filter(p=>p!='chat:'+v);S.sh=null;T('已删除')},
+ginfo:v=>A.go('gi:'+v),grn:v=>{S.d.gn=cvf(v).n;S.sh={t:'grn',id:v}},grn2:v=>{const n=(S.d.gn||'').trim();if(len(n)<1||len(n)>20)return T('群名需要 1 到 20 个字');cvf(v).n=n;gm(v,'你把群名改为「'+n+'」');S.sh=null;T('已保存')},
+gav:v=>{S.sh={t:'gav',id:v}},gav2:v=>{const[i,c]=v.split('|');cvf(i).gc=c;gm(i,'你更换了群头像')},
+gadd:v=>{S.sh={t:'gadd',id:v}},gadd2:v=>{const[i,u]=v.split('|'),c=cvf(i);if(!c.mem.includes(u)){c.mem.push(u);gm(i,'你邀请了 '+P(u).n+' 加入群聊')}},
+grm:v=>{const[i,u]=v.split('|'),c=cvf(i);c.mem=c.mem.filter(x=>x!=u);c.adm=(c.adm||[]).filter(x=>x!=u);gm(i,'你将 '+P(u).n+' 移出了群聊');S.sh=null;T('已移出')},
+gleave:v=>{S.sh={t:'gleave',id:v}},gleave2:v=>gx(v),gown:v=>{const[i,u]=v.split('|');cvf(i).own=u;gx(i)},
+newg:()=>{S.sh={t:'newg'};S.d.gn='';S.gp=[]},gsel:v=>{S.gp=S.gp.includes(v)?S.gp.filter(x=>x!=v):[...S.gp,v]},
+mkg:()=>{const n=(S.d.gn||'').trim();if(len(n)<1||len(n)>20)return T('群名需要 1 到 20 个字');if(!S.gp.length)return T('至少选择一位成员');const id='cv'+Date.now();D.cv.unshift({id,g:1,n,mem:[...S.gp],u:0,own:'me'});D.m[id]=[['me','s','刚刚','','你创建了群聊「'+n+'」']];S.sh=null;S.cseg='in';T('已创建')},
+rolem:v=>{const[c,u]=v.split('|');S.sh={t:'rolem',cm:c,u}},setrole:v=>{const[c,u,r]=v.split('|');cmp(c).mb[u]=r;T('已设为'+r)},kick:v=>{const[c,u]=v.split('|'),m=cmp(c);delete m.mb[u];m.m--;S.sh=null;T('已移出')},
+gmr:v=>{const[i,u]=v.split('|');S.sh={t:'gmr',id:i,u}},gadmin:v=>{const[i,u]=v.split('|'),c=cvf(i);c.adm=c.adm||[];const on=!c.adm.includes(u);c.adm=on?[...c.adm,u]:c.adm.filter(x=>x!=u);gm(i,on?'你将 '+P(u).n+' 设为了管理员':'你取消了 '+P(u).n+' 的管理员身份');S.sh=null},
+theme:v=>{D.st.theme=v},rm:()=>{D.st.rm=D.st.rm?0:1},sound:()=>{D.st.sound=D.st.sound===0?1:0;T(D.st.sound?'已开启按键音效':'已关闭按键音效')},haptic:()=>{D.st.haptic=D.st.haptic===0?1:0;T(D.st.haptic?'已开启按键震动（设备支持时生效）':'已关闭按键震动')},resetq:()=>{S.sh={t:'resetq'}},reset:()=>{D=D0();S.st=[];S.sh=null;S.tab='home';S.d={};S.ch={};T('已重置')}};
+document.addEventListener('click',e=>{if(Date.now()-(S.nc||0)<300)return;const o=e.target.closest('.swc.o');if(o&&!e.target.closest('.swa')){o.classList.remove('o');o.style.transform='';return}const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const k=el.dataset.a,f=A[k];if(!f)return;f(el.dataset.v);S.bot=k=='cmsend';render();if(k=='rp'){const i=$('[data-d=cin]');i&&i.focus()}});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.d){S.d[t.dataset.d]=t.value;chk(t)}else if(t.id=='sq'){S.sq=t.value;$('#sr').innerHTML=srch(t.value)}else if(t.id=='cq'){S.cq=t.value;$('#cl').innerHTML=cml()}else if(t.id=='xq'){S.xq=t.value;$('#xl').innerHTML=xl()}});
+document.addEventListener('keydown',e=>{const t=e.target;if(e.key=='Enter'&&!e.isComposing&&t.tagName=='INPUT'&&t.dataset.d){const b=$(`[data-for=${t.dataset.d}]`);if(b&&!b.disabled)b.click()}});
+let sw=null;
+const swc=x=>{x.classList.remove('o');x.style.transform=''};
+document.addEventListener('pointerdown',e=>{const r=e.target.closest('.swc');document.querySelectorAll('.swc.o').forEach(x=>{if(x!==r)swc(x)});if(!r||r.dataset.a=='unhide')return;sw={r,x:e.clientX,y:e.clientY,d:0,m:0,W:+r.dataset.w,o:r.classList.contains('o')}});
+document.addEventListener('pointermove',e=>{if(!sw)return;const dx=e.clientX-sw.x,dy=e.clientY-sw.y;if(!sw.m){if(Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy))sw.m=1;else if(Math.abs(dy)>8){sw=null;return}else return}let t=(sw.o?-sw.W:0)+dx;t=t>0?t*.25:t<-sw.W?-sw.W+(t+sw.W)*.25:t;sw.r.style.transition='none';sw.r.style.transform='translateX('+t+'px)';sw.d=t});
+document.addEventListener('pointerup',()=>{if(!sw)return;const r=sw.r;if(sw.m){r.style.transition='';const open=sw.d<-sw.W/2;r.classList.toggle('o',open);r.style.transform=open?'translateX('+(-sw.W)+'px)':'';S.nc=Date.now()}sw=null});
+document.addEventListener('pointercancel',()=>{if(sw){sw.r.style.transition='';sw=null}});
+render();
+</script></body></html>

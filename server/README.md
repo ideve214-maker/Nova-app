@@ -1,0 +1,26 @@
+# NOVA 后端（M2.2）
+启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
+环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`
+测试：`npm run test:server`（账号接口） · `npm run test:ui`（浏览器走一遍注册登录） · `npm run test:web`（旧的本地 HTML 演示测试）
+
+打开 `http://主机:端口/` 就是用户端。同一个服务提供网页和接口。
+
+## 已完成接口
+| 方法 路径 | 说明 |
+|---|---|
+| GET / | 用户端页面（需先 build） |
+| POST /api/auth/register | 注册：username、email、password → 返回 user + token |
+| POST /api/auth/login | 登录：account（用户名或邮箱）、password；连错5次锁15分钟 |
+| POST /api/auth/logout | 退出（令牌立即失效） |
+| GET /api/me | 当前用户 |
+| POST /api/me/password | 改密码，其他设备下线 |
+| GET /api/me/sessions | 登录设备列表 |
+| GET /api/health | 健康检查 |
+
+请求头：`Authorization: Bearer <token>`。错误统一：`{error:{code,message}}`。
+
+## 安全说明
+- 密码：scrypt 加盐哈希，不可还原（管理员也看不到，只能重置）。令牌：库中只存 SHA-256。浏览器只把令牌放在 localStorage，用来刷新后保持登录。
+- 账号不存在与密码错误返回同样提示，且都做一次哈希，防账号探测。
+- 演示内容不入库。每个账号的本机演示副本用不同的 localStorage 键。
+- 尚未做（见总项目表）：管理员体系 M3.1、IP 级限流与安全响应头加固 M6.1、HTTPS（由部署层提供）、私聊端到端加密 M4.11。

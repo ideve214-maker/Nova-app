@@ -1,0 +1,78 @@
+// M3 角色与频道
+const T = require('./lib');
+const vm = require('vm'), fs = require('fs');
+module.exports = async () => {
+  await T.group('M3 权限表（纯逻辑单测，node 内直接运行）', async () => {
+    const ctx = { module: { exports: {} } }; vm.createContext(ctx); vm.runInContext(fs.readFileSync(__dirname + '/../src/15_perm.js', 'utf8'), ctx);
+    const P = ctx.module.exports;
+    T.ok(P.canC('所有者', 'dissolve') && !P.canC('管理员', 'dissolve'), '只有所有者能解散');
+    T.ok(P.canC('管理员', 'addChannel') && !P.canC('版主', 'addChannel') && !P.canC('成员', 'addChannel'), '管理员及以上才能新建频道');
+    T.ok(P.canC('版主', 'postAnn') && !P.canC('成员', 'postAnn'), '版主可在公告频道发言，成员不行');
+    T.ok(P.canC('版主', 'pinMsg') && !P.canC('成员', 'pinMsg'), '版主及以上可置顶');
+    T.ok(P.canC('管理员', 'atAll') && !P.canC('版主', 'atAll'), '管理员及以上可@所有人，版主不行');
+    T.ok(!P.canC('', 'post'), '非成员什么都不能做');
+    T.eq(P.assignable('所有者', '成员'), ['管理员', '版主', '成员'], '所有者可设管理员/版主/成员');
+    T.eq(P.assignable('管理员', '成员'), ['版主', '成员'], '管理员只能设版主/成员');
+    T.eq(P.assignable('管理员', '管理员'), [], '管理员不能动同级');
+    T.eq(P.assignable('管理员', '所有者'), [], '管理员不能动所有者');
+    T.eq(P.assignable('版主', '成员'), [], '版主不能管理任何人');
+    T.ok(P.canG('群主', 'atAll') && P.canG('管理员', 'pinMsg') && !P.canG('成员', 'pinMsg'), '群聊：群主/管理员可置顶和@所有人，成员不行');
+    T.ok(P.canKickG('群主', '管理员') && !P.canKickG('管理员', '管理员') && P.canKickG('管理员', '成员'), '群聊移出规则');
+  });
+  await T.group('M3 管理员：新建/改名/删除频道', async () => {
+    const p = await T.open();
+    await p.evaluate(() => { A.cm('cm_cafe'); render(); }); await T.wait(500);
+    T.ok(await p.locator('[data-a=addch]').count() === 1 && await p.locator('[data-a=chmgr]').count() === 1, '管理员看到"＋新频道"和"管理"');
+    await p.click('[data-a=addch]'); await p.fill('[data-d=chn]', '闲聊'); await p.click('[data-a=mkch]');
+    T.ok(await p.evaluate(() => cmp('cm_cafe').ch.some(x => x[1] == '闲聊')), '创建文字频道');
+    T.ok((await p.locator('.chs').innerText()).includes('闲聊'), '频道标签出现');
+    T.eq(await p.evaluate(() => S.ch.cm_cafe.includes('_ch')), true, '创建后自动切到新频道');
+    await p.click('[data-a=addch]'); await p.fill('[data-d=chn]', '闲聊'); await p.click('[data-a=mkch]');
+    T.eq(await p.evaluate(() => cmp('cm_cafe').ch.filter(x => x[1] == '闲聊').length), 1, '拒绝同名频道');
+    await p.fill('[data-d=chn]', ''); await p.click('[data-a=mkch]'); T.eq(await p.evaluate(() => cmp('cm_cafe').ch.length), 3, '拒绝空名');
+    await p.fill('[data-d=chn]', '一二三四五六七八九十一二三'); await p.click('[data-a=mkch]'); T.eq(await p.evaluate(() => cmp('cm_cafe').ch.length), 3, '拒绝超过 12 字');
+    await p.click('[data-a=chtype][data-v=公告]'); await p.fill('[data-d=chn]', '活动通知'); await p.click('[data-a=mkch]');
+    T.eq(await p.evaluate(() => cmp('cm_cafe').ch.at(-1)[2]), '公告', '创建公告频道');
+    T.ok(await p.locator('.inrow input').count() === 1, '管理员能在公告频道发言');
+    await p.click('[data-a=chmgr]'); T.ok(await p.locator('.pn [data-a=rmch]').count() === 3, '默认频道没有删除按钮（共 4 个频道，3 个可删）');
+    await p.click('.pn [data-a=chren]:nth-of-type(1)').catch(() => {}); await p.evaluate(() => { A.chren('cm_cafe|' + cmp('cm_cafe').ch[2][0]); render(); });
+    await p.fill('[data-d=chn]', '日常'); await p.click('[data-a=chren2]');
+    T.eq(await p.evaluate(() => cmp('cm_cafe').ch[2][1]), '日常', '改名成功'); T.eq(await p.evaluate(() => S.sh.t), 'chmgr', '改名后回到管理列表');
+    await p.click('.pn [data-a=rmch]'); T.ok((await p.locator('.pn h3').innerText()).includes('删除频道'), '删除需二次确认');
+    await p.click('[data-a=rmch2]'); T.eq(await p.evaluate(() => cmp('cm_cafe').ch.length), 3, '确认后删除');
+    T.eq(await p.evaluate(() => { const c = cmp('cm_cafe'); A.rmch2(c.id + '|' + c.ch[0][0]); return c.ch.length; }), 3, '默认频道无法通过代码删除');
+    T.eq(p.errors, [], '无报错'); await p.ctx.close();
+  });
+  await T.group('M3 版主/成员：界面按权限显隐', async () => {
+    const p = await T.open();
+    await p.evaluate(() => { A.cm('cm_walk'); render(); }); await T.wait(500);
+    T.ok(await p.locator('[data-a=addch]').count() === 0 && await p.locator('[data-a=chmgr]').count() === 0, '普通成员看不到频道管理');
+    await p.evaluate(() => { A.chan('cm_walk|ch_walk_ann'); render(); }); T.ok((await p.locator('.nope').innerText()).includes('只有所有者、管理员和版主'), '成员不能在公告频道发言');
+    const n = await p.evaluate(() => { A.mkch('cm_walk'); A.addch('cm_walk'); return cmp('cm_walk').ch.length }); T.eq(n, 3, '直接调用动作也被权限拦住');
+    await p.evaluate(() => { S.st = []; A.cm('cm_read'); render(); }); await T.wait(450);
+    T.ok(await p.locator('[data-a=addch]').count() === 0, '版主不能新建频道');
+    await p.evaluate(() => { A.chan('cm_read|ch_read_ann'); render(); }); T.ok(await p.locator('.inrow input').count() === 1, '版主能在公告频道发言');
+    await p.ctx.close();
+  });
+  await T.group('M3 社区成员：设管理员/版主/移出', async () => {
+    const p = await T.open();
+    await p.evaluate(() => { S.st = ['cmm:cm_new']; render(); }); await T.wait(450);
+    T.ok(await p.locator('[data-a=rolem]').count() === 2, '所有者对两位成员都有"管理"');
+    await p.click('[data-a=rolem][data-v="cm_new|jiang"]');
+    T.eq(await p.locator('.pn [data-a=setrole]').allInnerTexts(), ['设为管理员', '设为版主', '✓ 设为成员'], '所有者可选 管理员/版主/成员');
+    await p.click('[data-a=setrole][data-v="cm_new|jiang|管理员"]'); T.eq(await p.evaluate(() => cmp('cm_new').mb.jiang), '管理员', '设为管理员');
+    await p.evaluate(() => { S.sh = null; render(); });
+    T.ok((await p.locator('.sc').innerText()).includes('管理员'), '成员列表显示管理员标签');
+    await p.evaluate(() => { S.st = ['cmm:cm_cafe']; render(); }); await T.wait(450);
+    const btns = await p.locator('[data-a=rolem]').evaluateAll(b => b.map(x => x.dataset.v));
+    T.eq(btns.sort(), ['cm_cafe|chen', 'cm_cafe|zhou'], '管理员只能管理 成员/版主，不能管理所有者');
+    await p.click('[data-a=rolem][data-v="cm_cafe|chen"]');
+    T.eq(await p.locator('.pn [data-a=setrole]').allInnerTexts(), ['设为版主', '✓ 设为成员'], '管理员不能任命管理员');
+    T.eq(await p.evaluate(() => { A.setrole('cm_cafe|chen|管理员'); return cmp('cm_cafe').mb.chen; }), '成员', '直接调用也不能越权任命');
+    T.eq(await p.evaluate(() => { A.kick('cm_cafe|su'); return !!cmp('cm_cafe').mb.su; }), true, '管理员不能移出所有者');
+    await p.click('[data-a=kick]'); T.eq(await p.evaluate(() => !!cmp('cm_cafe').mb.chen), false, '管理员可移出成员');
+    await p.evaluate(() => { S.st = ['cmm:cm_walk']; S.sh = null; render(); }); await T.wait(450);
+    T.eq(await p.locator('[data-a=rolem]').count(), 0, '普通成员看不到任何"管理"按钮');
+    T.eq(p.errors, [], '无报错'); await p.ctx.close();
+  });
+};
