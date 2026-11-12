@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## V7 M2.5.6 · VIP 接口权限与过期测试（2026-11-12）
+- 只加测试，不改产品代码。覆盖本阶段全部 VIP 专属接口：`/api/vip/gate`（标识/装饰/表情包）、`/api/stickers/use`、收藏超额、文本超长。
+- Basic 一律 403，错误码为 `ENTITLEMENT_REQUIRED` / `QUOTA_EXCEEDED` / `TEXT_TOO_LONG`，并带升级说明。有效 VIP 通过；VIP 额度内的超额仍按 VIP 上限拒绝（不再提示升级）。
+- 到期当刻同一令牌立刻失效，但用户不会下线，基础表情和 Basic 长度仍可用。撤销立即 403（state=revoked）；即将到期时权益仍有效。跨账号：A 的 VIP 不能让 B 通过，body 夹带 userId 无效。
+- 测试：新增 5 项。回归：服务端 64/64。
+
 ## V7 M2.5.5 · 专属表情/贴纸包（2026-11-12）
 - 香槟金系列贴纸（8 张原创 Unicode 白名单，不使用第三方版权图）。`GET /api/stickers` 目录公开，免费用户也能看到专属包内容和说明；`POST /api/stickers/use` 选用专属包必须经 `requireEntitlement`，Basic 与到期后 403 `ENTITLEMENT_REQUIRED`。未知贴纸 404（内容审核白名单）。
 - 常用表情对所有人开放。已发出的专属贴纸所有人都能看见；过期后不能再从面板选用，已发出的仍留在对话里。
