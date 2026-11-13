@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { useAdmin } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
-import { moveItem, type MappedContent, type MappedHotPost } from "@/lib/admin/backend";
+import { moveItem, readErrorCode, type MappedContent, type MappedHotPost } from "@/lib/admin/backend";
 import * as remote from "@/lib/admin/remote";
 import { ConfirmSheet, DataHint, EmptyState, NotOpenYet, PendingApi, Pill, Screen, Sheet, inputClass } from "./ui";
 
@@ -25,6 +25,8 @@ export function HotScreen() {
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<MappedHotPost | null>(null);
   const [busyRemove, setBusyRemove] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const dirtyRef = useRef(false);
 
   const apply = useCallback((list: remote.HotList) => {
     setItems(list.items);
@@ -44,13 +46,21 @@ export function HotScreen() {
 
   useEffect(() => {
     void load();
-    const onRefresh = () => void load();
+    const onRefresh = () => {
+      // 顺序还没保存时先确认，避免下拉刷新把调整悄悄丢掉。
+      if (dirtyRef.current) {
+        setConfirmLeave(true);
+        return;
+      }
+      void load();
+    };
     window.addEventListener("nova-hot-refresh", onRefresh);
     return () => window.removeEventListener("nova-hot-refresh", onRefresh);
   }, [load]);
 
   const shown = order ?? items;
   const dirty = !!order && order.some((item, i) => item.postId !== items[i]?.postId);
+  dirtyRef.current = dirty;
   const full = items.length >= max;
 
   const move = (from: number, to: number) => setOrder(moveItem(shown, from, to));
@@ -183,6 +193,19 @@ export function HotScreen() {
           apply(list);
           if (list.items.length >= list.max) setAdding(false);
         }}
+        onReload={() => void load()}
+      />
+      <ConfirmSheet
+        open={confirmLeave}
+        title="顺序还没保存，要放弃吗？"
+        message="下拉刷新会丢掉还没保存的调整。"
+        confirmText="放弃"
+        danger
+        onClose={() => setConfirmLeave(false)}
+        onConfirm={() => {
+          setConfirmLeave(false);
+          void load();
+        }}
       />
       <ConfirmSheet
         open={!!removing}
@@ -203,27 +226,33 @@ function AddHotSheet({
   hotIds,
   onClose,
   onAdded,
+  onReload,
 }: {
   open: boolean;
   hotIds: string[];
   onClose: () => void;
   onAdded: (list: remote.HotList) => void;
+  onReload: () => void;
 }) {
   const flash = useAdmin((s) => s.flash);
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<MappedContent[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [busyId, setBusyId] = useState("");
+  const [sheetMsg, setSheetMsg] = useState<{ text: string; ok?: boolean } | null>(null);
   // 只看公开（默认开）：请求时带上 audience=public；老服务器不认这个条件时自动去掉重试。
   const [onlyPublic, setOnlyPublic] = useState(true);
+  // null=还不知道；false=返回的帖都没有 isPublic（如 r7），隐藏开关。
+  const [canFilterPublic, setCanFilterPublic] = useState<boolean | null>(null);
   const seq = useRef(0);
 
   const search = useCallback(async (keyword: string, publicOnly: boolean) => {
     const mine = ++seq.current;
     setState("loading");
     const base = { type: "post", status: "visible", q: keyword.trim() || undefined, limit: 30 };
-    let res = await remote.remoteContent(publicOnly ? { ...base, audience: "public" } : base);
-    if (!res.ok && publicOnly && (res.status === 400 || res.status === 422)) {
+    const wantPublic = publicOnly && canFilterPublic !== false;
+    let res = await remote.remoteContent(wantPublic ? { ...base, audience: "public" } : base);
+    if (!res.ok && wantPublic && (res.status === 400 || res.status === 422)) {
       res = await remote.remoteContent(base);
     }
     if (mine !== seq.current) return;
@@ -231,30 +260,41 @@ function AddHotSheet({
       setState("error");
       return;
     }
+    const posts = res.data.filter((item) => item.type === "post" && item.status !== "removed");
+    if (posts.length > 0) {
+      const known = posts.some((item) => item.isPublic === true || item.isPublic === false);
+      setCanFilterPublic(known);
+    }
     setRows(
-      res.data.filter(
-        (item) => item.type === "post" && item.status !== "removed" && !(publicOnly && item.isPublic === false),
-      ),
+      posts.filter((item) => !(publicOnly && canFilterPublic !== false && item.isPublic === false)),
     );
     setState("ok");
-  }, []);
+  }, [canFilterPublic]);
 
   useEffect(() => {
     if (!open) return;
+    setSheetMsg(null);
     const t = window.setTimeout(() => void search(q, onlyPublic), q ? 350 : 0);
     return () => window.clearTimeout(t);
   }, [open, q, onlyPublic, search]);
 
   const add = async (item: MappedContent) => {
     setBusyId(item.id);
+    setSheetMsg(null);
     const res = await remote.remoteAddHotPost(item.id);
     setBusyId("");
     if (!res.ok) {
-      flash(res.missing ? "服务器暂未开放此功能" : res.error);
+      const text = res.missing ? "服务器暂未开放此功能" : res.error;
+      setSheetMsg({ text });
+      flash(text);
+      const code = readErrorCode(res.json);
+      if (code === "HOT_FULL" || code === "NOT_FOUND") onReload();
       return;
     }
     onAdded(res.data);
-    flash(res.data.already ? "这条帖子已在热门里" : "已加入热门");
+    const text = res.data.already ? "这条帖子已在热门里" : "已加入热门";
+    setSheetMsg({ text, ok: true });
+    flash(text);
   };
 
   return (
@@ -265,11 +305,18 @@ function AddHotSheet({
       </div>
       <div className="mb-1 flex items-center justify-between gap-2">
         <p className="text-[12px] text-muted">{q.trim() ? "搜索结果" : "最近动态"} · 只有公开的帖子能加入热门</p>
-        <label className="flex shrink-0 items-center gap-1.5 text-[13px]">
-          <input type="checkbox" className="size-4 accent-[var(--color-primary,#3A7BFF)]" checked={onlyPublic} onChange={(e) => setOnlyPublic(e.target.checked)} />
-          只看公开
-        </label>
+        {canFilterPublic === false ? (
+          <p className="shrink-0 text-[12px] text-muted">暂不支持</p>
+        ) : (
+          <label className="flex shrink-0 items-center gap-1.5 text-[13px]">
+            <input type="checkbox" className="size-4 accent-[var(--color-primary,#3A7BFF)]" checked={onlyPublic} onChange={(e) => setOnlyPublic(e.target.checked)} />
+            只看公开
+          </label>
+        )}
       </div>
+      {sheetMsg && (
+        <p className={`mb-2 text-[13px] leading-5 ${sheetMsg.ok ? "text-primary" : "text-danger"}`}>{sheetMsg.text}</p>
+      )}
       <div className="max-h-[55dvh] overflow-y-auto pb-2">
         {state === "loading" && rows.length === 0 && <p className="py-6 text-center text-[14px] text-muted">正在读取…</p>}
         {state === "error" && <p className="py-6 text-center text-[14px] text-muted">暂时读不到动态，请稍后再试</p>}

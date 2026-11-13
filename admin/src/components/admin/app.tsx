@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { installFieldScroll, installScrollLock } from "@/lib/admin/scroll-lock";
 import { hapticLight, lockNativeViewport, lockWebViewport, syncNativeChrome } from "@/lib/admin/native";
 import { getStoredSkin, resolvedTheme, subscribeAppearance } from "@/lib/admin/theme";
@@ -176,10 +177,11 @@ export function AdminApp() {
             })}
           </nav>
         )}
-        {toast && (
-          <div className="nova-toast pointer-events-none absolute inset-x-0 z-50 flex justify-center px-6">
+        {toast && typeof document !== "undefined" && createPortal(
+          <div className="nova-toast pointer-events-none fixed inset-x-0 z-[100] flex justify-center px-6">
             <div className="rounded-full bg-ink px-3.5 py-1.5 text-[13px] text-on-primary shadow-card">{toast}</div>
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
     </Frame>

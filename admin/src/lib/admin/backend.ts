@@ -912,20 +912,16 @@ export type MappedReplyTo = {
 
 export const POST_AUDIENCES = ["public", "followers", "friends", "self"] as const;
 export type PostAudience = (typeof POST_AUDIENCES)[number];
+/** 本地默认叫法，与 r8 服务器 AUD_LABEL / audienceLabel 一致。展示时优先用服务器给的 audienceLabel。 */
 export const AUDIENCE_LABELS: Record<PostAudience, string> = {
-  public: "公开",
-  followers: "粉丝可见",
-  friends: "好友可见",
-  self: "仅自己",
-};
-
-/** r8 定稿（r7-api-contract.md §6.1）里服务器给的中文叫法。 */
-export const VISIBILITY_LABELS: Record<PostAudience, string> = {
   public: "公开",
   followers: "仅粉丝",
   friends: "仅好友",
   self: "仅自己",
 };
+
+/** 与 AUDIENCE_LABELS 同一套，避免内容和热门页各用一套词。 */
+export const VISIBILITY_LABELS = AUDIENCE_LABELS;
 
 export type PostVisibility = { isPublic: boolean | null; audience: PostAudience | ""; audienceLabel: string };
 
@@ -1355,16 +1351,16 @@ export function mapRemoteHotPost(raw: unknown): MappedHotPost | null {
   const text = post ? asString(pick(post, "text", "body", "content")) : "";
   const position = Number(pick(raw, "position", "order", "rank"));
   const vis = post ? readPostVisibility(post) : { isPublic: null, audience: "", audienceLabel: "" };
+  const hidden = !!post && (post.adminHidden === true || post.admin_hidden === true);
   const removed = !!post && (post.deleted === true || post.status === "removed" || !!pick(post, "deletedAt", "deleted_at"));
-  const hidden = !!post && post.adminHidden === true;
   const unavailableReason = available
     ? ""
     : !post
       ? "帖子已不存在"
-      : removed
-        ? "帖子已删除"
-        : hidden
-          ? "帖子已被隐藏"
+      : hidden
+        ? "帖子已被隐藏"
+        : removed
+          ? "帖子已删除"
           : vis.isPublic === false
             ? `已改为${vis.audienceLabel || "非公开"}`
             : "";

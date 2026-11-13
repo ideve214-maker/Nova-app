@@ -11,7 +11,6 @@ import {
   type Flags,
 } from "@/lib/admin/store";
 import { ANNOUNCEMENT_BODY_MAX, ANNOUNCEMENT_TITLE_MAX, countChars } from "@/lib/admin/backend";
-import { sanitizeText } from "@/lib/admin/sanitize";
 import { ConfirmSheet, DataHint, DemoBanner, EmptyState, Field, inputClass, NotOpenYet, PendingApi, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
 import { ServerPanel } from "./server-panel";
 import { getBugsinkDsn, isBugsinkEnabled, setBugsinkConfig } from "@/lib/admin/bugsink";
@@ -527,8 +526,8 @@ function AnnouncementPreview({ title, body, onClose }: { title: string; body: st
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/50 px-8" data-nova-modal="" role="presentation" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label="预览弹窗" className="w-full max-w-[340px] rounded-2xl bg-surface p-5 shadow-card" onClick={(e) => e.stopPropagation()}>
         <p className="mb-1 text-center text-[12px] text-muted">用户看到的样子</p>
-        <h2 className="text-center text-[18px] font-semibold">{sanitizeText(title) || "（未填写标题）"}</h2>
-        <div className="mt-3 max-h-[50dvh] overflow-y-auto whitespace-pre-wrap text-[15px] leading-6">{sanitizeText(body) || "（未填写正文）"}</div>
+        <h2 className="text-center text-[18px] font-semibold">{title || "（未填写标题）"}</h2>
+        <div className="mt-3 max-h-[50dvh] overflow-y-auto whitespace-pre-wrap text-[15px] leading-6">{body || "（未填写正文）"}</div>
         <button type="button" className="mt-4 h-11 w-full rounded-full bg-primary text-[16px] font-semibold text-on-primary" onClick={onClose}>
           知道了
         </button>
@@ -610,10 +609,10 @@ export function AnnounceScreen() {
             return (
               <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="min-w-0 truncate font-semibold">{sanitizeText(item.title)}</h2>
+                  <h2 className="min-w-0 truncate font-semibold">{item.title}</h2>
                   <Pill tone={st.tone}>{st.label}</Pill>
                 </div>
-                <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-muted">{sanitizeText(item.body)}</p>
+                <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-muted">{item.body}</p>
                 <p className="mt-1 text-xs text-muted">{item.status === "published" && item.publishedAt ? `发布于 ${item.publishedAt}` : item.time}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
@@ -698,14 +697,14 @@ export function AnnounceScreen() {
           </div>
         )}
         {!editing && live.length > 0 && (
-          <p className="pb-2 text-center text-[12px] text-muted">发布后，正在发布的《{sanitizeText(live[0].title)}》会自动下线。</p>
+          <p className="pb-2 text-center text-[12px] text-muted">发布后，正在发布的《{live[0].title}》会自动下线。</p>
         )}
       </Sheet>
 
       <ConfirmSheet
         open={!!confirmPublish}
         title="发布这条公告？"
-        message={confirmPublish ? `发布后，${confirmPublish.others.map((x) => `《${sanitizeText(x.title)}》`).join("、")}会自动下线。` : undefined}
+        message={confirmPublish ? `发布后，${confirmPublish.others.map((x) => `《${x.title}》`).join("、")}会自动下线。` : undefined}
         confirmText="发布"
         onClose={() => setConfirmPublish(null)}
         onConfirm={() => {
@@ -717,7 +716,7 @@ export function AnnounceScreen() {
       <ConfirmSheet
         open={!!confirmDelete}
         title="删除这条公告？"
-        message={confirmDelete ? `《${sanitizeText(confirmDelete.title)}》删除后不能恢复。` : undefined}
+        message={confirmDelete ? `《${confirmDelete.title}》删除后不能恢复。` : undefined}
         confirmText="删除"
         danger
         onClose={() => setConfirmDelete(null)}

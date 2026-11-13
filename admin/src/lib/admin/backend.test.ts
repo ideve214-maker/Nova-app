@@ -31,6 +31,10 @@ import {
   mapRemoteReport,
   mapAudience,
   audienceLabel,
+  readPostVisibility,
+  hotErrorMessage,
+  isFeatureMissing,
+  mapRemoteHotPost,
   parsePostMedia,
   mapRemoteMedia,
   scanStatusLabel,
@@ -370,8 +374,8 @@ describe("m5.1 mappers", () => {
 describe("m7.r3 post audience and media", () => {
   it("maps audience labels and does not invent one when the field is missing", () => {
     assert.equal(mapAudience({ audience: "friends" }), "friends");
-    assert.equal(audienceLabel("friends"), "好友可见");
-    assert.equal(audienceLabel("followers"), "粉丝可见");
+    assert.equal(audienceLabel("friends"), "仅好友");
+    assert.equal(audienceLabel("followers"), "仅粉丝");
     assert.equal(audienceLabel("self"), "仅自己");
     assert.equal(audienceLabel("public"), "公开");
     assert.equal(mapAudience({ audience: "everyone" }), "public");
@@ -387,7 +391,7 @@ describe("m7.r3 post audience and media", () => {
       createdAtUtc: "2026-11-12T04:00:00.000Z",
     });
     assert.equal(c!.audience, "friends");
-    assert.equal(c!.audienceLabel, "好友可见");
+    assert.equal(c!.audienceLabel, "仅好友");
     assert.equal(c!.mood, "开心");
     assert.equal(c!.location, "上海");
     const bare = mapRemoteContent({ id: "po_x", type: "post", text: "普通" });
@@ -559,5 +563,140 @@ describe("m7.r5 media and NSFW review fields", () => {
     assert.equal(withMedia!.media.length, 1);
     assert.equal(withMedia!.media[0].scanStatus, "review");
     assert.equal(withMedia!.media[0].scanDetail, "图像待人工复核");
+  });
+});
+
+
+describe("readPostVisibility", () => {
+  it("prefers the server audienceLabel and falls back to the shared local wording", () => {
+    const fromServer = readPostVisibility({ audience: "friends", audienceLabel: "好友可见", isPublic: false });
+    assert.equal(fromServer.audience, "friends");
+    assert.equal(fromServer.isPublic, false);
+    assert.equal(fromServer.audienceLabel, "好友可见");
+    const fallback = readPostVisibility({ audience: "friends" });
+    assert.equal(fallback.audience, "friends");
+    assert.equal(fallback.isPublic, false);
+    assert.equal(fallback.audienceLabel, "仅好友");
+    assert.equal(readPostVisibility({ audience: "followers" }).audienceLabel, "仅粉丝");
+    assert.equal(readPostVisibility({ audience: "self" }).audienceLabel, "仅自己");
+    assert.equal(readPostVisibility({ audience: "public" }).audienceLabel, "公开");
+    assert.equal(readPostVisibility({ audience: "public" }).isPublic, true);
+  });
+
+  it("leaves isPublic null when the server did not say, and does not invent a label", () => {
+    const unknown = readPostVisibility({ text: "普通" });
+    assert.equal(unknown.audience, "");
+    assert.equal(unknown.isPublic, null);
+    assert.equal(unknown.audienceLabel, "");
+    assert.equal(readPostVisibility(null).isPublic, null);
+    const flagged = readPostVisibility({ isPublic: false });
+    assert.equal(flagged.isPublic, false);
+    assert.equal(flagged.audienceLabel, "非公开");
+  });
+});
+
+describe("hotErrorMessage", () => {
+  it("maps contract error codes to short Chinese, including a HOT_FULL max", () => {
+    assert.equal(hotErrorMessage({ error: { code: "POST_NOT_PUBLIC", message: "x" } }, "失败"), "只有公开的帖子才能加入热门");
+    assert.equal(hotErrorMessage({ error: { code: "POST_REMOVED", message: "x" } }, "失败"), "这条帖子已被删除，不能加入热门");
+    assert.equal(hotErrorMessage({ error: { code: "HOT_FULL", message: "x", max: 20 } }, "失败"), "热门最多 20 条，请先移出一些");
+    assert.equal(hotErrorMessage({ error: { code: "HOT_FULL", message: "x" } }, "失败"), "热门最多 20 条，请先移出一些");
+    assert.equal(hotErrorMessage({ error: { code: "NOT_FOUND", message: "x" } }, "失败"), "这条帖子已不存在");
+    assert.equal(hotErrorMessage({ error: { code: "BAD_POST_ID", message: "x" } }, "失败"), "请选择帖子");
+    assert.equal(hotErrorMessage({ error: { code: "BAD_ORDER", message: "x" } }, "失败"), "顺序有误，请刷新后再试");
+    assert.equal(hotErrorMessage({ error: { code: "ORDER_CONFLICT", message: "x" } }, "失败"), "列表已变化，已为你刷新");
+    assert.equal(hotErrorMessage({ error: { code: "OTHER", message: "服务器说了这句" } }, "失败"), "服务器说了这句");
+    assert.equal(hotErrorMessage({}, "加入失败"), "加入失败");
+  });
+});
+
+describe("isFeatureMissing", () => {
+  it("treats a missing route as not open, but not a business 404", () => {
+    assert.equal(isFeatureMissing({ status: 405, json: null }), true);
+    assert.equal(isFeatureMissing({ status: 501, json: { error: { message: "公告不存在" } } }), true);
+    assert.equal(isFeatureMissing({ status: 404, json: null }), true);
+    assert.equal(isFeatureMissing({ status: 404, json: {} }), true);
+    assert.equal(isFeatureMissing({ status: 404, json: { error: { code: "NOT_FOUND", message: "接口不存在" } } }), true);
+    assert.equal(isFeatureMissing({ status: 404, json: { error: "Cannot GET /api/admin/hot-posts" } }), true);
+    assert.equal(isFeatureMissing({ status: 404, json: { error: { code: "NOT_FOUND", message: "动态不存在" } } }), false);
+    assert.equal(isFeatureMissing({ status: 404, json: { error: { code: "NOT_FOUND", message: "帖子不存在" } } }), false);
+    assert.equal(isFeatureMissing({ status: 404, json: { error: { code: "NOT_FOUND", message: "公告不存在" } } }), false);
+    assert.equal(isFeatureMissing({ status: 400, json: { error: { message: "接口不存在" } } }), false);
+  });
+});
+
+describe("mapRemoteHotPost", () => {
+  it("maps an available post and prefers the server visibility label", () => {
+    const item = mapRemoteHotPost({
+      postId: "po_1",
+      position: 2,
+      available: true,
+      addedAtUtc: "2026-11-13T04:00:00.000Z",
+      post: {
+        id: "po_1",
+        text: "海边",
+        author: { id: 2, username: "dev", displayName: "开发者" },
+        createdAtUtc: "2026-11-13T03:00:00.000Z",
+        audience: "public",
+        audienceLabel: "公开",
+        isPublic: true,
+        deleted: false,
+        adminHidden: false,
+      },
+    });
+    assert.ok(item);
+    assert.equal(item!.postId, "po_1");
+    assert.equal(item!.position, 2);
+    assert.equal(item!.available, true);
+    assert.equal(item!.unavailableReason, "");
+    assert.equal(item!.isPublic, true);
+    assert.equal(item!.audienceLabel, "公开");
+    assert.equal(item!.authorName, "开发者");
+    assert.equal(item!.title, "海边");
+  });
+
+  it("says hidden, not deleted, when adminHidden is set together with deleted_at", () => {
+    const hidden = mapRemoteHotPost({
+      postId: "po_h",
+      available: false,
+      post: { id: "po_h", text: "藏", adminHidden: true, deleted_at: 1763000000000, deleted: true, status: "removed" },
+    });
+    assert.equal(hidden!.available, false);
+    assert.equal(hidden!.unavailableReason, "帖子已被隐藏");
+    const removed = mapRemoteHotPost({
+      postId: "po_d",
+      available: false,
+      post: { id: "po_d", text: "删", deleted: true, status: "removed", deletedAt: 1763000000000 },
+    });
+    assert.equal(removed!.unavailableReason, "帖子已删除");
+    const missing = mapRemoteHotPost({ postId: "po_x", available: false, post: null });
+    assert.equal(missing!.unavailableReason, "帖子已不存在");
+    const privatePost = mapRemoteHotPost({
+      postId: "po_p",
+      available: false,
+      post: { id: "po_p", text: "私", audience: "friends", isPublic: false },
+    });
+    assert.equal(privatePost!.unavailableReason, "已改为仅好友");
+  });
+});
+
+describe("announcement status mapping", () => {
+  it("honors an explicit status, then published and publishedAt", () => {
+    assert.equal(mapRemoteAnnouncement({ id: 1, title: "A", body: "b", status: "draft", published: false })!.status, "draft");
+    assert.equal(mapRemoteAnnouncement({ id: 2, title: "A", body: "b", status: "published", published: true })!.status, "published");
+    assert.equal(mapRemoteAnnouncement({ id: 3, title: "A", body: "b", status: "withdrawn", published: false })!.status, "withdrawn");
+    const draft = mapRemoteAnnouncement({ id: 4, title: "A", body: "b", published: false, publishedAt: null });
+    assert.equal(draft!.status, "draft");
+    assert.equal(draft!.published, false);
+    assert.equal(draft!.withdrawn, false);
+    const withdrawn = mapRemoteAnnouncement({ id: 5, title: "A", body: "b", published: false, publishedAt: 1763000000000 });
+    assert.equal(withdrawn!.status, "withdrawn");
+    assert.equal(withdrawn!.withdrawn, true);
+    // 旧服务器没有 publishedAt 字段：未发布一律算已下线。
+    const legacy = mapRemoteAnnouncement({ id: 6, title: "A", body: "b", published: 0 });
+    assert.equal(legacy!.status, "withdrawn");
+    const live = mapRemoteAnnouncement({ id: 7, title: "A", body: "b", published: 1 });
+    assert.equal(live!.status, "published");
+    assert.equal(live!.published, true);
   });
 });

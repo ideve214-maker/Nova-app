@@ -336,7 +336,7 @@ export async function remoteEditAnnouncement(id: string, title: string, body: st
   const payload: Record<string, unknown> = { title, body };
   if (published != null) payload.published = published;
   let res = await apiRequest("adminAnnouncementPatch", { method: "PATCH", params: { id }, body: payload, timeoutMs: 8000 });
-  if (res.status === 404 || res.status === 405) {
+  if (!res.ok && isFeatureMissing(res)) {
     res = await apiRequest("adminAnnouncementEdit", { method: "POST", params: { id }, body: payload, timeoutMs: 8000 });
   }
   if (!res.ok) return fail(res, "编辑公告失败");
@@ -487,7 +487,7 @@ export async function remotePublishAnnouncement(id: string): Promise<Remote<Publ
   let res = await apiRequest("adminAnnouncementPublish", { method: "POST", params: { id }, body: {}, timeoutMs: 8000 });
   if (!res.ok && isFeatureMissing(res)) {
     res = await apiRequest("adminAnnouncementPatch", { method: "PATCH", params: { id }, body: { published: true }, timeoutMs: 8000 });
-    if (res.status === 404 || res.status === 405) {
+    if (!res.ok && isFeatureMissing(res)) {
       res = await apiRequest("adminAnnouncementEdit", { method: "POST", params: { id }, body: { published: true }, timeoutMs: 8000 });
     }
   }
