@@ -1,5 +1,17 @@
 # 更新日志（最新在上）
 
+## V7 0.7.0-m7.r6 · 热更新（Capgo 自托管）与小游戏图标（2026-11-13）
+
+仍在 `v7-m7.r6` 上，版本号保持 `0.7.0-m7.r6`（本提交尚未单独升版；第 2 版整包重装后再靠热更新升包版本）。只改用户端与 Capacitor 配置。服务端接口与数据库没有变动。先不打包、不部署、不切换 HTTPS。
+
+- 接入 `@capgo/capacitor-updater` 7.x，自托管手动模式。`capacitor.config.json` 中 `autoUpdate` 为 false，`updateUrl` / `statsUrl` / `channelUrl` 均为空字符串，不连接 Capgo 云、不发送统计。`appReadyTimeout` 为 10000。
+- 清单地址由构建开关 `NOVA_UPDATE_MANIFEST_URL`（或 `--update-manifest-url`）注入 `window.NOVA_UPDATE_MANIFEST_URL`，**默认空，此时更新器什么都不做**。不要写死服务器地址。清单格式、回滚与打包脚本见 `docs/hot-update.md`。
+- 启动时在原生壳里调用 `notifyAppReady()`（浏览器预览为空操作）。未在超时内确认则由插件自动回滚。下载失败或校验和不匹配时丢弃该包，不切换版本。下载成功后用 `next()` 在**下次启动**启用，不在当前会话中途 `set()` 重载。
+- 设置「关于」与关于页显示当前实际运行的包版本：内置包用 `package.json` / `window.NOVA_APP_VERSION`，已下载包用插件返回的 bundle 版本。
+- `npm run bundle`（`scripts/make-bundle.mjs`）把 `dist/` 打成带版本号的 zip，并打印 SHA-256。zip 根目录含 `index.html`。
+- 十一个小游戏宫格图标由单字改为自绘描边 SVG（`currentColor`，与现有图标风格一致），无第三方图标库。
+
+
 ## V7 0.7.0-m7.r6 · 返回恢复滚动、隐藏滚动条、原生手感与手机铺满（2026-11-13）
 
 只改用户端。服务端接口与数据库没有变动，部署时更新前端构建产物即可。

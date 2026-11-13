@@ -1,4 +1,4 @@
-# 第三方许可（0.7.0-m7.r5）
+# 第三方许可（0.7.0-m7.r6）
 
 下列组件按各自许可使用。应用内「小游戏」页不展示商标名。
 
@@ -10,6 +10,7 @@
 | @capacitor/keyboard | 7.0.6 | MIT |
 | @capacitor/status-bar | 7.0.6 | MIT |
 | @capacitor/haptics | 7.0.5 | MIT |
+| @capgo/capacitor-updater | 7.53.0 | MPL-2.0 |
 | nsfwjs | 4.4.0 | MIT |
 | @tensorflow/tfjs | 4.22.0 | Apache-2.0 |
 | sharp | 0.35.5 | Apache-2.0 |

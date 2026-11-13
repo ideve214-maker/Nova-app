@@ -16,3 +16,6 @@ data/
 # 未遮罩的个人收款码原图不得入库或打包
 **/alipay.jpg
 **/wechat.jpg
+
+# 热更新打包产物（scripts/make-bundle.mjs）
+dist-bundles/
