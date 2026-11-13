@@ -239,19 +239,25 @@ npm run build:spa
 
 ### Dift 需要提供的 manifest
 
-插件每次检查时会对 `updateUrl` 发 **POST**（不是 GET），body 里带 `app_id`、`version_name`、`platform` 等。服务端比较版本后，若需要更新，返回：
+插件每次检查时会对 `updateUrl` 发 **POST**，body 里带 `app_id`、`version_name`、`platform` 等。服务端用静态文件实现时，GET 和 POST 都要能返回同一份 JSON。真实地址由 Dift 提供，只写进打包环境的 `VITE_NOVA_UPDATE_URL`，不要提交进仓库或任何公开文档。服务端比较版本后，若需要更新，返回：
 
 ```json
 {
   "version": "1.0.1",
-  "url": "https://47.239.0.90/admin-updates/nova-admin-1.0.1.zip",
+  "url": "https://<更新服务器>/<私有路径>/updates/nova-admin-1.0.1.zip",
   "checksum": "SHA256_OF_THE_ZIP"
 }
 ```
 
 - `version` 必须是 semver，并且要**高于**当前已安装包的版本（`version_name`，首次为内置包或上面配置的 `VITE_NOVA_UPDATE_VERSION` / 原生版本）。
-- 不需要更新时，返回当前版本即可，**不要带 `url`**，插件就不会下载。
-- 出错时可返回 `{ "status": "error", "message": "…" }`，插件只打日志，不会切换版本。
+- 没有新版本时（当前服务器的做法）返回：
+  ```json
+  { "error": "no_new_version_available", "message": "No new version available", "kind": "up_to_date" }
+  ```
+  插件 7.53 看到 `error` 加 `kind: "up_to_date"` 会当成“已是最新”，不下载、不报错。静态文件不知道设备当前版本，所以不要用“返回当前版本、省略 url”的写法。
+- 有新版本时清单放 `{version, url, checksum}`；`version` 和设备上的 `version_name` 相同时插件会跳过。
+- 不要用 `"builtin"` 当版本号：开启自动更新时插件会把它当成回退到内置包。
+- 不要依赖 `{ "status": "error" }`：插件 7.53 不把它当成“无更新”，要用上面的 `error` + `kind` 字段。
 - `checksum` 为 zip 的 SHA-256（小写十六进制）。推荐用官方命令生成，格式与插件校验一致。
 
 nginx 需要能访问到 manifest 和 zip（例如根路径 `/admin-updates/`）。zip 要允许直接下载；若网页也会请求 manifest，再补 CORS。把文件放到例如 `/var/www/admin-updates/`，并确保 POST 到 `manifest.json` 能返回上面的 JSON（可以用小脚本按请求体里的 `version_name` 决定是否带 `url`，或先返回固定 JSON 做联调）。
