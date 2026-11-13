@@ -919,6 +919,30 @@ export const AUDIENCE_LABELS: Record<PostAudience, string> = {
   self: "仅自己",
 };
 
+/** r8 定稿（r7-api-contract.md §6.1）里服务器给的中文叫法。 */
+export const VISIBILITY_LABELS: Record<PostAudience, string> = {
+  public: "公开",
+  followers: "仅粉丝",
+  friends: "仅好友",
+  self: "仅自己",
+};
+
+export type PostVisibility = { isPublic: boolean | null; audience: PostAudience | ""; audienceLabel: string };
+
+/**
+ * 读帖子是否公开：优先 isPublic，其次 audience；都没有（老服务器）时 isPublic 为 null，
+ * 视为未知，按可加入处理，交给服务器判断。
+ */
+export function readPostVisibility(raw: unknown): PostVisibility {
+  if (!isRecord(raw)) return { isPublic: null, audience: "", audienceLabel: "" };
+  const audience = mapAudience(raw) ?? "";
+  const flag = raw.isPublic ?? raw.is_public;
+  const isPublic = typeof flag === "boolean" ? flag : audience ? audience === "public" : null;
+  const labelRaw = asString(pick(raw, "audienceLabel", "audience_label")).trim();
+  const audienceLabel = labelRaw || (audience ? VISIBILITY_LABELS[audience] : isPublic === false ? "非公开" : "");
+  return { isPublic, audience, audienceLabel };
+}
+
 /** 字段缺失时不默认成公开（管理端目前可能还没返回 audience）。非法值按公开。 */
 export function mapAudience(raw: unknown): PostAudience | undefined {
   if (!isRecord(raw)) return undefined;
@@ -1073,6 +1097,8 @@ export type MappedContent = {
   replyCount: number;
   audience?: PostAudience;
   audienceLabel?: string;
+  /** 是否公开；null 表示服务器没说（老版本），按可加入处理。 */
+  isPublic?: boolean | null;
   mood?: string;
   location?: string;
   media: MappedMedia[];
@@ -1122,7 +1148,8 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
     replyTo,
     replyCount: Number(pick(raw, "replyCount", "reply_count") ?? 0) || 0,
     audience,
-    audienceLabel: audience ? audienceLabel(audience) : undefined,
+    audienceLabel: type === "post" ? readPostVisibility(raw).audienceLabel || (audience ? audienceLabel(audience) : undefined) : undefined,
+    isPublic: type === "post" ? readPostVisibility(raw).isPublic : undefined,
     mood: mood || undefined,
     location: location || undefined,
     media,
@@ -1307,6 +1334,11 @@ export type MappedHotPost = {
   authorId: string;
   authorName: string;
   postTime: string;
+  /** 是否公开；null 为未知。 */
+  isPublic: boolean | null;
+  audienceLabel: string;
+  /** 失效原因（中文），可用时为空。 */
+  unavailableReason: string;
 };
 
 export const HOT_POSTS_DEFAULT_MAX = 20;
@@ -1322,8 +1354,25 @@ export function mapRemoteHotPost(raw: unknown): MappedHotPost | null {
   const available = typeof availableRaw === "boolean" ? availableRaw && !!post : !deleted;
   const text = post ? asString(pick(post, "text", "body", "content")) : "";
   const position = Number(pick(raw, "position", "order", "rank"));
+  const vis = post ? readPostVisibility(post) : { isPublic: null, audience: "", audienceLabel: "" };
+  const removed = !!post && (post.deleted === true || post.status === "removed" || !!pick(post, "deletedAt", "deleted_at"));
+  const hidden = !!post && post.adminHidden === true;
+  const unavailableReason = available
+    ? ""
+    : !post
+      ? "帖子已不存在"
+      : removed
+        ? "帖子已删除"
+        : hidden
+          ? "帖子已被隐藏"
+          : vis.isPublic === false
+            ? `已改为${vis.audienceLabel || "非公开"}`
+            : "";
   return {
     postId,
+    isPublic: vis.isPublic,
+    audienceLabel: vis.audienceLabel,
+    unavailableReason,
     position: Number.isFinite(position) && position > 0 ? position : 0,
     available,
     addedAt: asTime(pick(raw, "addedAtUtc", "addedAt", "added_at")),

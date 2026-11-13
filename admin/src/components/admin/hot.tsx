@@ -135,7 +135,7 @@ export function HotScreen() {
                   <p className={`line-clamp-2 text-[15px] leading-5 ${item.available ? "" : "text-muted line-through"}`}>{summary(item)}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
                     {!item.available && <Pill tone="danger">已失效</Pill>}
-                    {!item.available && <span>（已删除、被隐藏或不再公开）</span>}
+                    {!item.available && item.unavailableReason && <span className="text-danger">{item.unavailableReason}</span>}
                     <span>{sanitizeText(item.authorName) || "未知作者"}</span>
                     {item.postTime && <span>· {item.postTime}</span>}
                   </div>
@@ -214,26 +214,36 @@ function AddHotSheet({
   const [rows, setRows] = useState<MappedContent[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [busyId, setBusyId] = useState("");
+  // 只看公开（默认开）：请求时带上 audience=public；老服务器不认这个条件时自动去掉重试。
+  const [onlyPublic, setOnlyPublic] = useState(true);
   const seq = useRef(0);
 
-  const search = useCallback(async (keyword: string) => {
+  const search = useCallback(async (keyword: string, publicOnly: boolean) => {
     const mine = ++seq.current;
     setState("loading");
-    const res = await remote.remoteContent({ type: "post", status: "visible", q: keyword.trim() || undefined, limit: 30 });
+    const base = { type: "post", status: "visible", q: keyword.trim() || undefined, limit: 30 };
+    let res = await remote.remoteContent(publicOnly ? { ...base, audience: "public" } : base);
+    if (!res.ok && publicOnly && (res.status === 400 || res.status === 422)) {
+      res = await remote.remoteContent(base);
+    }
     if (mine !== seq.current) return;
     if (!res.ok) {
       setState("error");
       return;
     }
-    setRows(res.data.filter((item) => item.type === "post" && item.status !== "removed"));
+    setRows(
+      res.data.filter(
+        (item) => item.type === "post" && item.status !== "removed" && !(publicOnly && item.isPublic === false),
+      ),
+    );
     setState("ok");
   }, []);
 
   useEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(() => void search(q), q ? 350 : 0);
+    const t = window.setTimeout(() => void search(q, onlyPublic), q ? 350 : 0);
     return () => window.clearTimeout(t);
-  }, [open, q, search]);
+  }, [open, q, onlyPublic, search]);
 
   const add = async (item: MappedContent) => {
     setBusyId(item.id);
@@ -253,7 +263,13 @@ function AddHotSheet({
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
         <input className={`${inputClass} pl-9`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索帖子内容" enterKeyHint="search" />
       </div>
-      <p className="mb-1 text-[12px] text-muted">{q.trim() ? "搜索结果" : "最近动态"}</p>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p className="text-[12px] text-muted">{q.trim() ? "搜索结果" : "最近动态"} · 只有公开的帖子能加入热门</p>
+        <label className="flex shrink-0 items-center gap-1.5 text-[13px]">
+          <input type="checkbox" className="size-4 accent-[var(--color-primary,#3A7BFF)]" checked={onlyPublic} onChange={(e) => setOnlyPublic(e.target.checked)} />
+          只看公开
+        </label>
+      </div>
       <div className="max-h-[55dvh] overflow-y-auto pb-2">
         {state === "loading" && rows.length === 0 && <p className="py-6 text-center text-[14px] text-muted">正在读取…</p>}
         {state === "error" && <p className="py-6 text-center text-[14px] text-muted">暂时读不到动态，请稍后再试</p>}
@@ -261,7 +277,7 @@ function AddHotSheet({
         {rows.map((item) => {
           const inHot = hotIds.includes(item.id);
           // 定稿：只有公开帖子能进热门。后台列表若带了可见范围，就提前标出；没带时由服务器拒绝并提示。
-          const notPublic = !!item.audience && item.audience !== "public";
+          const notPublic = item.isPublic === false;
           return (
             <div key={item.id} className="flex items-start gap-2 border-b border-line py-2.5 last:border-b-0">
               <div className="min-w-0 flex-1">
@@ -271,7 +287,12 @@ function AddHotSheet({
               {inHot ? (
                 <Pill tone="ok">已在热门</Pill>
               ) : notPublic ? (
-                <Pill tone="muted">{item.audienceLabel || "非公开"}</Pill>
+                <span className="flex shrink-0 flex-col items-end gap-0.5">
+                  <Pill tone="muted">{item.audienceLabel || "非公开"}</Pill>
+                  <button type="button" disabled className="h-7 rounded-full bg-subtle px-2.5 text-[12px] font-semibold text-muted opacity-60">
+                    加入
+                  </button>
+                </span>
               ) : (
                 <button
                   type="button"
