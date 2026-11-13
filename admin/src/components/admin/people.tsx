@@ -225,7 +225,7 @@ export function UserScreen() {
       }
     >
       <div className="bg-surface px-4 pb-4 pt-5 text-center">
-        <Avatar src={member.avatar} color={member.avatarColor} letter={member.avatarLetter} name={sanitizeText(member.name)} className="mx-auto size-20" />
+        <Avatar src={member.avatar} color={member.avatarColor} letter={member.avatarLetter} name={sanitizeText(member.name)} className="mx-auto size-20 text-[28px]" />
         <div className="mt-3 flex items-center justify-center gap-2">
           <h2 className="text-xl font-semibold">{sanitizeText(member.name)}</h2>
           {isVip(member, entitlements) && <Pill tone="vip">VIP</Pill>}

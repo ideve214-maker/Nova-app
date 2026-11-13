@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { mediaUrl } from "@/lib/admin/media";
+import { avatarLetter, isHexColor, resolveAvatar } from "@/lib/admin/avatar";
 import { useAdmin } from "@/lib/admin/store";
 import { getStoredSkin, getStoredTheme, subscribeAppearance, type SkinId, type ThemeMode } from "@/lib/admin/theme";
 import { skinIconSvg, skinMarkUrl, type SkinIconName } from "@/theme/marks";
@@ -133,6 +134,12 @@ export function Seg({
   );
 }
 
+/**
+ * 统一头像组件。src 可以是图片地址字符串，也可以是用户端的头像对象
+ * （{ kind: "color", color, letter } / { kind: "image", url }）或空值：
+ * 只有像图片地址的字符串才用 <img> 加载；其余显示颜色 + 文字默认头像（无文字时用昵称首字）。
+ * 图片加载失败也回退到默认头像，并带 data-nova-soft-fail，不触发全局“资源加载失败”弹框。
+ */
 export function Avatar({
   src,
   name,
@@ -140,33 +147,38 @@ export function Avatar({
   color,
   letter,
 }: {
-  src?: string;
+  src?: unknown;
   name: string;
   className?: string;
   color?: string;
   letter?: string;
 }) {
-  const [broken, setBroken] = useState(false);
-  const url = typeof src === "string" ? src.trim() : "";
-  if (url && !broken) {
+  const resolved = resolveAvatar(src);
+  const url = resolved.url;
+  const [brokenUrl, setBrokenUrl] = useState("");
+  if (url && brokenUrl !== url) {
     return (
       <img
         src={mediaUrl(url) || url}
         alt=""
-        onError={() => setBroken(true)}
+        data-nova-soft-fail="avatar"
+        onError={() => setBrokenUrl(url)}
         className={cn("rounded-full object-cover", className)}
       />
     );
   }
-  const text = (letter && [...letter][0]) || [...(name || "")][0] || "";
+  const bg = (isHexColor(color) && color.trim()) || resolved.color;
+  const text = avatarLetter(letter || resolved.letter, name);
   return (
     <span
+      role="img"
+      aria-label={name || text}
       className={cn(
         "grid place-items-center rounded-full text-[13px] font-semibold",
-        color ? "text-white" : "bg-primary text-on-primary",
+        bg ? "text-white" : "bg-primary text-on-primary",
         className,
       )}
-      style={color ? { backgroundColor: color } : undefined}
+      style={bg ? { backgroundColor: bg } : undefined}
     >
       {text}
     </span>

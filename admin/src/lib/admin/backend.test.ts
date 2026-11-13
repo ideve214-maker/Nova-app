@@ -561,3 +561,27 @@ describe("m7.r5 media and NSFW review fields", () => {
     assert.equal(withMedia!.media[0].scanDetail, "图像待人工复核");
   });
 });
+
+describe("avatar resolution", () => {
+  it("only treats image-looking strings as urls", async () => {
+    const { resolveAvatar, isImageUrl, avatarLetter } = await import("./avatar.ts");
+    assert.equal(isImageUrl("https://x.test/a.png"), true);
+    assert.equal(isImageUrl("/media/a.jpg"), true);
+    assert.equal(isImageUrl("data:image/png;base64,AAAA"), true);
+    assert.equal(isImageUrl("[object Object]"), false);
+    assert.equal(isImageUrl("开"), false);
+    assert.equal(isImageUrl("//evil.test/a.png"), false);
+    assert.equal(isImageUrl({ kind: "color" }), false);
+    assert.deepEqual(resolveAvatar({ kind: "color", color: "#3A7BFF", letter: "开发" }), { url: "", color: "#3A7BFF", letter: "开" });
+    assert.deepEqual(resolveAvatar("[object Object]"), { url: "", color: "", letter: "" });
+    assert.deepEqual(resolveAvatar(null), { url: "", color: "", letter: "" });
+    assert.equal(resolveAvatar({ kind: "image", url: "/media/a.jpg" }).url, "/media/a.jpg");
+    assert.equal(avatarLetter("", "开发者ideve"), "开");
+  });
+  it("maps the server admin-ops user shape (avatar object at top level)", () => {
+    const u = mapRemoteUser({ id: 2, username: "开发者ideve", avatar: { kind: "color", color: "#5B6CFF", letter: "开" } });
+    assert.equal(u!.avatar, "");
+    assert.equal(u!.avatarColor, "#5B6CFF");
+    assert.equal(u!.avatarLetter, "开");
+  });
+});

@@ -4,6 +4,7 @@ import { GROK_PROVIDERS, authEnabled, signIn, signOut } from "./client";
 import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
+import { isImageUrl } from "../admin/avatar";
 
 const subscribeToNothing = () => () => {};
 const noGateSessionOnServer = () => false;
@@ -101,10 +102,11 @@ export function UserButton() {
   const label = user.displayName ?? user.primaryEmail ?? "Account";
   return (
     <div className="flex items-center gap-2">
-      {user.profileImageUrl ? (
+      {isImageUrl(user.profileImageUrl) ? (
         <img
           src={user.profileImageUrl}
           alt=""
+          data-nova-soft-fail="avatar"
           className="h-8 w-8 rounded-full object-cover"
         />
       ) : (

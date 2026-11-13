@@ -1,3 +1,4 @@
+import { resolveAvatar } from "./avatar.ts";
 /**
  * NOVA 管理端 · 与用户端后端的适配层。
  *
@@ -549,19 +550,7 @@ export type MappedMember = {
  * 只把真正的地址当图片，其余转成颜色加文字，避免出现 "[object Object]" 的图片请求。
  */
 export function mapAvatar(v: unknown): { url: string; color: string; letter: string } {
-  const out = { url: "", color: "", letter: "" };
-  if (typeof v === "string") {
-    out.url = v.trim();
-    return out;
-  }
-  if (!isRecord(v)) return out;
-  const url = pick(v, "url", "src", "uri", "imageUrl", "image_url", "path");
-  if (typeof url === "string") out.url = url.trim();
-  const color = pick(v, "color", "bg", "background");
-  if (typeof color === "string" && /^#[0-9A-Fa-f]{3,8}$/.test(color.trim())) out.color = color.trim();
-  const letter = pick(v, "letter", "text", "char");
-  if (typeof letter === "string") out.letter = [...letter.trim()][0] || "";
-  return out;
+  return resolveAvatar(v);
 }
 
 export function mapRemoteUser(raw: unknown): MappedMember | null {

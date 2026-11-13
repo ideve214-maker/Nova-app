@@ -25,6 +25,7 @@ import {
 import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
 import { captureCurrentScroll } from "./scroll-restore";
 import * as remote from "./remote";
+import { resolveAvatar } from "./avatar";
 
 export type { ConnectionStatus } from "./backend";
 
@@ -421,7 +422,7 @@ function restoreLocal(): Partial<Persisted> {
 function toMember(m: import("./backend").MappedMember): Member {
   return {
     ...m,
-    avatar: m.avatar || "",
+    avatar: resolveAvatar(m.avatar).url || "",
     username: m.username || m.name,
     mustChangePw: !!m.mustChangePw,
   };
