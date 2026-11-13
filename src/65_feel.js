@@ -23,24 +23,17 @@ const HP={tap:10,switch:7,send:[10,24,12],warn:[18,30,18],open:8,close:6,snap:12
 let _hx=null;
 function iosTick(){try{if(!_hx){_hx=document.createElement('label');_hx.className='hxl';_hx.setAttribute('aria-hidden','true');
   const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');_hx.appendChild(i);document.body.appendChild(_hx)}_hx.click()}catch(e){}}
-function capHaptic(kind){
-  try{
-    const C=window.Capacitor||{};
-    const H=(C.Plugins&&C.Plugins.Haptics)||C.Haptics||window.Haptics;
-    if(!H||typeof H.impact!=='function')return false;
-    const style=(kind==='warn'||kind==='success'||kind==='send')?'Medium':'Light';
-    H.impact({style});
-    return true;
-  }catch(e){return false}
-}
 function haptic(kind){
   if(D.st&&D.st.haptic===0)return;
-  if(capHaptic(kind))return;
-  const p=HP[kind]||10;
-  if(navigator.vibrate){try{if(navigator.vibrate(p))return}catch(e){}}
-  if(IOS){iosTick();if(Array.isArray(p)&&p.length>1)setTimeout(iosTick,90)}
+  const N=window.NovaNative;
+  if(N&&N.Haptics&&typeof N.Haptics.impact==='function'){
+    const style=(kind==='warn'||kind==='success'||kind==='send')?N.ImpactStyle.Medium:N.ImpactStyle.Light;
+    Promise.resolve(N.Haptics.impact({style})).catch(()=>{if(IOS)iosTick()});
+    return;
+  }
+  if(IOS)iosTick();
 }
-const FEEL={log:[],cap(){return navigator.vibrate&&!IOS?'此设备支持振动':IOS?'iPhone：使用系统开关触觉（实验功能，需 iOS 18 及以上，未在真机验证）':'此浏览器不支持振动，仍有音效'}};
+const FEEL={log:[],cap(){const N=window.NovaNative;if(N&&N.Capacitor&&N.Capacitor.isNativePlatform&&N.Capacitor.isNativePlatform())return '使用系统触觉';if(navigator.vibrate&&!IOS)return '此浏览器使用振动作为触觉';if(IOS)return 'iPhone 浏览器没有振动接口，已静默降级';return '此浏览器不支持振动，仍有音效'}};
 function feel(kind){FEEL.log.push(kind);if(FEEL.log.length>60)FEEL.log.shift();beep(kind);haptic(kind)}
 window.__feel=FEEL;
 const KIND={send:['send','cs','cmsend','pub','saveedit','mkcm','mkg','grn2','sendm'],switch:['tab','go','back','user','post','cm','conv','chan','feed','cmseg','seg','mt'],
@@ -99,6 +92,7 @@ function render(){
       if(go)run(go,[{opacity:1},{opacity:0}],{duration:240},()=>go.remove())}
   }
   VIEW=now;
+  if(typeof afterRender==='function')afterRender();
 }
 function cleanGhostExcept(keep){document.querySelectorAll('#app>.ghost').forEach(g=>{if(!keep.includes(g))g.remove()})}
 

@@ -6,7 +6,9 @@ function apiBase(){
   try{
     const b=typeof window!=='undefined'?window.NOVA_API_BASE:undefined;
     if(b==null||b==='')return '';
-    return String(b).replace(/\/+$/,'');
+    let out=String(b).replace(/\/+$/,'');
+    if(typeof secureTransportOn==='function'&&secureTransportOn()&&/^http:\/\//i.test(out))out='https://'+out.slice(7);
+    return out;
   }catch(e){return ''}
 }
 function apiUrl(path){

@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {ApiError} from './errors.mjs';
 import {assertMagic} from './security.mjs';
+import {processUploadImage} from './image-pipeline.mjs';
 
 const nid = () => 'md_' + randomBytes(18).toString('base64url');
 const TICKET_MS = 5 * 60 * 1000;
@@ -136,7 +137,7 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     return {mediaId, userId: Number(userId), exp: Number(exp)};
   }
 
-  function upload(user, {buffer, mime, name, kind: forceKind}) {
+  async function upload(user, {buffer, mime, name, kind: forceKind}) {
     if (!buffer || !Buffer.isBuffer(buffer) || !buffer.length) throw new ApiError(400, 'NO_FILE', '请选择要上传的文件');
     const name0 = String(name || 'file').slice(0, 120);
     const kind = forceKind || mimeKind(mime, name0);
@@ -150,15 +151,31 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     if (usedN + buffer.length > q) throw new ApiError(403, 'QUOTA', '媒体存储额度已满', {used: usedN, quota: q});
 
     const id = nid();
-    const rawName = id + '.bin';
-    const rawPath = diskPath(rawName);
-    writeFileSync(rawPath, buffer);
     const sha = createHash('sha256').update(buffer).digest('hex');
     let width = null, height = null, duration = null;
-    let storePath = rawName, storeSize = buffer.length, storeMime = String(mime || 'application/octet-stream').split(';')[0];
+    let storePath = id + '.bin', storeSize = buffer.length, storeMime = String(mime || 'application/octet-stream').split(';')[0];
     let preview = null;
+    let scanBuffer = null;
 
-    if (kind === 'image' || kind === 'video' || kind === 'audio') {
+    if (kind === 'image') {
+      let processed;
+      try { processed = await processUploadImage(buffer); }
+      catch { throw new ApiError(400, 'IMAGE_PROCESS', '图片无法安全处理，已拒绝保存原文件'); }
+      storePath = id + '.jpg';
+      storeSize = processed.main.length;
+      storeMime = 'image/jpeg';
+      width = processed.width;
+      height = processed.height;
+      scanBuffer = processed.main;
+      writeFileSync(diskPath(storePath), processed.main);
+      writeFileSync(diskPath(id + '_p.jpg'), processed.preview);
+      preview = id + '_p.jpg';
+    } else {
+      writeFileSync(diskPath(storePath), buffer);
+    }
+
+    if (kind === 'video' || kind === 'audio') {
+      const rawPath = diskPath(storePath);
       const info = ffprobe(rawPath);
       if (info) {
         const vs = (info.streams || []).find(s => s.codec_type === 'video');
@@ -174,22 +191,13 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
           throw new ApiError(400, 'TOO_LONG', `时长超过限制（最多 ${Math.round(maxD / 1000)} 秒）`);
         }
       }
-      if (kind === 'image') {
-        const cmp = diskPath(id + '.jpg');
-        if (ffmpegCompressImage(rawPath, cmp) && statSync(cmp).size < storeSize) {
-          try { unlinkSync(rawPath); } catch {}
-          storePath = id + '.jpg'; storeSize = statSync(cmp).size; storeMime = 'image/jpeg';
-        } else { try { if (existsSync(cmp)) unlinkSync(cmp); } catch {} }
-        const pv = diskPath(id + '_p.jpg');
-        if (ffmpegPreview(diskPath(storePath), pv, 'image')) preview = id + '_p.jpg';
-      }
       if (kind === 'video') {
         const pv = diskPath(id + '_p.jpg');
-        if (ffmpegPreview(rawPath, pv, 'video')) preview = id + '_p.jpg';
+        if (ffmpegPreview(diskPath(storePath), pv, 'video')) preview = id + '_p.jpg';
       }
     }
 
-    const scanRes = scan({id, kind, mime: storeMime, path: diskPath(storePath), size: storeSize, sha256: sha}) || defaultScan();
+    const scanRes = await Promise.resolve(scan({id, kind, mime: storeMime, path: diskPath(storePath), size: storeSize, sha256: sha, buffer: scanBuffer})) || defaultScan();
     const scanStatus = scanRes.status || 'pending';
     const scanDetail = scanRes.reason || scanRes.detail || null;
     if (scanStatus === 'blocked') {

@@ -25,6 +25,7 @@ import {createFriends} from './friends.mjs';
 import {createMessageRequests} from './message_requests.mjs';
 import {createEvents} from './events.mjs';
 import {createMedia} from './media.mjs';
+import {createNsfwScan} from './nsfw-scan.mjs';
 import {createNotifications} from './notifications.mjs';
 import {createSearch} from './search.mjs';
 import {createAdmins} from './admin.mjs';
@@ -113,7 +114,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const e2ee = createE2ee(db, {now, friends});
   const events = createEvents(db, {now, ...eventsOpts});
   const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
-  const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan});
+  const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan || createNsfwScan()});
   let notifications;
   const onEvent = (ids, type, payload) => {
     events.publish(ids, type, payload);
@@ -888,13 +889,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return chats.unpinMessage(user, req.params.id, b || {});
     },
 
-    'POST /api/media'(req, b) {
+    async 'POST /api/media'(req, b) {
       const {user} = auth(req);
       const buf = b && b._buffer;
       const name = (b && (b.name || b.filename)) || 'file';
       const mime = (b && (b.mime || b.type)) || 'application/octet-stream';
       const data = buf || (b && b.data ? Buffer.from(b.data, 'base64') : null);
-      const r = media.upload(user, {buffer: data, mime, name, kind: b && b.kind});
+      const r = await media.upload(user, {buffer: data, mime, name, kind: b && b.kind});
       audit(user.id, 'media.upload', 'media:' + r.media.id, ip(req), {kind: r.media.kind, size: r.media.size});
       return r;
     },
@@ -1658,7 +1659,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
           try { b = JSON.parse(raw.toString('utf8')); } catch { throw bad('BAD_JSON', '请求格式不正确'); }
           if (b === null || typeof b !== 'object') throw bad('BAD_JSON', '请求格式不正确');
         }
-        send(200, {ok: true, ...fn(req, b)});
+        const finish = (val) => send(200, {ok: true, ...(val || {})});
+        const fail = (e) => {
+          if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+          else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+        };
+        const out = fn(req, b);
+        if (out && typeof out.then === 'function') out.then(finish, fail);
+        else finish(out);
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
         else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }

@@ -7,6 +7,9 @@
 //   <script>window.NOVA_API_BASE='https://api.example.com';window.NOVA_DISABLE_DEMO=true;</script>
 // window 上已有的值优先（构建注入用 ||，不会覆盖页面里先写的配置）。
 import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {dirname, join} from 'node:path';
 import {vodozemacIife} from './embed-vodozemac.mjs';
 
 export function parseBuildOpts(argv = process.argv.slice(2), env = process.env) {
@@ -18,13 +21,19 @@ export function parseBuildOpts(argv = process.argv.slice(2), env = process.env) 
     if (i >= 0) return '1';
     return (env && env[envKey]) || '';
   };
+  const on = (flag, envKey) => ['1','true','yes','on'].includes(String(get(flag, envKey) || '').trim().toLowerCase());
   const apiBase = String(get('api-base', 'NOVA_API_BASE') || '').trim().replace(/\/+$/, '');
-  const raw = String(get('disable-demo', 'NOVA_DISABLE_DEMO') || '').trim().toLowerCase();
-  const disableDemo = ['1', 'true', 'yes', 'on'].includes(raw);
-  return {apiBase, disableDemo};
+  const disableDemo = on('disable-demo', 'NOVA_DISABLE_DEMO');
+  return {
+    apiBase,
+    disableDemo,
+    secureTransport: on('secure-transport', 'NOVA_SECURE_TRANSPORT'),
+    bugsink: on('bugsink', 'NOVA_BUGSINK'),
+    bugsinkDsn: String(get('bugsink-dsn', 'NOVA_BUGSINK_DSN') || '').trim(),
+  };
 }
 
-export function build({apiBase = '', disableDemo = false, destDir} = {}) {
+export function build({apiBase = '', disableDemo = false, secureTransport = false, bugsink = false, bugsinkDsn = '', destDir} = {}) {
   const dir = new URL('../src/', import.meta.url);
   const files = fs.readdirSync(dir).sort();
   const head = files.filter(f => f.endsWith('.html')).map(f => fs.readFileSync(new URL(f, dir), 'utf8')).join('');
@@ -34,8 +43,23 @@ export function build({apiBase = '', disableDemo = false, destDir} = {}) {
   cfg.push('/* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */');
   if (apiBase) cfg.push('window.NOVA_API_BASE = window.NOVA_API_BASE || ' + JSON.stringify(apiBase) + ';');
   if (disableDemo) cfg.push('window.NOVA_DISABLE_DEMO = window.NOVA_DISABLE_DEMO === undefined ? true : window.NOVA_DISABLE_DEMO;');
+  if (secureTransport) cfg.push('window.NOVA_SECURE_TRANSPORT = window.NOVA_SECURE_TRANSPORT || "on";');
+  if (bugsink) cfg.push('window.NOVA_BUGSINK = window.NOVA_BUGSINK || "on";');
+  if (bugsinkDsn) cfg.push('window.NOVA_BUGSINK_DSN = window.NOVA_BUGSINK_DSN || ' + JSON.stringify(bugsinkDsn) + ';');
   const configScript = cfg.length > 1 ? '<script>\n' + cfg.join('\n') + '\n</script>\n' : '';
-  const out = head.replace(/\n?$/, '\n') + '<div id="app"><div id="v"></div><div id="tt" role="status"></div></div>\n' + configScript + '<script>\n' + js + '\n</script></body></html>\n';
+  const here = dirname(fileURLToPath(import.meta.url));
+  spawnSync(process.execPath, [join(here, 'bundle-vendor.mjs')], {stdio: 'inherit'});
+  const vendor = [
+    '<link rel="stylesheet" href="assets/vendor/photoswipe.css">',
+    '<script src="assets/vendor/purify.min.js"></script>',
+    '<script src="assets/vendor/dexie.min.js"></script>',
+    '<script src="assets/vendor/photoswipe.js"></script>',
+    '<script src="assets/vendor/pulltorefresh.min.js"></script>',
+    '<script src="assets/vendor/virtual.js"></script>',
+    '<script src="assets/vendor/sentry.js"></script>',
+    '<script src="assets/vendor/nova-native.js"></script>',
+  ].join('\n');
+  const out = head.replace(/\n?$/, '\n') + vendor + '\n<div id="app"><div id="v"></div><div id="tt" role="status"></div></div>\n' + configScript + '<script>\n' + js + '\n</script></body></html>\n';
   const destRoot = destDir ? (destDir.endsWith('/') || destDir.endsWith('\\') ? destDir : destDir + '/') : new URL('../dist/', import.meta.url);
   const destPath = typeof destRoot === 'string' ? destRoot : destRoot;
   if (typeof destRoot === 'string') {
@@ -48,7 +72,7 @@ export function build({apiBase = '', disableDemo = false, destDir} = {}) {
   const assets = new URL('../assets/', import.meta.url);
   const destAssets = typeof destRoot === 'string' ? destRoot + (destRoot.endsWith('/') ? '' : '/') + 'assets/' : new URL('../dist/assets/', import.meta.url);
   const skip = new Set(['alipay.jpg', 'wechat.jpg']);
-  const ok = /\.(jpe?g|png|webp|svg|css|json|html|md)$/i;
+  const ok = /\.(jpe?g|png|webp|svg|css|json|html|md|js|mjs|woff2?|ttf|eot|mp3|ogg|wav|gif|ico)$/i;
   function copyTree(srcDir, destDir) {
     fs.mkdirSync(destDir, {recursive: true});
     for (const f of fs.readdirSync(srcDir, {withFileTypes: true})) {

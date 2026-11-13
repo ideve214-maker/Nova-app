@@ -1,5 +1,17 @@
 # 更新日志（最新在上）
 
+## V7 0.7.0-m7.r5 · 库接入、禁止整页拖动、小游戏（2026-11-13）
+
+用户端与本仓库服务端。没有改管理端。默认仍走当前 HTTP，不切换到 https。
+
+- Capacitor 7：`@capacitor/keyboard`、`status-bar`、`haptics`。键盘不顶起整页；状态栏叠在固定顶栏上；触觉走官方接口，浏览器里降级。`capacitor.config.json` 里 `ios.scrollEnabled` 为 false，键盘 `resize` 为 none。
+- 图片用 sharp 压缩、出缩略图并去掉 EXIF/GPS。处理失败则拒绝，不保存带定位的原文件。
+- NSFWJS MobileNetV2 接到上传扫描位。`NOVA_NSFW` 默认 `off`。`on` 超阈值拒绝，`review` 只标记待复核。模型加载失败时降级为待复核，上传不因此 500。
+- DOMPurify 包在所有写入页面的用户文本上。长列表用 TanStack Virtual。图片可全屏缩放，列表图 `loading=lazy`。下拉刷新只作用在 `.sc`。Dexie 缓存最近动态和会话。Bugsink（Sentry SDK）默认关闭，DSN 可配置且不写死地址。
+- `NOVA_SECURE_TRANSPORT` 默认关。打开后才把 http API 基址改成 https。
+- 整页不可拖、不可橡皮筋；只有 `.sc`（以及面板、裁剪、游戏框）滚动。
+- 社区「小游戏」进入游戏列表，不再提示敬请期待。十一个 MIT 游戏离线放在 `assets/games/`。
+
 ## V7 0.7.0-m7.r4 · 评论折叠、邀请按钮、固定顶底栏与两套皮肤（2026-11-13）
 
 只改用户端。服务端接口与数据库没有变动，部署时更新前端构建产物即可。
