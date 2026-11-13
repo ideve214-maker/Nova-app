@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { paymentStatusLabel, VIP_PRICES, type MappedPayment, type PaymentStatus } from "@/lib/admin/backend";
+import { hapticLight } from "@/lib/admin/native";
 import { useAdmin } from "@/lib/admin/store";
 import { Field, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 
@@ -150,6 +151,7 @@ export function PaymentsScreen() {
                   disabled={busy}
                   className="h-11 rounded-full nova-ok-soft text-[15px] font-semibold disabled:opacity-50"
                   onClick={async () => {
+                    void hapticLight();
                     setBusy(true);
                     setError("");
                     const msg = await confirmPayment(active.id);
@@ -207,6 +209,7 @@ export function PaymentsScreen() {
                       setError("请填写拒绝原因");
                       return;
                     }
+                    void hapticLight();
                     setBusy(true);
                     const msg = await rejectPayment(active.id, reason);
                     setBusy(false);
@@ -233,6 +236,7 @@ export function PaymentsScreen() {
                 <PrimaryButton
                   disabled={busy}
                   onClick={async () => {
+                    void hapticLight();
                     setBusy(true);
                     const msg = await refundPayment(active.id, reason);
                     setBusy(false);

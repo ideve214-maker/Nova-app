@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
 import { formatBytes, formatUptime, readHealthView } from "@/lib/admin/backend";
+import { hapticLight } from "@/lib/admin/native";
 import { getStoredTheme, setSkin, setTheme, SKIN_DEFAULT_MODE, SKINS, type SkinId, type ThemeMode } from "@/lib/admin/theme";
 import { DataHint, DemoBanner, EmptyState, Pill, RowLink, Seg, StarMark, useAppearance } from "./ui";
 import { ConnectionBadge } from "./server-panel";
@@ -489,6 +490,7 @@ export function MeScreen() {
               key={item.id}
               type="button"
               onClick={() => {
+                void hapticLight();
                 setSkin(item.id);
                 setSkinId(item.id);
                 setThemeMode(SKIN_DEFAULT_MODE[item.id]);
@@ -505,6 +507,7 @@ export function MeScreen() {
               key={item.id}
               type="button"
               onClick={() => {
+                void hapticLight();
                 setTheme(item.id);
                 setThemeMode(item.id);
               }}

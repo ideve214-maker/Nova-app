@@ -3,6 +3,7 @@ import { useAdmin, type PostItem, type ReportItem } from "@/lib/admin/store";
 import { joinUrl, loadConfig, resolveBase } from "@/lib/admin/backend";
 import { Avatar, DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { mediaUrl } from "@/lib/admin/media";
+import { hapticLight } from "@/lib/admin/native";
 
 function adminMediaSrc(url?: string): string | undefined {
   if (!url) return undefined;
@@ -152,6 +153,7 @@ export function ContentScreen() {
                   disabled={busy}
                   className="mt-2.5 h-11 w-full rounded-full nova-ok-soft text-[15px] font-semibold disabled:opacity-50"
                   onClick={async () => {
+                    void hapticLight();
                     setBusy(true);
                     await restoreContent(post.kind, post.id);
                     setBusy(false);
@@ -189,6 +191,7 @@ export function ContentScreen() {
             <PrimaryButton
               disabled={busy}
               onClick={async () => {
+                void hapticLight();
                 setBusy(true);
                 await hideContent(target.kind, target.id, reason);
                 setBusy(false);
@@ -338,6 +341,7 @@ export function ReportsScreen() {
             </div>
             <PrimaryButton
               onClick={() => {
+                void hapticLight();
                 void resolveReport(active.id, choice).then(() => setCurrent(null));
               }}
             >

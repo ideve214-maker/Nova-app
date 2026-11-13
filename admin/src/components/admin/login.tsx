@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, LockKeyhole, Server, UserRound } from "lucide-react";
+import { hapticLight } from "@/lib/admin/native";
 import { useAdmin } from "@/lib/admin/store";
 import { resolveBase } from "@/lib/admin/backend";
 import { ConnectionBadge } from "./server-panel";
@@ -30,6 +31,7 @@ export function LoginScreen() {
     try {
       const message = await attemptLogin(account, password, remember);
       if (message) setError(message);
+      else void hapticLight();
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     } finally {

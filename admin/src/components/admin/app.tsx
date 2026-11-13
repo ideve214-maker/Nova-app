@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { installFieldScroll, installScrollLock } from "@/lib/admin/scroll-lock";
-import { lockNativeViewport } from "@/lib/admin/native";
+import { hapticLight, lockNativeViewport, syncNativeChrome } from "@/lib/admin/native";
+import { getStoredSkin, resolvedTheme, subscribeAppearance } from "@/lib/admin/theme";
 import { hydrateAdmin, markAppBooted, useAdmin, type PageName } from "@/lib/admin/store";
 import { Frame, SkinIcon, StarMark, type SkinIconName } from "./ui";
 import { LoginScreen } from "./login";
@@ -46,9 +47,13 @@ export function AdminApp() {
     const unlock = installScrollLock();
     const unfocus = installFieldScroll();
     void lockNativeViewport();
+    const unsubChrome = subscribeAppearance(() => {
+      void syncNativeChrome(getStoredSkin(), resolvedTheme());
+    });
     return () => {
       unlock();
       unfocus();
+      unsubChrome();
     };
   }, []);
 
@@ -148,7 +153,7 @@ export function AdminApp() {
             {tabs.map((item) => {
               const on = name === item.id;
               return (
-                <button key={item.id} type="button" onClick={() => tab(item.id)} className={`relative flex h-[49px] flex-col items-center justify-center gap-px ${on ? "font-semibold text-primary" : "text-muted"}`}>
+                <button key={item.id} type="button" onClick={() => { void hapticLight(); tab(item.id); }} className={`relative flex h-[49px] flex-col items-center justify-center gap-px ${on ? "font-semibold text-primary" : "text-muted"}`}>
                   <span className={`nova-tab-icon ${on ? "is-on" : ""}`}>
                     <SkinIcon name={item.icon} className="size-[22px]" />
                   </span>
