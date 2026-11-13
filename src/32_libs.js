@@ -277,6 +277,6 @@ document.addEventListener('click', e=>{
 
 document.addEventListener('touchmove', e=>{
   const t=e.target;
-  if(t.closest&&t.closest('.sc, .pn, .cropstage, .pswp, iframe, .game-frame'))return;
+  if(t.closest&&t.closest('.sc, .pn, .annb, .cropstage, .pswp, iframe, .game-frame'))return;
   if(e.cancelable)e.preventDefault();
 }, {passive:false});
