@@ -452,6 +452,49 @@ html.kb-open .pn{padding-bottom:12px}
 /* 小游戏行 */
 .gmini .gicons{display:flex;gap:6px;margin-top:6px}.gmini .gicons i{width:24px;height:24px;border-radius:7px;background:var(--s2);display:grid;place-items:center;color:var(--ac)}
 .gmini .gicons svg{width:16px;height:16px}
+/* ===== r7 补充：X 式媒体 / 互动栏 / 首页收起 / 回到顶部 ===== */
+.fmedia{margin:10px 16px 2px;border-radius:16px;overflow:hidden;border:.5px solid var(--ln);gap:2px;background:var(--ln);isolation:isolate}
+.fmedia>*{min-width:0;min-height:0}
+.fmedia img,.fmedia video{width:100%;height:100%;display:block;object-fit:cover;background:var(--s2);max-height:none}
+.fmedia.n1 img,.fmedia.n1 video{height:auto;max-height:min(380px,48vh);object-fit:cover;background:var(--s2)}
+.fmedia.n1 video{background:#000;object-fit:contain;aspect-ratio:16/9}
+.fmedia.n1 img[data-mid]:not([src]),.fmedia.n1 video[data-mid]:not([src]){aspect-ratio:16/9;min-height:0;height:auto}
+.fmedia.n2,.fmedia.n3,.fmedia.n4{aspect-ratio:16/9;grid-template-columns:1fr 1fr;grid-template-rows:1fr}
+.fmedia.n3,.fmedia.n4{grid-template-rows:1fr 1fr}
+.fmedia.n3>:first-child{grid-column:auto;grid-row:span 2}
+.fmedia.det.n1 img{max-height:min(560px,70vh);object-fit:contain;background:var(--s2)}
+.fmedia .mv,.fmedia .mx{position:relative;display:block;width:100%;height:100%;overflow:hidden}
+.fmedia .mv .vtag{position:absolute;left:8px;bottom:8px;font-style:normal;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:4px;pointer-events:none}
+.fmedia .mxn{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.45);color:#fff;font-size:24px;font-weight:700}
+.fmedia .mfail,.mfail{display:flex;align-items:center;justify-content:center;gap:6px;min-height:72px;height:100%;padding:12px;background:var(--s2);color:var(--t2);font-size:13px;line-height:1.3;text-align:center}
+.fmedia.n1 .mfail{min-height:72px;height:auto}
+.prof-ph .mfail{min-height:0;aspect-ratio:1/1;font-size:11px;padding:4px}
+.fmore{display:none}
+.xbar{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 4px;margin-top:4px}
+.xbar button{flex:1;min-width:0;height:40px;display:flex;align-items:center;justify-content:center;gap:4px;color:var(--t2);font-size:13px;font-variant-numeric:tabular-nums;border-radius:20px;-webkit-tap-highlight-color:transparent}
+.xbar button span{min-width:1ch;text-align:left}
+.xbar button.xs{flex:0 0 44px}
+.xbar button:active{opacity:.6;transform:none}
+.xbar .xl.on{color:#f91880}.xbar .xr.on{color:#00ba7c}.xbar .xb.on{color:var(--ac)}
+.xbar .xemo{font-size:16px;line-height:1}
+.hcol{flex:none;overflow:hidden;max-height:var(--hch,400px);opacity:1;transition:max-height .3s cubic-bezier(.2,.8,.2,1),opacity .22s ease;will-change:max-height,opacity;contain:layout paint}
+.hcoli{transition:transform .3s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.pg.home.hc .hcol{max-height:0;opacity:0;pointer-events:none}
+.pg.home.hc .hcoli{transform:translate3d(0,-16px,0)}
+.pg.home.hnoanim .hcol,.pg.home.hnoanim .hcoli,.pg.home.hnoanim .totop{transition:none!important}
+.totop{position:absolute;right:16px;bottom:calc(var(--nav-h,56px) + 24px + env(safe-area-inset-bottom,0px));z-index:13;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--tx,#fff);background:color-mix(in srgb,var(--sf) 88%,transparent);border:.5px solid var(--ln2,rgba(255,255,255,.14));box-shadow:0 4px 16px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);opacity:0;transform:translate3d(0,12px,0);pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+.totop.on{opacity:1;transform:none;pointer-events:auto}
+.totop:active{opacity:.7}
+.annm{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:24px calc(20px + env(safe-area-inset-right,0px)) 24px calc(20px + env(safe-area-inset-left,0px));background:rgba(0,0,0,.55);animation:annIn .18s ease both;touch-action:none}
+.annm.out{animation:annOut .18s ease both}
+.annc{width:100%;max-width:360px;max-height:min(70vh,560px);display:flex;flex-direction:column;gap:8px;padding:20px;border-radius:18px;background:var(--sf);border:.5px solid var(--ln2,rgba(255,255,255,.12));box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.annh{font-size:13px;font-weight:700;color:var(--ac)}
+.annc h3{font-size:18px;line-height:1.35;margin:0;word-break:break-word}
+.annc small{color:var(--t2);font-size:12px}
+.annb{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;white-space:pre-wrap;word-break:break-word;line-height:1.6;font-size:15px;color:var(--tx,inherit)}
+.annok{width:100%;margin-top:6px;height:44px}
+@keyframes annIn{from{opacity:0}to{opacity:1}}
+@keyframes annOut{from{opacity:1}to{opacity:0}}
 </style></head><body>
 <link rel="stylesheet" href="assets/vendor/photoswipe.css">
 <script src="assets/vendor/purify.min.js"></script>
@@ -2047,11 +2090,14 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;return o;
 }
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
   if(MODE!=='account'||!SESSION)return;
+  /* r7 热门话题：先取管理员挑选的帖子（按管理员顺序）；一条都没挑或服务器还没有这个接口时，退回原来按话题标签的结果 */
+  S.hotMode=0;
+  if(S.feed==='topic'){const h=await api('GET','/api/hot-posts?limit=20');if(h.s===200&&h.j&&Array.isArray(h.j.posts)&&h.j.posts.length){S.posts=h.j.posts.map(adoptPost);S.postsErr='';S.postsCursor=null;S.hotMode=1;return}}
   const r=await api('GET','/api/posts?limit=50&feed='+(S.feed==='follow'?'follow':S.feed==='topic'?'topic':'rec'));
   if(r.s!==200){
     if(typeof cacheReadFeed==='function'){const cached=await cacheReadFeed();if(cached&&cached.length){S.posts=cached;S.postsErr='';return}}
@@ -2156,8 +2202,8 @@ const nLike=(p.r||[]).reduce((a,b)=>a+(b||0),0),nC=p.commentCount!=null?p.commen
 const media=Array.isArray(p.media)?p.media:[];
 const mediaH=typeof mediaHTML==='function'?mediaHTML(media,det,p.id):'';
 const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:'';
-const chips=[mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
-return `<article class="fcard" data-pid="${p.id}"><div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn">${esc(u.n)}${u.v?' '+vipBadge():''}</b><small>${esc(tm)}${tm?' · ':''}${aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>`:''}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}<div class="fsum"><span>${nLike?('👍 '+nLike):''}</span><span>${nC?nC+' 条评论':''}</span></div><div class="fbar"><button data-a="rx" data-v="${p.id}" class="${p.m>=0?'on':''}">👍 ${p.m>=0?'已赞':'赞'}</button><button data-a="post" data-v="${p.id}">💬 评论</button><button data-a="sharep" data-v="${p.id}">↗ 分享</button></div></article>`};
+const chips=[S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
+return `<article class="fcard" data-pid="${p.id}"><div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn">${esc(u.n)}${u.v?' '+vipBadge():''}</b><small>${esc(tm)}${tm?' · ':''}${aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>`:''}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
 const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊已加密</b>一对一聊天会加密后发送。群聊暂时还没有加密。请核对手友的安全号码。</div>':'<div class="ban"><b>演示模式</b>这里只是演示，不会发送真实消息。</div>';
 
@@ -3451,16 +3497,16 @@ if(typeof window!=='undefined'){
 /* ---- tabs ---- */
 const tHome=()=>{const fl=typeof followingIds==='function'&&followingIds()?followingIds():D.f.filter(e=>e[0]=='me').map(e=>e[1]),src=typeof feedSrc==='function'?feedSrc():D.p,loading=usingNet()&&!Array.isArray(S.posts);
 const base=src.filter(p=>S.feed=='rec'||S.feed=='topic'||p.a=='me'||fl.includes(p.a));
-const L=S.feed=='topic'?base.filter(p=>(p.hashtags&&p.hashtags.length)||(p.x&&p.x.includes('#'))):base;
+const L=S.feed=='topic'&&!S.hotMode?base.filter(p=>(p.hashtags&&p.hashtags.length)||(p.x&&p.x.includes('#'))):base;
 /* r7：顶部一排只放「发日常」和有日常的人（日常独立于帖子，见 75_r7.js） */
 const stories=()=>typeof storyStrip==='function'?storyStrip():'';
-return `<div class="pg"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1><button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
+return `<div class="pg home${S._hc?' hc':''}"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1><button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
-${stories()}
-<div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">分享一下你的新鲜事</button><button class="ib" data-a="compose" aria-label="添加照片" style="color:var(--ac)">${ic('image')}</button></div>
+<div class="hcol"><div class="hcoli">${stories()}
+<div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">分享一下你的新鲜事</button><button class="ib" data-a="compose" aria-label="添加照片" style="color:var(--ac)">${ic('image')}</button></div></div></div>
 <div class="seg feed-seg"><button data-a="feed" data-v="rec" class="${S.feed=='follow'||S.feed=='topic'?'':'on'}">为你推荐</button><button data-a="feed" data-v="follow" class="${S.feed=='follow'?'on':''}">正在关注</button><button data-a="feed" data-v="topic" class="${S.feed=='topic'?'on':''}">热门话题</button></div>
 <div class="sc">
-${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='topic'?'还没有热门话题':S.feed=='follow'?'你还没有关注任何人':'推荐里还没有帖子'}</p>`}${usingNet()&&S.postsCursor?`<div style="padding:16px"><button class="pb s" style="width:100%" data-a="morefeed" id="morefeed">加载更多</button></div>`:''}</div></div>`};
+${loading&&!S.postsErr?'<p class="em">正在读取动态…</p>':S.postsErr?`<p class="em">${esc(S.postsErr)}</p>`:L.length?L.map(p=>pc(p)).join(''):`<p class="em" id="feedempty">${S.feed=='topic'?'还没有热门话题':S.feed=='follow'?'你还没有关注任何人':'推荐里还没有帖子'}</p>`}${usingNet()&&S.postsCursor?`<div style="padding:16px"><button class="pb s" style="width:100%" data-a="morefeed" id="morefeed">加载更多</button></div>`:''}</div><button class="totop${S._tt?' on':''}" type="button" aria-label="回到顶部" tabindex="${S._tt?0:-1}" aria-hidden="${S._tt?'false':'true'}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button></div>`};
 function cmView(){try{const v=localStorage.getItem('nova_cm_view');return (v==='2'||v==='4'||v==='1')?v:'1'}catch(e){return '1'}}
 function setCmView(v){const n=(v==='2'||v==='4'||v==='1')?v:'1';try{localStorage.setItem('nova_cm_view',n)}catch(e){}return n}
 function cycleCmView(){const o=['1','2','4'],c=cmView();return setCmView(o[(o.indexOf(c)+1)%3])}
@@ -3876,7 +3922,7 @@ document.addEventListener('click', e=>{
 
 document.addEventListener('touchmove', e=>{
   const t=e.target;
-  if(t.closest&&t.closest('.sc, .pn, .cropstage, .pswp, iframe, .game-frame'))return;
+  if(t.closest&&t.closest('.sc, .pn, .annb, .cropstage, .pswp, iframe, .game-frame'))return;
   if(e.cancelable)e.preventDefault();
 }, {passive:false});
 
@@ -4194,6 +4240,7 @@ if(s.t=='fwd'){
 if(s.t=='cmedit')h=`<h3>编辑小组资料</h3><input class="fld" data-d="cmn" data-af placeholder="名称（2–20 字）"><textarea class="fld" data-d="cmd" data-max="80" rows="3" placeholder="简介（最多 80 字）"></textarea><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="cmedit2" data-v="${s.id}">保存</button></div>`;
 if(s.t=='gnick')h=`<h3>我在本群的昵称</h3><p class="lab" style="margin-bottom:8px">只在这个群里显示，不影响账号名。</p><input class="fld" data-d="gnick" data-af placeholder="最多 20 个字，留空则使用账号名"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="gnick2" data-v="${s.id}">保存</button></div>`;
 if(s.t=='gdis')h=`<h3>解散这个群聊？</h3><p style="color:var(--t2);margin-bottom:8px">所有成员将被移出，此操作不可撤销。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="gdis2" data-v="${s.id}">解散群聊</button></div>`;
+if(!h&&typeof r7Sheet==='function')h=r7Sheet(s)||'';
 return `<div class="ov" data-a="x"></div><div class="pn${full?' full':''}" role="dialog">${h}</div>`};
 
 /* ===== 60_render.js ===== */
@@ -4667,13 +4714,16 @@ function mediaHTML(list,det,pid){
   const media=(Array.isArray(list)?list:[]).map(mItem).filter(x=>x.url||x.id);
   if(!media.length)return '';
   const show=det?media:media.slice(0,4),n=Math.min(show.length,4);
-  const cells=show.map(m=>{
+  const extra=!det&&media.length>4?media.length-4:0;
+  const cells=show.map((m,i)=>{
     const src=m.url?` src="${esc(m.url)}"`:` data-mid="${esc(m.id)}"`;
-    if(mKind(m)==='video')return `<span class="mv"${det||!pid?'':` data-a="post" data-v="${esc(pid)}"`}><video${src} muted playsinline preload="metadata"${det?' controls':''}></video></span>`;
-    return `<img class="zoomimg" loading="lazy"${src} alt="">`;
+    let c;
+    if(mKind(m)==='video')c=`<span class="mv"${det||!pid?'':` data-a="post" data-v="${esc(pid)}"`}><video${src} muted playsinline preload="metadata"${det?' controls':''}></video><i class="vtag">视频</i></span>`;
+    else c=`<img class="zoomimg" loading="lazy" decoding="async"${src} alt="">`;
+    if(extra&&i===3)c=`<span class="mx">${c}<b class="mxn"${pid?` data-a="post" data-v="${esc(pid)}"`:''}>+${extra}</b></span>`;
+    return c;
   }).join('');
-  const more=!det&&media.length>4?`<div class="fmore"${pid?` data-a="post" data-v="${esc(pid)}"`:''}>共 ${media.length} 张，点开查看全部</div>`:'';
-  return `<div class="fmedia n${n}">${cells}</div>${more}`;
+  return `<div class="fmedia n${n}${det?' det':''}">${cells}</div>`;
 }
 if(typeof MutationObserver!=='undefined'&&document.getElementById('app')){
   let q=0;
@@ -4865,6 +4915,160 @@ Object.assign(A,{
   },
   setlocv:v=>{const c=compState();c.loc=String(v||'').slice(0,80);rememberLoc(c.loc);S.sh=null;if(typeof saveComposeDraft==='function')saveComposeDraft()},
 });
+
+/* ===================================================================
+   r7 补充（6–9）：帖子媒体像 X 一样排版、X 式互动栏、首页顶部随滚动收起、回到顶部
+   =================================================================== */
+
+/* ---- 6. 媒体加载失败：换成小占位，不再出现大黑框加问号 ---- */
+function mediaFail(el){
+  if(!el||el.dataset.failed)return;el.dataset.failed='1';
+  const wrap=el.closest('.mv')||el;
+  const f=document.createElement('div');f.className='mfail';
+  f.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M3 3l18 18"/></svg><span>'+(el.tagName==='VIDEO'?'视频':'图片')+'暂时无法显示</span>';
+  wrap.replaceWith(f);
+}
+document.addEventListener('error',e=>{
+  const t=e.target;if(!t||!t.closest)return;
+  if((t.tagName==='IMG'||t.tagName==='VIDEO')&&t.closest('.fmedia,.prof-ph')&&t.getAttribute('src'))mediaFail(t);
+},true);
+
+/* ---- 7. 互动栏：评论 / 转帖 / 点赞 / 阅读 / 收藏 / 分享 ---- */
+const XI={
+  cm:'<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z"/>',
+  rt:'<path d="M7 7h10l-2.5-2.5M17 7v3M17 17H7l2.5 2.5M7 17v-3"/>',
+  lk:'<path d="M12 20s-7.5-4.4-7.5-10A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 3c0 5.6-7.5 10-7.5 10z"/>',
+  vw:'<path d="M5 20V12M10 20V6M15 20v-9M20 20V9"/>',
+  bm:'<path d="M6.5 3.5h11v17L12 16.5l-5.5 4z"/>',
+  sh:'<path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 13v6.5h14V13"/>'
+};
+const xic=(k,fill)=>`<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><g fill="${fill?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${XI[k]}</g></svg>`;
+function fmtN(n){n=Number(n)||0;if(n<=0)return '';if(n<1000)return String(n);if(n<10000)return (n/1000).toFixed(n<2000?1:0).replace(/\.0$/,'')+'K';return (n/10000).toFixed(1).replace(/\.0$/,'')+'万'}
+function lsSet(k){try{return new Set(JSON.parse(localStorage.getItem(k)||'[]'))}catch(e){return new Set()}}
+function lsSave(k,set,cap){try{let a=[...set];if(cap&&a.length>cap)a=a.slice(a.length-cap);localStorage.setItem(k,JSON.stringify(a))}catch(e){}}
+/* 阅读量：服务器还没有阅读量接口；这台设备看过就记 1 次（见 docs/r7-server-notes.md）*/
+const VIEWED=lsSet('nova_post_viewed');
+function postViews(p){const s=Number(p.viewCount!=null?p.viewCount:p.views);return Number.isFinite(s)&&s>0?s:(VIEWED.has(String(p.id))?1:0)}
+/* 转帖：服务器还没有转帖接口；先发一条带原帖链接的新帖子，本机记住转过哪些 */
+function repostMap(){try{return JSON.parse(localStorage.getItem('nova_reposted')||'{}')||{}}catch(e){return {}}}
+function postReposts(p){return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
+function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Number.isFinite(s)&&s>0?s:(mine?1:0)}
+function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[]);return a.find(x=>String(x.id)===String(id))}
+function xbar(p,nLike,nC){
+  const id=esc(String(p.id)),liked=p.m>=0,rt=!!repostMap()[p.id],bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
+  const likeIc=liked&&p.m!==0&&typeof E!=='undefined'&&E[p.m]?`<span class="xemo">${E[p.m]}</span>`:xic('lk',liked);
+  const b=(a,cls,ic,n,label)=>`<button data-a="${a}" data-v="${id}" class="${cls}" aria-label="${label}${n?' '+n:''}">${ic}<span>${fmtN(n)}</span></button>`;
+  return `<div class="xbar">${b('post','xc',xic('cm'),nC,'评论')}${b('xrt','xr'+(rt?' on':''),xic('rt'),postReposts(p),'转帖')}${b('xlike','xl'+(liked?' on':''),likeIc,nLike,'点赞')}${b('xviews','xv',xic('vw'),postViews(p),'阅读')}${b('xbm','xb'+(bm?' on':''),xic('bm',bm),postBookmarks(p),'收藏')}<button data-a="xshare" data-v="${id}" class="xs" aria-label="分享">${xic('sh')}</button></div>`;
+}
+if(typeof IntersectionObserver!=='undefined'){
+  const timers=new Map();
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{const id=en.target.getAttribute('data-pid');if(!id)return;
+    if(en.isIntersecting&&en.intersectionRatio>=.5){if(VIEWED.has(id)||timers.has(id))return;timers.set(id,setTimeout(()=>{timers.delete(id);VIEWED.add(id);lsSave('nova_post_viewed',VIEWED,3000);const sp=en.target.querySelector('.xv span');if(sp&&!sp.textContent)sp.textContent='1'},800))}
+    else if(timers.has(id)){clearTimeout(timers.get(id));timers.delete(id)}})},{threshold:[0,.5]});
+  const seen=new WeakSet();
+  const scan=()=>document.querySelectorAll('.fcard[data-pid]').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el)}});
+  if(typeof MutationObserver!=='undefined'&&document.getElementById('app')){let q=0;new MutationObserver(()=>{if(q)return;q=1;requestAnimationFrame(()=>{q=0;scan();homeSync()})}).observe(document.getElementById('app'),{childList:true,subtree:true})}
+}
+/* 帖子链接：有网页地址时用网页地址，否则用 App 链接 */
+function postLink(id){
+  let base='';
+  try{const b=typeof apiBase==='function'?apiBase():'';if(/^https?:\/\//i.test(b))base=b;
+    else if(/^https?:$/.test(location.protocol)&&!/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))base=location.origin+location.pathname.replace(/[^/]*$/,'')}catch(e){}
+  return base?base.replace(/\/+$/,'')+'/#/post/'+encodeURIComponent(id):'nova://post/'+encodeURIComponent(id);
+}
+async function copyText(t){
+  try{if(navigator.clipboard&&window.isSecureContext!==false){await navigator.clipboard.writeText(t);return true}}catch(e){}
+  try{const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:-1000px;opacity:0;font-size:16px';document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,t.length);const ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}
+}
+function r7Sheet(s){
+  if(s.t==='xshare'){const p=findPost(s.id);const canSys=typeof navigator!=='undefined'&&!!navigator.share;
+    return `<h3>分享帖子</h3><button class="mi" data-a="xcopylink" data-v="${esc(s.id)}">🔗 复制帖子链接</button>${p&&p.x?`<button class="mi" data-a="xcopytext" data-v="${esc(s.id)}">📋 复制正文</button>`:''}${canSys?`<button class="mi" data-a="xsys" data-v="${esc(s.id)}">📤 通过其他应用分享…</button>`:''}<button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
+  if(s.t==='xrt'){const done=!!repostMap()[s.id];
+    return `<h3>转帖</h3>${done?`<p class="lab" style="margin-bottom:6px">你已经转过这条帖子。</p>`:`<button class="mi" data-a="xrtgo" data-v="${esc(s.id)}">🔁 转帖</button>`}<button class="mi" data-a="xquote" data-v="${esc(s.id)}">✍️ 引用并说点什么</button><button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
+  return '';
+}
+function repostText(p,extra){const who=p?P(p.a).n:'';const ex=p&&p.x?[...p.x].slice(0,80).join('')+([...p.x].length>80?'…':''):'';return (extra?extra+'\n\n':'')+'🔁 转帖 @'+who+(ex?'：'+ex:'')+'\n'+postLink(p.id)}
+Object.assign(A,{
+  xlike:v=>{const p=findPost(v);if(!p)return;return A.rxp(v+'|'+(p.m>=0?p.m:0))},
+  xbm:v=>typeof savp==='function'?savp(v):undefined,
+  xviews:v=>{const p=findPost(v);const n=p?postViews(p):0;T(n?('阅读 '+n+' 次'):'还没有阅读记录')},
+  xshare:v=>{S.sh={t:'xshare',id:v}},
+  xcopylink:async v=>{S.sh=null;const ok=await copyText(postLink(v));T(ok?'已复制帖子链接':'复制失败，请长按手动复制')},
+  xcopytext:async v=>{S.sh=null;const p=findPost(v);const ok=await copyText(p&&p.x||'');T(ok?'已复制正文':'复制失败')},
+  xsys:async v=>{S.sh=null;const p=findPost(v);try{await navigator.share({title:'NOVA',text:p&&p.x?[...p.x].slice(0,60).join(''):'',url:postLink(v)})}catch(e){}},
+  xrt:v=>{S.sh={t:'xrt',id:v}},
+  xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(repostMap()[v])return T('已经转过了');const text=repostText(p);
+    let nid=null;
+    if(typeof usingNet==='function'&&usingNet()){if(S.rtBusy)return;S.rtBusy=1;try{const np=await publishPost(text,{audience:'public'});nid=np&&np.id}finally{S.rtBusy=0}if(!nid)return}
+    else{nid='rt'+Date.now();D.p.unshift({id:nid,a:'me',t:'刚刚',at:Date.now(),x:text,r:[0,0,0,0,0,0],m:-1,aud:'public'})}
+    const m=repostMap();m[v]=nid;try{localStorage.setItem('nova_reposted',JSON.stringify(m))}catch(e){}T('已转帖')},
+  xquote:v=>{const p=findPost(v);S.sh=null;if(!p)return;S.d.pin=repostText(p,'');S.d.pin='\n\n'+S.d.pin;if(typeof compState==='function')compState();S.st.push('compose')}
+});
+/* 帖子链接打开：#/post/<id> */
+function openHashPost(){const m=/^#\/post\/([^/?#]+)/.exec(location.hash||'');if(!m)return;const id=decodeURIComponent(m[1]);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+  const go=()=>{if(typeof A!=='undefined'&&A.post){A.post(id);if(typeof render==='function')render()}};
+  if(typeof usingNet==='function'&&usingNet()&&!Array.isArray(S.posts)){let n=0;const t=setInterval(()=>{if(Array.isArray(S.posts)||++n>40){clearInterval(t);go()}},250)}else setTimeout(go,300)}
+window.addEventListener('hashchange',openHashPost);
+setTimeout(openHashPost,600);
+
+/* ---- 8 & 9. 首页：往下滑收起「日常 + 分享新鲜事」，回到最顶部再展开；回到顶部按钮 ---- */
+function homeEls(){const pg=document.querySelector('#v .pg.home');if(!pg)return null;return {pg,sc:pg.querySelector(':scope > .sc'),col:pg.querySelector('.hcol'),tt:pg.querySelector('.totop')}}
+function homeApply(h,y,instant){
+  if(!h||!h.sc)return;
+  const room=h.sc.scrollHeight-h.sc.clientHeight,colH=h.col?h.col.scrollHeight:0;
+  let hc=!!S._hc,tt=!!S._tt;
+  if(!hc&&y>48&&room>colH+120)hc=true;
+  else if(hc&&y<=1)hc=false;
+  const th=Math.max(800,h.sc.clientHeight*1.3);
+  if(!tt&&y>th)tt=true;else if(tt&&y<240)tt=false;
+  if(instant)h.pg.classList.add('hnoanim');
+  if(hc!==!!S._hc||h.pg.classList.contains('hc')!==hc){S._hc=hc;h.pg.classList.toggle('hc',hc)}
+  if(tt!==!!S._tt||(h.tt&&h.tt.classList.contains('on')!==tt)){S._tt=tt;if(h.tt){h.tt.classList.toggle('on',tt);h.tt.tabIndex=tt?0:-1;h.tt.setAttribute('aria-hidden',tt?'false':'true')}}
+  if(instant)requestAnimationFrame(()=>requestAnimationFrame(()=>h.pg.classList.remove('hnoanim')));
+}
+function homeSync(){const h=homeEls();if(!h)return;
+  if(h.col&&!S._hc){const inner=h.col.firstElementChild;if(inner)h.col.style.setProperty('--hch',inner.scrollHeight+'px')}
+  homeApply(h,h.sc?h.sc.scrollTop:0,true)}
+document.addEventListener('scroll',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('sc'))return;const pg=t.parentElement;if(!pg||!pg.classList.contains('home'))return;
+  const h={pg,sc:t,col:pg.querySelector('.hcol'),tt:pg.querySelector('.totop')};
+  if(h.col&&!S._hc){const inner=h.col.firstElementChild;if(inner)h.col.style.setProperty('--hch',inner.scrollHeight+'px')}
+  homeApply(h,t.scrollTop,false)},true);
+function smoothTop(sc){
+  if('scrollBehavior' in document.documentElement.style){try{sc.scrollTo({top:0,behavior:'smooth'});return}catch(e){}}
+  const y0=sc.scrollTop,t0=performance.now(),d=Math.min(600,250+y0/8);
+  const step=t=>{const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);sc.scrollTop=Math.round(y0*(1-e));if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step);
+}
+document.addEventListener('click',e=>{const b=e.target&&e.target.closest&&e.target.closest('.totop');if(!b)return;e.preventDefault();e.stopPropagation();const h=homeEls();if(h&&h.sc)smoothTop(h.sc)},true);
+
+/* ---- 11. 公告弹窗：打开 App（冷启动、或在后台超过 30 分钟后回来）时取当前公告；
+   version 没看过就弹，点“知道了”后记到本机（nova-ann-seen），同一条不再弹 ---- */
+const ANN_SEEN_KEY='nova-ann-seen';
+let annBusy=false,annHiddenAt=0;
+function annSeen(){try{return localStorage.getItem(ANN_SEEN_KEY)||''}catch(e){return ''}}
+function annClose(v){try{if(v)localStorage.setItem(ANN_SEEN_KEY,v)}catch(e){}const el=document.getElementById('annm');if(el){el.classList.add('out');setTimeout(()=>el.remove(),180)}}
+function annShow(a){
+  if(!a||!a.version||document.getElementById('annm'))return;
+  const el=document.createElement('div');el.id='annm';el.className='annm';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','annt');
+  const tm=a.publishedAt&&typeof fmtTime==='function'?fmtTime(a.publishedAt):'';
+  el.innerHTML=`<div class="annc"><div class="annh">📢 公告</div><h3 id="annt">${esc(a.title||'')}</h3>${tm?`<small>${esc(tm)}</small>`:''}<div class="annb">${esc(a.body||'')}</div><button type="button" class="pb annok">知道了</button></div>`;
+  el.querySelector('.annok').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();annClose(a.version)});
+  el.addEventListener('click',e=>{e.stopPropagation()},false);
+  document.body.appendChild(el);
+}
+async function annCheck(){
+  if(annBusy)return;
+  if(typeof NET==='undefined'||!NET||typeof MODE!=='undefined'&&MODE==='demo')return;
+  annBusy=true;
+  try{
+    const url=typeof apiUrl==='function'?apiUrl('/api/announcements/current'):'/api/announcements/current';
+    const r=await fetch(url,{method:'GET',credentials:'omit',headers:{Accept:'application/json'}});
+    if(!r.ok)return;
+    const j=await r.json();const a=j&&j.announcement;
+    if(a&&a.version&&a.version!==annSeen())annShow(a);
+  }catch(e){}finally{annBusy=false}
+}
+(function annBoot(){let n=0;const t=setInterval(()=>{n++;if(typeof NET!=='undefined'&&NET){clearInterval(t);setTimeout(annCheck,600)}else if(n>40)clearInterval(t)},250)})();
+document.addEventListener('visibilitychange',()=>{if(document.hidden){annHiddenAt=Date.now();return}if(annHiddenAt&&Date.now()-annHiddenAt>30*60*1000)annCheck();annHiddenAt=0});
 
 /* ===== 80_events.js ===== */
 Object.assign(A,{authpane,authgo,agreetog,authdemo,logout,todemo,toacct,retryconnect,setskin,legal,deltog,delacctq,delacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,vipbuy:vipBuyGo,vipmethod:vipMethodGo,vippaid:vipPaidGo,vipord:vipOrdGo,vipshow:vipShowGo,vippayclose:vipPayClose,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen,rpreason,rptog,rpsubmit,reportp:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'post',targetId:v})},reportu:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'user',targetId:v,targetUserId:v})},reportcm:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'community',targetId:v})},reportcv:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'conversation',targetId:v,conversationId:v})},reportm:v=>{const p=String(v).split('|');const cid=p[1],mid=p[2];if(typeof reportOpen==='function')reportOpen({targetType:'message',targetId:mid,conversationId:cid,messageIds:[mid]})},blockq:blockAsk,block2:blockUser,unblock:unblockUser,safenum,safeok,e2eerev});
