@@ -59,6 +59,10 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminAppeal: "/api/admin/appeals/:id",
   adminAppealDecision: "/api/admin/appeals/:id/decision",
   adminMetrics: "/api/admin/metrics",
+  adminMedia: "/api/admin/media",
+  adminMediaItem: "/api/admin/media/:id",
+  adminMediaPreview: "/api/admin/media/:id/preview",
+  adminMediaFile: "/api/admin/media/:id/file",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",
@@ -104,6 +108,10 @@ export const ENDPOINT_ALIASES: Partial<Record<EndpointName, string[]>> = {
   adminAppeal: ["/api/admin/appeals/:id"],
   adminAppealDecision: ["/api/admin/appeals/:id/decision"],
   adminMetrics: ["/api/admin/metrics", "/api/metrics"],
+  adminMedia: ["/api/admin/media", "/api/admin/media/review"],
+  adminMediaItem: ["/api/admin/media/:id"],
+  adminMediaPreview: ["/api/admin/media/:id/preview"],
+  adminMediaFile: ["/api/admin/media/:id/file"],
   adminVipGrant: ["/api/admin/vip/grant", "/api/admin/vip"],
   adminVipRevoke: ["/api/admin/vip/revoke"],
   posts: ["/api/posts"],
@@ -444,7 +452,7 @@ export function pick(obj: unknown, ...keys: string[]): unknown {
 export function extractList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (!isRecord(data)) return [];
-  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records", "orders", "payments", "audits", "announcements", "reports", "posts", "comments", "communities", "blockwords", "messages", "channels", "events", "appeals"]) {
+  for (const key of ["users", "members", "items", "data", "results", "list", "rows", "records", "orders", "payments", "audits", "announcements", "reports", "posts", "comments", "communities", "blockwords", "messages", "channels", "events", "appeals", "media"]) {
     const v = data[key];
     if (Array.isArray(v)) return v;
     if (isRecord(v) && Array.isArray(v.items)) return v.items;
@@ -634,6 +642,7 @@ const PROBE_GET: EndpointName[] = [
   "adminBlockwords",
   "adminSecurityEvents",
   "adminAppeals",
+  "adminMedia",
 ];
 
 const QUICK_PROBE: EndpointName[] = ["stickers", "posts", "communities", "notifications"];
@@ -890,11 +899,101 @@ export function audienceLabel(audience: PostAudience | string | undefined): stri
   return AUDIENCE_LABELS[audience as PostAudience] || AUDIENCE_LABELS.public;
 }
 
+/** r5 media.pub() 与帖子 media 数组里会出现的字段。只映射接口里真实存在的值。 */
 export type MappedMedia = {
   id: string;
   url: string;
+  previewUrl: string;
   kind: string;
+  mime: string;
+  name: string;
+  width: number | null;
+  height: number | null;
+  hasPreview: boolean;
+  scanStatus: string;
+  scanDetail: string;
+  score: number | null;
+  ownerId: string;
 };
+
+export const SCAN_STATUS_LABELS: Record<string, string> = {
+  review: "待人工复核",
+  clean: "扫描通过",
+  skipped: "未扫描",
+  pending: "扫描中",
+  blocked: "已拦截",
+};
+
+export function scanStatusLabel(status: string): string {
+  if (!status) return "";
+  return SCAN_STATUS_LABELS[status] || status;
+}
+
+export function isDirectMediaUrl(url: string): boolean {
+  return /^(https?:|data:|blob:)/i.test(url);
+}
+
+function asOptionalNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() && Number.isFinite(Number(v))) return Number(v);
+  return null;
+}
+
+function emptyMedia(): MappedMedia {
+  return {
+    id: "",
+    url: "",
+    previewUrl: "",
+    kind: "",
+    mime: "",
+    name: "",
+    width: null,
+    height: null,
+    hasPreview: false,
+    scanStatus: "",
+    scanDetail: "",
+    score: null,
+    ownerId: "",
+  };
+}
+
+export function mapRemoteMedia(raw: unknown): MappedMedia | null {
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return null;
+    const isUrl = /^(https?:|data:|blob:|\/)/i.test(s);
+    return { ...emptyMedia(), id: isUrl ? "" : s, url: isUrl ? s : "" };
+  }
+  if (!isRecord(raw)) return null;
+  const id = asString(pick(raw, "id", "mediaId", "media_id"));
+  const url = asString(pick(raw, "url", "src", "href", "fileUrl", "file_url", "imageUrl", "image_url"));
+  const previewUrl = asString(pick(raw, "previewUrl", "preview_url", "thumbnailUrl", "thumbnail_url", "thumbUrl", "thumb"));
+  if (!id && !url && !previewUrl) return null;
+  const mime = asString(pick(raw, "mime", "contentType", "content_type"));
+  const kindRaw = asString(pick(raw, "kind", "type"));
+  const kind = kindRaw && kindRaw !== mime ? kindRaw : mime.startsWith("image/") ? "image" : mime.startsWith("video/") ? "video" : mime.startsWith("audio/") ? "audio" : kindRaw;
+  const hasPreviewField = pick(raw, "hasPreview", "has_preview");
+  const hasPreview = hasPreviewField === true || hasPreviewField === 1 || !!previewUrl;
+  const score =
+    asOptionalNumber(pick(raw, "score", "hotP", "hotp", "nsfwScore", "nsfw_score")) ??
+    null;
+  const detail = asString(pick(raw, "scanDetail", "scan_detail", "reason", "detail"));
+  return {
+    id,
+    url,
+    previewUrl,
+    kind,
+    mime,
+    name: asString(pick(raw, "name", "filename", "fileName")),
+    width: asOptionalNumber(pick(raw, "width")),
+    height: asOptionalNumber(pick(raw, "height")),
+    hasPreview,
+    scanStatus: asString(pick(raw, "scanStatus", "scan_status", "status")),
+    scanDetail: detail,
+    score,
+    ownerId: asString(pick(raw, "ownerId", "owner_id")),
+  };
+}
 
 export function parsePostMedia(raw: unknown): MappedMedia[] {
   if (raw == null || raw === "") return [];
@@ -904,22 +1003,20 @@ export function parsePostMedia(raw: unknown): MappedMedia[] {
   }
   const arr = Array.isArray(src) ? src : isRecord(src) && Array.isArray((src as { items?: unknown }).items) ? (src as { items: unknown[] }).items : [src];
   const out: MappedMedia[] = [];
-  for (const it of arr.slice(0, 9)) {
-    if (typeof it === "string") {
-      const s = it.trim();
-      if (!s) continue;
-      const isUrl = /^(https?:|data:|blob:|\/)/i.test(s);
-      out.push({ id: isUrl ? "" : s, url: isUrl ? s : "", kind: "" });
-      continue;
-    }
-    if (!isRecord(it)) continue;
-    const id = asString(pick(it, "id", "mediaId", "media_id"));
-    const url = asString(pick(it, "url", "src", "href", "imageUrl", "image_url"));
-    const kind = asString(pick(it, "kind", "type", "mime"));
-    if (!id && !url) continue;
-    out.push({ id, url, kind });
+  for (const it of arr.slice(0, 20)) {
+    const row = mapRemoteMedia(it);
+    if (row) out.push(row);
   }
   return out;
+}
+
+/** 列表缩略图优先用 previewUrl，否则用 url。都没有时返回空，由界面按 id 走鉴权拉取。 */
+export function firstMediaImage(media: MappedMedia[]): string {
+  for (const m of media) {
+    if (m.previewUrl) return m.previewUrl;
+    if (m.url) return m.url;
+  }
+  return "";
 }
 
 export type MappedContent = {
@@ -981,7 +1078,7 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
     authorName: asString(pick(raw, "authorName") ?? pick(author, "displayName", "username", "name"), "未知"),
     time: asTime(pick(raw, "createdAtUtc", "created_at_utc", "createdAt", "created_at", "time")),
     status: deleted ? "removed" : "approved",
-    image: asString(pick(raw, "image", "imageUrl", "cover"), media[0]?.url || ""),
+    image: asString(pick(raw, "image", "imageUrl", "cover"), firstMediaImage(media)),
     postId: asString(pick(raw, "postId", "post_id")),
     adminReason: asString(pick(raw, "adminReason", "admin_reason", "reason")),
     adminHidden: raw.adminHidden === true || raw.admin_hidden === true,
@@ -1150,6 +1247,8 @@ export type MappedStats = {
   reportsPending: number;
   paymentsPending: number;
   paymentsReview: number;
+  /** 仅当统计接口给出该字段时才有值，否则为 null，界面不展示虚构 0。 */
+  mediaReviewPending: number | null;
 };
 
 export function mapRemoteStats(raw: unknown): MappedStats | null {
@@ -1159,6 +1258,7 @@ export function mapRemoteStats(raw: unknown): MappedStats | null {
   const comments = isRecord(raw.comments) ? raw.comments : {};
   const reports = isRecord(raw.reports) ? raw.reports : {};
   const payments = isRecord(raw.payments) ? raw.payments : {};
+  const media = isRecord(raw.media) ? raw.media : {};
   const num = (...keys: string[]) => {
     for (const src of [raw, users, posts, comments, reports, payments]) {
       const v = pick(src, ...keys);
@@ -1190,6 +1290,11 @@ export function mapRemoteStats(raw: unknown): MappedStats | null {
     reportsPending: n(reports, "pending"),
     paymentsPending: n(payments, "pending"),
     paymentsReview: n(payments, "awaitingReview", "awaiting_review"),
+    mediaReviewPending: (() => {
+      const v = pick(raw, "mediaReviewPending", "nsfwReviewPending", "media_review_pending")
+        ?? pick(media, "review", "pendingReview", "reviewPending", "pending");
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
+    })(),
   };
 }
 
@@ -1210,6 +1315,7 @@ export type MappedReport = {
   targetId: string;
   targetName: string;
   messageIds: string[];
+  media: MappedMedia[];
 };
 
 export function reportKindLabel(targetType: string, messageIds: string[] = []): string {
@@ -1284,6 +1390,7 @@ export function mapRemoteReport(raw: unknown): MappedReport | null {
     targetId,
     targetName,
     messageIds,
+    media: parsePostMedia(pick(raw, "media", "mediaItems", "media_items", "attachments") ?? (isRecord(raw.target) ? pick(raw.target, "media") : undefined)),
   };
 }
 

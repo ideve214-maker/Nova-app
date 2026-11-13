@@ -1,17 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAdmin, type PostItem, type ReportItem } from "@/lib/admin/store";
-import { joinUrl, loadConfig, resolveBase } from "@/lib/admin/backend";
-import { Avatar, DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
-import { mediaUrl } from "@/lib/admin/media";
+import { type MappedMedia } from "@/lib/admin/backend";
+import { DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { hapticLight } from "@/lib/admin/native";
-
-function adminMediaSrc(url?: string): string | undefined {
-  if (!url) return undefined;
-  if (/^(https?:|data:|blob:)/i.test(url)) return url;
-  const base = resolveBase(loadConfig().baseUrl);
-  return base ? joinUrl(base, url) : url;
-}
-
+import { AdminMediaThumb, MediaScanMeta, MediaStrip, MediaViewerSheet } from "./media-view";
 
 export function ContentScreen() {
   const posts = useAdmin((s) => s.posts);
@@ -22,17 +14,23 @@ export function ContentScreen() {
   const restoreContent = useAdmin((s) => s.restoreContent);
   const refreshContent = useAdmin((s) => s.refreshContent);
   const hasContentApi = useAdmin((s) => !!s.connection.available.adminContent || s.authed);
-  const [kind, setKind] = useState<"all" | "post" | "comment">("all");
+  const mediaReview = useAdmin((s) => s.mediaReview);
+  const mediaReviewFeed = useAdmin((s) => s.mediaReviewFeed);
+  const refreshMediaReview = useAdmin((s) => s.refreshMediaReview);
+  const hasMediaApi = useAdmin((s) => !!s.connection.available.adminMedia);
+  const [kind, setKind] = useState<"all" | "post" | "comment" | "review">("all");
   const [status, setStatus] = useState<"all" | "visible" | "removed">("all");
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [threadOf, setThreadOf] = useState<PostItem | null>(null);
+  const [viewer, setViewer] = useState<MappedMedia | null>(null);
   const openContentItem = useAdmin((s) => s.openContentItem);
 
   useEffect(() => {
-    void refreshContent({ type: kind, status });
-  }, [kind, status, refreshContent]);
+    if (kind === "review") void refreshMediaReview();
+    else void refreshContent({ type: kind, status });
+  }, [kind, status, refreshContent, refreshMediaReview]);
 
   const list = posts.filter((item) => {
     if (kind !== "all" && item.kind !== kind) return false;
@@ -50,10 +48,11 @@ export function ContentScreen() {
           { id: "all", label: "全部" },
           { id: "post", label: "帖子" },
           { id: "comment", label: "评论" },
+          { id: "review", label: "图像复核" },
         ]}
         onChange={(id) => setKind(id as typeof kind)}
       />
-      <div className="flex gap-2 bg-surface px-4 pb-2">
+      {kind !== "review" && <div className="flex gap-2 bg-surface px-4 pb-2">
         {([
           ["all", "不限"],
           ["visible", "可见"],
@@ -68,17 +67,26 @@ export function ContentScreen() {
             {label}
           </button>
         ))}
-      </div>
+      </div>}
       <div className="space-y-3 p-4">
-        {list.length === 0 && (hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi name="内容列表（GET /api/admin/content）" />)}
-        {list.map((post) => {
+        {kind === "review" ? (
+          <MediaReviewList
+            items={mediaReview}
+            feed={mediaReviewFeed}
+            hasApi={hasMediaApi}
+            onOpen={setViewer}
+          />
+        ) : list.length === 0 && (hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi name="内容列表（GET /api/admin/content）" />)}
+        {kind !== "review" && list.map((post) => {
           const author = members.find((item) => item.id === post.authorId);
           const name = post.authorName || author?.name || "未知";
           return (
             <article key={post.kind + ":" + post.id} className="rounded-card bg-surface p-2.5 shadow-card">
               <div className="flex gap-2.5">
-                {post.image ? (
-                  <img src={adminMediaSrc(post.image) || post.image} alt="" className="size-16 rounded-xl object-cover" />
+                {post.media && post.media[0] ? (
+                  <AdminMediaThumb media={post.media[0]} className="size-16 rounded-xl object-cover" onOpen={setViewer} />
+                ) : post.image ? (
+                  <AdminMediaThumb media={{ id: "", url: post.image, previewUrl: post.image, kind: "image", mime: "", name: "", width: null, height: null, hasPreview: false, scanStatus: "", scanDetail: "", score: null, ownerId: "" }} className="size-16 rounded-xl object-cover" onOpen={setViewer} />
                 ) : (
                   <div className="grid size-16 place-items-center rounded-xl bg-subtle text-[12px] text-muted">{post.kind === "comment" ? "评论" : "帖子"}</div>
                 )}
@@ -105,17 +113,7 @@ export function ContentScreen() {
                     <p className="mt-1 text-[13px] text-muted">{post.media.length} 个媒体</p>
                   ) : null}
                   {post.kind === "post" && post.media && post.media.length > 0 && (
-                    <div className="nova-scroll-x mt-1.5 flex gap-1">
-                      {post.media.slice(0, 4).map((m, i) => {
-                        const src = adminMediaSrc(m.url) || mediaUrl(m.url);
-                        return src ? (
-                          <img key={m.id || String(i)} src={src} alt="" className="size-12 rounded-lg object-cover" />
-                        ) : (
-                          <div key={m.id || String(i)} className="grid size-12 place-items-center rounded-lg bg-subtle text-[10px] text-muted">{m.kind || "媒体"}</div>
-                        );
-                      })}
-                      {post.media.length > 4 && <span className="self-center text-[11px] text-muted">+{post.media.length - 4}</span>}
-                    </div>
+                    <MediaStrip items={post.media} onOpen={setViewer} />
                   )}
                   {post.kind === "comment" && (
                     <button
@@ -208,7 +206,46 @@ export function ContentScreen() {
           <ThreadView rootId={threadOf.rootId || threadOf.id} currentId={threadOf.id} comments={posts} />
         )}
       </Sheet>
+      <MediaViewerSheet media={viewer} onClose={() => setViewer(null)} />
     </Screen>
+  );
+}
+
+function MediaReviewList({
+  items,
+  feed,
+  hasApi,
+  onOpen,
+}: {
+  items: MappedMedia[];
+  feed: "idle" | "ok" | "error";
+  hasApi: boolean;
+  onOpen: (media: MappedMedia) => void;
+}) {
+  if (items.length === 0) {
+    if (feed === "ok") return <p className="py-10 text-center text-[15px] text-muted">没有待人工复核的图像</p>;
+    if (hasApi || feed === "error") return <PendingApi name="图像复核（GET /api/admin/media?scanStatus=review）" />;
+    return <PendingApi name="图像复核（GET /api/admin/media?scanStatus=review）" />;
+  }
+  return (
+    <>
+      {items.map((item) => (
+        <article key={item.id} className="rounded-card bg-surface p-2.5 shadow-card">
+          <div className="flex gap-2.5">
+            <AdminMediaThumb media={item} className="size-16 rounded-xl object-cover" onOpen={onOpen} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-[15px] font-medium">{item.name || item.id || "图像"}</h2>
+              </div>
+              <MediaScanMeta media={item} />
+              <button type="button" className="mt-2 text-[13px] font-medium text-primary" onClick={() => onOpen(item)}>
+                查看原图
+              </button>
+            </div>
+          </div>
+        </article>
+      ))}
+    </>
   );
 }
 
@@ -276,6 +313,7 @@ export function ReportsScreen() {
   const [tab, setTab] = useState<"open" | "done">("open");
   const [current, setCurrent] = useState<string | null>(null);
   const [choice, setChoice] = useState(resolutions[0]);
+  const [viewer, setViewer] = useState<MappedMedia | null>(null);
   const list = reports.filter((item) => item.status === tab);
   const active = reports.find((item) => item.id === current);
 
@@ -305,6 +343,7 @@ export function ReportsScreen() {
                   </button>
                 )}
                 <p className="text-sm">理由：{item.reason}</p>
+                {item.media && item.media.length > 0 && <MediaStrip items={item.media} onOpen={setViewer} />}
                 <p className="mt-1 text-xs text-muted">{item.time}</p>
                 {item.resolution && <p className="mt-2 text-sm text-ok">结论：{item.resolution}</p>}
               </div>
@@ -356,9 +395,11 @@ export function ReportsScreen() {
           <>
             <p className="font-semibold">{active.title}</p>
             <p className="mt-2 text-sm text-muted">{active.resolution}</p>
+            {active.media && active.media.length > 0 && <MediaStrip items={active.media} onOpen={setViewer} />}
           </>
         )}
       </Sheet>
+      <MediaViewerSheet media={viewer} onClose={() => setViewer(null)} />
     </Screen>
   );
 }

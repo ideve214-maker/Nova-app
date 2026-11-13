@@ -32,6 +32,9 @@ import {
   mapAudience,
   audienceLabel,
   parsePostMedia,
+  mapRemoteMedia,
+  scanStatusLabel,
+  firstMediaImage,
   reportKindLabel,
 } from "./backend.ts";
 
@@ -464,5 +467,88 @@ describe("m7.r3 community and group reports", () => {
     assert.equal(post!.title, "帖子举报");
     assert.equal(post!.postId, "po_1");
     assert.equal(post!.target, "post:po_1");
+  });
+});
+
+describe("m7.r5 media and NSFW review fields", () => {
+  it("maps media.pub fields and optional preview, scan detail, and score", () => {
+    const pub = mapRemoteMedia({
+      id: "md_abc",
+      kind: "image",
+      mime: "image/jpeg",
+      name: "pic.jpg",
+      size: 1200,
+      width: 800,
+      height: 600,
+      hasPreview: true,
+      scanStatus: "review",
+      ownerId: 7,
+    });
+    assert.equal(pub!.id, "md_abc");
+    assert.equal(pub!.hasPreview, true);
+    assert.equal(pub!.scanStatus, "review");
+    assert.equal(pub!.scanDetail, "");
+    assert.equal(pub!.previewUrl, "");
+    assert.equal(pub!.url, "");
+    assert.equal(pub!.width, 800);
+    assert.equal(scanStatusLabel("review"), "待人工复核");
+    assert.equal(scanStatusLabel("clean"), "扫描通过");
+
+    const rich = mapRemoteMedia({
+      id: "md_rich",
+      kind: "image",
+      url: "/api/media/md_rich/file",
+      previewUrl: "/api/media/md_rich/preview",
+      hasPreview: true,
+      scanStatus: "review",
+      scanDetail: "图像待人工复核 Porn:0.81,Hentai:0.10",
+      score: 0.81,
+    });
+    assert.equal(rich!.previewUrl, "/api/media/md_rich/preview");
+    assert.equal(rich!.scanDetail.includes("Porn"), true);
+    assert.equal(rich!.score, 0.81);
+    assert.equal(firstMediaImage([rich!]), "/api/media/md_rich/preview");
+  });
+
+  it("parses post media with only id and prefers preview for the list image", () => {
+    const media = parsePostMedia([{ id: "md_1", kind: "image", hasPreview: true, scanStatus: "clean" }, "md_2"]);
+    assert.equal(media.length, 2);
+    assert.equal(media[0].id, "md_1");
+    assert.equal(media[0].hasPreview, true);
+    assert.equal(media[0].scanStatus, "clean");
+    assert.equal(media[1].id, "md_2");
+    const c = mapRemoteContent({
+      id: "po_r5",
+      type: "post",
+      text: "",
+      media: [
+        { id: "md_1", previewUrl: "https://cdn.example/t.jpg", url: "https://cdn.example/f.jpg", kind: "image", scanStatus: "review" },
+      ],
+    });
+    assert.equal(c!.image, "https://cdn.example/t.jpg");
+    assert.equal(c!.media[0].scanStatus, "review");
+  });
+
+  it("only fills mediaReviewPending when the stats payload actually has it", () => {
+    const without = mapRemoteStats({ users: { total: 1, active: 1, banned: 0, vip: 0 }, posts: { visible: 1, removed: 0 }, comments: { visible: 0 }, reports: { pending: 0 }, payments: { pending: 0, awaitingReview: 0 } });
+    assert.equal(without!.mediaReviewPending, null);
+    const withCount = mapRemoteStats({ users: { total: 1 }, posts: { visible: 0 }, media: { review: 4 } });
+    assert.equal(withCount!.mediaReviewPending, 4);
+  });
+
+  it("maps report media only when the API includes it", () => {
+    const bare = mapRemoteReport({ id: "rp_1", targetType: "post", targetId: "po_1", reason: "垃圾", status: "pending" });
+    assert.equal(bare!.media.length, 0);
+    const withMedia = mapRemoteReport({
+      id: "rp_2",
+      targetType: "post",
+      targetId: "po_1",
+      reason: "不适当图片",
+      status: "pending",
+      media: [{ id: "md_x", hasPreview: true, scanStatus: "review", reason: "图像待人工复核" }],
+    });
+    assert.equal(withMedia!.media.length, 1);
+    assert.equal(withMedia!.media[0].scanStatus, "review");
+    assert.equal(withMedia!.media[0].scanDetail, "图像待人工复核");
   });
 });

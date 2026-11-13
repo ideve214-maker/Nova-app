@@ -128,6 +128,7 @@ export type ReportItem = {
   targetId?: string;
   targetName?: string;
   messageIds?: string[];
+  media?: import("./backend").MappedMedia[];
 };
 
 export type AuditItem = {
@@ -275,6 +276,8 @@ export type AdminState = Persisted & {
   adminProfile: MappedAdmin | null;
   stats: MappedStats | null;
   payments: MappedPayment[];
+  mediaReview: import("./backend").MappedMedia[];
+  mediaReviewFeed: FeedState;
   communities: MappedCommunity[];
   communityDetail: MappedCommunity | null;
   channelMessages: MappedChannelMessage[];
@@ -306,6 +309,8 @@ export type AdminState = Persisted & {
   refreshAnnouncements: () => Promise<void>;
   refreshStats: () => Promise<void>;
   refreshReports: () => Promise<void>;
+  refreshMediaReview: () => Promise<void>;
+  fetchMediaObjectUrl: (id: string, kind?: "preview" | "file") => Promise<{ url: string; mime: string } | { error: string }>;
   confirmPayment: (id: string, note?: string) => Promise<string | null>;
   rejectPayment: (id: string, reason: string) => Promise<string | null>;
   refundPayment: (id: string, reason?: string) => Promise<string | null>;
@@ -528,6 +533,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
   adminProfile: null,
   stats: null,
   payments: [],
+  mediaReview: [],
+  mediaReviewFeed: "idle",
   communities: [],
   communityDetail: null,
   channelMessages: [],
@@ -647,6 +654,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
       audits: [],
       announcements: [],
       payments: [],
+      mediaReview: [],
+      mediaReviewFeed: "idle",
       stats: null,
       securityEvents: [],
       appeals: [],
@@ -667,6 +676,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
       authed: false,
       adminProfile: null,
       payments: [],
+      mediaReview: [],
+      mediaReviewFeed: "idle",
       stats: null,
       communities: [],
       communityDetail: null,
@@ -832,6 +843,21 @@ export const useAdmin = create<AdminState>((set, get) => ({
     const result = await remote.remoteReports({ limit: 50 });
     if (!result.ok) return;
     set({ reports: result.data.map(toReport) });
+  },
+  refreshMediaReview: async () => {
+    const result = await remote.remoteMediaReview({ limit: 50 });
+    if (!result.ok) {
+      const missing = result.status === 404 || result.status === 405;
+      set({ mediaReview: [], mediaReviewFeed: missing ? "error" : "error" });
+      if (!missing) get().flash(result.error);
+      return;
+    }
+    set({ mediaReview: result.data, mediaReviewFeed: "ok" });
+  },
+  fetchMediaObjectUrl: async (id, kind = "preview") => {
+    const result = await remote.remoteMediaFile(id, kind);
+    if (!result.ok) return { error: result.error };
+    return { url: result.data.objectUrl, mime: result.data.mime };
   },
   confirmPayment: async (id, note) => {
     const result = await remote.remoteConfirmPayment(id, note);

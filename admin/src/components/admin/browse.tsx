@@ -151,6 +151,14 @@ export function HomeScreen() {
             truncated={appealsTruncated}
             onClick={() => go("appeals")}
           />
+          {statsOk && liveStats && liveStats.mediaReviewPending != null && (
+            <Todo
+              label="待复核图像"
+              state={feeds.stats}
+              value={liveStats.mediaReviewPending}
+              onClick={() => go("content")}
+            />
+          )}
         </div>
         {feeds.stats === "error" && (
           <p className="mt-2 text-[12px] leading-5 text-muted">付款与举报数量来自 GET /api/admin/stats，当前没有返回，所以显示为 —。</p>

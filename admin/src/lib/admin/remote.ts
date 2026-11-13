@@ -20,6 +20,7 @@ import {
   mapRemoteCommunity,
   mapRemoteAppeal,
   mapRemoteSecurityEvent,
+  mapRemoteMedia,
   pickToken,
   readErrorMessage,
   formatLockoutMessage,
@@ -41,6 +42,7 @@ import {
   type MappedStats,
   type MappedAppeal,
   type MappedSecurityEvent,
+  type MappedMedia,
   type RequestResult,
 } from "./backend";
 
@@ -438,3 +440,26 @@ export async function remoteDecideAppeal(id: string, action: "accept" | "reject"
   if (!item) return { ok: false, error: "服务器未返回处理结果", status: res.status, json: res.json };
   return ok(res, item);
 }
+
+/** r5 图像待人工复核。当前管理端后端尚未提供该列表接口时会 404。 */
+export async function remoteMediaReview(query?: Record<string, string | number | undefined>): Promise<Remote<MappedMedia[]>> {
+  const res = await apiRequest("adminMedia", {
+    query: { scanStatus: "review", ...(query || {}) },
+    timeoutMs: 8000,
+  });
+  if (!res.ok) return fail(res, "无法获取待复核图像");
+  const rows = extractList(res.json).map((r) => mapRemoteMedia(r)).filter((x): x is MappedMedia => !!x);
+  return ok(res, rows);
+}
+
+/** 用管理员令牌拉取预览图或原图。不要把令牌放进 URL。 */
+export async function remoteMediaFile(id: string, kind: "preview" | "file" = "preview"): Promise<Remote<{ objectUrl: string; mime: string }>> {
+  const name = kind === "file" ? "adminMediaFile" : "adminMediaPreview";
+  const res = await apiBinary(name, { params: { id }, timeoutMs: 20000 });
+  if (res.ok && res.blob) {
+    return { ok: true, data: { objectUrl: URL.createObjectURL(res.blob), mime: res.mime }, json: null, status: res.status };
+  }
+  if (kind === "preview") return remoteMediaFile(id, "file");
+  return { ok: false, error: res.error || "无法获取图片", status: res.status, json: null };
+}
+
