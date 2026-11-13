@@ -334,9 +334,9 @@ function e2eeChatBar(c){
   if(S.e2eeKeyChange&&peer&&S.e2eeKeyChange[peer]){
     return `<div class="ban" data-e2ee-warn="1"><b>对方密钥已变化</b>请重新核对安全号码，确认后再发送。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
   }
-  if(!info)return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">此私聊使用 Olm 加密。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
-  if(!info.ready)return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">正在准备加密，或对方尚未上传设备密钥。未就绪时不会改为明文发送。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
-  return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">此私聊使用 Olm 加密。${info.verified?'已核对安全号码。':'请核对安全号码。'} <button class="lk" data-a="safenum" data-v="${c.id}">安全号码</button></div>`;
+  if(!info)return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">此私聊已加密。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
+  if(!info.ready)return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">正在准备加密，或对方还没开启加密。就绪前消息不会发出。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
+  return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">此私聊已加密。${info.verified?'已核对安全号码。':'请核对安全号码。'} <button class="lk" data-a="safenum" data-v="${c.id}">安全号码</button></div>`;
 }
 async function safenum(cid){
   const c=(typeof cvSrc==='function'?cvSrc():[]).find(x=>x.id==cid);
@@ -358,7 +358,7 @@ function safeok(peer){
 }
 function safetySheet(s){
   const info=s&&s.info;
-  if(!info||!info.ready)return `<h3>安全号码</h3><p class="hint">对方尚未启用加密，或本机密钥未就绪。在双方都上传设备密钥之前，不会改为明文发送。</p><div class="fr"><button class="pb" data-a="x">关闭</button></div>`;
+  if(!info||!info.ready)return `<h3>安全号码</h3><p class="hint">对方还没开启加密，或本机还没准备好。双方都就绪之前，消息不会发出。</p><div class="fr"><button class="pb" data-a="x">关闭</button></div>`;
   const grid=(info.number||'').split(' ').map(g=>`<span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em;display:inline-block;width:7ch;margin:6px 2px">${esc(g)}</span>`).join('');
   return `<h3>安全号码</h3><p class="hint" style="margin-bottom:8px">请与对方当面或通过其他可信渠道核对这些数字。数字相同表示正在和同一把身份密钥通话。密钥变化时会再次提示。独立安全审查尚未完成。</p><div style="padding:8px;text-align:center;font-size:15px;line-height:1.9" data-safety-number="${esc(info.number)}">${grid}</div>${info.verified?'<p class="hint">你已将此号码标记为已核对。</p>':''}<div class="fr"><button class="pb s" data-a="x">关闭</button><button class="pb" data-a="safeok" data-v="${s.peer}">${info.verified?'重新确认':'标记为已核对'}</button></div>`;
 }

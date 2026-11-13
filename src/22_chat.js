@@ -128,7 +128,7 @@ async function sendNet(cid,text,extra){
       body.ciphertext=enc.ciphertext;
       body.senderDeviceId=enc.senderDeviceId;
     }catch(e){
-      T((e&&e.message)||'无法加密发送，未改为明文');
+      T('暂时无法加密发送，消息没有发出');
       return null;
     }
   }else{
