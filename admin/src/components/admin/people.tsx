@@ -11,6 +11,7 @@ import {
 } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { VirtualRows } from "./virtual-list";
+import { readScroll, saveScroll, scrollKey } from "@/lib/admin/scroll-restore";
 import { Avatar, DemoBanner, Field, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 
 type UserTab = "all" | "active" | "banned" | "vip";
@@ -97,6 +98,8 @@ export function UsersScreen() {
         getKey={(member) => member.id}
         estimateSize={64}
         className="bg-surface"
+        initialOffset={readScroll(scrollKey({ name: "users" }))}
+        onOffsetChange={(top) => saveScroll(scrollKey({ name: "users" }), top)}
         render={(member) => {
           const selected = picked.includes(member.id);
           return (

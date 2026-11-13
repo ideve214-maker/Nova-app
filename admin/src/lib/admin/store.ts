@@ -23,6 +23,7 @@ import {
   resolveBase,
 } from "./backend";
 import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
+import { captureCurrentScroll } from "./scroll-restore";
 import * as remote from "./remote";
 
 export type { ConnectionStatus } from "./backend";
@@ -562,10 +563,12 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return status;
   },
   go: (name, userId, channelId) => {
+    captureCurrentScroll(get().nav);
     set((s) => ({ history: [...s.history, s.nav], nav: { name, userId, channelId } }));
     writeHash({ name, userId, channelId });
   },
   back: () => {
+    captureCurrentScroll(get().nav);
     set((s) => {
       const history = [...s.history];
       const prev = history.pop();
@@ -574,6 +577,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     writeHash(useAdmin.getState().nav);
   },
   tab: (name) => {
+    captureCurrentScroll(get().nav);
     set({ nav: { name }, history: [] });
     writeHash({ name });
   },
@@ -1331,7 +1335,8 @@ export function hydrateAdmin() {
         if (isWritingHash()) return;
         const s = useAdmin.getState();
         if (!s.authed) return;
-        if (s.nav.name === next.name && s.nav.userId === next.userId) return;
+        if (s.nav.name === next.name && s.nav.userId === next.userId && s.nav.channelId === next.channelId) return;
+        captureCurrentScroll(s.nav);
         useAdmin.setState({ nav: { name: next.name, userId: next.userId, channelId: next.channelId }, history: s.history });
       });
     } catch (err) {

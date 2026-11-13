@@ -21,7 +21,7 @@
     "format": "prettier --write .",
     "build:spa": "node scripts/with-app-env.mjs ./node_modules/.bin/vite build --config vite.spa.config.ts && node scripts/inline-spa.mjs",
     "preview:admin": "node scripts/preview-server.mjs",
-    "test:admin": "node --experimental-strip-types --test src/lib/admin/backend.test.ts src/lib/admin/hash-route.test.ts src/lib/admin/sanitize.test.ts"
+    "test:admin": "node --experimental-strip-types --test src/lib/admin/backend.test.ts src/lib/admin/hash-route.test.ts src/lib/admin/sanitize.test.ts src/lib/admin/scroll-restore.test.ts"
   },
   "dependencies": {
     "@capacitor/core": "^7.6.10",

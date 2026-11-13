@@ -6,6 +6,7 @@ import { hapticLight } from "@/lib/admin/native";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { AdminMediaThumb, MediaScanMeta, MediaStrip, MediaViewerSheet } from "./media-view";
 import { VirtualRows } from "./virtual-list";
+import { readScroll, saveScroll, scrollKey } from "@/lib/admin/scroll-restore";
 
 export function ContentScreen() {
   const posts = useAdmin((s) => s.posts);
@@ -84,6 +85,8 @@ export function ContentScreen() {
             items={list}
             getKey={(post) => post.kind + ":" + post.id}
             estimateSize={200}
+            initialOffset={readScroll(scrollKey({ name: "content" }))}
+            onOffsetChange={(top) => saveScroll(scrollKey({ name: "content" }), top)}
             render={(post) => {
           const author = members.find((item) => item.id === post.authorId);
           const name = post.authorName || author?.name || "未知";
@@ -241,6 +244,8 @@ function MediaReviewList({
       items={items}
       getKey={(item) => item.id}
       estimateSize={120}
+      initialOffset={readScroll(scrollKey({ name: "content" }))}
+      onOffsetChange={(top) => saveScroll(scrollKey({ name: "content" }), top)}
       render={(item) => (
         <article className="mb-3 rounded-card bg-surface p-2.5 shadow-card">
           <div className="flex gap-2.5">
@@ -346,6 +351,8 @@ export function ReportsScreen() {
           items={list}
           getKey={(item) => item.id}
           estimateSize={160}
+          initialOffset={readScroll(scrollKey({ name: "reports" }))}
+          onOffsetChange={(top) => saveScroll(scrollKey({ name: "reports" }), top)}
           render={(item) => (
           <article className="mb-3 rounded-card bg-surface p-3 shadow-card">
             <div className="flex items-start justify-between gap-3">
