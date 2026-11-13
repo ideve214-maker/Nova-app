@@ -1,6 +1,7 @@
 name: Nova v2 packages
 
 # Only this branch. Does not run ios-unsigned.yml (that is release-build only).
+# Trigger the first v2 package build on this branch.
 on:
   push:
     branches: [build/v2]
