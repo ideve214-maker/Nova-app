@@ -4,11 +4,13 @@ import { AdminApp } from "./components/admin/app";
 import { applyTheme, watchSystemTheme } from "./lib/admin/theme";
 import { useAdmin } from "./lib/admin/store";
 import { lockWebViewport } from "./lib/admin/native";
+import { initBugsink } from "./lib/admin/bugsink";
 import "./styles.css";
 
 lockWebViewport();
 applyTheme();
 watchSystemTheme();
+initBugsink();
 import m0 from "../public/media/av-chen.jpg";
 import m1 from "../public/media/av-group.jpg";
 import m2 from "../public/media/av-he.jpg";
@@ -85,9 +87,9 @@ createRoot(rootEl).render(
 );
 
 
-// Local screenshot aid only: ?__shot__=1 on localhost exposes the store so
-// layout shots can open Home/Manage/list without a real login.
-if (typeof window !== "undefined") {
+// Screenshot aid. import.meta.env.DEV is compiled out of production builds,
+// so ?__shot__=1 cannot expose the store in a packaged or deployed SPA.
+if (import.meta.env.DEV && typeof window !== "undefined") {
   const host = window.location.hostname;
   const local = host === "localhost" || host === "127.0.0.1";
   if (local && /(?:^|[?&])__shot__=1(?:&|$)/.test(window.location.search)) {

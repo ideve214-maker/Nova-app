@@ -11,6 +11,7 @@ import {
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { DataHint, DemoBanner, EmptyState, Field, inputClass, PendingApi, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
 import { ServerPanel } from "./server-panel";
+import { getBugsinkDsn, isBugsinkEnabled, setBugsinkConfig } from "@/lib/admin/bugsink";
 
 export function StatsScreen() {
   const back = useAdmin((s) => s.back);
@@ -79,6 +80,68 @@ const flagRows: { key: keyof Flags; label: string; desc: string }[] = [
   { key: "maintenance", label: "维护模式", desc: "用户端应显示维护说明" },
 ];
 
+
+function BugsinkSettings() {
+  const [on, setOn] = useState(() => isBugsinkEnabled());
+  const [dsn, setDsn] = useState(() => getBugsinkDsn());
+  const [saved, setSaved] = useState("");
+
+  function save() {
+    if (on && !dsn.trim()) {
+      setSaved("打开上报前请填写地址");
+      return;
+    }
+    setBugsinkConfig(on, dsn);
+    setSaved(on ? "已打开错误上报" : "已关闭错误上报");
+  }
+
+  return (
+    <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface px-4 py-3 shadow-card">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold">错误上报</div>
+          <div className="text-sm text-muted">默认关闭。打开后才会把崩溃信息发到你填写的地址。</div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label="错误上报"
+          onClick={() => {
+            setOn((v) => !v);
+            setSaved("");
+          }}
+          className={`h-7 w-12 shrink-0 rounded-full p-0.5 ${on ? "bg-primary" : "bg-line"}`}
+        >
+          <span className={`block size-6 rounded-full bg-surface ${on ? "translate-x-5" : ""}`} />
+        </button>
+      </div>
+      {on && (
+        <div className="mt-3">
+          <Field label="上报地址">
+            <input
+              className={inputClass}
+              value={dsn}
+              onChange={(e) => {
+                setDsn(e.target.value);
+                setSaved("");
+              }}
+              placeholder="由技术同事提供"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </Field>
+        </div>
+      )}
+      <button type="button" className="mt-1 h-11 text-[15px] text-primary" onClick={save}>
+        保存
+      </button>
+      {saved && <p className="pb-1 text-[13px] text-muted">{saved}</p>}
+    </div>
+  );
+}
+
 export function SettingsScreen() {
   const back = useAdmin((s) => s.back);
   const flags = useAdmin((s) => s.flags);
@@ -111,6 +174,7 @@ export function SettingsScreen() {
           </div>
         ))}
       </div>
+      <BugsinkSettings />
       <Sheet open={server} title="高级设置" onClose={() => setServer(false)}>
         <p className="mb-3 text-xs text-muted">密钥只放环境变量，这里不能查看。支付未接入。地址已预填默认服务器。</p>
         <ServerPanel onDone={() => setServer(false)} />
