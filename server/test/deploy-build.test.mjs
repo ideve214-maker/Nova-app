@@ -10,8 +10,13 @@ import {parseBuildOpts, build} from '../../scripts/build.mjs';
 const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
 
 test('parseBuildOpts 读取 --api-base / --disable-demo 与环境变量', () => {
-  assert.deepEqual(parseBuildOpts([], {}), {apiBase: '', disableDemo: false});
-  assert.deepEqual(parseBuildOpts(['--api-base=https://api.example.com/'], {}), {apiBase: 'https://api.example.com', disableDemo: false});
+  const empty = parseBuildOpts([], {});
+  assert.equal(empty.apiBase, '');
+  assert.equal(empty.disableDemo, false);
+  assert.equal(empty.secureTransport, false);
+  assert.equal(empty.bugsink, false);
+  assert.equal(parseBuildOpts(['--api-base=https://api.example.com/'], {}).apiBase, 'https://api.example.com');
+  assert.equal(parseBuildOpts(['--secure-transport'], {}).secureTransport, true);
   assert.equal(parseBuildOpts(['--disable-demo'], {}).disableDemo, true);
   assert.equal(parseBuildOpts(['--disable-demo', 'true'], {}).disableDemo, true);
   assert.equal(parseBuildOpts([], {NOVA_API_BASE: 'https://x.test/', NOVA_DISABLE_DEMO: '1'}).apiBase, 'https://x.test');

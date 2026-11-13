@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta
+      name="description"
+      content="ClearField — a mobile-first, fan-made Minesweeper game built with Vanilla JavaScript and CSS."
+    />
+    <meta property="og:title" content="ClearField — Read the clues. Clear the field." />
+    <meta
+      property="og:description"
+      content="A fast, mobile-first, fan-made Minesweeper implementation with no external dependencies."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/game.js" defer></script>
+    <script src="js/app.js" defer></script>
+    <title>扫雷</title>
+  </head>
+  <body data-game="mines">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand" href="#" data-home-link aria-label="ClearField home">
+        <svg class="brand__mark" viewBox="0 0 48 48" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="5"></rect>
+          <rect x="27" y="3" width="18" height="18" rx="5"></rect>
+          <rect x="3" y="27" width="18" height="18" rx="5"></rect>
+          <path d="M31 39V28m0 1h9l-2.6 3.4L40 36h-9" fill="none"></path>
+        </svg>
+        <span class="brand__wordmark">ClearField</span>
+      </a>
+      <span class="site-header__tagline">Read the clues. Clear the field.</span>
+    </header>
+
+    <main id="main-content" class="app-shell">
+      <section id="home-screen" class="screen home-screen" aria-labelledby="home-title">
+        <div class="hero panel panel--hero">
+          <p class="eyebrow">Mobile-first logic game</p>
+          <h1 id="home-title">Every clue counts.</h1>
+          <p class="hero__lead">
+            Find the mines without hitting one. Numbers show how many mines touch a cell.
+            Pick a board below — your first reveal is always safe.
+          </p>
+
+          <div class="control-guide" aria-label="How to play">
+            <div class="control-guide__item">
+              <span class="control-guide__icon" aria-hidden="true">1</span>
+              <span><strong>Reveal:</strong> choose Reveal mode, then tap a cell.</span>
+            </div>
+            <div class="control-guide__item">
+              <span class="control-guide__icon" aria-hidden="true">2</span>
+              <span><strong>Flag:</strong> switch to Flag mode, or press and hold a cell.</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="panel" aria-labelledby="quick-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">One-tap start</p>
+              <h2 id="quick-title">Quick boards</h2>
+            </div>
+            <p>From 5 × 5 to 10 × 10, with balanced mine counts.</p>
+          </div>
+
+          <div class="quick-grid">
+            <button class="quick-card" type="button" data-quick="5,5,4">
+              <span class="quick-card__size">5 × 5</span>
+              <span class="quick-card__meta">4 mines</span>
+            </button>
+            <button class="quick-card" type="button" data-quick="6,6,6">
+              <span class="quick-card__size">6 × 6</span>
+              <span class="quick-card__meta">6 mines</span>
+            </button>
+            <button class="quick-card" type="button" data-quick="7,7,8">
+              <span class="quick-card__size">7 × 7</span>
+              <span class="quick-card__meta">8 mines</span>
+            </button>
+            <button class="quick-card quick-card--featured" type="button" data-quick="8,8,10">
+              <span class="quick-card__badge">Top pick</span>
+              <span class="quick-card__size">8 × 8</span>
+              <span class="quick-card__meta">10 mines</span>
+            </button>
+            <button class="quick-card" type="button" data-quick="9,9,13">
+              <span class="quick-card__size">9 × 9</span>
+              <span class="quick-card__meta">13 mines</span>
+            </button>
+            <button class="quick-card" type="button" data-quick="10,10,16">
+              <span class="quick-card__size">10 × 10</span>
+              <span class="quick-card__meta">16 mines</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="custom-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Your setup</p>
+              <h2 id="custom-title">Custom board</h2>
+            </div>
+            <p>Choose a square or rectangle, then enter the dimensions.</p>
+          </div>
+
+          <form id="custom-form" class="custom-form" novalidate>
+            <fieldset class="form-fieldset">
+              <legend>Shape</legend>
+              <div class="segmented segmented--wide" data-shape-control>
+                <label class="segmented__option">
+                  <input type="radio" name="shape" value="square" checked />
+                  <span>Square</span>
+                </label>
+                <label class="segmented__option">
+                  <input type="radio" name="shape" value="rectangle" />
+                  <span>Rectangle</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div id="square-fields" class="form-grid form-grid--dimensions">
+              <label class="field" for="square-size">
+                <span>Side length</span>
+                <input id="square-size" name="squareSize" type="number" min="4" max="20" step="1" value="10" inputmode="numeric" />
+                <small>4–20 cells</small>
+              </label>
+            </div>
+
+            <div id="rectangle-fields" class="form-grid form-grid--dimensions" hidden>
+              <label class="field" for="custom-columns">
+                <span>Width</span>
+                <input id="custom-columns" name="columns" type="number" min="4" max="20" step="1" value="12" inputmode="numeric" />
+                <small>4–20 columns</small>
+              </label>
+              <label class="field" for="custom-rows">
+                <span>Height</span>
+                <input id="custom-rows" name="rows" type="number" min="4" max="30" step="1" value="10" inputmode="numeric" />
+                <small>4–30 rows</small>
+              </label>
+            </div>
+
+            <div class="form-grid form-grid--submit">
+              <label class="field" for="custom-mines">
+                <span>Number of mines</span>
+                <input id="custom-mines" name="mines" type="number" min="1" max="32" step="1" value="16" inputmode="numeric" />
+                <small id="mine-range">Suggested: 16 · maximum: 32</small>
+              </label>
+
+              <button class="button button--primary button--large" type="submit">
+                Start custom game
+              </button>
+            </div>
+
+            <p id="custom-error" class="form-error" role="alert" hidden></p>
+          </form>
+        </section>
+
+        <details class="panel about-panel">
+          <summary>What is ClearField?</summary>
+          <div class="about-panel__content">
+            <p>
+              ClearField is an independent, fan-made take on the classic Minesweeper puzzle.
+              It is designed to provide a simpler, friendlier, mobile-ready experience using
+              plain HTML, Vanilla JavaScript, and Vanilla CSS.
+            </p>
+            <p>
+              This project is not affiliated with any original game publisher. It does not
+              save game results and uses no analytics or AI libraries.
+            </p>
+          </div>
+        </details>
+      </section>
+
+      <section id="game-screen" class="screen game-screen" aria-labelledby="game-title" hidden>
+        <div class="game-topbar">
+          <button class="button button--ghost" type="button" data-back-home>
+            <span aria-hidden="true">←</span> Choose board
+          </button>
+          <button class="button button--secondary" type="button" data-restart>
+            Restart
+          </button>
+        </div>
+
+        <section class="panel game-panel">
+          <div class="game-heading">
+            <div>
+              <p class="eyebrow">Active game</p>
+              <h1 id="game-title"><span data-board-size>8 × 8</span> board</h1>
+            </div>
+            <span class="status-pill" data-game-status>First move</span>
+          </div>
+
+          <div class="stats" aria-label="Game status">
+            <div class="stat">
+              <span class="stat__label">Flags left</span>
+              <strong class="stat__value" data-mines-left>10</strong>
+            </div>
+            <div class="stat">
+              <span class="stat__label">Time</span>
+              <strong class="stat__value" data-timer>00:00</strong>
+            </div>
+            <div class="stat">
+              <span class="stat__label">Board</span>
+              <strong class="stat__value stat__value--small" data-board-summary>8 × 8 · 10 mines</strong>
+            </div>
+          </div>
+
+          <div class="action-dock" aria-label="Cell action">
+            <div class="action-dock__copy">
+              <strong>Action</strong>
+              <span>A tap uses the active mode.</span>
+            </div>
+            <div class="segmented" role="group" aria-label="Active action">
+              <button class="segmented__button is-active" type="button" data-tool="reveal" aria-pressed="true">
+                <span class="tool-icon tool-icon--reveal" aria-hidden="true"></span>
+                Reveal
+              </button>
+              <button class="segmented__button" type="button" data-tool="flag" aria-pressed="false">
+                <span class="tool-icon tool-icon--flag" aria-hidden="true">⚑</span>
+                Flag
+              </button>
+            </div>
+          </div>
+
+          <div class="board-tools">
+            <details class="game-help">
+              <summary>How to play</summary>
+              <p>Numbers count nearby mines, including diagonals. Tap to reveal; switch to Flag
+                or press and hold to mark a mine. Drag to scroll a large board.</p>
+              <p>In Reveal mode, tap a number with all its nearby mines correctly flagged to
+                open the remaining neighbors. On desktop, right-click to flag.</p>
+            </details>
+            <button class="button button--ghost" type="button" data-cell-size aria-pressed="false">
+              Larger cells
+            </button>
+          </div>
+          <p id="board-scroll-hint" class="interaction-hint" hidden>Swipe or scroll sideways to see the rest of the board.</p>
+
+          <div id="game-announcement" class="sr-only" aria-live="polite"></div>
+
+          <div class="board-viewport" data-board-viewport>
+            <div class="board" data-board role="grid" aria-label="ClearField game board"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>A hobby project made for fun. Deployed on GitHub Pages so you can
+        <span>try it out</a>.</p>
+      <p>Made by <span>Keresztes Zsolt</a> ·
+        <span>Source code on GitHub</a> · MIT</p>
+    </footer>
+
+    <dialog id="result-dialog" class="result-dialog" aria-labelledby="result-title">
+      <div class="result-dialog__mark" data-result-mark aria-hidden="true">✓</div>
+      <p class="eyebrow" data-result-eyebrow>Game over</p>
+      <h2 id="result-title" data-result-title>You solved it!</h2>
+      <p data-result-copy></p>
+      <div class="result-dialog__actions">
+        <button class="button button--primary" type="button" data-result-restart>Play again</button>
+        <button class="button button--ghost" type="button" data-result-home>Choose another board</button>
+      </div>
+    </dialog>
+  <script>
+(function(){
+  var game=document.body.getAttribute('data-game')||'';
+  function send(n){n=Number(n)||0;if(!(n>0))return;try{parent.postMessage({type:'nova-score',game:game,score:n},'*')}catch(e){}}
+  setInterval(function(){
+    var el=document.querySelector('.score-container,#score,.score');
+    if(!el)return;
+    var n=parseInt(String(el.textContent).replace(/[^0-9]/g,''),10);
+    if(n>0)send(n);
+  },900);
+})();
+</script>
+</body>
+</html>

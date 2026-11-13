@@ -89,7 +89,9 @@ async function loadMessages(id,cursor){
   const q=(cursor?'?cursor='+encodeURIComponent(cursor)+'&limit=50':'?limit=50');
   const r=await api('GET','/api/conversations/'+id+'/messages'+q);
   S.messages=S.messages||{};S.msgCursor=S.msgCursor||{};
-  if(r.s!==200){S.messages[id]=S.messages[id]||[];return}
+  if(r.s!==200){
+    if(typeof cacheReadMsgs==='function'){const cached=await cacheReadMsgs(id);if(cached){S.messages[id]=cached;return}}
+    S.messages[id]=S.messages[id]||[];return}
   const raw=r.j.messages||[];
   const page=[];
   for(const mm of raw){
@@ -103,6 +105,7 @@ async function loadMessages(id,cursor){
     S.messages[id]=[...page.filter(m=>!seen.has(m[5])),...old];
   }
   S.msgCursor[id]=r.j.nextCursor||null;
+  if(!cursor&&typeof cacheWriteMsgs==='function')cacheWriteMsgs(id, S.messages[id]);
 }
 async function sendNet(cid,text,extra){
   const clientId='c'+Date.now()+'-'+Math.random().toString(36).slice(2,8);

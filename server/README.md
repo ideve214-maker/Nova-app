@@ -1,6 +1,6 @@
 # NOVA 后端（M4.11）
 启动：`npm run build` 然后 `npm run server`（默认 8787 端口、监听所有网卡，数据库文件 ./nova.db）
-环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`（未设置仍是 `*`；可写逗号分隔白名单，如 `capacitor://localhost,https://localhost,http://127.0.0.1:5173`，只回显匹配的 Origin；**若设白名单，请把管理端 App 的 Origin 加进去**）、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）、`NOVA_ADMIN_USERNAME` 与 `NOVA_ADMIN_PASSWORD`（启动时若两者都提供且该用户名还不存在，则创建第一个平台管理员；没有内置默认密码）
+环境变量：`PORT`、`HOST`、`NOVA_DB`、`NOVA_CORS_ORIGIN`、`NOVA_NSFW`（默认 `off`；`on` 用 NSFWJS MobileNetV2 拒绝高风险图，`review` 只标记待复核）、`NOVA_NSFW_THRESHOLD`（默认 0.75）。图片经 sharp 压缩并去掉 EXIF。客户端 `NOVA_SECURE_TRANSPORT` 与 `NOVA_BUGSINK` 默认关闭，见 `.env.example`。（未设置仍是 `*`；可写逗号分隔白名单，如 `capacitor://localhost,https://localhost,http://127.0.0.1:5173`，只回显匹配的 Origin；**若设白名单，请把管理端 App 的 Origin 加进去**）、`NOVA_ENV`（默认 production；只有严格等于 `development` 才开启 VIP 测试切换）、`NOVA_VIP_TEST_TOGGLE=0`（在开发环境里再次关闭测试切换）、`NOVA_ADMIN_USERNAME` 与 `NOVA_ADMIN_PASSWORD`（启动时若两者都提供且该用户名还不存在，则创建第一个平台管理员；没有内置默认密码）
 创建管理员：`node server/admin-cli.mjs create --username 名称 --password '强密码'`（密码须 8–128 位且含字母和数字）。`node server/admin-cli.mjs list` 可查看。
 本机试用测试切换：`npm run dev`（等于 `NOVA_ENV=development npm run server`）；对外给朋友用请用 `npm run server`。
 测试：`npm run test:server`（账号接口） · `npm run test:ui`（浏览器走一遍注册登录） · `npm run test:web`（旧的本地 HTML 演示测试）

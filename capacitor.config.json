@@ -1,0 +1,13 @@
+{
+  "appId": "app.nova.client",
+  "appName": "NOVA",
+  "webDir": "dist",
+  "ios": {
+    "scrollEnabled": false
+  },
+  "plugins": {
+    "Keyboard": {
+      "resize": "none"
+    }
+  }
+}
