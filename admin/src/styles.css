@@ -426,3 +426,27 @@ textarea:focus {
 .ptr--icon {
   color: var(--t2);
 }
+
+/* Hide web-style scrollbars everywhere. Content still scrolls. */
+html,
+body,
+#root,
+.nova-scroll,
+.nova-sheet,
+.nova-scroll-x,
+[data-nova-virtual] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar,
+.nova-scroll::-webkit-scrollbar,
+.nova-sheet::-webkit-scrollbar,
+.nova-scroll-x::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
