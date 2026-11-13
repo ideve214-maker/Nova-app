@@ -17,7 +17,8 @@ async function loadCommunities(){
   if(!usingNet()||!SESSION)return;
   const [mine,disc]=await Promise.all([api('GET','/api/communities?mine=1'),api('GET','/api/communities')]);
   const map=new Map();
-  if(mine.s===200)(mine.j.communities||[]).forEach(c=>map.set(c.id,adoptCm(c)));
+  /* r7：「我的」列表里的小组都算已加入（申请中的除外），保证全部出现在「已加入」栏 */
+  if(mine.s===200)(mine.j.communities||[]).forEach(c=>{const x=adoptCm(c);if(x&&!x.pending&&x.joinStatus!=='pending'){x.j=1;x.r=x.r||'成员'}map.set(c.id,x)});
   if(disc.s===200)(disc.j.communities||[]).forEach(c=>{if(!map.has(c.id))map.set(c.id,adoptCm(c))});
   S.communities=[...map.values()];
 }

@@ -31,7 +31,7 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;return o;
 }
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
@@ -45,7 +45,7 @@ async function loadFeed(){
 }
 async function publishPost(text,meta){
   const body={text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)};
-  if(meta){if(meta.audience)body.audience=meta.audience;if(meta.mood)body.mood=meta.mood;if(meta.location)body.location=meta.location;if(meta.tagged&&meta.tagged.length)body.tagged=meta.tagged.map(Number).filter(n=>n);if(meta.media&&meta.media.length)body.media=meta.media;}
+  if(meta){if(meta.audience)body.audience=meta.audience;if(meta.mood)body.mood=meta.mood;if(meta.location)body.location=meta.location;if(meta.tagged&&meta.tagged.length)body.tagged=meta.tagged.map(Number).filter(n=>n);if(meta.media&&meta.media.length)body.media=meta.media;if(meta.kind)body.kind=meta.kind;}
   const r=await api('POST','/api/posts',body);
   if(r.s!==200){T(errMsg(r,'发布失败'));return null}
   const p=adoptPost(r.j.post);
@@ -54,7 +54,8 @@ async function publishPost(text,meta){
   return p;
 }
 function usingNet(){return MODE==='account'&&!!NET}
-function feedSrc(){return usingNet()?(Array.isArray(S.posts)?S.posts:[]):D.p}
+/* r7：日常（story）不进帖子列表、不算帖子数；只在首页顶部一排显示（见 75_r7.js） */
+function feedSrc(){const a=usingNet()?(Array.isArray(S.posts)?S.posts:[]):D.p;return typeof isStory==='function'?a.filter(p=>!isStory(p)):a}
 function postsOf(id){return feedSrc().filter(p=>p.a==id)}
 
 function adoptComment(c){

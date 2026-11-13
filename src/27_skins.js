@@ -149,8 +149,8 @@ function bootUiSize(){applyUiSize(uiSizeId(),false,false)}
 function uiSizeRow(){
   const cur=uiSizeId();
   const btns=[['sm','小'],['md','标准'],['lg','大']].map(([id,l])=>`<button type="button" class="pb${cur===id?'':' s'}" data-a="uisize" data-v="${id}" aria-pressed="${cur===id?'true':'false'}">${l}</button>`).join('');
-  const val=cur==='sm'?0:cur==='lg'?2:1;
-  return `<div class="row" style="flex-wrap:wrap;align-items:flex-start"><div class="gr"><b>界面大小</b><small>缩放字体、按钮和间距。偏好保存在本机。</small></div><div class="sw uis">${btns}</div><div class="uisz-col" style="width:100%;margin-top:8px"><input type="range" min="0" max="2" step="1" value="${val}" id="uiszrange" aria-label="界面大小"></div><div class="uisz labs" style="width:100%"><span>小</span><span>标准</span><span>大</span></div></div>`;
+  /* r7：去掉滑杆。上下滑动设置页时手指划过滑杆会实时改界面大小，整页跟着放大缩小；只保留三个按钮。 */
+  return `<div class="row" style="flex-wrap:wrap;align-items:flex-start"><div class="gr"><b>界面大小</b><small>缩放字体、按钮和间距。偏好保存在本机。</small></div><div class="sw uis">${btns}</div></div>`;
 }
 function skinRow(){
   const list=SKINS.list||[];

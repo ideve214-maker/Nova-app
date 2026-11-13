@@ -49,7 +49,7 @@ async function cacheReadMsgs(id){
 function bootKeyboard(){
   if(bootKeyboard.done)return;
   bootKeyboard.done=1;
-  const setKb=n=>{document.documentElement.style.setProperty('--kb', Math.max(0, n||0)+'px')};
+  const setKb=n=>{const v=Math.max(0,Math.round(n||0));document.documentElement.style.setProperty('--kb', v+'px');document.documentElement.classList.toggle('kb-open',v>0)};
   const N=window.NovaNative;
   const native=!!(N&&N.Capacitor&&N.Capacitor.isNativePlatform&&N.Capacitor.isNativePlatform());
   if(native&&N.Keyboard){
@@ -58,9 +58,12 @@ function bootKeyboard(){
     N.Keyboard.addListener('keyboardWillShow', info=>setKb(info&&info.keyboardHeight)).catch(()=>{});
     N.Keyboard.addListener('keyboardDidShow', info=>setKb(info&&info.keyboardHeight)).catch(()=>{});
     N.Keyboard.addListener('keyboardWillHide', ()=>setKb(0)).catch(()=>{});
+    N.Keyboard.addListener('keyboardDidHide', ()=>setKb(0)).catch(()=>{});
   }else if(window.visualViewport){
     const sync=()=>{
       const vv=window.visualViewport;
+      /* r7：页面被放大时 visualViewport 也会变小，不能当成键盘高度，否则底栏和面板跟着跳 */
+      if(Math.abs((vv.scale||1)-1)>0.01)return;
       const gap=Math.max(0, window.innerHeight-vv.height-vv.offsetTop);
       setKb(gap>80?gap:0);
     };
