@@ -1,0 +1,203 @@
+name: Nova v2 packages
+
+# Only this branch. Does not run ios-unsigned.yml (that is release-build only).
+on:
+  push:
+    branches: [build/v2]
+  workflow_dispatch:
+
+concurrency:
+  group: nova-v2-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  USER_SHA: 1323df8bc01edf21134e107e20b5ca2caf8c7290
+  ADMIN_SHA: c50a68aa6f8bea9edff0cc7b035e32848d31f6d3
+  USER_API_BASE: http://47.239.0.90
+  USER_UPDATE_URL: http://47.239.0.90/updates/user/manifest.json
+  # Prefer repo secret NOVA_ADMIN_UPDATE_URL when present. Fallback is the
+  # already-provisioned self-hosted manifest (also embedded in the public admin binary).
+  ADMIN_UPDATE_URL: ${{ secrets.NOVA_ADMIN_UPDATE_URL || 'http://47.239.0.90/2RyksI0DhLRiueN4DUwMzSZZN9imEp3P7xT06guH/updates/manifest.json' }}
+
+jobs:
+  ipa:
+    name: IPA (${{ matrix.ipa }})
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: user
+            ipa: Nova.ipa
+            src_path: user
+          - app: admin
+            ipa: NovaAdmin.ipa
+            src_path: admin-src/admin
+    steps:
+      - name: Mask admin URL
+        if: matrix.app == 'admin'
+        run: echo "::add-mask::${ADMIN_UPDATE_URL}"
+
+      - name: Checkout pack scripts
+        uses: actions/checkout@v4
+
+      - name: Checkout user ${{ env.USER_SHA }}
+        if: matrix.app == 'user'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.USER_SHA }}
+          path: user
+
+      - name: Checkout admin ${{ env.ADMIN_SHA }}
+        if: matrix.app == 'admin'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ADMIN_SHA }}
+          path: admin-src
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Prepare web assets
+        run: |
+          chmod +x scripts/prepare-v2-web.sh scripts/build-unsigned-ipa.sh scripts/verify-v2-package.sh
+          ./scripts/prepare-v2-web.sh "${{ matrix.app }}" "${{ matrix.src_path }}"
+
+      - name: Build unsigned IPA
+        env:
+          IPA_BUILD_VERSION: '2'
+        run: |
+          mkdir -p dist
+          ./scripts/build-unsigned-ipa.sh "${{ matrix.src_path }}" "dist/${{ matrix.ipa }}"
+          ls -lh "dist/${{ matrix.ipa }}"
+
+      - name: Verify IPA
+        run: |
+          URL="${USER_UPDATE_URL}"
+          if [ "${{ matrix.app }}" = "admin" ]; then URL="${ADMIN_UPDATE_URL}"; fi
+          ./scripts/verify-v2-package.sh ipa "dist/${{ matrix.ipa }}" "${{ matrix.app }}" "$URL"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.ipa }}
+          path: dist/${{ matrix.ipa }}
+          if-no-files-found: error
+          retention-days: 14
+
+  apk:
+    name: APK (${{ matrix.apk }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: user
+            apk: Nova.apk
+            src_path: user
+          - app: admin
+            apk: NovaAdmin.apk
+            src_path: admin-src/admin
+    steps:
+      - name: Mask admin URL
+        if: matrix.app == 'admin'
+        run: echo "::add-mask::${ADMIN_UPDATE_URL}"
+
+      - name: Checkout pack scripts
+        uses: actions/checkout@v4
+
+      - name: Checkout user ${{ env.USER_SHA }}
+        if: matrix.app == 'user'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.USER_SHA }}
+          path: user
+
+      - name: Checkout admin ${{ env.ADMIN_SHA }}
+        if: matrix.app == 'admin'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ADMIN_SHA }}
+          path: admin-src
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare web assets
+        run: |
+          chmod +x scripts/prepare-v2-web.sh scripts/build-debug-apk.sh scripts/verify-v2-package.sh
+          ./scripts/prepare-v2-web.sh "${{ matrix.app }}" "${{ matrix.src_path }}"
+
+      - name: Build debug APK
+        run: |
+          mkdir -p dist
+          bash scripts/build-debug-apk.sh "${{ matrix.src_path }}" "dist/${{ matrix.apk }}"
+          ls -lh "dist/${{ matrix.apk }}"
+
+      - name: Verify APK
+        run: |
+          URL="${USER_UPDATE_URL}"
+          if [ "${{ matrix.app }}" = "admin" ]; then URL="${ADMIN_UPDATE_URL}"; fi
+          ./scripts/verify-v2-package.sh apk "dist/${{ matrix.apk }}" "${{ matrix.app }}" "$URL"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.apk }}
+          path: dist/${{ matrix.apk }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub Release
+    needs: [ipa, apk]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Check all four packages
+        run: |
+          ls -lh artifacts
+          for f in Nova.ipa Nova.apk NovaAdmin.ipa NovaAdmin.apk; do
+            test -f "artifacts/$f" || { echo "ERROR: missing $f"; exit 1; }
+            sha256sum "artifacts/$f"
+          done
+
+      - name: Create Release Nova 第2版
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.7.0-m7.r6-build1
+          name: Nova 第2版
+          target_commitish: ${{ github.sha }}
+          files: |
+            artifacts/Nova.ipa
+            artifacts/Nova.apk
+            artifacts/NovaAdmin.ipa
+            artifacts/NovaAdmin.apk
+          body: |
+            用户端 commit 1323df8（分支 v7-m7.r6），管理端 commit c50a68a（分支 admin-v10）。
+            安装包为未签名 iOS IPA 与 debug Android APK。
+            热更新清单尚未发布新包，本 Release 仅为完整安装包。
+          fail_on_unmatched_files: true

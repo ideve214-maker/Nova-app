@@ -102,6 +102,15 @@ SIGN_FLAGS=(
   COMPILER_INDEX_STORE_ENABLE=NO
 )
 
+# Xcode MARKETING_VERSION must be N.N.N. package.json may have a pre-release
+# suffix (e.g. 0.7.0-m7.r6); strip it. CapacitorUpdater still uses the full version.
+PKG_VER="$(node -p "try{require('./package.json').version||''}catch(e){''}" 2>/dev/null || true)"
+MKT_VER="$(printf '%s' "$PKG_VER" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || true)"
+[ -z "$MKT_VER" ] && MKT_VER="1.0.0"
+BLD_VER="${IPA_BUILD_VERSION:-2}"
+SIGN_FLAGS+=(MARKETING_VERSION="$MKT_VER" CURRENT_PROJECT_VERSION="$BLD_VER")
+echo "==> iOS MARKETING_VERSION=$MKT_VER CURRENT_PROJECT_VERSION=$BLD_VER (package=$PKG_VER)"
+
 LOG="$PWD/build/xcodebuild.log"
 
 app_is_complete() {
