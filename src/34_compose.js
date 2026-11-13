@@ -257,9 +257,18 @@ async function publishCompose(){
     done(item);
   };
   if(MODE==='account'&&NET&&SESSION){
-    const run=()=>publishPost(x,meta).then(p=>{if(!p)return;done(p)});
-    if(x&&typeof checkText==='function')return checkText('post',x).then(okc=>{if(!okc)return;return run()});
-    return run();
+    const run=async()=>{
+      const uploaded=[];
+      for(const m of (c.media||[])){
+        if(m&&m.file){T('正在上传照片…');const media=await uploadMediaFile(m.file);uploaded.push({id:media.id,kind:'image'})}
+        else if(m&&(m.id||m.mediaId))uploaded.push({id:String(m.id||m.mediaId),kind:m.kind||'image'});
+      }
+      meta.media=uploaded;
+      const p=await publishPost(x,meta);
+      if(p)done(p);
+    };
+    if(x&&typeof checkText==='function')return checkText(story?'post':'post',x).then(okc=>{if(!okc)return;return run().catch(e=>T(e&&e.message?e.message:'上传失败，请稍后再试'))});
+    return run().catch(e=>T(e&&e.message?e.message:'上传失败，请稍后再试'));
   }
   goLocal();
 }

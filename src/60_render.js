@@ -8,4 +8,4 @@ try{$('#v').classList.toggle('has-nav',!hideNav)}catch(e){}
 $('#v').innerHTML=(typeof iosStatus==='function'?iosStatus():'')+(cur?page(cur):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='chat'?tChat():tMe())+(hideNav?'':nav())+sheet();
 document.querySelectorAll('#v [data-d]').forEach(el=>{el.value=S.d[el.dataset.d]||'';chk(el)});
 const sc=$('#v .sc');if(typeof applyScroll==='function')applyScroll(sc,S._restore);else if(sc)sc.scrollTop=(cur&&cur.startsWith('chat:'))||S.bot?1e9:(prevKey==key?(S.sy&&S.sy[key]||0):0);S.bot=0;if(S.jump&&sc){const el=sc.querySelector('[data-mid="'+S.jump+'"]');if(el){sc.scrollTop=el.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-70;el.classList.add('flash')}S.jump=null}
-const af=$('#v [data-af]');if(af)af.focus();if(S.foc){const fi=$('#v [data-d='+S.foc+']');fi&&fi.focus();S.foc=null}save()}
+const af=$('#v [data-af]');if(af&&!(S.sh&&S.sh.t==='newg'))af.focus();if(S.foc){const fi=$('#v [data-d='+S.foc+']');fi&&fi.focus();S.foc=null}save()}

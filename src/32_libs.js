@@ -202,7 +202,7 @@ function bindPull(){
       onRefresh(){
         const done=p=>Promise.resolve(p).then(()=>{S.ptr=1;if(typeof render==='function')render()});
         const cur=S.st&&S.st[S.st.length-1];
-        if(!cur&&S.tab==='home'&&typeof loadFeed==='function')return done(loadFeed());
+        if(!cur&&S.tab==='home'){const jobs=[];if(typeof loadFeed==='function')jobs.push(loadFeed());if(typeof loadStories==='function')jobs.push(loadStories());return done(Promise.all(jobs))}
         if(cur&&String(cur).startsWith('post:')&&typeof loadComments==='function')return done(loadComments(String(cur).slice(5)));
         if(cur&&String(cur).startsWith('chat:')&&typeof loadMessages==='function')return done(loadMessages(String(cur).slice(5)));
         if(!cur&&S.tab==='chat'&&typeof loadConversations==='function')return done(loadConversations());
