@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { canonSkin } from "./theme.ts";
 import {
   detectVersion,
   extractList,
@@ -19,6 +20,8 @@ import {
   joinUrl,
   pathTemplate,
   resolveBase,
+  fallbackApiBase,
+  DEFAULT_API_BASE,
   pickToken,
   mapRemoteAdmin,
   formatAdminTime,
@@ -178,6 +181,22 @@ describe("resolveBase priority", () => {
   });
   it("returns empty when nothing is set and there is no window (native / node)", () => {
     assert.equal(resolveBase("", ""), "");
+  });
+  it("builds the default host from scheme and falls back to http", () => {
+    assert.equal(fallbackApiBase(undefined, undefined, undefined), DEFAULT_API_BASE);
+    assert.equal(fallbackApiBase("", "https", "47.239.0.90"), "https://47.239.0.90");
+    assert.equal(fallbackApiBase("http://custom.example/", "https", "47.239.0.90"), "http://custom.example");
+  });
+});
+
+describe("skin ids match the user app", () => {
+  it("renames the old ids and keeps the current ones", () => {
+    assert.equal(canonSkin("facebook"), "social-blue");
+    assert.equal(canonSkin("tiktok"), "pulse");
+    assert.equal(canonSkin("social"), "social-blue");
+    assert.equal(canonSkin("social-blue"), "social-blue");
+    assert.equal(canonSkin("pulse"), "pulse");
+    assert.equal(canonSkin("nope"), "");
   });
 });
 

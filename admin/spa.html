@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-skin="social-blue" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -40,37 +40,61 @@
     </script>
     <script>
       (function () {
+        var colors = { "social-blue": { dark: "#17212B", light: "#F0F2F5" }, pulse: { dark: "#0B0B0D", light: "#F7FBFB" } };
+        var renames = { facebook: "social-blue", tiktok: "pulse", social: "social-blue" };
+        var defaults = { "social-blue": "light", pulse: "dark" };
         try {
+          var raw = localStorage.getItem("nova-admin-skin") || "";
+          var skin = renames[raw] || raw;
+          if (skin !== "pulse" && skin !== "social-blue") skin = "social-blue";
+          if (raw && raw !== skin) localStorage.setItem("nova-admin-skin", skin);
           var m = localStorage.getItem("nova-admin-theme");
-          var light = m === "light" || (m !== "dark" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+          if (m !== "light" && m !== "dark" && m !== "system") m = defaults[skin];
+          var light = m === "light" || (m === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+          document.documentElement.setAttribute("data-skin", skin);
           document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
           document.documentElement.style.colorScheme = light ? "light" : "dark";
           var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute("content", light ? "#F3F4F9" : "#0A0C14");
+          if (meta) meta.setAttribute("content", colors[skin][light ? "light" : "dark"]);
         } catch (e) {
+          document.documentElement.setAttribute("data-skin", "social-blue");
           document.documentElement.setAttribute("data-theme", "dark");
         }
       })();
     </script>
     <style>
-      html, body, #root { margin: 0; min-height: 100%; min-height: 100dvh; }
-      html, body { background: #0A0C14; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
-      html[data-theme="light"], html[data-theme="light"] body { background: #F3F4F9; }
+      html, body, #root { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; margin: 0; overflow: hidden; overscroll-behavior: none; }
+      html, body { background: #17212B; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      html[data-skin="pulse"], html[data-skin="pulse"] body { background: #0B0B0D; }
+      html[data-skin="social-blue"][data-theme="light"], html[data-skin="social-blue"][data-theme="light"] body { background: #F0F2F5; }
+      html[data-skin="pulse"][data-theme="light"], html[data-skin="pulse"][data-theme="light"] body { background: #F7FBFB; }
       #nova-static-splash {
         min-height: 100vh; min-height: 100dvh;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center;
         padding: max(32px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(32px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
-        color: #F4F6FC;
+        color: #F5F7FA;
         background:
-          radial-gradient(80% 50% at 50% 34%, rgba(110,139,255,.38), transparent 72%),
-          #0A0C14;
+          radial-gradient(80% 50% at 50% 34%, rgba(75,139,245,.38), transparent 72%),
+          #17212B;
       }
-      html[data-theme="light"] #nova-static-splash {
-        color: #13151C;
+      html[data-skin="social-blue"][data-theme="light"] #nova-static-splash {
+        color: #1C1E21;
         background:
-          radial-gradient(80% 50% at 50% 34%, rgba(79,110,247,.18), transparent 72%),
-          #F3F4F9;
+          radial-gradient(80% 50% at 50% 34%, rgba(24,119,242,.18), transparent 72%),
+          #F0F2F5;
+      }
+      html[data-skin="pulse"] #nova-static-splash {
+        color: #F7F7F8;
+        background:
+          radial-gradient(80% 50% at 50% 34%, rgba(37,244,238,.28), transparent 72%),
+          #0B0B0D;
+      }
+      html[data-skin="pulse"][data-theme="light"] #nova-static-splash {
+        color: #15171A;
+        background:
+          radial-gradient(80% 50% at 50% 34%, rgba(8,127,131,.18), transparent 72%),
+          #F7FBFB;
       }
       #nova-static-splash .nova-static-brand {
         margin: 20px 0 0;

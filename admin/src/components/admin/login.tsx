@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, LockKeyhole, Server, UserRound } from "lucide-react";
 import { useAdmin } from "@/lib/admin/store";
-import { isNativeShell, resolveBase } from "@/lib/admin/backend";
+import { resolveBase } from "@/lib/admin/backend";
 import { ConnectionBadge } from "./server-panel";
 import { ServerPanel } from "./server-panel";
 import { Sheet, StarMark } from "./ui";
@@ -21,11 +21,7 @@ export function LoginScreen() {
     if (busy) return;
     const base = resolveBase();
     if (!base) {
-      setError(
-        isNativeShell()
-          ? "请先点「设置服务器」填写后端地址，再登录。"
-          : "未配置接口地址。请先点「设置服务器」填写后端网址。",
-      );
+      setError("未配置接口地址。请打开「高级设置」填写后端网址。");
       setServerOpen(true);
       return;
     }
@@ -43,7 +39,7 @@ export function LoginScreen() {
 
   return (
     <div
-      className="nova-login flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto text-fg"
+      className="nova-login nova-scroll flex min-h-0 flex-1 flex-col text-fg"
       style={{
         paddingTop: "max(12px, var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))",
         paddingBottom: "max(12px, var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))",
@@ -111,7 +107,7 @@ export function LoginScreen() {
       <div className="mt-4 pb-3">
         <button type="button" className="mx-auto flex h-11 items-center gap-1.5 text-[13px] text-primary" onClick={() => setServerOpen(true)}>
           <Server className="size-3.5" />
-          设置服务器
+          高级设置
         </button>
         <div className="mb-2 flex justify-center">
           <ConnectionBadge />
@@ -121,7 +117,7 @@ export function LoginScreen() {
         </p>
       </div>
 
-      <Sheet open={serverOpen} title="服务器" onClose={() => setServerOpen(false)}>
+      <Sheet open={serverOpen} title="高级设置" onClose={() => setServerOpen(false)}>
         <ServerPanel onDone={() => setServerOpen(false)} />
       </Sheet>
     </div>

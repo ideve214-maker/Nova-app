@@ -1,0 +1,17 @@
+{
+  "id": "pulse",
+  "name": "脉冲",
+  "version": "1.0.0",
+  "default_mode": "dark",
+  "modes": [
+    "dark",
+    "light"
+  ],
+  "tokens_css": "tokens.css",
+  "tokens_json": "tokens.json",
+  "button_preview": "preview/buttons.png",
+  "button_preview_source": "preview/buttons.html",
+  "spec": "THEME.md",
+  "license": "LICENSES.md",
+  "defaultMode": "dark"
+}

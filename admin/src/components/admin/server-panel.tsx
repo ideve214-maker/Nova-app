@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useAdmin } from "@/lib/admin/store";
 import { Field, inputClass, PrimaryButton } from "./ui";
-import { builtInApiBase, type EndpointMap } from "@/lib/admin/backend";
+import { builtInApiBase, DEFAULT_API_BASE, type EndpointMap } from "@/lib/admin/backend";
 
 export function ServerPanel({ onDone }: { onDone?: () => void }) {
   const connection = useAdmin((s) => s.connection);
   const connectServer = useAdmin((s) => s.connectServer);
-  const [base, setBase] = useState(connection.baseUrl || "");
+  const builtIn = builtInApiBase() || DEFAULT_API_BASE;
+  const [base, setBase] = useState(connection.baseUrl || builtIn);
   const [advanced, setAdvanced] = useState(false);
   const [mapText, setMapText] = useState("{}");
   const [busy, setBusy] = useState(false);
@@ -41,18 +42,15 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
   return (
     <div>
       <p className="mb-3 text-[13px] leading-5 text-muted">
-        填写用户端后端地址（例如 <code className="text-[12px]">http://192.168.1.8:8787</code>
-        ）。优先级：这里保存的地址（本机记住）&gt; 打包时的{" "}
-        <code className="text-[12px]">VITE_NOVA_API_BASE</code>
-        {builtInApiBase() ? `（当前为 ${builtInApiBase()}）` : "（当前未设置）"}
-        &gt; 普通网页的同源。Capacitor App 没有同源后端，若前两项都为空请在此填写。留空并保存表示清除覆盖、改用打包默认或同源。
+        默认已经连到 <code className="text-[12px]">{builtIn}</code>
+        ，打开应用就能用。只有要换服务器时才改这里。保存后的地址记在本机，留空再保存会回到这个默认地址。
       </p>
       <Field label="接口根地址">
         <input
           className={inputClass}
           value={base}
           onChange={(e) => setBase(e.target.value)}
-          placeholder="留空 = 打包默认或网页同源"
+          placeholder={builtIn}
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}

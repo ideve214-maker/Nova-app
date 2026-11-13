@@ -1,0 +1,78 @@
+/* NOVA skin: social blue. Variable names match the NOVA token set. */
+:root,
+:root[data-skin="social-blue"] {
+  --cv: #101820;
+  --bg: #17212B;
+  --sf: #1F2C38;
+  --s2: #293846;
+  --s3: #354655;
+  --tx: #F5F7FA;
+  --t2: #B1BBC5;
+  --t3: #84919D;
+  --ln: #344554;
+  --ln2: rgba(255,255,255,0.07);
+  --ac: #4B8BF5;
+  --ac-hover: #75A6FF;
+  --ac-pressed: #286FE0;
+  --ac-soft: rgba(75,139,245,0.18);
+  --ac-grad: linear-gradient(180deg,#75A6FF 0%,#1877F2 100%);
+  --onac: #FFFFFF;
+  --dg: #F06B69;
+  --dg-hover: #FF8582;
+  --dg-pressed: #D95150;
+  --dg-soft: rgba(240,107,105,0.16);
+  --dg-grad: linear-gradient(180deg,#FF8582 0%,#D95150 100%);
+  --ok: #42C99A;
+  --warn: #E7A943;
+  --vip: #E0C17B;
+  --vip-grad: linear-gradient(135deg,#F4DFA8 0%,#C79B48 100%);
+  --onvip: #211A0B;
+  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:24px; --r-pill:999px; --r-btn:14px;
+  --sh-sm:0 1px 2px rgba(0,0,0,.22); --sh-md:0 8px 28px rgba(0,0,0,.28); --sh-sheet:0 -8px 32px rgba(0,0,0,.32);
+  --sh-btn:0 4px 16px rgba(75,139,245,0.18), inset 0 1px 0 rgba(255,255,255,.16);
+  --sh-dg:0 4px 14px rgba(240,107,105,0.16);
+  --ease:cubic-bezier(.2,.8,.2,1); --dur:.18s;
+  --font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --tracking-brand:.06em; --tracking-btn:.02em; color-scheme:dark;
+}
+:root[data-skin="social-blue"][data-theme="light"] {
+  --cv: #E7EBF0;
+  --bg: #F0F2F5;
+  --sf: #FFFFFF;
+  --s2: #F0F2F5;
+  --s3: #E4E6EB;
+  --tx: #1C1E21;
+  --t2: #65676B;
+  --t3: #8A8D91;
+  --ln: #DADDE1;
+  --ln2: rgba(28,30,33,0.07);
+  --ac: #1877F2;
+  --ac-hover: #3888F7;
+  --ac-pressed: #0866D9;
+  --ac-soft: rgba(24,119,242,0.12);
+  --ac-grad: linear-gradient(180deg,#3888F7 0%,#1877F2 100%);
+  --onac: #FFFFFF;
+  --dg: #D93025;
+  --dg-hover: #E44B42;
+  --dg-pressed: #B9231B;
+  --dg-soft: rgba(217,48,37,0.12);
+  --dg-grad: linear-gradient(180deg,#E44B42 0%,#D93025 100%);
+  --ok: #168A55;
+  --warn: #A86B12;
+  --vip: #8B6E32;
+  --vip-grad: linear-gradient(135deg,#E8D190 0%,#C4A056 100%);
+  --onvip: #1A1408;
+  --sh-sm:0 1px 2px rgba(16,20,40,.06); --sh-md:0 8px 24px rgba(16,20,40,.08); --sh-sheet:0 -8px 32px rgba(16,20,40,.10);
+  --sh-btn:0 4px 14px rgba(24,119,242,0.22), inset 0 1px 0 rgba(255,255,255,0.35); --sh-dg:0 4px 14px rgba(217,48,37,0.18); color-scheme:light;
+}
+:root[data-skin="social-blue"][data-theme="dark"][data-vip="gold"] { --ac:var(--vip); --ac-hover:#F4DFA8; --ac-pressed:#C79B48; --ac-soft:rgba(224,193,123,0.18); --ac-grad:var(--vip-grad); --onac:var(--onvip); }
+:root[data-skin="social-blue"][data-theme="light"][data-vip="gold"] { --ac:var(--vip); --ac-hover:#A68540; --ac-pressed:#6E5424; --ac-soft:rgba(139,110,50,0.14); --ac-grad:var(--vip-grad); --onac:var(--onvip); }
+.pb { background:var(--ac-grad); color:var(--onac); border-radius:var(--r-btn); box-shadow:var(--sh-btn); font-weight:700; }
+.pb:active { transform:scale(.97); box-shadow:none; }
+.pb:disabled,.ib:disabled { opacity:.4; box-shadow:none; }
+.pb.s { background:var(--s2); color:var(--tx); border:1px solid var(--ln); box-shadow:none; }
+.pb.g,.lk { background:transparent; color:var(--ac); border:1px solid var(--ac-soft); }
+.pb.d { background:var(--dg-grad); color:#fff; box-shadow:var(--sh-dg); }
+.ib { background:transparent; color:var(--t2); border-radius:12px; }
+.ib:active { transform:scale(.9); background:var(--s2); }
+:focus-visible { outline:2px solid var(--ac); outline-offset:2px; }

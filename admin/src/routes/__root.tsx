@@ -9,12 +9,24 @@ const APP_NAME = "NOVA 管理端";
 const THEME_BOOT = `
 (function () {
   if (typeof document === "undefined") return;
+  var colors = { "social-blue": { dark: "#17212B", light: "#F0F2F5" }, pulse: { dark: "#0B0B0D", light: "#F7FBFB" } };
+  var renames = { facebook: "social-blue", tiktok: "pulse", social: "social-blue" };
+  var defaults = { "social-blue": "light", pulse: "dark" };
   try {
+    var raw = localStorage.getItem("nova-admin-skin") || "";
+    var skin = renames[raw] || raw;
+    if (skin !== "pulse" && skin !== "social-blue") skin = "social-blue";
+    if (raw && raw !== skin) localStorage.setItem("nova-admin-skin", skin);
     var m = localStorage.getItem("nova-admin-theme");
-    var light = m === "light" || (m !== "dark" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+    if (m !== "light" && m !== "dark" && m !== "system") m = defaults[skin];
+    var light = m === "light" || (m === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+    document.documentElement.setAttribute("data-skin", skin);
     document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
     document.documentElement.style.colorScheme = light ? "light" : "dark";
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", colors[skin][light ? "light" : "dark"]);
   } catch (e) {
+    document.documentElement.setAttribute("data-skin", "social-blue");
     document.documentElement.setAttribute("data-theme", "dark");
   }
 })();
@@ -67,7 +79,7 @@ export const Route = createRootRoute({
     ],
   }),
   component: () => (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" data-skin="social-blue" data-theme="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

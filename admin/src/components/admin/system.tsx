@@ -92,7 +92,7 @@ export function SettingsScreen() {
         <RowLink icon={<Megaphone className="size-5" />} title="公告管理" desc="草稿、发布、撤回" onClick={() => go("announce")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<SlidersHorizontal className="size-5" />} title="权益开关" desc="套餐能力由配置控制" onClick={() => go("vip")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-5" />} title="内容规则" desc="举报、删除和审计都留记录" onClick={() => go("reports")} extra={<ChevronRight className="size-4 text-muted" />} />
-        <RowLink icon={<Server className="size-5" />} title="服务器配置" desc="与用户端共用后端" onClick={() => setServer(true)} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<Server className="size-5" />} title="高级设置" desc="服务器地址，已填入默认" onClick={() => setServer(true)} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ShieldCheck className="size-5" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Bell className="size-5" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>
@@ -110,8 +110,8 @@ export function SettingsScreen() {
           </div>
         ))}
       </div>
-      <Sheet open={server} title="服务器配置" onClose={() => setServer(false)}>
-        <p className="mb-3 text-xs text-muted">密钥只放环境变量，这里不能查看。支付未接入。</p>
+      <Sheet open={server} title="高级设置" onClose={() => setServer(false)}>
+        <p className="mb-3 text-xs text-muted">密钥只放环境变量，这里不能查看。支付未接入。地址已预填默认服务器。</p>
         <ServerPanel onDone={() => setServer(false)} />
       </Sheet>
     </Screen>

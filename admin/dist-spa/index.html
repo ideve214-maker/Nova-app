@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-skin="social-blue" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -40,21 +40,31 @@
     </script>
     <script>
       (function () {
+        var colors = { "social-blue": { dark: "#17212B", light: "#F0F2F5" }, pulse: { dark: "#0B0B0D", light: "#F7FBFB" } };
+        var renames = { facebook: "social-blue", tiktok: "pulse", social: "social-blue" };
+        var defaults = { "social-blue": "light", pulse: "dark" };
         try {
+          var raw = localStorage.getItem("nova-admin-skin") || "";
+          var skin = renames[raw] || raw;
+          if (skin !== "pulse" && skin !== "social-blue") skin = "social-blue";
+          if (raw && raw !== skin) localStorage.setItem("nova-admin-skin", skin);
           var m = localStorage.getItem("nova-admin-theme");
-          var light = m === "light" || (m !== "dark" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+          if (m !== "light" && m !== "dark" && m !== "system") m = defaults[skin];
+          var light = m === "light" || (m === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+          document.documentElement.setAttribute("data-skin", skin);
           document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
           document.documentElement.style.colorScheme = light ? "light" : "dark";
           var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute("content", light ? "#F3F4F9" : "#0A0C14");
+          if (meta) meta.setAttribute("content", colors[skin][light ? "light" : "dark"]);
         } catch (e) {
+          document.documentElement.setAttribute("data-skin", "social-blue");
           document.documentElement.setAttribute("data-theme", "dark");
         }
       })();
     </script>
-    <style>html,body,#root{min-height:100%;min-height:100dvh;margin:0}html,body{background:#0a0c14;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif}html[data-theme=light],html[data-theme=light] body{background:#f3f4f9}#nova-static-splash{min-height:100vh;text-align:center;min-height:100dvh;padding:max(32px, env(safe-area-inset-top,0px)) max(24px, env(safe-area-inset-right,0px)) max(32px, env(safe-area-inset-bottom,0px)) max(24px, env(safe-area-inset-left,0px));color:#f4f6fc;background:radial-gradient(80% 50% at 50% 34%,#6e8bff61,#0000 72%),#0a0c14;flex-direction:column;justify-content:center;align-items:center;display:flex}html[data-theme=light] #nova-static-splash{color:#13151c;background:radial-gradient(80% 50% at 50% 34%,#4f6ef72e,#0000 72%),#f3f4f9}#nova-static-splash .nova-static-brand{letter-spacing:.06em;background:linear-gradient(#8ba3ff 0%,#6e8bff 48%,#5b74f2 100%);color:#0000;-webkit-background-clip:text;background-clip:text;margin:20px 0 0;font-size:28px;font-weight:800;line-height:1}html[data-theme=light] #nova-static-splash .nova-static-brand{background:linear-gradient(#6b86ff 0%,#4f6ef7 50%,#3d58e0 100%);-webkit-background-clip:text;background-clip:text}#nova-static-splash .nova-static-sub{letter-spacing:.12em;color:#6e8bff;margin:8px 0 0;font-size:15px;font-weight:700}html[data-theme=light] #nova-static-splash .nova-static-sub{color:#4f6ef7}#nova-static-msg{opacity:.85;max-width:320px;margin:16px 0 0;font-size:14px;line-height:1.6;display:none}#nova-static-btn{color:#fff;letter-spacing:.02em;background:linear-gradient(#8ba3ff 0%,#6e8bff 48%,#5b74f2 100%);border:0;border-radius:14px;height:44px;margin-top:16px;padding:0 22px;font-size:16px;font-weight:700;display:none;box-shadow:0 4px 14px #6e8bff61}</style>
-    <script type="module" crossorigin src="./assets/spa-81qLTfwB.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/style-6bicS8Go.css">
+    <style>html,body,#root{width:100%;height:100%;overscroll-behavior:none;height:100dvh;margin:0;position:fixed;top:0;bottom:0;left:0;right:0;overflow:hidden}html,body{background:#17212b;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif}html[data-skin=pulse],html[data-skin=pulse] body{background:#0b0b0d}html[data-skin=social-blue][data-theme=light],html[data-skin=social-blue][data-theme=light] body{background:#f0f2f5}html[data-skin=pulse][data-theme=light],html[data-skin=pulse][data-theme=light] body{background:#f7fbfb}#nova-static-splash{min-height:100vh;text-align:center;min-height:100dvh;padding:max(32px, env(safe-area-inset-top,0px)) max(24px, env(safe-area-inset-right,0px)) max(32px, env(safe-area-inset-bottom,0px)) max(24px, env(safe-area-inset-left,0px));color:#f5f7fa;background:radial-gradient(80% 50% at 50% 34%,#4b8bf561,#0000 72%),#17212b;flex-direction:column;justify-content:center;align-items:center;display:flex}html[data-skin=social-blue][data-theme=light] #nova-static-splash{color:#1c1e21;background:radial-gradient(80% 50% at 50% 34%,#1877f22e,#0000 72%),#f0f2f5}html[data-skin=pulse] #nova-static-splash{color:#f7f7f8;background:radial-gradient(80% 50% at 50% 34%,#25f4ee47,#0000 72%),#0b0b0d}html[data-skin=pulse][data-theme=light] #nova-static-splash{color:#15171a;background:radial-gradient(80% 50% at 50% 34%,#087f832e,#0000 72%),#f7fbfb}#nova-static-splash .nova-static-brand{letter-spacing:.06em;background:linear-gradient(#8ba3ff 0%,#6e8bff 48%,#5b74f2 100%);color:#0000;-webkit-background-clip:text;background-clip:text;margin:20px 0 0;font-size:28px;font-weight:800;line-height:1}html[data-theme=light] #nova-static-splash .nova-static-brand{background:linear-gradient(#6b86ff 0%,#4f6ef7 50%,#3d58e0 100%);-webkit-background-clip:text;background-clip:text}#nova-static-splash .nova-static-sub{letter-spacing:.12em;color:#6e8bff;margin:8px 0 0;font-size:15px;font-weight:700}html[data-theme=light] #nova-static-splash .nova-static-sub{color:#4f6ef7}#nova-static-msg{opacity:.85;max-width:320px;margin:16px 0 0;font-size:14px;line-height:1.6;display:none}#nova-static-btn{color:#fff;letter-spacing:.02em;background:linear-gradient(#8ba3ff 0%,#6e8bff 48%,#5b74f2 100%);border:0;border-radius:14px;height:44px;margin-top:16px;padding:0 22px;font-size:16px;font-weight:700;display:none;box-shadow:0 4px 14px #6e8bff61}</style>
+    <script type="module" crossorigin src="./assets/spa-DxY01m0g.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/style-t2wllYbZ.css">
   </head>
   <body>
     <div id="root">

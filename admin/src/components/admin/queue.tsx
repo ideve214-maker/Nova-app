@@ -104,7 +104,7 @@ export function ContentScreen() {
                     <p className="mt-1 text-[13px] text-muted">{post.media.length} 个媒体</p>
                   ) : null}
                   {post.kind === "post" && post.media && post.media.length > 0 && (
-                    <div className="mt-1.5 flex gap-1 overflow-x-auto">
+                    <div className="nova-scroll-x mt-1.5 flex gap-1">
                       {post.media.slice(0, 4).map((m, i) => {
                         const src = adminMediaSrc(m.url) || mediaUrl(m.url);
                         return src ? (

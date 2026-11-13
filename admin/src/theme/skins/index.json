@@ -1,0 +1,17 @@
+{
+  "defaultSkin": "social-blue",
+  "skins": [
+    {
+      "id": "social-blue",
+      "name": "社交蓝",
+      "path": "social-blue",
+      "defaultMode": "light"
+    },
+    {
+      "id": "pulse",
+      "name": "脉冲",
+      "path": "pulse",
+      "defaultMode": "dark"
+    }
+  ]
+}
