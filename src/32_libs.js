@@ -88,6 +88,97 @@ function openPhoto(src, w, h){
   pswp.init();
 }
 
+
+/* 按页面（含 Tab / 分段）记住 .sc 的滚动位置，返回时恢复。 */
+const SY={};
+function scrollKey(cur){
+  const top=cur===undefined?(S.st&&S.st[S.st.length-1]):cur;
+  if(top){
+    const t=String(top);
+    if(t.startsWith('user:'))return t+':'+(S.mt||'all');
+    if(t.split(':')[0]==='cm'&&t.split(':').length===2){
+      const id=t.slice(3),ch=S.ch&&S.ch[id];
+      return ch?t+':'+ch:t;
+    }
+    return t;
+  }
+  const tab=S.tab||'home';
+  if(tab==='home')return 'home:'+(S.feed||'rec');
+  if(tab==='cm')return 'cmseg:'+(S.cs||'d');
+  if(tab==='chat')return 'chatlist:'+(S.cseg||'in');
+  if(tab==='me')return 'me:'+(S.mt||'all');
+  return String(tab);
+}
+function scrollFamily(k){if(!k)return '';const i=String(k).lastIndexOf(':');return i<0?'':String(k).slice(0,i)}
+function captureScroll(){
+  const sc=document.querySelector('#v .sc');
+  const key=S.k;
+  if(!sc||!key)return;
+  SY[key]=sc.scrollTop||0;
+}
+function planScroll(prevKey,key,prevDepth,newDepth,cur){
+  const ptr=!!S.ptr;S.ptr=0;
+  const bot=!!S.bot;
+  const isChat=!!(cur&&String(cur).startsWith('chat:'));
+  let mode='top',y=0;
+  if(ptr){mode='top';y=0;SY[key]=0}
+  else if(bot){mode='bottom'}
+  else if(prevKey&&prevKey===key){mode='y';y=SY[key]||0}
+  else if(newDepth>prevDepth){mode=isChat?'bottom':'top';y=0}
+  else if(newDepth<prevDepth){mode=SY[key]!=null?'y':(isChat?'bottom':'top');y=SY[key]||0}
+  else if(newDepth===0||scrollFamily(prevKey)===scrollFamily(key)){mode=SY[key]!=null?'y':(isChat?'bottom':'top');y=SY[key]||0}
+  else{mode=isChat?'bottom':'top';y=0}
+  S._restore={mode,y};
+}
+let SY_GEN=0,SY_T=[];
+function applyScroll(sc,pending){
+  const plan=pending||S._restore;
+  if(!sc||!plan)return;
+  const gen=++SY_GEN;
+  const t0=Date.now();
+  SY_T.forEach(id=>clearTimeout(id));SY_T=[];
+  const go=()=>{
+    if(gen!==SY_GEN||!sc.isConnected)return;
+    if(plan.mode==='bottom'){
+      if(sc._virt&&typeof sc._virt.getTotalSize==='function'&&typeof sc._virt.scrollToOffset==='function'){
+        try{sc._virt.scrollToOffset(sc._virt.getTotalSize(),{align:'start'})}catch(e){}
+      }
+      sc.scrollTop=sc.scrollHeight;
+    }else if(plan.mode==='y'){
+      if(sc._virt&&typeof sc._virt.scrollToOffset==='function'&&sc.firstElementChild&&sc.firstElementChild.classList.contains('vhost')){
+        try{sc._virt.scrollToOffset(plan.y,{align:'start'})}catch(e){}
+      }
+      sc.scrollTop=plan.y;
+    }else{
+      sc.scrollTop=0;
+    }
+  };
+  const finish=()=>{
+    go();
+    if(gen!==SY_GEN)return;
+    if(plan.mode==='y'&&plan.y>0){
+      const max=Math.max(0,(sc.scrollHeight||0)-(sc.clientHeight||0));
+      const at=sc.scrollTop||0;
+      if((max<plan.y-2||Math.abs(at-plan.y)>2)&&Date.now()-t0<800){
+        SY_T.push(setTimeout(finish,50));
+        return;
+      }
+    }
+    if(gen===SY_GEN)S._restore=null;
+  };
+  go();
+  requestAnimationFrame(()=>{go();requestAnimationFrame(go)});
+  SY_T.push(setTimeout(go,50));
+  SY_T.push(setTimeout(finish,180));
+}
+document.addEventListener('scroll',e=>{
+  const sc=e.target;
+  if(!sc||sc===document||sc===document.documentElement||sc===document.body)return;
+  if(!sc.classList||!sc.classList.contains('sc'))return;
+  if(S.k)SY[S.k]=sc.scrollTop||0;
+},true);
+function peekScroll(key){return key!=null&&SY[key]!=null?SY[key]:0}
+
 function bindPull(){
   if(typeof PullToRefresh==='undefined')return;
   try{if(PullToRefresh.destroyAll)PullToRefresh.destroyAll()}catch(e){}
@@ -106,14 +197,15 @@ function bindPull(){
       shouldPullToRefresh(){
         const el=document.querySelector('#v .sc');
         const kb=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--kb'))||0;
-        return !!(el&&el.scrollTop<=0&&!document.querySelector('#v .pn')&&kb<40);
+        return !!(el&&el.scrollTop<=0&&!document.querySelector('#v .pn')&&kb<40&&window.__novaAxis!=='x');
       },
       onRefresh(){
+        const done=p=>Promise.resolve(p).then(()=>{S.ptr=1;if(typeof render==='function')render()});
         const cur=S.st&&S.st[S.st.length-1];
-        if(!cur&&S.tab==='home'&&typeof loadFeed==='function')return Promise.resolve(loadFeed()).then(()=>{if(typeof render==='function')render()});
-        if(cur&&String(cur).startsWith('post:')&&typeof loadComments==='function')return Promise.resolve(loadComments(String(cur).slice(5))).then(()=>{if(typeof render==='function')render()});
-        if(cur&&String(cur).startsWith('chat:')&&typeof loadMessages==='function')return Promise.resolve(loadMessages(String(cur).slice(5))).then(()=>{if(typeof render==='function')render()});
-        if(!cur&&S.tab==='chat'&&typeof loadConversations==='function')return Promise.resolve(loadConversations()).then(()=>{if(typeof render==='function')render()});
+        if(!cur&&S.tab==='home'&&typeof loadFeed==='function')return done(loadFeed());
+        if(cur&&String(cur).startsWith('post:')&&typeof loadComments==='function')return done(loadComments(String(cur).slice(5)));
+        if(cur&&String(cur).startsWith('chat:')&&typeof loadMessages==='function')return done(loadMessages(String(cur).slice(5)));
+        if(!cur&&S.tab==='chat'&&typeof loadConversations==='function')return done(loadConversations());
       },
     });
   }catch(e){}
@@ -135,7 +227,7 @@ function virtualize(sc, nodes, estimate){
     scrollToFn:TV.elementScroll,
     observeElementRect:TV.observeElementRect,
     observeElementOffset:TV.observeElementOffset,
-    onChange(){paint()},
+    onChange(){paint();if(S._restore&&S._restore.mode==='y'&&sc.isConnected){try{if(sc._virt&&sc._virt.scrollToOffset&&sc.firstElementChild&&sc.firstElementChild.classList.contains('vhost'))sc._virt.scrollToOffset(S._restore.y,{align:'start'})}catch(e){}sc.scrollTop=S._restore.y}},
   });
   function paint(){
     const items=v.getVirtualItems();
@@ -148,8 +240,8 @@ function virtualize(sc, nodes, estimate){
   }
   try{v._didMount()}catch(e){}
   try{v._willUpdate()}catch(e){}
+  sc._virt=v;
   paint();
-  if(sc.classList.contains('msg'))sc.scrollTop=sc.scrollHeight;
 }
 
 function afterRender(){
@@ -169,6 +261,7 @@ function afterRender(){
     }
   }
   bindPull();
+  applyScroll(sc,S._restore);
 }
 
 document.addEventListener('click', e=>{
