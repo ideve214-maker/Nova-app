@@ -30,10 +30,20 @@ export function parseBuildOpts(argv = process.argv.slice(2), env = process.env) 
     secureTransport: on('secure-transport', 'NOVA_SECURE_TRANSPORT'),
     bugsink: on('bugsink', 'NOVA_BUGSINK'),
     bugsinkDsn: String(get('bugsink-dsn', 'NOVA_BUGSINK_DSN') || '').trim(),
+    updateManifestUrl: String(get('update-manifest-url', 'NOVA_UPDATE_MANIFEST_URL') || '').trim(),
   };
 }
 
-export function build({apiBase = '', disableDemo = false, secureTransport = false, bugsink = false, bugsinkDsn = '', destDir} = {}) {
+function packageVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    return String(pkg.version || '').trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+export function build({apiBase = '', disableDemo = false, secureTransport = false, bugsink = false, bugsinkDsn = '', updateManifestUrl = '', destDir} = {}) {
   const dir = new URL('../src/', import.meta.url);
   const files = fs.readdirSync(dir).sort();
   const head = files.filter(f => f.endsWith('.html')).map(f => fs.readFileSync(new URL(f, dir), 'utf8')).join('');
@@ -46,6 +56,9 @@ export function build({apiBase = '', disableDemo = false, secureTransport = fals
   if (secureTransport) cfg.push('window.NOVA_SECURE_TRANSPORT = window.NOVA_SECURE_TRANSPORT || "on";');
   if (bugsink) cfg.push('window.NOVA_BUGSINK = window.NOVA_BUGSINK || "on";');
   if (bugsinkDsn) cfg.push('window.NOVA_BUGSINK_DSN = window.NOVA_BUGSINK_DSN || ' + JSON.stringify(bugsinkDsn) + ';');
+  const appVer = packageVersion();
+  if (appVer) cfg.push('window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || ' + JSON.stringify(appVer) + ';');
+  if (updateManifestUrl) cfg.push('window.NOVA_UPDATE_MANIFEST_URL = window.NOVA_UPDATE_MANIFEST_URL || ' + JSON.stringify(updateManifestUrl) + ';');
   const configScript = cfg.length > 1 ? '<script>\n' + cfg.join('\n') + '\n</script>\n' : '';
   const here = dirname(fileURLToPath(import.meta.url));
   spawnSync(process.execPath, [join(here, 'bundle-vendor.mjs')], {stdio: 'inherit'});
@@ -64,10 +77,13 @@ export function build({apiBase = '', disableDemo = false, secureTransport = fals
   const destPath = typeof destRoot === 'string' ? destRoot : destRoot;
   if (typeof destRoot === 'string') {
     fs.mkdirSync(destRoot, {recursive: true});
-    fs.writeFileSync(destRoot + (destRoot.endsWith('/') ? '' : '/') + 'nova_v5.html', out);
+    const base = destRoot + (destRoot.endsWith('/') ? '' : '/');
+    fs.writeFileSync(base + 'nova_v5.html', out);
+    fs.writeFileSync(base + 'index.html', out);
   } else {
     fs.mkdirSync(destRoot, {recursive: true});
     fs.writeFileSync(new URL('nova_v5.html', destRoot), out);
+    fs.writeFileSync(new URL('index.html', destRoot), out);
   }
   const assets = new URL('../assets/', import.meta.url);
   const destAssets = typeof destRoot === 'string' ? destRoot + (destRoot.endsWith('/') ? '' : '/') + 'assets/' : new URL('../dist/assets/', import.meta.url);

@@ -32,7 +32,8 @@ const entries = {
     import { Keyboard, KeyboardResize } from '@capacitor/keyboard';
     import { StatusBar, Style } from '@capacitor/status-bar';
     import { Haptics, ImpactStyle } from '@capacitor/haptics';
-    globalThis.NovaNative = { Capacitor, Keyboard, KeyboardResize, StatusBar, Style, Haptics, ImpactStyle };
+    import { CapacitorUpdater } from '@capgo/capacitor-updater';
+    globalThis.NovaNative = { Capacitor, Keyboard, KeyboardResize, StatusBar, Style, Haptics, ImpactStyle, CapacitorUpdater };
   `,
 };
 
