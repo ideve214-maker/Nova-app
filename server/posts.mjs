@@ -29,15 +29,21 @@ function normMedia(v) {
   const items = arr.slice(0, 9).map(it => {
     if (typeof it === 'string') return {id: it.slice(0, 80)};
     const o = {id: String(it.id || it.mediaId || '').slice(0, 80)};
-    if (it.url) o.url = String(it.url).slice(0, 500);
+    let url = it.url ? String(it.url).slice(0, 500) : '';
+    if (/^(blob:|data:)/i.test(url)) url = '';
+    if (url) o.url = url;
     if (it.kind) o.kind = String(it.kind).slice(0, 20);
-    return o.id || o.url ? o : null;
+    if (!o.id) delete o.id;
+    return (o.id || o.url) ? o : null;
   }).filter(Boolean);
   return items.length ? JSON.stringify(items) : null;
 }
+function normKind(v) {
+  return String(v == null ? 'post' : v).trim().toLowerCase() === 'story' ? 'story' : 'post';
+}
 
 export function createPosts(db, {vip, profile, now}) {
-  const ins = db.prepare(`INSERT INTO posts(id,author_id,text,created_at,updated_at,client_id,audience,mood,location,tagged,media) VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
+  const ins = db.prepare(`INSERT INTO posts(id,author_id,text,created_at,updated_at,client_id,audience,mood,location,tagged,media,kind) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM posts WHERE id=?');
   const byClient = db.prepare('SELECT * FROM posts WHERE author_id=? AND client_id=?');
   const upd = db.prepare('UPDATE posts SET text=?, updated_at=?, audience=COALESCE(?,audience), mood=COALESCE(?,mood), location=COALESCE(?,location), tagged=COALESCE(?,tagged), media=COALESCE(?,media) WHERE id=? AND author_id=? AND deleted_at IS NULL');
@@ -56,28 +62,34 @@ export function createPosts(db, {vip, profile, now}) {
     ))
   )`;
   const listSql = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND COALESCE(kind,'post') = ?
     AND (? IS NULL OR author_id=?)
     ${vis}
     AND (created_at < ? OR (created_at = ? AND id < ?))
     ORDER BY created_at DESC, id DESC LIMIT ?`);
   const newest = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND COALESCE(kind,'post') = ?
     AND (? IS NULL OR author_id=?)
     ${vis}
     ORDER BY created_at DESC, id DESC LIMIT ?`);
   const newestIn = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND COALESCE(kind,'post') = ?
     AND author_id IN (SELECT value FROM json_each(?))
     ${vis}
     ORDER BY created_at DESC, id DESC LIMIT ?`);
   const listIn = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND COALESCE(kind,'post') = ?
     AND author_id IN (SELECT value FROM json_each(?))
     ${vis}
     AND (created_at < ? OR (created_at = ? AND id < ?))
     ORDER BY created_at DESC, id DESC LIMIT ?`);
   const newestTopic = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND COALESCE(kind,'post') = ?
     AND (text LIKE '%#%' OR id IN (SELECT post_id FROM post_hashtags))
     ${vis}
     ORDER BY created_at DESC, id DESC LIMIT ?`);
   const listTopic = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL
+    AND COALESCE(kind,'post') = ?
     AND (text LIKE '%#%' OR id IN (SELECT post_id FROM post_hashtags))
     ${vis}
     AND (created_at < ? OR (created_at = ? AND id < ?))
@@ -137,10 +149,20 @@ export function createPosts(db, {vip, profile, now}) {
     };
     if (row.mood) out.mood = row.mood;
     if (row.location) out.location = row.location;
+    out.kind = normKind(row.kind);
     const tagged = parseJson(row.tagged);
-    if (tagged) out.tagged = tagged;
-    const media = parseJson(row.media);
-    if (media) out.media = media;
+    if (tagged) {
+      out.tagged = tagged;
+      out.taggedUsers = tagged.map(id => {
+        const a = authorOf(id);
+        return {id: a.id, username: a.username, displayName: a.displayName, avatar: a.avatar};
+      });
+    }
+    let media = parseJson(row.media);
+    if (media) {
+      if (extras && extras.resolveMedia) media = extras.resolveMedia(media, me) || media;
+      out.media = media;
+    }
     if (extras) {
       const rx = extras.reactOf(row.id, me);
       out.reactions = rx.reactions;
@@ -155,6 +177,17 @@ export function createPosts(db, {vip, profile, now}) {
     }
     return out;
   }
+  function assertOwnMedia(user, mediaJson) {
+    const items = parseJson(mediaJson) || [];
+    for (const it of items) {
+      const id = typeof it === 'string' ? it : (it && (it.id || it.mediaId));
+      if (!id) continue;
+      const row = db.prepare('SELECT id, owner_id, deleted_at FROM media WHERE id=?').get(id);
+      if (!row || row.deleted_at || Number(row.owner_id) !== Number(user.id)) {
+        throw new ApiError(400, 'BAD_MEDIA', '照片不存在或不是你上传的');
+      }
+    }
+  }
   function fields(body) {
     return {
       audience: normAud(body && body.audience),
@@ -162,6 +195,7 @@ export function createPosts(db, {vip, profile, now}) {
       location: normText(body && body.location, 80),
       tagged: normTagged(body && (body.tagged != null ? body.tagged : body.taggedIds)),
       media: normMedia(body && (body.media != null ? body.media : body.mediaIds)),
+      kind: normKind(body && body.kind),
     };
   }
   function create(user, body) {
@@ -179,8 +213,9 @@ export function createPosts(db, {vip, profile, now}) {
       }
     } else clientId = null;
     const f = fields(body);
+    if (f.media) assertOwnMedia(user, f.media);
     const id = nid(), t = now();
-    try { ins.run(id, user.id, text, t, t, clientId, f.audience, f.mood, f.location, f.tagged, f.media); }
+    try { ins.run(id, user.id, text, t, t, clientId, f.audience, f.mood, f.location, f.tagged, f.media, f.kind); }
     catch (e) {
       if (clientId && /UNIQUE/i.test(String(e.message))) {
         const existed = byClient.get(user.id, clientId);
@@ -225,6 +260,7 @@ export function createPosts(db, {vip, profile, now}) {
     const take = limit + 1;
     const authors = q.authors || null;
     const va = visArgs(user);
+    const kind = normKind(q.kind);
     const topic = q.feed === 'topic' || q.topic;
     let rows;
     try {
@@ -232,27 +268,27 @@ export function createPosts(db, {vip, profile, now}) {
         if (q.cursor) {
           const cur = byId.get(String(q.cursor));
           if (!cur) throw new ApiError(400, 'BAD_CURSOR', '分页游标不正确');
-          rows = listTopic.all(...va, cur.created_at, cur.created_at, cur.id, take);
-        } else rows = newestTopic.all(...va, take);
+          rows = listTopic.all(kind, ...va, cur.created_at, cur.created_at, cur.id, take);
+        } else rows = newestTopic.all(kind, ...va, take);
       } else if (authors) {
         const js = JSON.stringify(authors.map(Number));
         if (q.cursor) {
           const cur = byId.get(String(q.cursor));
           if (!cur) throw new ApiError(400, 'BAD_CURSOR', '分页游标不正确');
-          rows = listIn.all(js, ...va, cur.created_at, cur.created_at, cur.id, take);
-        } else rows = newestIn.all(js, ...va, take);
+          rows = listIn.all(kind, js, ...va, cur.created_at, cur.created_at, cur.id, take);
+        } else rows = newestIn.all(kind, js, ...va, take);
       } else if (q.cursor) {
         const cur = byId.get(String(q.cursor));
         if (!cur) throw new ApiError(400, 'BAD_CURSOR', '分页游标不正确');
-        rows = listSql.all(author, author, ...va, cur.created_at, cur.created_at, cur.id, take);
+        rows = listSql.all(kind, author, author, ...va, cur.created_at, cur.created_at, cur.id, take);
       } else {
-        rows = newest.all(author, author, ...va, take);
+        rows = newest.all(kind, author, author, ...va, take);
       }
     } catch (e) {
       // post_hashtags 表在极旧库可能不存在，话题流退化为带 # 的文本过滤已在 SQL 中 OR。
       if (topic && /no such table/i.test(String(e.message))) {
-        const fbNew = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL AND text LIKE '%#%' ${vis} ORDER BY created_at DESC, id DESC LIMIT ?`);
-        rows = fbNew.all(...va, take);
+        const fbNew = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL AND COALESCE(kind,'post')=? AND text LIKE '%#%' ${vis} ORDER BY created_at DESC, id DESC LIMIT ?`);
+        rows = fbNew.all(kind, ...va, take);
       } else throw e;
     }
     const more = rows.length > limit;
@@ -260,5 +296,31 @@ export function createPosts(db, {vip, profile, now}) {
     const last = rows[rows.length - 1];
     return {posts: rows.map(r => pub(r, user)), nextCursor: more && last ? last.id : null};
   }
-  return {create, get, edit, remove, list, pub, byId, attach, canSee, normAud};
+  function listStories(user, q = {}) {
+    const take = Math.min(Math.max(+(q.limit) || 200, 1), 200);
+    const va = visArgs(user);
+    const rows = db.prepare(`SELECT * FROM posts WHERE deleted_at IS NULL AND COALESCE(kind,'post')='story' ${vis} ORDER BY created_at DESC, id DESC LIMIT ?`).all(...va, take);
+    const visible = rows.map(r => pub(r, user)).filter(Boolean);
+    const groups = [];
+    const map = new Map();
+    for (const p of visible) {
+      const aid = p.author && p.author.id;
+      if (aid == null) continue;
+      if (!map.has(aid)) {
+        const g = {author: p.author, items: [], latestAt: p.createdAt};
+        map.set(aid, g);
+        groups.push(g);
+      }
+      map.get(aid).items.push(p);
+    }
+    const mid = user && Number(user.id);
+    groups.sort((a, b) => {
+      const am = mid && Number(a.author.id) === mid ? 0 : 1;
+      const bm = mid && Number(b.author.id) === mid ? 0 : 1;
+      if (am !== bm) return am - bm;
+      return (b.latestAt || 0) - (a.latestAt || 0);
+    });
+    return {stories: groups};
+  }
+  return {create, get, edit, remove, list, listStories, pub, byId, attach, canSee, normAud, normKind};
 }

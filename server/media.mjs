@@ -111,6 +111,9 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     return out;
   }
 
+  let postAccess = null;
+  function attachPostAccess(fn) { postAccess = typeof fn === 'function' ? fn : null; }
+
   function canAccess(user, row) {
     if (!row || row.deleted_at) return false;
     if (Number(row.owner_id) === Number(user.id)) return true;
@@ -118,6 +121,7 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
       const m = mem.get(row.conversation_id, Number(user.id));
       if (m) return true;
     }
+    if (postAccess && user && postAccess(user, row.id)) return true;
     return false;
   }
 
@@ -217,11 +221,14 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     return {media: pub(row)};
   }
 
-  function ticket(user, id) {
+  const TICKET_MS_MAX = 12 * 60 * 60 * 1000;
+  function ticket(user, id, opts = {}) {
     const row = byId.get(id);
     if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '找不到这个文件');
     if (!canAccess(user, row)) throw new ApiError(404, 'NOT_FOUND', '找不到这个文件');
-    const exp = now() + TICKET_MS;
+    const want = opts && opts.ttlMs != null ? Number(opts.ttlMs) : TICKET_MS;
+    const ttl = Math.min(Math.max(Number.isFinite(want) ? want : TICKET_MS, 60 * 1000), TICKET_MS_MAX);
+    const exp = now() + ttl;
     return {ticket: signTicket(id, user.id, exp), expiresAt: exp};
   }
 
@@ -281,7 +288,7 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
 
   return {
     upload, get, ticket, fileOf, remove, purgeDeleted, attachToMessage, usage,
-    canAccess, pub, verifyTicket, signTicket, quotaOf, usageOf,
+    canAccess, pub, verifyTicket, signTicket, quotaOf, usageOf, attachPostAccess,
     root, MEDIA_LIMITS, MEDIA_QUOTA, TICKET_MS, defaultScan,
     _byId: byId,
   };
