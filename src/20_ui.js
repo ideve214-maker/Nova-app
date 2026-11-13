@@ -36,7 +36,11 @@ const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊使用 Ol
 function hasSafeArea(){
   if(hasSafeArea._v!=null)return hasSafeArea._v;
   try{
-    const v=parseFloat(getComputedStyle(document.documentElement).paddingTop)||0;
+    const d=document.createElement('div');
+    d.style.cssText='position:fixed;left:0;top:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px)';
+    document.documentElement.appendChild(d);
+    const v=parseFloat(getComputedStyle(d).paddingTop)||0;
+    d.remove();
     hasSafeArea._v=v>=20;
     if(hasSafeArea._v)document.documentElement.classList.add('has-safe-area');
   }catch(e){hasSafeArea._v=false}

@@ -6,12 +6,33 @@ const SKINS={list:[],byId:{},current:null,icons:{},logo:'',ready:false,failed:0}
 
 function skinBase(id){return SKIN_ROOT+'/'+id}
 function skinStorageKey(){return (SESSION&&SESSION.user&&SESSION.user.id!=null)?('nova_skin_u_'+SESSION.user.id):'nova_skin'}
+/* 旧 id 只在这里映射，设置界面不展示这些字符串。 */
+const SKIN_RENAMES={facebook:'social-blue',tiktok:'pulse'};
+function canonSkin(id){
+  const raw=String(id||'').trim();
+  if(!raw)return '';
+  return SKIN_RENAMES[raw.toLowerCase()]||raw;
+}
 function rememberedSkin(){
   try{
     const per=localStorage.getItem(skinStorageKey());
-    if(per)return per;
-    return localStorage.getItem('nova_skin')||'';
+    if(per)return canonSkin(per);
+    return canonSkin(localStorage.getItem('nova_skin')||'');
   }catch(e){return ''}
+}
+function migrateStoredSkin(){
+  try{
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&k.indexOf('nova_skin')===0)keys.push(k);
+    }
+    keys.forEach(k=>{
+      const v=localStorage.getItem(k);
+      const n=canonSkin(v);
+      if(n&&n!==v)localStorage.setItem(k,n);
+    });
+  }catch(e){}
 }
 function persistSkin(id){
   try{
@@ -25,7 +46,13 @@ function skinIcon(n){
   return k&&SKINS.icons[k]?SKINS.icons[k]:'';
 }
 function brandTitle(){
-  const src=SKINS.logo;
+  const meta=SKINS.current&&SKINS.byId[SKINS.current];
+  let rel='';
+  if(meta){
+    const light=typeof resolvedTheme==='function'&&resolvedTheme()==='light';
+    rel=(light&&meta.logoLight)?meta.logoLight:(meta.logo||'');
+  }
+  const src=rel?skinBase(meta.id)+'/'+rel:(SKINS.logo||'');
   if(src)return '<img class="br-logo" src="'+esc(src)+'" alt="NOVA">';
   return 'NOVA';
 }
@@ -73,9 +100,16 @@ async function loadSkinIcons(meta){
   }));
   SKINS.icons=map;
 }
+function skinTokenHref(meta){
+  const rel=meta&&(meta.tokensCss||meta.tokens_css)||'';
+  if(!rel||typeof rel!=='string'||rel.includes('..')||rel.startsWith('/'))return '';
+  return skinBase(meta.id)+'/'+rel;
+}
 async function applySkin(id,opts){
   const save=!(opts&&opts.save===false);
-  const want=id||SKIN_FALLBACK;
+  const requested=String(id||'').trim();
+  const want=canonSkin(requested)||SKIN_FALLBACK;
+  const migrated=!!(requested&&canonSkin(requested)!==requested);
   let meta=SKINS.byId[want];
   if(!meta){
     if(want!==SKIN_FALLBACK&&SKINS.byId[SKIN_FALLBACK]){return applySkin(SKIN_FALLBACK,{save:false})}
@@ -84,6 +118,7 @@ async function applySkin(id,opts){
     SKINS.current=SKIN_FALLBACK;
     return;
   }
+  await loadSheet(skinTokenHref(meta),'nova-skin-tokens');
   const okCss=await loadSheet(meta.css?(skinBase(meta.id)+'/'+meta.css):'', 'nova-skin-css');
   if(!okCss && meta.id!==SKIN_FALLBACK && meta.id!=='default'){
     SKINS.failed++;
@@ -93,7 +128,7 @@ async function applySkin(id,opts){
   SKINS.current=meta.id;
   SKINS.logo=meta.logo?skinBase(meta.id)+'/'+meta.logo:'';
   try{await loadSkinIcons(meta)}catch(e){SKINS.icons={}}
-  if(save){
+  if(save||migrated){
     persistSkin(meta.id);
     if(MODE==='account'&&SESSION&&typeof api==='function'){
       api('POST','/api/me/prefs',{skin:meta.id}).catch(()=>{});
@@ -124,12 +159,20 @@ function skinRow(){
   const picks=list.map(s=>{
     const on=s.id===cur;
     const prev=s.preview?(skinBase(s.id)+'/'+s.preview):'';
-    const img=prev?`<img src="${esc(prev)}" alt="" style="height:36px;width:auto;border-radius:8px;display:block">`:'';
+    const img=prev?`<img src="${esc(prev)}" alt="" onerror="this.remove()" style="height:36px;width:auto;border-radius:8px;display:block">`:'';
     return `<button type="button" class="pb sm${on?'':' s'}" data-a="setskin" data-v="${esc(s.id)}" aria-pressed="${on?'true':'false'}" style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;height:auto;padding:8px 12px">${img}<span>${esc(s.name||s.id)}</span></button>`;
   }).join('');
   return `<div class="shd">按键皮肤</div><p class="hint" style="padding:8px 16px 0">换一套按键和主题色彩。加载失败时会回到可用的皮肤。</p><div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px">${picks}</div>`;
 }
-function setskin(id){return applySkin(id)}
+function setskin(id){
+  const meta=SKINS.byId[canonSkin(id)];
+  const mode=meta&&(meta.defaultMode||meta.default_mode);
+  if(meta&&(mode==='light'||mode==='dark')&&D&&D.st){
+    D.st.theme=mode;
+    if(typeof applyResolvedTheme==='function')applyResolvedTheme();
+  }
+  return applySkin(id);
+}
 
 async function bootSkins(){
   try{
@@ -151,12 +194,15 @@ async function bootSkins(){
     }
     SKINS.list=loaded;
     SKINS.ready=true;
+    migrateStoredSkin();
     let pick='';
-    if(SESSION&&SESSION.user&&SESSION.user.skin)pick=SESSION.user.skin;
+    const serverSkin=SESSION&&SESSION.user&&SESSION.user.skin;
+    if(serverSkin)pick=canonSkin(serverSkin);
     if(!pick)pick=rememberedSkin();
     if(!pick||!SKINS.byId[pick])pick=defaultId;
     if(!SKINS.byId[pick])pick=loaded[0]&&loaded[0].id;
-    await applySkin(pick||SKIN_FALLBACK,{save:false});
+    const raw=serverSkin&&canonSkin(serverSkin)!==String(serverSkin).trim()?serverSkin:(pick||SKIN_FALLBACK);
+    await applySkin(raw,{save:false});
   }catch(e){
     SKINS.ready=true;
     document.documentElement.dataset.skin=SKIN_FALLBACK;

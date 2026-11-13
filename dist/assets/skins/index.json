@@ -20,6 +20,16 @@
       "id": "glass",
       "name": "液态玻璃",
       "path": "glass"
+    },
+    {
+      "id": "social-blue",
+      "name": "社交蓝",
+      "path": "social-blue"
+    },
+    {
+      "id": "pulse",
+      "name": "脉冲",
+      "path": "pulse"
     }
   ]
 }
