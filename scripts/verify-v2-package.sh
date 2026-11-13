@@ -45,7 +45,8 @@ if [ "$KIND" = "ipa" ]; then
     exit 1
   fi
   if [ "$APP" = "user" ]; then
-    grep -R -F -q "0.7.0-m7.r6" "$WEB" || { echo "ERROR: user version not in IPA" >&2; exit 1; }
+    VER="${USER_VERSION:?USER_VERSION is required}"
+    grep -R -F -q "$VER" "$WEB" || { echo "ERROR: user version $VER not in IPA" >&2; exit 1; }
   fi
   echo "IPA_VERIFY_OK $FILE"
 elif [ "$KIND" = "apk" ]; then
@@ -77,7 +78,8 @@ elif [ "$KIND" = "apk" ]; then
     exit 1
   fi
   if [ "$APP" = "user" ]; then
-    grep -R -F -q "0.7.0-m7.r6" "$WEB" || { echo "ERROR: user version not in APK" >&2; exit 1; }
+    VER="${USER_VERSION:?USER_VERSION is required}"
+    grep -R -F -q "$VER" "$WEB" || { echo "ERROR: user version $VER not in APK" >&2; exit 1; }
   fi
   echo "APK_VERIFY_OK $FILE"
 else

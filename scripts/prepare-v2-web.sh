@@ -60,15 +60,16 @@ if [ "$APP" = "user" ]; then
     --update-manifest-url="$USER_UPDATE_URL"
 
   test -f dist/index.html
+  VER="$(node -p "require('./package.json').version")"
   grep -F -q "$USER_UPDATE_URL" dist/index.html || {
     echo "ERROR: user manifest URL not present in dist/index.html" >&2
     exit 1
   }
-  grep -F -q "0.7.0-m7.r6" dist/index.html || {
-    echo "ERROR: user version 0.7.0-m7.r6 not present in dist/index.html" >&2
+  grep -F -q "$VER" dist/index.html || {
+    echo "ERROR: user version $VER not present in dist/index.html" >&2
     exit 1
   }
-  echo "USER_WEB_OK $(wc -c < dist/index.html) bytes"
+  echo "USER_WEB_OK $(wc -c < dist/index.html) bytes version=$VER"
 else
   export VITE_NOVA_UPDATE_URL="$ADMIN_UPDATE_URL"
   echo "==> npm run build:spa (VITE_NOVA_UPDATE_URL set)"
