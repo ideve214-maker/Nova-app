@@ -21,6 +21,9 @@ test('parseBuildOpts 读取 --api-base / --disable-demo 与环境变量', () => 
   assert.equal(parseBuildOpts(['--disable-demo', 'true'], {}).disableDemo, true);
   assert.equal(parseBuildOpts([], {NOVA_API_BASE: 'https://x.test/', NOVA_DISABLE_DEMO: '1'}).apiBase, 'https://x.test');
   assert.equal(parseBuildOpts([], {NOVA_DISABLE_DEMO: 'true'}).disableDemo, true);
+  assert.equal(parseBuildOpts([], {}).updateManifestUrl, '');
+  assert.equal(parseBuildOpts(['--update-manifest-url=https://example.com/u.json'], {}).updateManifestUrl, 'https://example.com/u.json');
+  assert.equal(parseBuildOpts([], {NOVA_UPDATE_MANIFEST_URL: 'https://cdn.example/updates.json'}).updateManifestUrl, 'https://cdn.example/updates.json');
 });
 
 test('build 注入 window.NOVA_API_BASE 与 NOVA_DISABLE_DEMO；默认构建不注入', () => {
@@ -56,3 +59,18 @@ test('src/ 里所有 fetch 到 /api/ 都经过 apiUrl，不直接写死路径', 
   const act = readFileSync(join(srcDir, '70_actions.js'), 'utf8');
   assert.match(act, /fetch\(apiUrl\('\/api\/media'\)/);
 });
+
+test('默认构建注入 NOVA_APP_VERSION，不注入热更新清单地址', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nova-build-'));
+  const b = build({destDir: dir});
+  assert.match(b.html, /window\.NOVA_APP_VERSION = window\.NOVA_APP_VERSION \|\| "0\.7\.0-m7\.r6"/);
+  assert.doesNotMatch(b.html, /window\.NOVA_UPDATE_MANIFEST_URL = window\.NOVA_UPDATE_MANIFEST_URL/);
+  assert.ok(readdirSync(dir).includes('index.html'));
+});
+
+test('构建可注入 NOVA_UPDATE_MANIFEST_URL', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nova-build-'));
+  const a = build({updateManifestUrl: 'https://example.com/nova/updates.json', destDir: dir});
+  assert.match(a.html, /window\.NOVA_UPDATE_MANIFEST_URL = window\.NOVA_UPDATE_MANIFEST_URL \|\| "https:\/\/example\.com\/nova\/updates\.json"/);
+});
+
