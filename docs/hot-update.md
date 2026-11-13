@@ -19,7 +19,7 @@
 - `updateUrl` / `statsUrl` / `channelUrl`: 一律 `""`
 - `appReadyTimeout`: `10000`（10 秒内未调用 `notifyAppReady()` 则自动回滚）
 - `autoDeleteFailed`: `true`
-- `version`: 与 `package.json` 一致（目前 `0.7.0-m7.r6`），作为内置包版本
+- `version`: 与 `package.json` 一致（目前 `0.7.0-m7.r7`），作为内置包版本
 
 ## 清单格式
 
@@ -27,13 +27,13 @@
 
 ```json
 {
-  "version": "0.7.0-m7.r6",
-  "url": "https://example.com/nova/bundles/nova-0.7.0-m7.r6.zip",
+  "version": "0.7.0-m7.r7",
+  "url": "https://example.com/nova/bundles/nova-0.7.0-m7.r7.zip",
   "checksum": "64 位小写十六进制 SHA-256（整个 zip 文件）"
 }
 ```
 
-- `version`：建议与 `package.json` 相同的 SemVer（可带预发布号，如 `0.7.0-m7.r6`）。只有**严格新于**当前正在运行的包版本时才会下载。
+- `version`：建议与 `package.json` 相同的 SemVer（可带预发布号，如 `0.7.0-m7.r7`）。只有**严格新于**当前正在运行的包版本时才会下载。
 - `url`：zip 的下载地址。真机请使用 HTTPS。由 Dift 提供，不要写死在仓库里。
 - `checksum`：可选但强烈建议。传给 `CapacitorUpdater.download()`，校验失败则丢弃该包，不切换版本。
 - 若清单含 `error` 字段，客户端会忽略这次更新。
