@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { mediaUrl } from "@/lib/admin/media";
-import { avatarLetter, isHexColor, resolveAvatar } from "@/lib/admin/avatar";
+import { avatarLetter, hasAvatarFailed, isHexColor, markAvatarFailed, normalizeImagePath, resolveAvatar } from "@/lib/admin/avatar";
 import { useAdmin } from "@/lib/admin/store";
 import { getStoredSkin, getStoredTheme, subscribeAppearance, type SkinId, type ThemeMode } from "@/lib/admin/theme";
 import { skinIconSvg, skinMarkUrl, type SkinIconName } from "@/theme/marks";
@@ -154,15 +154,19 @@ export function Avatar({
   letter?: string;
 }) {
   const resolved = resolveAvatar(src);
-  const url = resolved.url;
+  const path = resolved.url ? normalizeImagePath(resolved.url) : "";
+  const url = path ? mediaUrl(path) || path : "";
   const [brokenUrl, setBrokenUrl] = useState("");
-  if (url && brokenUrl !== url) {
+  if (url && brokenUrl !== url && !hasAvatarFailed(url)) {
     return (
       <img
-        src={mediaUrl(url) || url}
+        src={url}
         alt=""
         data-nova-soft-fail="avatar"
-        onError={() => setBrokenUrl(url)}
+        onError={() => {
+          markAvatarFailed(url);
+          setBrokenUrl(url);
+        }}
         className={cn("rounded-full object-cover", className)}
       />
     );

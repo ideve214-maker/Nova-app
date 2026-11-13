@@ -19,18 +19,52 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/** 字面或编码后的 "[object Object]"（例如 %5Bobject%20Object%5D）。 */
+function looksLikeObjectString(s: string): boolean {
+  return /\[object/i.test(s) || /%5Bobject/i.test(s) || /\[object/i.test(safeDecode(s));
+}
+
+const RELATIVE_IMAGE = /^[^\s/:?#.][^\s:?#]*\.(?:jpe?g|png|gif|webp|heic|avif)(?:\?[^\s#]*)?$/i;
+
 /** 字符串是否像一个可加载的图片地址。 */
 export function isImageUrl(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const s = v.trim();
   if (!s || s.length > 1_000_000) return false;
-  if (/\[object\s/i.test(s)) return false;
+  if (looksLikeObjectString(s)) return false;
   if (/^https?:\/\/[^\s]+$/i.test(s)) return true;
   if (/^data:image\/[a-z0-9.+-]+[;,]/i.test(s)) return true;
   if (/^(?:blob|capacitor|file):/i.test(s)) return true;
   // 站内路径：/media/a.jpg、./media/a.jpg、../a.png；排除协议相对的 "//"
   if (/^\.{0,2}\/(?!\/)\S*$/.test(s)) return true;
+  // 不带 / 的相对路径：media/a.jpg、uploads/x.png?v=2（需以常见图片扩展名结尾、不含空格和冒号）
+  if (RELATIVE_IMAGE.test(s)) return true;
   return false;
+}
+
+/** 不带 / 的相对图片路径补成站内路径（media/a.jpg → /media/a.jpg），其余原样返回。 */
+export function normalizeImagePath(url: string): string {
+  const s = url.trim();
+  return RELATIVE_IMAGE.test(s) ? `/${s}` : s;
+}
+
+/** 本次打开应用期间加载失败过的头像地址：不再重试，直接显示默认头像。 */
+const failedAvatarUrls = new Set<string>();
+
+export function markAvatarFailed(url: string): void {
+  if (url) failedAvatarUrls.add(url);
+}
+
+export function hasAvatarFailed(url: string): boolean {
+  return !!url && failedAvatarUrls.has(url);
 }
 
 export function isHexColor(v: unknown): v is string {
