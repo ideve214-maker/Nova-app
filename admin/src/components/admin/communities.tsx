@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAdmin } from "@/lib/admin/store";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import { EmptyState, PendingApi, Pill, Screen } from "./ui";
 
 export function CommunitiesScreen() {
@@ -30,7 +31,7 @@ export function CommunitiesScreen() {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="text-[15px] font-semibold">{c.name}</div>
+                <div className="text-[15px] font-semibold">{sanitizeText(c.name)}</div>
                 {c.description ? <p className="mt-0.5 text-[13px] text-muted">{c.description}</p> : null}
                 <p className="mt-1 text-[12px] text-muted">{c.createdAt}</p>
               </div>
@@ -71,7 +72,7 @@ export function CommunityDetailScreen() {
   }
 
   return (
-    <Screen title={c.name} onBack={() => go("communities")}>
+    <Screen title={sanitizeText(c.name)} onBack={() => go("communities")}>
       <div className="bg-surface px-4 py-3">
         <p className="text-[13px] text-muted">{c.description || "没有简介"}</p>
         <p className="mt-1 text-[13px]">
@@ -95,7 +96,7 @@ export function CommunityDetailScreen() {
             }}
           >
             <span>
-              <span className="text-[15px] font-medium">{ch.name}</span>
+              <span className="text-[15px] font-medium">{sanitizeText(ch.name)}</span>
               <span className="ml-2 text-[12px] text-muted">{ch.kind === "announce" || ch.kind === "公告" ? "公告" : "文字"}{ch.isDefault ? " · 默认" : ""}</span>
             </span>
             <span className="text-[12px] text-muted">{ch.messageCount} 条消息</span>
@@ -133,7 +134,7 @@ export function ChannelMessagesScreen() {
   }, [channelId]); // eslint-disable-line
 
   return (
-    <Screen title={info?.name || "频道消息"} onBack={() => (communityId ? go("community", communityId) : back())}>
+    <Screen title={sanitizeText(info?.name) || "频道消息"} onBack={() => (communityId ? go("community", communityId) : back())}>
       <p className="px-4 pt-2 text-[12px] text-muted">{info ? `${messages.length} 条消息` : ""}</p>
       <div className="space-y-2 p-4">
         {messages.length === 0 && <EmptyState title="这个频道还没有消息" />}
@@ -145,7 +146,7 @@ export function ChannelMessagesScreen() {
               </button>
               <span className="text-[11px] text-muted">{m.time}</span>
             </div>
-            <p className="mt-1 text-[15px] leading-5">{m.text}</p>
+            <p className="mt-1 text-[15px] leading-5">{sanitizeText(m.text)}</p>
           </article>
         ))}
       </div>

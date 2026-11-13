@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { isDirectMediaUrl, scanStatusLabel, type MappedMedia } from "@/lib/admin/backend";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import { joinUrl, loadConfig, resolveBase } from "@/lib/admin/backend";
 import { useAdmin } from "@/lib/admin/store";
 import { Pill, Sheet } from "./ui";
@@ -64,7 +65,7 @@ export function AdminMediaThumb({
   const src = direct || blobUrl;
   const label = media.kind === "video" ? "视频" : media.kind === "audio" ? "音频" : media.kind || "媒体";
   const body = src ? (
-    <img src={src} alt={media.name || ""} className={className} />
+    <img src={src} alt={sanitizeText(media.name)} className={className} />
   ) : (
     <div className={`grid place-items-center bg-subtle text-[10px] text-muted ${className}`}>{failed ? label : "…"}</div>
   );
@@ -85,7 +86,7 @@ export function MediaScanMeta({ media }: { media: MappedMedia }) {
     <div className="mt-1 space-y-0.5">
       {media.scanStatus && <Pill tone={media.scanStatus === "review" ? "warn" : media.scanStatus === "blocked" ? "danger" : "muted"}>{scanStatusLabel(media.scanStatus)}</Pill>}
       {media.score != null && <p className="text-[12px] text-muted">分数 {media.score}</p>}
-      {media.scanDetail && <p className="text-[12px] leading-5 text-muted">{media.scanDetail}</p>}
+      {media.scanDetail && <p className="text-[12px] leading-5 text-muted">{sanitizeText(media.scanDetail)}</p>}
     </div>
   );
 }
@@ -98,7 +99,7 @@ export function MediaViewerSheet({
   onClose: () => void;
 }) {
   return (
-    <Sheet open={!!media} title={media?.name || "查看图片"} onClose={onClose}>
+    <Sheet open={!!media} title={sanitizeText(media?.name) || "查看图片"} onClose={onClose}>
       {media && (
         <div>
           <AdminMediaThumb media={media} full className="max-h-[70vh] w-full rounded-xl object-contain bg-subtle" />

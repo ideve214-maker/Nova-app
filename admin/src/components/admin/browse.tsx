@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import { formatBytes, formatUptime, readHealthView } from "@/lib/admin/backend";
 import { hapticLight } from "@/lib/admin/native";
 import { getStoredTheme, setSkin, setTheme, SKIN_DEFAULT_MODE, SKINS, type SkinId, type ThemeMode } from "@/lib/admin/theme";
@@ -203,7 +204,7 @@ export function HomeScreen() {
               <h3 className="min-w-0 truncate text-[14px] font-medium">{item.kind || "事件"}</h3>
               {item.severity ? <Pill tone={severityTone(item.severity)}>{item.severity}</Pill> : null}
             </div>
-            <p className="truncate text-[12px] text-muted">{item.path || item.detail || "无路径"}</p>
+            <p className="truncate text-[12px] text-muted">{sanitizeText(item.path || item.detail) || "无路径"}</p>
             <p className="text-[11px] text-muted">{item.time}{item.ip ? ` · ${item.ip}` : ""}</p>
           </article>
         ))}
@@ -432,8 +433,8 @@ export function MessagesScreen() {
         <article key={item.id} className="flex gap-3 border-b border-line bg-surface px-4 py-2.5">
           <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" style={{ opacity: item.read ? 0 : 1 }} />
           <div className="min-w-0">
-            <h2 className="text-[15px] font-medium">{item.title}</h2>
-            <p className="text-[13px] text-muted">{item.body}</p>
+            <h2 className="text-[15px] font-medium">{sanitizeText(item.title)}</h2>
+            <p className="text-[13px] text-muted">{sanitizeText(item.body)}</p>
             <p className="mt-0.5 text-[11px] text-muted">{item.time}</p>
           </div>
         </article>

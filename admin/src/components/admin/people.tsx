@@ -9,6 +9,7 @@ import {
   vipPhase,
   type Member,
 } from "@/lib/admin/store";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import { Avatar, DemoBanner, Field, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 
 type UserTab = "all" | "active" | "banned" | "vip";
@@ -111,10 +112,10 @@ export function UsersScreen() {
                     {selected ? "✓" : ""}
                   </span>
                 )}
-                <Avatar src={member.avatar} name={member.name} className="size-9" />
+                <Avatar src={member.avatar} name={sanitizeText(member.name)} className="size-9" />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="truncate text-[15px] font-medium">{member.name}</span>
+                    <span className="truncate text-[15px] font-medium">{sanitizeText(member.name)}</span>
                     {isVip(member, entitlements) && <Pill tone="vip">VIP</Pill>}
                   </span>
                   <span className="block text-[13px] text-muted">ID: {member.id}</span>
@@ -216,9 +217,9 @@ export function UserScreen() {
       }
     >
       <div className="bg-surface px-4 pb-4 pt-5 text-center">
-        <Avatar src={member.avatar} name={member.name} className="mx-auto size-20" />
+        <Avatar src={member.avatar} name={sanitizeText(member.name)} className="mx-auto size-20" />
         <div className="mt-3 flex items-center justify-center gap-2">
-          <h2 className="text-xl font-semibold">{member.name}</h2>
+          <h2 className="text-xl font-semibold">{sanitizeText(member.name)}</h2>
           {isVip(member, entitlements) && <Pill tone="vip">VIP</Pill>}
         </div>
         <p className="text-sm text-muted">ID: {member.id} · 注册于 {member.joinedAt.slice(0, 10)}</p>
@@ -235,7 +236,7 @@ export function UserScreen() {
       />
       {tab === "info" && (
         <div className="mt-2 bg-surface">
-          <Info label="用户名" value={member.name} />
+          <Info label="用户名" value={sanitizeText(member.name)} />
           <Info
             label="邮箱"
             value={revealed ? member.email : maskEmail(member.email)}
@@ -245,7 +246,7 @@ export function UserScreen() {
           <Info label="状态" value={member.status === "banned" ? "封禁" : member.presence === "online" ? "正常（在线）" : "正常"} />
           <Info label="VIP 到期" value={phase === "none" ? "未开通" : `${fmtUntil(member.vipUntil)}${phase === "expired" ? " · 已过期" : phase === "soon" ? ` · 剩 ${left} 天` : ""}`} />
           <Info label="违规记录" value={`${member.violations} 次`} />
-          <Info label="简介" value={member.bio || "未填写"} />
+          <Info label="简介" value={sanitizeText(member.bio) || "未填写"} />
           <Info label="最后登录" value={member.lastLogin} />
           <div className="grid grid-cols-2 gap-2 px-4 py-3">
             <button type="button" className="h-11 rounded-full bg-subtle font-semibold text-muted" disabled>
@@ -346,7 +347,7 @@ export function UserScreen() {
         </PrimaryButton>
       </Sheet>
       <Sheet open={notice} title="站内通知" onClose={() => setNotice(false)}>
-        <Field label={`发给 ${member.name}`}>
+        <Field label={`发给 ${sanitizeText(member.name)}`}>
           <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 outline-none" value={note} onChange={(e) => setNote(e.target.value)} placeholder="通知内容" />
         </Field>
         {formError && <p className="mb-2 text-sm text-danger">{formError}</p>}

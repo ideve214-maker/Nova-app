@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAdmin } from "@/lib/admin/store";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import type { MappedAppeal, MappedSecurityEvent } from "@/lib/admin/backend";
 import { EmptyState, Field, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 
@@ -66,7 +67,7 @@ function EventRow({ item }: { item: MappedSecurityEvent }) {
         {item.ip ? ` · IP ${item.ip}` : ""}
         {item.actorId ? ` · ${item.actorId}` : ""}
       </p>
-      {item.detail ? <p className="mt-0.5 break-all text-[11px] text-muted">{item.detail}</p> : null}
+      {item.detail ? <p className="mt-0.5 break-all text-[11px] text-muted">{sanitizeText(item.detail)}</p> : null}
     </li>
   );
 }
@@ -158,7 +159,7 @@ export function AppealsScreen() {
                     {appealStatusLabel[item.status] || item.status}
                   </Pill>
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-[13px] text-muted">{item.body}</p>
+                <p className="mt-0.5 line-clamp-2 text-[13px] text-muted">{sanitizeText(item.body)}</p>
                 <p className="text-[11px] text-muted">
                   {item.createdAt}
                   {item.userId ? ` · 用户 ${item.userId}` : ""}
@@ -172,7 +173,7 @@ export function AppealsScreen() {
         {current && (
           <>
             <p className="text-[15px] font-medium">{appealKindLabel[current.kind] || current.kind}</p>
-            <p className="mt-1 whitespace-pre-wrap text-[14px]">{current.body}</p>
+            <p className="mt-1 whitespace-pre-wrap text-[14px]">{sanitizeText(current.body)}</p>
             <p className="mt-1 text-[12px] text-muted">
               用户 {current.userId || "—"} · {current.createdAt}
               {current.related ? ` · 关联 ${current.related}` : ""}

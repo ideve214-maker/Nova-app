@@ -3,6 +3,7 @@ import { useAdmin, type PostItem, type ReportItem } from "@/lib/admin/store";
 import { type MappedMedia } from "@/lib/admin/backend";
 import { DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { hapticLight } from "@/lib/admin/native";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import { AdminMediaThumb, MediaScanMeta, MediaStrip, MediaViewerSheet } from "./media-view";
 
 export function ContentScreen() {
@@ -92,7 +93,7 @@ export function ContentScreen() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-[15px] font-medium">{post.title || post.excerpt || (post.media?.length ? `媒体 ×${post.media.length}` : "")}</h2>
+                    <h2 className="text-[15px] font-medium">{sanitizeText(post.title || post.excerpt) || (post.media?.length ? `媒体 ×${post.media.length}` : "")}</h2>
                     <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                       {post.kind === "post" && post.audienceLabel && <Pill tone="muted">{post.audienceLabel}</Pill>}
                       <Status status={post.status} />
@@ -102,13 +103,13 @@ export function ContentScreen() {
                     @{name} · {post.time}
                   </button>
                   {post.kind === "comment" && post.replyToName && (
-                    <p className="mt-1 text-[12px] text-muted">回复 @{post.replyToName}{post.replyToText ? `：${post.replyToText}` : ""}</p>
+                    <p className="mt-1 text-[12px] text-muted">回复 @{sanitizeText(post.replyToName)}{post.replyToText ? `：${sanitizeText(post.replyToText)}` : ""}</p>
                   )}
                   {(post.mood || post.location) && (
                     <p className="mt-1 text-[12px] text-muted">{[post.mood, post.location].filter(Boolean).join(" · ")}</p>
                   )}
                   {post.excerpt ? (
-                    <p className="mt-1 text-[13px] text-muted">{post.excerpt}</p>
+                    <p className="mt-1 text-[13px] text-muted">{sanitizeText(post.excerpt)}</p>
                   ) : post.media && post.media.length > 0 ? (
                     <p className="mt-1 text-[13px] text-muted">{post.media.length} 个媒体</p>
                   ) : null}
@@ -142,7 +143,7 @@ export function ContentScreen() {
                       查看楼层{post.depth ? ` · ${post.depth} 层` : ""}{post.replyCount ? ` · ${post.replyCount} 条回复` : ""}
                     </button>
                   )}
-                  {post.adminReason && <p className="mt-1 text-[12px] text-warn">删除原因：{post.adminReason}</p>}
+                  {post.adminReason && <p className="mt-1 text-[12px] text-warn">删除原因：{sanitizeText(post.adminReason)}</p>}
                 </div>
               </div>
               {post.status === "removed" ? (
@@ -178,7 +179,7 @@ export function ContentScreen() {
       <Sheet open={!!target} title="删除内容" onClose={() => setReasonFor(null)}>
         {target && (
           <>
-            <p className="mb-2 text-[15px]">{target.title || target.excerpt}</p>
+            <p className="mb-2 text-[15px]">{sanitizeText(target.title || target.excerpt)}</p>
             <p className="mb-3 text-[13px] text-muted">删除后用户端不再展示。原因选填。</p>
             <textarea
               className="mb-3 min-h-20 w-full rounded-2xl border border-line bg-subtle px-3 py-2 text-[16px] outline-none"
@@ -235,7 +236,7 @@ function MediaReviewList({
             <AdminMediaThumb media={item} className="size-16 rounded-xl object-cover" onOpen={onOpen} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
-                <h2 className="text-[15px] font-medium">{item.name || item.id || "图像"}</h2>
+                <h2 className="text-[15px] font-medium">{sanitizeText(item.name) || item.id || "图像"}</h2>
               </div>
               <MediaScanMeta media={item} />
               <button type="button" className="mt-2 text-[13px] font-medium text-primary" onClick={() => onOpen(item)}>
@@ -266,11 +267,11 @@ function ThreadView({ rootId, currentId, comments }: { rootId: string; currentId
           style={{ marginLeft: Math.min(c.depth || 0, 4) * 12 }}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[13px] font-semibold">{c.authorName || "未知"}{c.id === currentId ? "（当前）" : ""}</span>
+            <span className="text-[13px] font-semibold">{sanitizeText(c.authorName) || "未知"}{c.id === currentId ? "（当前）" : ""}</span>
             <span className="text-[11px] text-muted">{c.time}</span>
           </div>
-          {c.replyToName && <p className="text-[11px] text-muted">回复 @{c.replyToName}</p>}
-          <p className="mt-0.5 text-[14px]">{c.excerpt}</p>
+          {c.replyToName && <p className="text-[11px] text-muted">回复 @{sanitizeText(c.replyToName)}</p>}
+          <p className="mt-0.5 text-[14px]">{sanitizeText(c.excerpt)}</p>
           {c.replyCount ? <p className="text-[11px] text-muted">{c.replyCount} 条回复</p> : null}
         </div>
       ))}
@@ -334,18 +335,18 @@ export function ReportsScreen() {
           <article key={item.id} className="rounded-card bg-surface p-3 shadow-card">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-[15px] font-medium">{item.title}</h2>
-                <p className="mt-1 text-sm text-muted">举报人：{item.reporter}</p>
-                <p className="text-sm text-muted">{reportTargetText(item, communities.find((c) => c.id === item.targetId)?.name)}</p>
+                <h2 className="text-[15px] font-medium">{sanitizeText(item.title)}</h2>
+                <p className="mt-1 text-sm text-muted">举报人：{sanitizeText(item.reporter)}</p>
+                <p className="text-sm text-muted">{sanitizeText(reportTargetText(item, communities.find((c) => c.id === item.targetId)?.name))}</p>
                 {item.targetType === "community" && item.targetId && (
                   <button type="button" className="mt-0.5 text-[13px] font-medium text-primary" onClick={() => go("community", item.targetId)}>
                     查看社区
                   </button>
                 )}
-                <p className="text-sm">理由：{item.reason}</p>
+                <p className="text-sm">理由：{sanitizeText(item.reason)}</p>
                 {item.media && item.media.length > 0 && <MediaStrip items={item.media} onOpen={setViewer} />}
                 <p className="mt-1 text-xs text-muted">{item.time}</p>
-                {item.resolution && <p className="mt-2 text-sm text-ok">结论：{item.resolution}</p>}
+                {item.resolution && <p className="mt-2 text-sm text-ok">结论：{sanitizeText(item.resolution)}</p>}
               </div>
             </div>
             {item.status === "open" && (
@@ -364,8 +365,8 @@ export function ReportsScreen() {
       <Sheet open={!!active && active.status === "open"} title="处理举报" onClose={() => setCurrent(null)}>
         {active && (
           <>
-            <p className="mb-1 font-semibold">{active.title}</p>
-            <p className="mb-3 text-sm text-muted">{reportTargetText(active, communities.find((c) => c.id === active.targetId)?.name)} · {active.reason}</p>
+            <p className="mb-1 font-semibold">{sanitizeText(active.title)}</p>
+            <p className="mb-3 text-sm text-muted">{sanitizeText(reportTargetText(active, communities.find((c) => c.id === active.targetId)?.name))} · {sanitizeText(active.reason)}</p>
             <div className="mb-4 space-y-2">
               {resolutions.map((item) => (
                 <button
@@ -393,8 +394,8 @@ export function ReportsScreen() {
       <Sheet open={!!active && active.status === "done"} title="处理记录" onClose={() => setCurrent(null)}>
         {active && (
           <>
-            <p className="font-semibold">{active.title}</p>
-            <p className="mt-2 text-sm text-muted">{active.resolution}</p>
+            <p className="font-semibold">{sanitizeText(active.title)}</p>
+            <p className="mt-2 text-sm text-muted">{sanitizeText(active.resolution)}</p>
             {active.media && active.media.length > 0 && <MediaStrip items={active.media} onOpen={setViewer} />}
           </>
         )}

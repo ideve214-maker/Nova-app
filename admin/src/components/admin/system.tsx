@@ -8,6 +8,7 @@ import {
   vipPhase,
   type Flags,
 } from "@/lib/admin/store";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import { DataHint, DemoBanner, EmptyState, Field, inputClass, PendingApi, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
 import { ServerPanel } from "./server-panel";
 
@@ -560,12 +561,12 @@ export function AnnounceScreen() {
       {announcements.map((item) => (
         <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="font-semibold">{item.title}</h2>
+            <h2 className="font-semibold">{sanitizeText(item.title)}</h2>
             <Pill tone={item.status === "published" ? "ok" : "muted"}>
               {item.status === "published" ? "已发布" : "已撤回"}
             </Pill>
           </div>
-          <p className="mt-1 text-sm text-muted">{item.body}</p>
+          <p className="mt-1 text-sm text-muted">{sanitizeText(item.body)}</p>
           <p className="mt-1 text-xs text-muted">{item.time}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button

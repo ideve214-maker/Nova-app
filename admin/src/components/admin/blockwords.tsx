@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAdmin } from "@/lib/admin/store";
+import { sanitizeText } from "@/lib/admin/sanitize";
 import { EmptyState, Field, inputClass, PrimaryButton, Screen, Sheet } from "./ui";
 
 export function BlockwordsScreen() {
@@ -45,8 +46,8 @@ export function BlockwordsScreen() {
         {list.map((item) => (
           <li key={item.id} className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
             <div className="min-w-0">
-              <div className="text-[15px] font-medium">{item.word}</div>
-              {item.note ? <p className="text-[13px] text-muted">{item.note}</p> : null}
+              <div className="text-[15px] font-medium">{sanitizeText(item.word)}</div>
+              {item.note ? <p className="text-[13px] text-muted">{sanitizeText(item.note)}</p> : null}
               <p className="text-[11px] text-muted">{item.createdAt}</p>
             </div>
             <button
