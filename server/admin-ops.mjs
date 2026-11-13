@@ -336,27 +336,58 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     const rows = db.prepare('SELECT * FROM announcements ORDER BY created_at DESC LIMIT ?').all(limit);
     return {announcements: rows.map(pubAnn)};
   }
+  // r7：同一时间只允许一条公告发布中；发布（含新建默认发布）时把其他发布中的下线，返回被下线的 ID。
+  function withdrawOthers(keepId, at) {
+    const rows = db.prepare('SELECT id FROM announcements WHERE published=1 AND id<>?').all(keepId);
+    if (rows.length) db.prepare('UPDATE announcements SET published=0, updated_at=? WHERE published=1 AND id<>?').run(at, keepId);
+    return rows.map(r => r.id);
+  }
   function addAnnouncement(admin, body = {}, ip = null) {
     const title = String(body.title || '').trim();
     const text = String(body.body || body.content || '').trim();
     if (!title) throw new ApiError(400, 'BAD_TITLE', '请填写公告标题');
     if (!text) throw new ApiError(400, 'BAD_BODY', '请填写公告内容');
     const at = nowFn();
-    const r = db.prepare('INSERT INTO announcements(title,body,created_at,published,author_admin_id) VALUES(?,?,?,?,?)')
-      .run(title.slice(0, 120), text.slice(0, 8000), at, body.published === false ? 0 : 1, admin.id);
-    if (audit) audit(admin.id, 'admin.announcement.create', 'announcement:' + r.lastInsertRowid, ip, {title, adminUsername: admin.username});
-    return listAnnouncements();
+    // 不传 published 时默认发布（兼容旧版管理端）；新版管理端显式传 published:false 存草稿。
+    const pub = body.published === false ? 0 : 1;
+    const r = db.prepare('INSERT INTO announcements(title,body,created_at,published,published_at,author_admin_id) VALUES(?,?,?,?,?,?)')
+      .run(title.slice(0, 120), text.slice(0, 8000), at, pub, pub ? at : null, admin.id);
+    const id = Number(r.lastInsertRowid);
+    const withdrawnIds = pub ? withdrawOthers(id, at) : [];
+    if (audit) audit(admin.id, 'admin.announcement.create', 'announcement:' + id, ip, {title, published: !!pub, withdrawnIds, adminUsername: admin.username});
+    return {...listAnnouncements(), announcement: pubAnn(db.prepare('SELECT * FROM announcements WHERE id=?').get(id)), withdrawnIds};
+  }
+  function annVersion(r) {
+    const t = Math.max(Number(r.published_at) || 0, Number(r.updated_at) || 0, Number(r.created_at) || 0);
+    return r.id + '-' + t;
   }
   function pubAnn(r) {
+    const status = r.published ? 'published' : (r.published_at ? 'withdrawn' : 'draft');
     return {
       id: r.id, title: r.title, body: r.body, published: !!r.published,
+      status,
       createdAt: r.created_at,
       createdAtUtc: r.created_at != null ? new Date(r.created_at).toISOString() : null,
       updatedAt: r.updated_at || null,
       updatedAtUtc: r.updated_at ? new Date(r.updated_at).toISOString() : null,
+      publishedAt: r.published_at || null,
+      publishedAtUtc: r.published_at ? new Date(r.published_at).toISOString() : null,
       authorAdminId: r.author_admin_id,
-      withdrawn: !r.published,
+      withdrawn: status === 'withdrawn',
+      version: annVersion(r),
     };
+  }
+  // 用户端：当前发布中的公告（只给用户需要的字段）
+  function currentAnnouncement() {
+    const r = db.prepare('SELECT * FROM announcements WHERE published=1 ORDER BY published_at DESC, id DESC LIMIT 1').get();
+    if (!r) return {announcement: null};
+    return {announcement: {
+      id: r.id, title: r.title, body: r.body,
+      publishedAt: r.published_at || r.created_at,
+      publishedAtUtc: new Date(r.published_at || r.created_at).toISOString(),
+      updatedAt: r.updated_at || null,
+      version: annVersion(r),
+    }};
   }
   function removeAnnouncement(admin, id, ip = null) {
     const row = db.prepare('SELECT * FROM announcements WHERE id=?').get(asInt(id));
@@ -372,12 +403,32 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     const text = body.body != null || body.content != null ? String(body.body || body.content).trim() : row.body;
     if (!title) throw new ApiError(400, 'BAD_TITLE', '请填写公告标题');
     if (!text) throw new ApiError(400, 'BAD_BODY', '请填写公告内容');
-    let published = row.published;
-    if (body.published != null) published = body.published ? 1 : 0;
-    db.prepare('UPDATE announcements SET title=?, body=?, published=?, updated_at=? WHERE id=?')
-      .run(title.slice(0, 120), text.slice(0, 8000), published, nowFn(), row.id);
-    if (audit) audit(admin.id, 'admin.announcement.edit', 'announcement:' + row.id, ip, {title, published: !!published, adminUsername: admin.username});
-    return {announcement: pubAnn(db.prepare('SELECT * FROM announcements WHERE id=?').get(row.id))};
+    const t = title.slice(0, 120), x = text.slice(0, 8000);
+    const at = nowFn();
+    // 只有标题或内容真的变了才更新 updated_at（version 跟着变，用户会再看到一次弹窗）
+    const changed = t !== row.title || x !== row.body;
+    let published = row.published, publishedAt = row.published_at;
+    let withdrawnIds = [];
+    if (body.published != null) {
+      const want = body.published ? 1 : 0;
+      if (want && !row.published) publishedAt = at;
+      published = want;
+    }
+    db.prepare('UPDATE announcements SET title=?, body=?, published=?, published_at=?, updated_at=? WHERE id=?')
+      .run(t, x, published, publishedAt, changed || published !== row.published ? at : row.updated_at, row.id);
+    if (published && !row.published) withdrawnIds = withdrawOthers(row.id, at);
+    if (audit) audit(admin.id, 'admin.announcement.edit', 'announcement:' + row.id, ip, {title, published: !!published, changed, withdrawnIds, adminUsername: admin.username});
+    return {announcement: pubAnn(db.prepare('SELECT * FROM announcements WHERE id=?').get(row.id)), withdrawnIds};
+  }
+  function publishAnnouncement(admin, id, ip = null) {
+    const row = db.prepare('SELECT * FROM announcements WHERE id=?').get(asInt(id));
+    if (!row) throw new ApiError(404, 'NOT_FOUND', '公告不存在');
+    if (row.published) return {announcement: pubAnn(row), already: true, withdrawnIds: []};
+    const at = nowFn();
+    db.prepare('UPDATE announcements SET published=1, published_at=?, updated_at=? WHERE id=?').run(at, at, row.id);
+    const withdrawnIds = withdrawOthers(row.id, at);
+    if (audit) audit(admin.id, 'admin.announcement.publish', 'announcement:' + row.id, ip, {withdrawnIds, adminUsername: admin.username});
+    return {announcement: pubAnn(db.prepare('SELECT * FROM announcements WHERE id=?').get(row.id)), already: false, withdrawnIds};
   }
   function withdrawAnnouncement(admin, id, ip = null) {
     const row = db.prepare('SELECT * FROM announcements WHERE id=?').get(asInt(id));
@@ -433,6 +484,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     listUsers, oneUser, ban, unban, resetPassword, grantVip, revokeVip,
     listContent, getContent, hideContent, restoreContent,
     stats, listAnnouncements, addAnnouncement, removeAnnouncement, editAnnouncement, withdrawAnnouncement,
+    publishAnnouncement, currentAnnouncement, pubPost,
     listCommunities, getCommunity, listChannelMessages, userRow,
   };
 }

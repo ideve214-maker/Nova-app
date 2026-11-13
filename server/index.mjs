@@ -33,6 +33,7 @@ import {createReports} from './reports.mjs';
 import {createE2ee, safetyNumber} from './e2ee.mjs';
 import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
+import {createFeatured} from './featured.mjs';
 import {
   clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
   sessionCookies, clearSessionCookies, newCsrf, createRateLimit, createSecurityEvents,
@@ -176,6 +177,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const payRoot = payDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/pay');
   const pay = createPay(db, {now, vip, audit, dataDir: payRoot, env: payEnv || process.env});
   const adminOps = createAdminOps(db, {now, vip, profile, pay, audit});
+  const featured = createFeatured(db, {now, posts, pubPost: adminOps.pubPost, audit});
   const secEvents = createSecurityEvents(db, {now});
   const alerts = createAlerts({webhook: alertWebhook, now, dataDir: dbPath && dbPath !== ':memory:' ? dbPath : '.'});
   const rate = rateMode === 'off' ? null : createRateLimit({now, mode: rateMode === 'strict' ? 'strict' : 'lenient', onEvent: ev => {
@@ -445,6 +447,15 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
       // feed=topic 由 posts.list 按话题/标签过滤，并套用受众权限。
       return posts.list(user, q);
+    },
+    // r7 热门话题：管理员挑选的帖子，按管理员设定的顺序；结构同 GET /api/posts。
+    'GET /api/hot-posts'(req) {
+      const {user} = auth(req);
+      return featured.forUser(user, req.query || {});
+    },
+    // r7 公告弹窗：当前发布中的公告，不需要登录；没有时 announcement:null。
+    'GET /api/announcements/current'() {
+      return adminOps.currentAnnouncement();
     },
     'GET /api/posts/:id'(req) {
       const {user} = auth(req);
@@ -1110,6 +1121,27 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {admin} = adminAuth(req);
       return adminOps.withdrawAnnouncement(admin, req.params.id, ip(req));
     },
+    'POST /api/admin/announcements/:id/publish'(req) {
+      const {admin} = adminAuth(req);
+      return adminOps.publishAnnouncement(admin, req.params.id, ip(req));
+    },
+    // r7 热门话题（管理端）：列表、加入、移出、整体排序；都返回完整 items。
+    'GET /api/admin/hot-posts'(req) {
+      adminAuth(req);
+      return featured.list();
+    },
+    'POST /api/admin/hot-posts'(req, b) {
+      const {admin} = adminAuth(req);
+      return featured.add(admin, b || {}, ip(req));
+    },
+    'POST /api/admin/hot-posts/order'(req, b) {
+      const {admin} = adminAuth(req);
+      return featured.order(admin, b || {}, ip(req));
+    },
+    'POST /api/admin/hot-posts/:postId/delete'(req) {
+      const {admin} = adminAuth(req);
+      return featured.remove(admin, req.params.postId, ip(req));
+    },
     'GET /api/admin/communities'(req) {
       const {admin} = adminAuth(req);
       return adminOps.listCommunities(req.query || {});
@@ -1673,7 +1705,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
