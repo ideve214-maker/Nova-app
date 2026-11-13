@@ -63,7 +63,7 @@ test('src/ 里所有 fetch 到 /api/ 都经过 apiUrl，不直接写死路径', 
 test('默认构建注入 NOVA_APP_VERSION，不注入热更新清单地址', () => {
   const dir = mkdtempSync(join(tmpdir(), 'nova-build-'));
   const b = build({destDir: dir});
-  assert.match(b.html, /window\.NOVA_APP_VERSION = window\.NOVA_APP_VERSION \|\| "0\.7\.0-m7\.r6"/);
+  assert.match(b.html, /window\.NOVA_APP_VERSION = window\.NOVA_APP_VERSION \|\| "0\.7\.0-m7\.r7"/);
   assert.doesNotMatch(b.html, /window\.NOVA_UPDATE_MANIFEST_URL = window\.NOVA_UPDATE_MANIFEST_URL/);
   assert.ok(readdirSync(dir).includes('index.html'));
 });

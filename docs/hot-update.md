@@ -19,7 +19,7 @@
 - `updateUrl` / `statsUrl` / `channelUrl`: 一律 `""`
 - `appReadyTimeout`: `10000`（10 秒内未调用 `notifyAppReady()` 则自动回滚）
 - `autoDeleteFailed`: `true`
-- `version`: 与 `package.json` 一致（目前 `0.7.0-m7.r6`），作为内置包版本
+- `version`: 与 `package.json` 一致（目前 `0.7.0-m7.r7`），作为内置包版本
 
 ## 清单格式
 
@@ -27,8 +27,8 @@
 
 ```json
 {
-  "version": "0.7.0-m7.r6",
-  "url": "https://example.com/nova/bundles/nova-0.7.0-m7.r6.zip",
+  "version": "0.7.0-m7.r7",
+  "url": "https://example.com/nova/bundles/nova-0.7.0-m7.r7.zip",
   "checksum": "64 位小写十六进制 SHA-256（整个 zip 文件）"
 }
 ```

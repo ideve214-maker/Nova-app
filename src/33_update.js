@@ -6,7 +6,7 @@ function builtinAppVersion(){
     const v=typeof window!=='undefined'?window.NOVA_APP_VERSION:'';
     if(v)return String(v);
   }catch(e){}
-  return '0.7.0-m7.r6';
+  return '0.7.0-m7.r7';
 }
 let RUNNING_VERSION=builtinAppVersion();
 function runningAppVersion(){return RUNNING_VERSION||builtinAppVersion()}
