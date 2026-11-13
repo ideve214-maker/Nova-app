@@ -33,7 +33,7 @@ function haptic(kind){
   }
   if(IOS)iosTick();
 }
-const FEEL={log:[],cap(){const N=window.NovaNative;if(N&&N.Capacitor&&N.Capacitor.isNativePlatform&&N.Capacitor.isNativePlatform())return '使用系统触觉';if(navigator.vibrate&&!IOS)return '此浏览器使用振动作为触觉';if(IOS)return 'iPhone 浏览器没有振动接口，已静默降级';return '此浏览器不支持振动，仍有音效'}};
+const FEEL={log:[],cap(){const N=window.NovaNative;if(N&&N.Capacitor&&N.Capacitor.isNativePlatform&&N.Capacitor.isNativePlatform())return '使用系统振动';if(navigator.vibrate&&!IOS)return '点按会振动';if(IOS)return '这台 iPhone 的浏览器不能振动，已自动关掉';return '这台设备不能振动，仍会播放提示音'}};
 function feel(kind){FEEL.log.push(kind);if(FEEL.log.length>60)FEEL.log.shift();beep(kind);haptic(kind)}
 window.__feel=FEEL;
 const KIND={send:['send','cs','cmsend','pub','saveedit','mkcm','mkg','grn2','sendm'],switch:['tab','go','back','user','post','cm','conv','chan','feed','cmseg','seg','mt'],
@@ -108,7 +108,8 @@ document.addEventListener('touchmove',e=>{
   if(!eb.lock){if(dx>8&&dx>Math.abs(dy)*1.5){eb.lock=1;
       const k=S.st.length>1?S.st[S.st.length-2]:null,tmp=document.createElement('div');tmp.innerHTML=viewHTML(k);const u=tmp.firstElementChild,r=eb.pg.getBoundingClientRect(),a=$('#app').getBoundingClientRect();
       u.classList.add('ghost');u.setAttribute('inert','');Object.assign(u.style,{left:(r.left-a.left)+'px',top:(r.top-a.top)+'px',width:r.width+'px',height:r.height+'px',zIndex:1});
-      $('#app').appendChild(u);eb.under=u;eb.pg.style.position='relative';eb.pg.style.zIndex=2}
+      $('#app').appendChild(u);const usc=u.querySelector('.sc');if(usc&&typeof scrollKey==='function'&&typeof peekScroll==='function')usc.scrollTop=peekScroll(scrollKey(k));
+      eb.under=u;eb.pg.style.position='relative';eb.pg.style.zIndex=2}
     else if(Math.abs(dy)>8){eb=null;return}else return}
   if(e.cancelable)e.preventDefault();eb.dx=Math.max(0,dx);const p=Math.min(1,eb.dx/eb.w);
   eb.pg.style.transform=T3(eb.dx+'px');eb.pg.style.boxShadow='-10px 0 24px rgba(0,0,0,.28)';
