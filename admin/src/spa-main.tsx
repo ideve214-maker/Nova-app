@@ -5,9 +5,11 @@ import { applyTheme, watchSystemTheme } from "./lib/admin/theme";
 import { useAdmin } from "./lib/admin/store";
 import { lockWebViewport } from "./lib/admin/native";
 import { initBugsink } from "./lib/admin/bugsink";
+import { initLiveUpdate } from "./lib/admin/live-update";
 import "./styles.css";
 
 lockWebViewport();
+void initLiveUpdate();
 applyTheme();
 watchSystemTheme();
 initBugsink();

@@ -212,3 +212,65 @@ npm run build:spa
 3. 普通 http(s) 网页的同源（本地 `preview:admin` 反代时有用）
 
 在 TestFlight 的 App 里，若 1 和 2 都为空，页面会提示未连接，请用户自己填写可访问的后端地址。
+
+## 8. 热更新（自托管，给 Dift / nginx）
+
+管理端用 `@capgo/capacitor-updater` **7.53.0**（MPL-2.0），**自托管模式**，不使用 Capgo 云。第 2 版整包重装之后，网页资源只走热更新。
+
+### 配置键
+
+| 键 | 作用 |
+| --- | --- |
+| `VITE_NOVA_UPDATE_URL`（或 `NOVA_UPDATE_URL`） | 自托管 manifest 地址。Dift 提供。**默认留空，热更新关闭。** 不要填 Capgo 云地址。 |
+| `VITE_NOVA_UPDATE_VERSION`（或 `NOVA_UPDATE_VERSION`） | 可选。写入 `plugins.CapacitorUpdater.version`（semver）。不填则用原生工程的版本号（iOS `CFBundleShortVersionString`）。 |
+| `VITE_NOVA_UPDATE_AUTO`（或 `NOVA_UPDATE_AUTO`） | 可选。有 URL 时默认开启（`atBackground`：前台检查、下载，下次进后台再切换）。设为 `off` / `0` / `false` 可只记下地址、不自动检查。 |
+| `capacitor.config.ts` → `plugins.CapacitorUpdater` | 原生侧生效（`npx cap sync ios` 时读入）。`updateUrl` / `autoUpdate` 由上面的环境变量填充；`statsUrl` 与 `channelUrl` 固定为空，关闭向 Capgo 的统计与频道请求；`appReadyTimeout` 为 10000 ms；`allowModifyUrl` 为 true，便于后续网页包覆盖地址。 |
+
+启动时（仅原生）会尽早调用 `notifyAppReady()`。若一次热更新加载后 10 秒内没能跑到这句，插件会**自动回滚**到上一版可用包（失败的包会按 `autoDeleteFailed` 删掉）。
+
+`.env.production` 里请把 `VITE_NOVA_UPDATE_URL` 留空，直到 Dift 给出地址。示例（不要把未确认的地址提交进仓库）：
+
+```bash
+# VITE_NOVA_UPDATE_URL=https://47.239.0.90/admin-updates/manifest.json
+# VITE_NOVA_UPDATE_VERSION=1.0.1
+```
+
+当前服务器是明文 HTTP。插件官方建议 manifest 与 zip 走 HTTPS；Android 可能拦截明文更新地址。iOS 已有对 `47.239.0.90` 的 ATS 例外，但仍建议证书就绪后改用 https。
+
+### Dift 需要提供的 manifest
+
+插件每次检查时会对 `updateUrl` 发 **POST**（不是 GET），body 里带 `app_id`、`version_name`、`platform` 等。服务端比较版本后，若需要更新，返回：
+
+```json
+{
+  "version": "1.0.1",
+  "url": "https://47.239.0.90/admin-updates/nova-admin-1.0.1.zip",
+  "checksum": "SHA256_OF_THE_ZIP"
+}
+```
+
+- `version` 必须是 semver，并且要**高于**当前已安装包的版本（`version_name`，首次为内置包或上面配置的 `VITE_NOVA_UPDATE_VERSION` / 原生版本）。
+- 不需要更新时，返回当前版本即可，**不要带 `url`**，插件就不会下载。
+- 出错时可返回 `{ "status": "error", "message": "…" }`，插件只打日志，不会切换版本。
+- `checksum` 为 zip 的 SHA-256（小写十六进制）。推荐用官方命令生成，格式与插件校验一致。
+
+nginx 需要能访问到 manifest 和 zip（例如根路径 `/admin-updates/`）。zip 要允许直接下载；若网页也会请求 manifest，再补 CORS。把文件放到例如 `/var/www/admin-updates/`，并确保 POST 到 `manifest.json` 能返回上面的 JSON（可以用小脚本按请求体里的 `version_name` 决定是否带 `url`，或先返回固定 JSON 做联调）。
+
+### 怎么从 dist-spa 打更新包
+
+`dist-spa` 是 Capacitor 的 `webDir`，热更新 zip 也从这里打。zip **根目录必须能看到 `index.html`**（不要把 `dist-spa` 再包一层文件夹，也不要把单文件 `NOVA_Admin.html` 当入口）。
+
+```bash
+cd admin
+# 需要的话先在 .env.production 填 VITE_NOVA_UPDATE_URL / VITE_NOVA_UPDATE_VERSION
+npm run build:spa
+
+# 推荐：官方 CLI，会打出兼容的 zip 并给出 checksum
+npx @capgo/cli bundle zip com.nova.admin --path dist-spa --json
+
+# 或手动打包，再算校验和：
+#   cd dist-spa && zip -r ../nova-admin-1.0.1.zip index.html spa.html assets
+#   shasum -a 256 ../nova-admin-1.0.1.zip
+```
+
+把 zip 和 manifest 放到 nginx 目录，把 manifest 里的 `version`、`url`、`checksum` 改成这一包的值。用户下次把 App 送到前台就会检查；下载完成后，按 `atBackground` 会在进入后台后再切换，下一次冷启动（或再回前台，视系统回收情况）加载新包。新包同样必须在启动时调用 `notifyAppReady()`，否则 10 秒后回滚。
