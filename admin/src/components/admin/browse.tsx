@@ -97,7 +97,7 @@ export function HomeScreen() {
           </button>
         </div>
       </header>
-      <div className="nova-scroll min-h-0 flex-1">
+      <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <DemoBanner />
 
       <div className="nova-hero mx-5 mt-3 rounded-card px-4 py-4">
@@ -361,7 +361,7 @@ export function ManageScreen() {
           <p className="text-[13px] leading-4 text-muted">按类别进入</p>
         </div>
       </header>
-      <div className="nova-scroll min-h-0 flex-1">
+      <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <DemoBanner />
       <div className="space-y-3 px-5 pb-3 pt-3">
         {groups.map((group) => (
@@ -426,7 +426,7 @@ export function MessagesScreen() {
           onChange={(id) => setTab(id as typeof tab)}
         />
       </div>
-      <div className="nova-scroll min-h-0 flex-1">
+      <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <DemoBanner />
       {list.length === 0 && <EmptyState title="没有消息" hint="管理端通知接口尚未提供，这里不会显示虚构消息。" />}
       {list.map((item) => (
@@ -467,7 +467,7 @@ export function MeScreen() {
           <h1 className="text-[17px] font-semibold">我的</h1>
         </div>
       </header>
-      <div className="nova-scroll min-h-0 flex-1">
+      <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <div className="mx-5 mt-3 flex items-center gap-3 rounded-card bg-surface p-3 shadow-card">
         <span className="grid size-11 place-items-center rounded-full bg-primary text-on-primary">
           <StarMark className="size-5" />

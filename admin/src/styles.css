@@ -416,3 +416,13 @@ textarea:focus {
     color: var(--warn);
   }
 }
+
+/* pulltorefreshjs: indicator lives inside .nova-scroll, never on body */
+.ptr--ptr {
+  box-shadow: none;
+  background: transparent;
+}
+.ptr--text,
+.ptr--icon {
+  color: var(--t2);
+}

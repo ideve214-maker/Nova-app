@@ -49,7 +49,7 @@ export function installScrollLock() {
     const t = event.touches[0];
     if (!t) return;
     const raw = event.target instanceof Element ? event.target : null;
-    if (raw && raw.closest(".pswp, .pswp--open")) return;
+    if (raw && raw.closest(".pswp, .pswp--open, .ptr--ptr, .ptr--box, [class*='ptr--']")) return;
     const dx = t.clientX - lastX;
     const dy = t.clientY - lastY;
     lastX = t.clientX;

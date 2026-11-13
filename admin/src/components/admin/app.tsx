@@ -3,6 +3,7 @@ import { installFieldScroll, installScrollLock } from "@/lib/admin/scroll-lock";
 import { hapticLight, lockNativeViewport, lockWebViewport, syncNativeChrome } from "@/lib/admin/native";
 import { getStoredSkin, resolvedTheme, subscribeAppearance } from "@/lib/admin/theme";
 import { hydrateAdmin, markAppBooted, useAdmin, type PageName } from "@/lib/admin/store";
+import { usePagePullToRefresh } from "@/lib/admin/pull-to-refresh";
 import { Frame, SkinIcon, StarMark, type SkinIconName } from "./ui";
 import { LoginScreen } from "./login";
 import { HomeScreen, ManageScreen, MeScreen, MessagesScreen } from "./browse";
@@ -42,6 +43,7 @@ export function AdminApp() {
   const tab = useAdmin((s) => s.tab);
   const unread = useAdmin((s) => s.notices.filter((item) => !item.read).length);
   const [stalled, setStalled] = useState(false);
+  usePagePullToRefresh(booted && authed, name);
 
   useEffect(() => {
     const unlock = installScrollLock();
