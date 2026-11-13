@@ -1,0 +1,28 @@
+{
+  "id": "social-blue",
+  "name": "社交蓝",
+  "version": "1.0.0",
+  "defaultMode": "light",
+  "preview": "preview/buttons.png",
+  "css": "skin.css",
+  "tokensCss": "tokens.css",
+  "logo": "logo/nova-lockup.svg",
+  "logoLight": "logo/nova-lockup-light.svg",
+  "logoMark": "logo/nova-mark.svg",
+  "icons": {
+    "home": "icons/home.svg",
+    "people": "icons/community.svg",
+    "community": "icons/community.svg",
+    "chat": "icons/chat.svg",
+    "person": "icons/profile.svg",
+    "profile": "icons/profile.svg",
+    "search": "icons/search.svg",
+    "bell": "icons/bell.svg",
+    "back": "icons/back.svg",
+    "plus": "icons/plus.svg",
+    "more": "icons/more.svg",
+    "send": "icons/send.svg",
+    "settings": "icons/settings.svg",
+    "vip": "icons/vip.svg"
+  }
+}

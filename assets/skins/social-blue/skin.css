@@ -1,0 +1,23 @@
+/* social-blue：色彩在 tokens.css。这里只补按键状态和描边图标。 */
+html[data-skin="social-blue"] .pb{
+  border-radius:var(--r-btn,14px);
+  background:var(--ac-grad,var(--ac));
+  color:var(--onac);
+  letter-spacing:var(--tracking-btn,.02em);
+  box-shadow:var(--sh-btn);
+  font-weight:700;
+}
+html[data-skin="social-blue"] .pb:hover{filter:brightness(1.05)}
+html[data-skin="social-blue"] .pb:active{transform:scale(.97);background:var(--ac-pressed,var(--ac));box-shadow:none}
+html[data-skin="social-blue"] .pb:disabled{opacity:.4;box-shadow:none;filter:none}
+html[data-skin="social-blue"] .pb.s{background:var(--s2);color:var(--tx);box-shadow:none;border:1px solid var(--ln)}
+html[data-skin="social-blue"] .pb.s:hover{background:var(--s3,var(--s2))}
+html[data-skin="social-blue"] .pb.d{background:var(--dg-grad,var(--dg));color:#fff;box-shadow:var(--sh-dg)}
+html[data-skin="social-blue"] .pb.off:disabled{opacity:1;background:var(--s2);color:var(--t2);border:1px dashed var(--t3);box-shadow:none}
+html[data-skin="social-blue"] .ib{border-radius:var(--r-sm,12px)}
+html[data-skin="social-blue"] .ib:hover{background:var(--ac-soft);color:var(--ac)}
+html[data-skin="social-blue"] nav svg,
+html[data-skin="social-blue"] .ib svg,
+html[data-skin="social-blue"] .bar svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+html[data-skin="social-blue"] nav button.on{color:var(--ac)}
+html[data-skin="social-blue"] .br-logo{height:22px;width:auto;display:block}
