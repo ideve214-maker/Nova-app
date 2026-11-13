@@ -15,6 +15,8 @@ xcodebuild -version
 echo "==> npm install"
 # sharp (capacitor-assets) may need its install script
 npm install --no-audit --no-fund
+CAP_VER="$(node -p "require('@capacitor/core/package.json').version")"
+npm install --no-audit --no-fund --save-dev "@capacitor/cli@${CAP_VER}" "@capacitor/ios@${CAP_VER}" "@capacitor/assets@3.0.5"
 
 echo "==> cap add ios"
 npx cap add ios

@@ -30,7 +30,9 @@ npm install --no-audit --no-fund
 
 CAP_VER="$(node -p "require('@capacitor/core/package.json').version")"
 echo "==> Capacitor core ${CAP_VER}; installing cli / ios / android / assets"
-npm install --no-audit --no-fund --no-save \
+# Save to package.json so a later "npm install" in the native build
+# scripts does not prune these (npm removes --no-save packages).
+npm install --no-audit --no-fund --save-dev \
   "@capacitor/cli@${CAP_VER}" \
   "@capacitor/ios@${CAP_VER}" \
   "@capacitor/android@${CAP_VER}" \

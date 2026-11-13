@@ -12,10 +12,10 @@ cd "$ROOT/$PROJ"
 echo "==> $(pwd)  ->  $OUT_APK"
 echo "==> node $(node -v)  npm $(npm -v)  java: $(java -version 2>&1 | head -1)"
 
-echo "==> npm install (+ @capacitor/android matching @capacitor/core)"
+echo "==> npm install (+ @capacitor/cli and @capacitor/android matching core)"
 npm install --no-audit --no-fund
 CAP_VER="$(node -p "require('@capacitor/core/package.json').version")"
-npm install --no-audit --no-fund --no-save "@capacitor/android@${CAP_VER}"
+npm install --no-audit --no-fund --save-dev "@capacitor/cli@${CAP_VER}" "@capacitor/android@${CAP_VER}" "@capacitor/assets@3.0.5"
 
 echo "==> cap add android"
 npx cap add android
