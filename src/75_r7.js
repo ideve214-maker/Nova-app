@@ -246,7 +246,7 @@ function pStoryNew(){
   const c=S.stc||(S.stc={media:null});
   const m=c.media;
   const prev=m?(m.kind==='video'?`<video src="${esc(m.url)}" muted playsinline autoplay loop></video>`:`<img src="${esc(m.url)}" alt="">`)+`<button class="x" data-a="stcrm" aria-label="移除">✕</button>`:`<div class="tx">${esc((S.d.stx||'').trim()||'写一句话，或选一张照片/一段视频')}</div>`;
-  return `<div class="pg stc-pg"><div class="top sub"><button class="ib tx" data-a="stcx">取消</button><h1>发日常</h1><button class="pb" data-a="stpub">发布</button></div><div class="sc"><div class="stc-prev" style="background:${m?'#000':ST_BG[0]}">${prev}</div><textarea class="fld cta" data-d="stx" data-max="200" rows="2" placeholder="${m?'加一句说明（可不填）':'写点什么…'}"></textarea><div class="stc-tools"><button class="pb s" data-a="stcpick">${typeof icLine==='function'?icLine('photo'):''} 选照片 / 视频</button></div><p class="stc-hint">日常只出现在首页顶部那一排，24 小时后自动消失；不会出现在帖子列表里，也不计入帖子数。</p></div></div>`;
+  return `<div class="pg stc-pg"><div class="top sub"><button class="ib tx" data-a="stcx">取消</button><h1>发日常</h1><button class="pb" data-a="stpub">发布</button></div><div class="sc"><div class="stc-prev" style="background:${m?'#000':ST_BG[0]}">${prev}</div><textarea class="fld cta" data-d="stx" data-max="200" rows="2" placeholder="${m?'加一句说明（可不填）':'写点什么…'}"></textarea><div class="stc-tools"><button class="pb s" data-a="stcpick">${typeof icLine==='function'?icLine('photo'):''} 选照片 / 视频</button></div><p class="stc-hint">🌐 公开，所有人可见。日常只出现在首页顶部那一排，24 小时后自动消失；不会出现在帖子列表里，也不计入帖子数。</p></div></div>`;
 }
 async function publishStory(){
   const c=S.stc||{},x=(S.d.stx||'').trim();
@@ -346,12 +346,17 @@ if(typeof IntersectionObserver!=='undefined'){
   if(typeof MutationObserver!=='undefined'&&document.getElementById('app')){let q=0;new MutationObserver(()=>{if(q)return;q=1;requestAnimationFrame(()=>{q=0;scan();homeSync()})}).observe(document.getElementById('app'),{childList:true,subtree:true})}
 }
 /* 帖子链接：有网页地址时用网页地址，否则用 App 链接 */
-function postLink(id){
-  let base='';
-  try{const b=typeof apiBase==='function'?apiBase():'';if(/^https?:\/\//i.test(b))base=b;
-    else if(/^https?:$/.test(location.protocol)&&!/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))base=location.origin+location.pathname.replace(/[^/]*$/,'')}catch(e){}
-  return base?base.replace(/\/+$/,'')+'/#/post/'+encodeURIComponent(id):'nova://post/'+encodeURIComponent(id);
+function postLinkBase(){
+  const strip=u=>String(u||'').trim().replace(/[#?].*$/,'').replace(/\/+$/,'');
+  try{
+    const cfg=typeof NOVA_CFG!=='undefined'?NOVA_CFG.postLinkBase:'';
+    if(/^https?:\/\//i.test(cfg||''))return strip(cfg);
+    if(/^https?:$/.test(location.protocol)&&!/^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname))return strip(location.origin+location.pathname.replace(/[^/]*$/,''));
+    const b=typeof apiBase==='function'?apiBase():'';if(/^https?:\/\//i.test(b))return strip(b);
+  }catch(e){}
+  return '';
 }
+function postLink(id){const base=postLinkBase();return base?base+'/#/post/'+encodeURIComponent(id):'nova://post/'+encodeURIComponent(id)}
 async function copyText(t){
   try{if(navigator.clipboard&&window.isSecureContext!==false){await navigator.clipboard.writeText(t);return true}}catch(e){}
   try{const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:-1000px;opacity:0;font-size:16px';document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,t.length);const ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}
@@ -445,3 +450,41 @@ async function annCheck(){
 }
 (function annBoot(){let n=0;const t=setInterval(()=>{n++;if(typeof NET!=='undefined'&&NET){clearInterval(t);setTimeout(annCheck,600)}else if(n>40)clearInterval(t)},250)})();
 document.addEventListener('visibilitychange',()=>{if(document.hidden){annHiddenAt=Date.now();return}if(annHiddenAt&&Date.now()-annHiddenAt>30*60*1000)annCheck();annHiddenAt=0});
+
+
+/* ---- r7 位置：用手机定位（用户点“使用当前位置”才申请权限）；
+   有 Capacitor Geolocation 插件时用插件，否则用 navigator.geolocation；
+   配了 NOVA_CFG.reverseGeocodeUrl 就换成地名，否则填坐标（保留 3 位小数，约 100 米）让用户自己改；
+   没权限或失败时，仍可选最近用过的位置或手动输入 ---- */
+function geoLabel(lat,lng){const f=(v,p,n)=>Math.abs(v).toFixed(3)+'°'+(v>=0?p:n);return f(lat,'N','S')+', '+f(lng,'E','W')}
+function geoErrMsg(e){const c=e&&e.code;
+  if(c===1||/denied|permission/i.test(String(e&&e.message||'')))return '没有定位权限。可以到系统设置里允许 NOVA 使用位置，或者直接在下面输入。';
+  if(c===3)return '定位超时了，可以再试一次，或者直接在下面输入。';
+  return '暂时获取不到位置，可以再试一次，或者直接在下面输入。'}
+async function geoGetPosition(){
+  const cap=typeof window!=='undefined'&&window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Geolocation;
+  if(cap&&typeof cap.getCurrentPosition==='function'){
+    try{if(cap.checkPermissions){const st=await cap.checkPermissions();if(st&&st.location!=='granted'&&cap.requestPermissions){const r=await cap.requestPermissions({permissions:['location']});if(r&&r.location==='denied')throw {code:1}}}}catch(e){if(e&&e.code===1)throw e}
+    const p=await cap.getCurrentPosition({enableHighAccuracy:false,timeout:10000,maximumAge:300000});return {lat:p.coords.latitude,lng:p.coords.longitude};
+  }
+  if(typeof navigator==='undefined'||!navigator.geolocation)throw {code:2,message:'unsupported'};
+  return await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),rej,{enableHighAccuracy:false,timeout:10000,maximumAge:300000}));
+}
+async function geoReverse(lat,lng){
+  const u=typeof NOVA_CFG!=='undefined'?NOVA_CFG.reverseGeocodeUrl:'';if(!u)return '';
+  try{const url=(typeof apiUrl==='function'&&u.startsWith('/')?apiUrl(u):u)+(u.includes('?')?'&':'?')+'lat='+encodeURIComponent(lat.toFixed(5))+'&lng='+encodeURIComponent(lng.toFixed(5));
+    const ctl=typeof AbortController!=='undefined'?new AbortController():null;const tm=ctl?setTimeout(()=>ctl.abort(),6000):0;
+    const r=await fetch(url,{headers:{Accept:'application/json',...(typeof SESSION!=='undefined'&&SESSION&&SESSION.token?{Authorization:'Bearer '+SESSION.token}:{})},signal:ctl?ctl.signal:undefined});clearTimeout(tm);
+    if(!r.ok)return '';const j=await r.json();return String((j&&(j.name||j.label||j.address))||'').trim().slice(0,80)}catch(e){return ''}
+}
+function geoRow(){const g=S.geo||{};
+  const btn=`<button class="pb s geob" data-a="geoloc"${g.st==='busy'?' disabled':''}>${g.st==='busy'?'正在定位…':'📍 使用当前位置'}</button>`;
+  const msg=g.st==='err'?`<p class="geom err">${esc(g.msg||'')}</p>`:g.st==='ok'&&g.coordsOnly?`<p class="geom">已填入坐标，可以改成地名后再点“确定”。</p>`:'';
+  return btn+msg}
+Object.assign(A,{
+  geoloc:async()=>{if(S.geo&&S.geo.st==='busy')return;S.geo={st:'busy'};if(typeof render==='function')render();
+    try{const {lat,lng}=await geoGetPosition();const name=await geoReverse(lat,lng);
+      S.d.locin=name||geoLabel(lat,lng);S.geo={st:'ok',coordsOnly:!name}}
+    catch(e){S.geo={st:'err',msg:geoErrMsg(e)}}
+    if(S.sh&&S.sh.t==='loc'&&typeof render==='function'){S._locKeep=1;render()}}
+});
