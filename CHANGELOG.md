@@ -17,6 +17,7 @@
 - 回到顶部（第 9 项）：滑过约 1.3 屏后右下角出现，点一下平滑回到顶部，回到顶部附近自动消失；位置在底部导航栏上方，留出安全区。
 - 热门话题（第 10 项）：“热门话题”栏先取管理员挑选的帖子（`GET /api/hot-posts`，按管理员顺序，卡片上显示“🔥 热门 N”）；一条都没挑或服务器还没有这个接口时，退回原来按话题标签的结果。服务器接口已在本分支实现，需部署。
 - 公告弹窗（第 11 项）：打开 App 时（以及在后台超过 30 分钟后回来时）取 `GET /api/announcements/current`，有没看过的公告就弹窗，点“知道了”后把 version 记在本机，同一条不再弹；改了内容或重新发布会再弹一次。服务器接口已在本分支实现，需部署。
+- r7 增量：位置面板加“使用当前位置”（手机定位，没权限时仍可手动输入；iOS/Android 需要发版加定位权限才能真正拿到位置）；日常发布页注明“公开，所有人可见”；“复制帖子链接”的网页地址改为配置项 `src/09_config.js` 的 `postLinkBase`，默认 `http://47.239.0.90`。
 - 服务器（需部署，不影响热更新）：新增 `server/featured.mjs`、迁移 `042_hot_posts.sql`、`043_announcement_publish.sql`；新增接口 `GET /api/hot-posts`、`GET /api/announcements/current`、`POST /api/admin/announcements/:id/publish`、`GET/POST /api/admin/hot-posts`、`POST /api/admin/hot-posts/:postId/delete`、`POST /api/admin/hot-posts/order`；公告改为同一时间只有一条发布中，返回新增 `status / publishedAt / version`。测试 `server/test/m7r7-featured.test.mjs`（未在本机运行，交 Cc）。
 
 ## V7 0.7.0-m7.r6 · 热更新（Capgo 自托管）与小游戏图标（2026-11-13）

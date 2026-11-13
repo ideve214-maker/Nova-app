@@ -40,7 +40,7 @@ r7 只改了用户端网页部分（`src/`、`dist/`），可以热更新。本�
   - 转帖：发一条带原帖链接的新帖子（“🔁 转帖 @作者：摘要 + 链接”），现在的服务器就能用；本机记住转过哪条，转帖数 = 服务器 `repostCount`（如果有）+ 自己转过算 1。
   - 阅读量：卡片露出一半以上并停留 0.8 秒，本机记一次；显示服务器 `viewCount`（如果有），否则只显示本机有没有看过（0/1）。
   - 收藏：沿用现有 `/api/me/saved`（kind=post），数字显示服务器 `bookmarkCount`（如果有），否则只算自己。
-  - 帖子链接：`<NOVA_API_BASE>/#/post/<id>`；在 App 内（没有网页地址）时是 `nova://post/<id>`。打开带 `#/post/<id>` 的地址会直接进帖子详情（用现有 `GET /api/posts/:id`）。
+  - 帖子链接：`<postLinkBase>/#/post/<id>`，`postLinkBase` 在 `src/09_config.js`，默认 `http://47.239.0.90`（有域名后只改这一处；也可用 `window.NOVA_POST_LINK_BASE` 覆盖）。打开带 `#/post/<id>` 的地址会直接进帖子详情（用现有 `GET /api/posts/:id`）。
 - 需要服务端：
   - `POST /api/posts/:id/view`（同一用户/设备去重，例如每人每帖 24 小时算一次），`pub()` 里返回 `viewCount`。
   - 转帖：`posts.repost_of` 字段或 `post_reposts(post_id,user_id)` 表，`POST /api/posts/:id/repost`、`POST /api/posts/:id/unrepost`，`pub()` 返回 `repostCount`、`myRepost`。
@@ -50,3 +50,15 @@ r7 只改了用户端网页部分（`src/`、`dist/`），可以热更新。本�
 ## 4. 不需要服务端的项
 
 防缩放、建群面板、小组页文案和按钮、小组三栏、心情、位置、标记好友、关注数位置、去掉“活动”、小游戏行、帖子媒体排版（第 6 项）、首页顶部收起（第 8 项）、回到顶部（第 9 项），这些都是纯前端改动。
+
+## 6. 位置用手机定位（r7 增量）
+
+- 前端：位置面板顶部加“📍 使用当前位置”，点了才申请权限。有 Capacitor Geolocation 插件就用插件，没有就用 `navigator.geolocation`。
+  - 拿到坐标后：如果配置了 `src/09_config.js` 里的 `reverseGeocodeUrl`，就换成地名；没配置就填坐标（保留 3 位小数，约 100 米），用户可以改成地名再确定。
+  - 没权限、超时或失败时给出提示，仍然可以选最近用过的位置或手动输入。
+  - 帖子里存的仍然是文字（`posts.location`），不存坐标。
+- **需要原生发版**（热更新做不了）：现在的壳没有申请定位权限。
+  - iOS：`ios/App/App/Info.plist` 加 `NSLocationWhenInUseUsageDescription`（例如“发帖时添加你所在的位置”）。没有这个键，WKWebView 里的定位会直接失败，前端会提示改为手动输入。
+  - Android：`AndroidManifest.xml` 加 `ACCESS_COARSE_LOCATION`（需要精确定位再加 `ACCESS_FINE_LOCATION`）。Capacitor 的 WebChromeClient 会在网页请求定位时弹出系统权限框；清单里没有声明就拿不到。
+  - 这两处要加在 build 分支的 `scripts/build-unsigned-ipa.sh`、`scripts/build-debug-apk.sh` 里（`cap add` 之后修改 plist 和 manifest），不在本分支。可选：安装 `@capacitor/geolocation` 插件（同样需要发版），前端已经兼容。
+- 地名（可选，服务器）：建议加 `GET /api/geo/reverse?lat=&lng=`（需要登录，服务器端调用高德、天地图等需要 key 的接口并缓存，返回 `{name:"上海市 黄浦区"}`），然后把 `reverseGeocodeUrl` 设为 `/api/geo/reverse`。浏览器端直接调第三方免 key 接口（如 OSM Nominatim）有使用条款和国内访问的问题，没有采用。
