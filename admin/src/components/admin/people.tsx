@@ -10,6 +10,7 @@ import {
   type Member,
 } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
+import { VirtualRows } from "./virtual-list";
 import { Avatar, DemoBanner, Field, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 
 type UserTab = "all" | "active" | "banned" | "vip";
@@ -91,11 +92,15 @@ export function UsersScreen() {
           <p className="px-4 py-10 text-center text-[15px] text-muted">没有符合条件的用户</p>
         )
       )}
-      <ul className="bg-surface">
-        {list.map((member) => {
+      <VirtualRows
+        items={list}
+        getKey={(member) => member.id}
+        estimateSize={64}
+        className="bg-surface"
+        render={(member) => {
           const selected = picked.includes(member.id);
           return (
-            <li key={member.id} className="border-t border-line">
+            <div className="border-t border-line">
               <button
                 type="button"
                 className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left"
@@ -122,10 +127,10 @@ export function UsersScreen() {
                 </span>
                 <Status member={member} />
               </button>
-            </li>
+            </div>
           );
-        })}
-      </ul>
+        }}
+      />
       {picking && picked.length > 0 && (
         <div className="px-4 py-3">
           <button

@@ -5,6 +5,7 @@ import { DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from 
 import { hapticLight } from "@/lib/admin/native";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { AdminMediaThumb, MediaScanMeta, MediaStrip, MediaViewerSheet } from "./media-view";
+import { VirtualRows } from "./virtual-list";
 
 export function ContentScreen() {
   const posts = useAdmin((s) => s.posts);
@@ -69,7 +70,7 @@ export function ContentScreen() {
           </button>
         ))}
       </div>}
-      <div className="space-y-3 p-4">
+      <div className="p-4">
         {kind === "review" ? (
           <MediaReviewList
             items={mediaReview}
@@ -78,11 +79,16 @@ export function ContentScreen() {
             onOpen={setViewer}
           />
         ) : list.length === 0 && (hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi name="内容列表（GET /api/admin/content）" />)}
-        {kind !== "review" && list.map((post) => {
+        {kind !== "review" && (
+          <VirtualRows
+            items={list}
+            getKey={(post) => post.kind + ":" + post.id}
+            estimateSize={200}
+            render={(post) => {
           const author = members.find((item) => item.id === post.authorId);
           const name = post.authorName || author?.name || "未知";
           return (
-            <article key={post.kind + ":" + post.id} className="rounded-card bg-surface p-2.5 shadow-card">
+            <article className="mb-3 rounded-card bg-surface p-2.5 shadow-card">
               <div className="flex gap-2.5">
                 {post.media && post.media[0] ? (
                   <AdminMediaThumb media={post.media[0]} className="size-16 rounded-xl object-cover" onOpen={setViewer} />
@@ -174,7 +180,9 @@ export function ContentScreen() {
               )}
             </article>
           );
-        })}
+            }}
+          />
+        )}
       </div>
       <Sheet open={!!target} title="删除内容" onClose={() => setReasonFor(null)}>
         {target && (
@@ -229,9 +237,12 @@ function MediaReviewList({
     return <PendingApi name="图像复核（GET /api/admin/media?scanStatus=review）" />;
   }
   return (
-    <>
-      {items.map((item) => (
-        <article key={item.id} className="rounded-card bg-surface p-2.5 shadow-card">
+    <VirtualRows
+      items={items}
+      getKey={(item) => item.id}
+      estimateSize={120}
+      render={(item) => (
+        <article className="mb-3 rounded-card bg-surface p-2.5 shadow-card">
           <div className="flex gap-2.5">
             <AdminMediaThumb media={item} className="size-16 rounded-xl object-cover" onOpen={onOpen} />
             <div className="min-w-0 flex-1">
@@ -245,8 +256,8 @@ function MediaReviewList({
             </div>
           </div>
         </article>
-      ))}
-    </>
+      )}
+    />
   );
 }
 
@@ -329,10 +340,14 @@ export function ReportsScreen() {
         ]}
         onChange={(id) => setTab(id as "open" | "done")}
       />
-      <div className="space-y-3 p-4">
+      <div className="p-4">
         {list.length === 0 && (hasReportApi ? <p className="py-10 text-center text-[15px] text-muted">没有{tab === "open" ? "待处理" : "已处理"}举报</p> : <PendingApi name="举报队列" />)}
-        {list.map((item) => (
-          <article key={item.id} className="rounded-card bg-surface p-3 shadow-card">
+        <VirtualRows
+          items={list}
+          getKey={(item) => item.id}
+          estimateSize={160}
+          render={(item) => (
+          <article className="mb-3 rounded-card bg-surface p-3 shadow-card">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-[15px] font-medium">{sanitizeText(item.title)}</h2>
@@ -360,7 +375,8 @@ export function ReportsScreen() {
               </div>
             )}
           </article>
-        ))}
+          )}
+        />
       </div>
       <Sheet open={!!active && active.status === "open"} title="处理举报" onClose={() => setCurrent(null)}>
         {active && (

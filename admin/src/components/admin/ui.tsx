@@ -91,7 +91,7 @@ export function Screen({
 }) {
   return (
     <section className="relative min-h-0 flex-1 overflow-hidden">
-      <div className="nova-scroll absolute inset-0">
+      <div className="nova-scroll absolute inset-0" data-nova-content-scroll>
         <div className="nova-top-spacer" aria-hidden />
         {children}
         {footer ? <div className="nova-footer-spacer" aria-hidden /> : <div className="pb-safe" aria-hidden />}
