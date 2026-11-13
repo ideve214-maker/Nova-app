@@ -526,6 +526,8 @@ export type MappedMember = {
   name: string;
   email: string;
   avatar: string;
+  avatarColor?: string;
+  avatarLetter?: string;
   status: "active" | "banned";
   presence: "online" | "away" | "offline";
   vipUntil: number | null;
@@ -540,6 +542,27 @@ export type MappedMember = {
   mustChangePw: boolean;
   username: string;
 };
+
+/**
+ * 用户端头像可能是图片地址字符串，也可能是对象：
+ * { kind: "color", color: "#RRGGBB", letter: "字" } 或 { kind: "image", url: "..." }。
+ * 只把真正的地址当图片，其余转成颜色加文字，避免出现 "[object Object]" 的图片请求。
+ */
+export function mapAvatar(v: unknown): { url: string; color: string; letter: string } {
+  const out = { url: "", color: "", letter: "" };
+  if (typeof v === "string") {
+    out.url = v.trim();
+    return out;
+  }
+  if (!isRecord(v)) return out;
+  const url = pick(v, "url", "src", "uri", "imageUrl", "image_url", "path");
+  if (typeof url === "string") out.url = url.trim();
+  const color = pick(v, "color", "bg", "background");
+  if (typeof color === "string" && /^#[0-9A-Fa-f]{3,8}$/.test(color.trim())) out.color = color.trim();
+  const letter = pick(v, "letter", "text", "char");
+  if (typeof letter === "string") out.letter = [...letter.trim()][0] || "";
+  return out;
+}
 
 export function mapRemoteUser(raw: unknown): MappedMember | null {
   if (!isRecord(raw)) return null;
@@ -562,7 +585,10 @@ export function mapRemoteUser(raw: unknown): MappedMember | null {
       id,
     ),
     email: asString(pick(raw, "email", "mail", "emailAddress")),
-    avatar: asString(pick(raw, "avatar", "avatarUrl", "avatar_url", "profile.avatar", "profile.avatarUrl", "photo")),
+    ...(() => {
+      const a = mapAvatar(pick(raw, "avatar", "avatarUrl", "avatar_url", "profile.avatar", "profile.avatarUrl", "photo"));
+      return { avatar: a.url, avatarColor: a.color, avatarLetter: a.letter };
+    })(),
     status: banned ? "banned" : "active",
     presence,
     vipUntil,

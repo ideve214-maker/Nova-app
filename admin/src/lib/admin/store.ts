@@ -74,6 +74,8 @@ export type Member = {
   name: string;
   email: string;
   avatar: string;
+  avatarColor?: string;
+  avatarLetter?: string;
   status: UserStatus;
   presence: Presence;
   vipUntil: number | null;

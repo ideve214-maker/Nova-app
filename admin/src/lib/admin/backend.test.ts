@@ -133,6 +133,15 @@ describe("mapRemoteUser", () => {
     assert.equal(u!.email, "a@b.com");
     assert.equal(u!.vipUntil, 1_800_000_000_000);
     assert.equal(u!.status, "active");
+    assert.equal(u!.avatar, "");
+  });
+  it("turns a color avatar object into color and letter, never an image url", () => {
+    const u = mapRemoteUser({ id: 2, username: "dev", profile: { avatar: { kind: "color", color: "#3A7BFF", letter: "开" } } });
+    assert.equal(u!.avatar, "");
+    assert.equal(u!.avatarColor, "#3A7BFF");
+    assert.equal(u!.avatarLetter, "开");
+    const v = mapRemoteUser({ id: 3, avatar: { kind: "image", url: "/media/a.jpg" } });
+    assert.equal(v!.avatar, "/media/a.jpg");
   });
   it("maps a future admin user with different field names", () => {
     const u = mapRemoteUser({

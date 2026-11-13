@@ -133,13 +133,42 @@ export function Seg({
   );
 }
 
-export function Avatar({ src, name, className }: { src?: string; name: string; className?: string }) {
-  if (src) {
-    return <img src={mediaUrl(src) || src} alt="" className={cn("rounded-full object-cover", className)} />;
+export function Avatar({
+  src,
+  name,
+  className,
+  color,
+  letter,
+}: {
+  src?: string;
+  name: string;
+  className?: string;
+  color?: string;
+  letter?: string;
+}) {
+  const [broken, setBroken] = useState(false);
+  const url = typeof src === "string" ? src.trim() : "";
+  if (url && !broken) {
+    return (
+      <img
+        src={mediaUrl(url) || url}
+        alt=""
+        onError={() => setBroken(true)}
+        className={cn("rounded-full object-cover", className)}
+      />
+    );
   }
+  const text = (letter && [...letter][0]) || [...(name || "")][0] || "";
   return (
-    <span className={cn("grid place-items-center rounded-full bg-primary text-[13px] font-semibold text-on-primary", className)}>
-      {name.slice(0, 1)}
+    <span
+      className={cn(
+        "grid place-items-center rounded-full text-[13px] font-semibold",
+        color ? "text-white" : "bg-primary text-on-primary",
+        className,
+      )}
+      style={color ? { backgroundColor: color } : undefined}
+    >
+      {text}
     </span>
   );
 }

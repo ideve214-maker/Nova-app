@@ -120,7 +120,7 @@ export function UsersScreen() {
                     {selected ? "✓" : ""}
                   </span>
                 )}
-                <Avatar src={member.avatar} name={sanitizeText(member.name)} className="size-9" />
+                <Avatar src={member.avatar} color={member.avatarColor} letter={member.avatarLetter} name={sanitizeText(member.name)} className="size-9" />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className="truncate text-[15px] font-medium">{sanitizeText(member.name)}</span>
@@ -225,7 +225,7 @@ export function UserScreen() {
       }
     >
       <div className="bg-surface px-4 pb-4 pt-5 text-center">
-        <Avatar src={member.avatar} name={sanitizeText(member.name)} className="mx-auto size-20" />
+        <Avatar src={member.avatar} color={member.avatarColor} letter={member.avatarLetter} name={sanitizeText(member.name)} className="mx-auto size-20" />
         <div className="mt-3 flex items-center justify-center gap-2">
           <h2 className="text-xl font-semibold">{sanitizeText(member.name)}</h2>
           {isVip(member, entitlements) && <Pill tone="vip">VIP</Pill>}
