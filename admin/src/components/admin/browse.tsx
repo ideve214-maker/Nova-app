@@ -85,7 +85,7 @@ export function HomeScreen() {
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="nova-sticky-bar nova-bar relative z-30 shrink-0 border-b border-line" data-nova-chrome="top">
-        <div className="flex h-11 items-center justify-between px-4">
+        <div className="flex h-11 items-center justify-between px-5">
           <div className="min-w-0">
             <p className="text-[11px] leading-none text-muted">NOVA</p>
             <h1 className="truncate text-[17px] font-semibold leading-tight">管理后台</h1>
@@ -100,7 +100,7 @@ export function HomeScreen() {
       <div className="nova-scroll min-h-0 flex-1">
       <DemoBanner />
 
-      <div className="nova-hero mx-4 mt-3 rounded-card px-3.5 py-3">
+      <div className="nova-hero mx-5 mt-3 rounded-card px-4 py-4">
         <div className="flex items-center justify-between text-[13px]">
           <span>平台概览</span>
           <ConnectionBadge />
@@ -113,7 +113,7 @@ export function HomeScreen() {
         </div>
       </div>
 
-      <div className="mx-4 mt-3 grid grid-cols-2 gap-2.5">
+      <div className="mx-5 mt-3 grid grid-cols-2 gap-3">
         <Shortcut label="用户管理" onClick={() => go("users")} icon={<Users className="size-6" />} />
         <Shortcut
           label="付款审核"
@@ -130,9 +130,9 @@ export function HomeScreen() {
         <Shortcut label="系统设置" onClick={() => go("settings")} icon={<Settings className="size-6" />} />
       </div>
 
-      <section className="mx-4 mt-4">
+      <section className="mx-5 mt-4">
         <h2 className="px-0.5 text-[15px] font-semibold">待办</h2>
-        <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="mt-2 overflow-hidden rounded-card bg-surface shadow-card">
           <Todo
             label="待审核付款"
             state={feeds.stats}
@@ -210,7 +210,7 @@ export function HomeScreen() {
         ))}
       </FeedList>
 
-      <section className="mx-4 mt-4 mb-2 overflow-hidden rounded-card bg-surface shadow-card">
+      <section className="mx-5 mt-4 mb-2 overflow-hidden rounded-card bg-surface shadow-card">
         <div className="flex items-center justify-between px-3.5 pt-3">
           <h2 className="text-[15px] font-semibold">服务器状态</h2>
           <ConnectionBadge />
@@ -270,7 +270,7 @@ function Shortcut({
   onClick: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} className="flex min-h-[76px] items-center gap-3 rounded-card bg-surface px-3.5 py-3 text-left shadow-card">
+    <button type="button" onClick={onClick} className="flex min-h-[88px] items-center gap-3 rounded-card bg-surface px-3.5 py-3.5 text-left shadow-card">
       <span className="relative grid size-12 shrink-0 place-items-center rounded-2xl nova-soft">
         {icon}
         {badge && (
@@ -299,9 +299,9 @@ function Todo({
 }) {
   const text = state === "ok" && value != null ? `${value.toLocaleString("zh-CN")}${truncated ? "+" : ""}` : "—";
   return (
-    <button type="button" onClick={onClick} className="rounded-card bg-surface px-2 py-3 text-center shadow-card">
-      <div className="text-[22px] font-semibold leading-none tabular-nums">{text}</div>
-      <div className="mt-1.5 text-[12px] leading-4 text-muted">{label}</div>
+    <button type="button" onClick={onClick} className="flex min-h-[52px] w-full items-center justify-between gap-3 border-b border-line px-3.5 py-3 text-left last:border-b-0">
+      <span className="text-[15px] leading-5">{label}</span>
+      <span className="text-[17px] font-semibold tabular-nums text-fg">{text}</span>
     </button>
   );
 }
@@ -323,7 +323,7 @@ function FeedList({
 }) {
   const hasRows = Array.isArray(children) ? children.length > 0 : !!children;
   return (
-    <section className="mx-4 mt-4 overflow-hidden rounded-card bg-surface shadow-card">
+    <section className="mx-5 mt-4 overflow-hidden rounded-card bg-surface shadow-card">
       <div className="flex items-center justify-between px-3.5 pt-3">
         <h2 className="text-[15px] font-semibold">{title}</h2>
         <button type="button" className="text-[13px] text-primary" onClick={onMore}>
@@ -356,14 +356,14 @@ export function ManageScreen() {
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="nova-sticky-bar nova-bar relative z-30 shrink-0 border-b border-line" data-nova-chrome="top">
-        <div className="px-4 py-2">
+        <div className="flex min-h-11 flex-col justify-center px-5 py-2.5">
           <h1 className="text-[17px] font-semibold leading-tight">管理</h1>
-          <p className="text-[12px] leading-4 text-muted">按类别进入</p>
+          <p className="text-[13px] leading-4 text-muted">按类别进入</p>
         </div>
       </header>
       <div className="nova-scroll min-h-0 flex-1">
       <DemoBanner />
-      <div className="space-y-3 px-4 pb-3 pt-3">
+      <div className="space-y-3 px-5 pb-3 pt-3">
         {groups.map((group) => (
           <section key={group.title}>
             <h2 className="mb-1.5 px-1 text-[13px] font-semibold text-muted">{group.title}</h2>
@@ -414,7 +414,7 @@ export function MessagesScreen() {
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="nova-sticky-bar nova-bar relative z-30 shrink-0 border-b border-line" data-nova-chrome="top">
-        <div className="flex h-11 items-center justify-between px-4">
+        <div className="flex h-11 items-center justify-between px-5">
           <h1 className="text-[17px] font-semibold">消息中心</h1>
           <button type="button" className="h-11 text-[13px] text-primary" onClick={() => markNotices(tab === "all" ? undefined : tab)}>
             全部已读
@@ -468,7 +468,7 @@ export function MeScreen() {
         </div>
       </header>
       <div className="nova-scroll min-h-0 flex-1">
-      <div className="mx-4 mt-3 flex items-center gap-3 rounded-card bg-surface p-3 shadow-card">
+      <div className="mx-5 mt-3 flex items-center gap-3 rounded-card bg-surface p-3 shadow-card">
         <span className="grid size-11 place-items-center rounded-full bg-primary text-on-primary">
           <StarMark className="size-5" />
         </span>
@@ -483,14 +483,14 @@ export function MeScreen() {
       <DataHint>
         已用服务器管理员账号登录，请求会带 na_ 令牌。口令由运营用 admin-cli 管理，这里不能改。401 会回到登录页。
       </DataHint>
-      <div className="mx-4 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
+      <div className="mx-5 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
         <RowLink icon={<CreditCard className="size-4" />} title="付款审核" desc="收款码人工核对" onClick={() => go("payments")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ShieldCheck className="size-4" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Flag className="size-4" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<KeyRound className="size-4" />} title="安全设置" desc="登录保护说明" onClick={() => go("security")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-4" />} title="审计日志" onClick={() => go("audit")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>
-      <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface px-3.5 py-3 shadow-card">
+      <div className="mx-5 mt-3 overflow-hidden rounded-card bg-surface px-3.5 py-3 shadow-card">
         <div className="text-[15px] font-medium">外观</div>
         <div className="mt-0.5 text-[13px] text-muted">皮肤和深浅色分开切换，两套皮肤都有深色和浅色。</div>
         <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-[14px] bg-subtle p-1">
@@ -530,7 +530,7 @@ export function MeScreen() {
       {detectedVersion && (
         <p className="mt-3 px-4 text-center text-[12px] text-muted">后端 {detectedVersion}</p>
       )}
-      <div className="mx-4 mt-3">
+      <div className="mx-5 mt-3">
         <button type="button" onClick={() => void logout()} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-[16px] font-semibold text-danger shadow-card">
           <LogOut className="size-4" />
           退出登录

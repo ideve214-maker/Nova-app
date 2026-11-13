@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { installFieldScroll, installScrollLock } from "@/lib/admin/scroll-lock";
-import { hapticLight, lockNativeViewport, syncNativeChrome } from "@/lib/admin/native";
+import { hapticLight, lockNativeViewport, lockWebViewport, syncNativeChrome } from "@/lib/admin/native";
 import { getStoredSkin, resolvedTheme, subscribeAppearance } from "@/lib/admin/theme";
 import { hydrateAdmin, markAppBooted, useAdmin, type PageName } from "@/lib/admin/store";
 import { Frame, SkinIcon, StarMark, type SkinIconName } from "./ui";
@@ -46,6 +46,7 @@ export function AdminApp() {
   useEffect(() => {
     const unlock = installScrollLock();
     const unfocus = installFieldScroll();
+    lockWebViewport();
     void lockNativeViewport();
     const unsubChrome = subscribeAppearance(() => {
       void syncNativeChrome(getStoredSkin(), resolvedTheme());

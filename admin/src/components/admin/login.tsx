@@ -45,8 +45,8 @@ export function LoginScreen() {
       style={{
         paddingTop: "max(12px, var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))",
         paddingBottom: "max(12px, var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))",
-        paddingLeft: "max(1.25rem, var(--nova-safe-left, 0px), env(safe-area-inset-left, 0px))",
-        paddingRight: "max(1.25rem, var(--nova-safe-right, 0px), env(safe-area-inset-right, 0px))",
+        paddingLeft: "max(1.5rem, var(--nova-safe-left, 0px), env(safe-area-inset-left, 0px))",
+        paddingRight: "max(1.5rem, var(--nova-safe-right, 0px), env(safe-area-inset-right, 0px))",
       }}
     >
       <div className="flex flex-1 flex-col items-center pt-4">

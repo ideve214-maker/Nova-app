@@ -4,6 +4,26 @@ import { Keyboard, KeyboardResize } from "@capacitor/keyboard";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { getStoredSkin, resolvedTheme, themeColor, type SkinId } from "./theme";
 
+
+/** Web / Safari viewport lock. Keeps the layout at device width and prevents
+ *  iOS from auto-zooming out when content is slightly taller or wider than
+ *  the visible window (the "fat / squashed webpage" look). */
+export const WEB_VIEWPORT =
+  "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover";
+
+export function lockWebViewport() {
+  if (typeof document === "undefined") return;
+  let meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "viewport");
+    document.head.appendChild(meta);
+  }
+  if (meta.getAttribute("content") !== WEB_VIEWPORT) {
+    meta.setAttribute("content", WEB_VIEWPORT);
+  }
+}
+
 /**
  * 键盘用 resize: none。native / body 会改 WebView 或 body 高度，顶栏和底栏会跟着整页上移。
  * setScroll(isDisabled) 让 WKWebView 的 scrollView 不能滚，并把 contentOffset 钉在 0。

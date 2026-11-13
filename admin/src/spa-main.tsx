@@ -2,8 +2,11 @@ import { Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { AdminApp } from "./components/admin/app";
 import { applyTheme, watchSystemTheme } from "./lib/admin/theme";
+import { useAdmin } from "./lib/admin/store";
+import { lockWebViewport } from "./lib/admin/native";
 import "./styles.css";
 
+lockWebViewport();
 applyTheme();
 watchSystemTheme();
 import m0 from "../public/media/av-chen.jpg";
@@ -80,3 +83,14 @@ createRoot(rootEl).render(
     <AdminApp />
   </FatalBoundary>,
 );
+
+
+// Local screenshot aid only: ?__shot__=1 on localhost exposes the store so
+// layout shots can open Home/Manage/list without a real login.
+if (typeof window !== "undefined") {
+  const host = window.location.hostname;
+  const local = host === "localhost" || host === "127.0.0.1";
+  if (local && /(?:^|[?&])__shot__=1(?:&|$)/.test(window.location.search)) {
+    (window as unknown as { __NOVA_ADMIN_STORE__?: typeof useAdmin }).__NOVA_ADMIN_STORE__ = useAdmin;
+  }
+}

@@ -43,7 +43,7 @@ export function SkinIcon({ name, className }: { name: SkinIconName; className?: 
 export function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="nova-frame bg-stage text-fg">
-      <div className="nova-frame-inner relative mx-auto flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-bg shadow-card">
+      <div className="nova-frame-inner relative mx-auto flex h-full w-full flex-col overflow-hidden bg-bg">
         {children}
       </div>
     </div>
@@ -257,7 +257,7 @@ export function RowLink({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2.5 border-b border-line bg-surface px-3.5 py-2.5 text-left last:border-b-0"
+      className="flex min-h-[52px] w-full items-center gap-2.5 border-b border-line bg-surface px-3.5 py-3 text-left last:border-b-0"
     >
       <span className="grid size-8 shrink-0 place-items-center rounded-xl nova-soft">{icon}</span>
       <span className="min-w-0 flex-1">

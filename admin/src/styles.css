@@ -40,9 +40,13 @@ html {
     position: fixed;
     inset: 0;
     width: 100%;
-    height: 100%;
-    height: 100dvh;
     max-width: 100%;
+    height: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
     overflow: hidden;
     overscroll-behavior: none;
@@ -95,9 +99,13 @@ html {
 }
 
 .nova-frame {
-  height: 100%;
-  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   max-width: 100%;
+  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
@@ -129,9 +137,22 @@ html {
 }
 
 .nova-frame-inner {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
   background:
     radial-gradient(90% 42% at 50% 0%, color-mix(in srgb, var(--ac) 18%, transparent), transparent 70%),
     var(--bg);
+}
+
+/* Phone-column mock only on desktop / large tablets. Phones fill the screen. */
+@media (min-width: 768px) {
+  .nova-frame-inner {
+    max-width: 430px;
+    box-shadow: var(--sh-sm);
+  }
 }
 
 @supports not (background: color-mix(in srgb, white 50%, red)) {
@@ -248,9 +269,17 @@ html[data-theme="light"] .nova-splash {
 }
 
 .nova-tabbar {
+  min-height: 49px;
   padding-bottom: max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
   padding-left: max(var(--nova-safe-left, 0px), env(safe-area-inset-left, 0px));
   padding-right: max(var(--nova-safe-right, 0px), env(safe-area-inset-right, 0px));
+}
+
+/* Keep chrome more opaque than a frosted webpage, so rows don't show through the tab bar. */
+.nova-tabbar.nova-bar,
+.nova-topbar.nova-bar,
+.nova-sticky-bar.nova-bar {
+  background: color-mix(in srgb, var(--sf) 94%, transparent);
 }
 
 .nova-tab-icon {
