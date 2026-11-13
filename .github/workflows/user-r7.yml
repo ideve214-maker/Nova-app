@@ -1,0 +1,149 @@
+name: Nova user package
+
+# 只打用户端安装包。不打管理端，也不在推送时自动运行。
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: nova-user-package-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  USER_REF: v7-m7.r7
+  USER_API_BASE: http://47.239.0.90
+  USER_UPDATE_URL: http://47.239.0.90/updates/user/manifest.json
+
+jobs:
+  ipa:
+    name: 用户端 IPA
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout pack scripts
+        uses: actions/checkout@v4
+
+      - name: Checkout user client
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.USER_REF }}
+          path: user
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Prepare web assets
+        run: |
+          chmod +x scripts/prepare-v2-web.sh scripts/build-unsigned-ipa.sh scripts/verify-v2-package.sh
+          ./scripts/prepare-v2-web.sh user user
+
+      - name: Build unsigned IPA
+        env:
+          IPA_BUILD_VERSION: '3'
+        run: |
+          mkdir -p dist
+          ./scripts/build-unsigned-ipa.sh user dist/Nova.ipa
+          ls -lh dist/Nova.ipa
+
+      - name: Verify IPA
+        run: |
+          export USER_VERSION="$(node -p "require('./user/package.json').version")"
+          ./scripts/verify-v2-package.sh ipa dist/Nova.ipa user "$USER_UPDATE_URL"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nova.ipa
+          path: dist/Nova.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  apk:
+    name: 用户端 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout pack scripts
+        uses: actions/checkout@v4
+
+      - name: Checkout user client
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.USER_REF }}
+          path: user
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare web assets
+        run: |
+          chmod +x scripts/prepare-v2-web.sh scripts/build-debug-apk.sh scripts/verify-v2-package.sh
+          ./scripts/prepare-v2-web.sh user user
+
+      - name: Build debug APK
+        run: |
+          mkdir -p dist
+          bash scripts/build-debug-apk.sh user dist/Nova.apk
+          ls -lh dist/Nova.apk
+
+      - name: Verify APK
+        run: |
+          export USER_VERSION="$(node -p "require('./user/package.json').version")"
+          ./scripts/verify-v2-package.sh apk dist/Nova.apk user "$USER_UPDATE_URL"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nova.apk
+          path: dist/Nova.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: 发布用户端安装包
+    needs: [ipa, apk]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Check user packages only
+        run: |
+          ls -lh artifacts
+          test -f artifacts/Nova.ipa
+          test -f artifacts/Nova.apk
+          test ! -f artifacts/NovaAdmin.ipa
+          test ! -f artifacts/NovaAdmin.apk
+          sha256sum artifacts/Nova.ipa artifacts/Nova.apk
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.7.0-m7.r7-build1
+          name: Nova 用户端
+          target_commitish: v7-m7.r7
+          files: |
+            artifacts/Nova.ipa
+            artifacts/Nova.apk
+          fail_on_unmatched_files: true
+          body: |
+            用户端 0.7.0-m7.r7。
+            安装包只有手机端：未签名的 iPhone 安装包，以及安卓测试包。
+            这一版修了新建群聊被键盘挡住，以及小组页按钮挤出屏幕。
+            日常发在首页顶上那一排，不进帖子列表。
