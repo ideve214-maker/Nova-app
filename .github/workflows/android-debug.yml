@@ -1,0 +1,70 @@
+name: Debug Android APKs
+
+# Never runs on branch pushes. Start it with a tag (apk-user-*, apk-admin-*,
+# apk-both-*) or manually once this file is on the default branch.
+# The admin APK is built only when explicitly selected.
+on:
+  push:
+    tags: ['apk-user-*', 'apk-admin-*', 'apk-both-*']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which APKs to build
+        type: choice
+        options: [user, admin, both]
+        default: user
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: APK (${{ matrix.apk }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: user
+            apk: Nova.apk
+          - dir: admin
+            apk: NovaAdmin.apk
+    steps:
+      - name: Skip if not selected
+        id: sel
+        run: |
+          t="${{ inputs.target }}"
+          if [ -z "$t" ]; then t="$(echo '${{ github.ref_name }}' | cut -d- -f2)"; fi
+          if [ "$t" = "both" ] || [ "$t" = "${{ matrix.dir }}" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Checkout
+        if: steps.sel.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: steps.sel.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java
+        if: steps.sel.outputs.run == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build debug APK
+        if: steps.sel.outputs.run == 'true'
+        run: bash scripts/build-debug-apk.sh "${{ matrix.dir }}" "dist/${{ matrix.apk }}"
+
+      - name: Upload APK
+        if: steps.sel.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.apk }}
+          path: dist/${{ matrix.apk }}
+          if-no-files-found: error
+          retention-days: 14
