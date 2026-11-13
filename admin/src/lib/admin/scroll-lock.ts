@@ -48,6 +48,8 @@ export function installScrollLock() {
   const onMove = (event: TouchEvent) => {
     const t = event.touches[0];
     if (!t) return;
+    const raw = event.target instanceof Element ? event.target : null;
+    if (raw && raw.closest(".pswp, .pswp--open")) return;
     const dx = t.clientX - lastX;
     const dy = t.clientY - lastY;
     lastX = t.clientX;
