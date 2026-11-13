@@ -8,6 +8,15 @@
   "plugins": {
     "Keyboard": {
       "resize": "none"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "appReadyTimeout": 10000,
+      "autoDeleteFailed": true,
+      "updateUrl": "",
+      "statsUrl": "",
+      "channelUrl": "",
+      "version": "0.7.0-m7.r6"
     }
   }
 }
