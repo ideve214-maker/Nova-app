@@ -1,23 +1,49 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { mediaUrl } from "@/lib/admin/media";
 import { useAdmin } from "@/lib/admin/store";
-import markUrl from "@/theme/nova-mark.svg?url";
+import { getStoredSkin, getStoredTheme, subscribeAppearance, type SkinId, type ThemeMode } from "@/lib/admin/theme";
+import { skinIconSvg, skinMarkUrl, type SkinIconName } from "@/theme/marks";
+
+export type { SkinIconName };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function useAppearance(): { skin: SkinId; theme: ThemeMode } {
+  const [skin, setSkin] = useState<SkinId>(() => (typeof window === "undefined" ? "social-blue" : getStoredSkin()));
+  const [theme, setThemeMode] = useState<ThemeMode>(() => (typeof window === "undefined" ? "system" : getStoredTheme()));
+  useEffect(() => subscribeAppearance(() => {
+    setSkin(getStoredSkin());
+    setThemeMode(getStoredTheme());
+  }), []);
+  return { skin, theme };
+}
+
 export function StarMark({ className }: { className?: string }) {
-  return <img src={markUrl} alt="" className={className} />;
+  const { skin } = useAppearance();
+  return <img src={skinMarkUrl(skin)} alt="" className={className} />;
+}
+
+export function SkinIcon({ name, className }: { name: SkinIconName; className?: string }) {
+  const { skin } = useAppearance();
+  return (
+    <span
+      aria-hidden
+      className={cn("inline-grid place-items-center text-current [&_svg]:h-full [&_svg]:w-full", className)}
+      dangerouslySetInnerHTML={{ __html: skinIconSvg(skin, name) }}
+    />
+  );
 }
 
 export function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="nova-frame bg-stage text-fg">
-      <div className="nova-frame nova-frame-inner relative mx-auto flex w-full max-w-[430px] flex-col overflow-x-hidden bg-bg shadow-card">
+      <div className="nova-frame-inner relative mx-auto flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-bg shadow-card">
         {children}
       </div>
     </div>
@@ -34,7 +60,7 @@ export function TopBar({
   right?: ReactNode;
 }) {
   return (
-    <header className="nova-topbar shrink-0 border-b border-line bg-surface">
+    <header className="nova-topbar nova-bar shrink-0 border-b border-line">
       <div className="flex h-11 items-center gap-0.5">
         {onBack ? (
           <button type="button" onClick={onBack} className="grid size-11 place-items-center rounded-full" aria-label="返回">
@@ -64,10 +90,16 @@ export function Screen({
   children: ReactNode;
 }) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-x-hidden">
-      <TopBar title={title} onBack={onBack} right={right} />
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</div>
-      {footer}
+    <section className="relative min-h-0 flex-1 overflow-hidden">
+      <div className="nova-scroll absolute inset-0">
+        <div className="nova-top-spacer" aria-hidden />
+        {children}
+        {footer ? <div className="nova-footer-spacer" aria-hidden /> : <div className="pb-safe" aria-hidden />}
+      </div>
+      <div className="absolute inset-x-0 top-0 z-30">
+        <TopBar title={title} onBack={onBack} right={right} />
+      </div>
+      {footer && <div className="nova-bar absolute inset-x-0 bottom-0 z-30 border-t border-line">{footer}</div>}
     </section>
   );
 }
@@ -144,14 +176,14 @@ export function Sheet({
   onClose: () => void;
   children: ReactNode;
 }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40" role="presentation" onClick={onClose}>
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none bg-ink/40" role="presentation" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="nova-sheet max-h-[85dvh] w-full max-w-[430px] overflow-y-auto rounded-t-2xl bg-surface pt-3 shadow-card"
+        className="nova-sheet max-h-[85dvh] w-full max-w-[430px] rounded-t-2xl bg-surface pt-3 shadow-card"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-2 flex items-center justify-between">
@@ -162,7 +194,8 @@ export function Sheet({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

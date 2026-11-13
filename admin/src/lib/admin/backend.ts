@@ -191,14 +191,33 @@ export function saveConfig(patch: Partial<ApiConfig>) {
   return next;
 }
 
+/** 打开即可用的默认后端。证书就绪后把构建配置里的 scheme 改成 https，用户不用重填。 */
+export const DEFAULT_API_HOST = "47.239.0.90";
+export const DEFAULT_API_SCHEME = "http";
+export const DEFAULT_API_BASE = `${DEFAULT_API_SCHEME}://${DEFAULT_API_HOST}`;
+
 /**
- * 打包时写入的默认接口根地址（VITE_NOVA_API_BASE）。未设置则为空字符串。
- * 优先级见 resolveBase：用户在「设置服务器」里保存的地址 > 此值 > 网页同源。
+ * 完整地址 VITE_NOVA_API_BASE 优先。
+ * 否则用 VITE_NOVA_API_SCHEME（http|https，默认 http）+ VITE_NOVA_API_HOST（默认 47.239.0.90）。
  */
+export function fallbackApiBase(envValue?: unknown, schemeValue?: unknown, hostValue?: unknown): string {
+  const full = typeof envValue === "string" ? envValue.trim().replace(/\/+$/, "") : "";
+  if (full) return full;
+  const scheme = schemeValue === "https" ? "https" : DEFAULT_API_SCHEME;
+  const host =
+    typeof hostValue === "string" && hostValue.trim()
+      ? hostValue.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "")
+      : DEFAULT_API_HOST;
+  return `${scheme}://${host}`;
+}
+
 export function builtInApiBase(): string {
-  // Must be a static `import.meta.env.VITE_*` access so Vite inlines the value at build time.
-  const v = import.meta.env.VITE_NOVA_API_BASE;
-  return typeof v === "string" ? v.trim().replace(/\/+$/, "") : "";
+  // Static `import.meta.env.VITE_*` accesses so Vite inlines them.
+  return fallbackApiBase(
+    import.meta.env.VITE_NOVA_API_BASE,
+    import.meta.env.VITE_NOVA_API_SCHEME,
+    import.meta.env.VITE_NOVA_API_HOST,
+  );
 }
 
 export function isNativeShell(): boolean {
@@ -211,8 +230,8 @@ export function isNativeShell(): boolean {
 
 /**
  * 解析接口根地址。
- * 优先级：用户传入 / localStorage「设置服务器」覆盖（非空）> VITE_NOVA_API_BASE > http(s) 网页同源。
- * Capacitor / file:// 没有可用的「同源后端」，未配置时返回空字符串。
+ * 优先级：用户在「高级设置」保存的非空地址 > 打包地址或内置默认 http://47.239.0.90 > http(s) 网页同源。
+ * 内置默认始终存在，因此 Capacitor / file:// 打开就会连到默认后端，不必先手填。
  */
 export function resolveBase(baseUrl?: string, envBase?: string) {
   const user = (baseUrl !== undefined ? baseUrl : loadConfig().baseUrl).trim().replace(/\/+$/, "");
@@ -626,7 +645,7 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
   const status = emptyConnection(base);
   status.lastChecked = Date.now();
   if (!base) {
-    status.message = "未填写接口地址。在 iPhone 上用文件打开时请手动填写用户端后端网址；预览链接下可留空使用同源反代。";
+    status.message = "未配置接口地址。高级设置中可填写用户端后端网址。";
     return status;
   }
 
@@ -690,6 +709,76 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
     status.message = `后端已连通${status.detectedVersion ? "（" + status.detectedVersion + "）" : ""}。${gatedNote || "管理专用接口尚未对当前会话开放。"}VIP 目录${status.catalog ? "已从服务器读取" : "未能读取"}。不用虚构数字。`;
   }
   return status;
+}
+
+export type ServerHealthView = {
+  ok: boolean | null;
+  status: string | null;
+  db: string | null;
+  version: string | null;
+  uptimeSec: number | null;
+  diskFree: number | null;
+  diskLow: boolean | null;
+};
+
+/** 只读取 /api/health 里实际出现的字段，缺的保持 null，不当成 0。 */
+export function readHealthView(raw: unknown): ServerHealthView {
+  const empty: ServerHealthView = {
+    ok: null,
+    status: null,
+    db: null,
+    version: null,
+    uptimeSec: null,
+    diskFree: null,
+    diskLow: null,
+  };
+  if (!isRecord(raw)) return empty;
+  const disk = isRecord(raw.disk) ? raw.disk : null;
+  const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return {
+    ok: typeof raw.ok === "boolean" ? raw.ok : null,
+    status: text(raw.status),
+    db: text(raw.db),
+    version: text(raw.version),
+    uptimeSec: num(raw.uptime),
+    diskFree: disk ? num(disk.free) : null,
+    diskLow: disk && typeof disk.low === "boolean" ? disk.low : null,
+  };
+}
+
+export function formatUptime(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d} 天 ${h} 小时`;
+  if (h > 0) return `${h} 小时 ${m} 分钟`;
+  if (m > 0) return `${m} 分钟`;
+  return `${s} 秒`;
+}
+
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  const digits = index === 0 || value >= 100 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(digits)} ${units[index]}`;
+}
+
+/** 列表接口若带回 total / next，用来判断已加载条数是不是全部。 */
+export function listPageMeta(json: unknown, len: number, limit: number): { total: number | null; truncated: boolean } {
+  const rec = isRecord(json) ? json : null;
+  const raw = rec ? rec.total ?? rec.count : undefined;
+  const total = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+  const hasMore = !!(rec && (rec.next || rec.nextCursor || rec.cursor || rec.hasMore));
+  const truncated = hasMore || (total != null && total > len) || (total == null && limit > 0 && len >= limit);
+  return { total, truncated };
 }
 
 export function readErrorMessage(json: unknown, fallback: string): string {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Bell, Home, LayoutGrid, UserRound } from "lucide-react";
+import { installFieldScroll, installScrollLock } from "@/lib/admin/scroll-lock";
+import { lockNativeViewport } from "@/lib/admin/native";
 import { hydrateAdmin, markAppBooted, useAdmin, type PageName } from "@/lib/admin/store";
-import { Frame, StarMark } from "./ui";
+import { Frame, SkinIcon, StarMark, type SkinIconName } from "./ui";
 import { LoginScreen } from "./login";
 import { HomeScreen, ManageScreen, MeScreen, MessagesScreen } from "./browse";
 import { UserScreen, UsersScreen } from "./people";
@@ -21,11 +22,11 @@ import {
   VipScreen,
 } from "./system";
 
-const tabs: { id: PageName; label: string; icon: typeof Home }[] = [
-  { id: "home", label: "首页", icon: Home },
-  { id: "manage", label: "管理", icon: LayoutGrid },
-  { id: "messages", label: "消息", icon: Bell },
-  { id: "me", label: "我的", icon: UserRound },
+const tabs: { id: PageName; label: string; icon: SkinIconName }[] = [
+  { id: "home", label: "首页", icon: "home" },
+  { id: "manage", label: "管理", icon: "community" },
+  { id: "messages", label: "消息", icon: "bell" },
+  { id: "me", label: "我的", icon: "profile" },
 ];
 
 const SPLASH_TIMEOUT_MS = 2500;
@@ -40,6 +41,16 @@ export function AdminApp() {
   const tab = useAdmin((s) => s.tab);
   const unread = useAdmin((s) => s.notices.filter((item) => !item.read).length);
   const [stalled, setStalled] = useState(false);
+
+  useEffect(() => {
+    const unlock = installScrollLock();
+    const unfocus = installFieldScroll();
+    void lockNativeViewport();
+    return () => {
+      unlock();
+      unfocus();
+    };
+  }, []);
 
   useEffect(() => {
     hydrateAdmin();
@@ -63,7 +74,7 @@ export function AdminApp() {
   if (!booted) {
     return (
       <Frame>
-        <div className="nova-splash grid flex-1 place-items-center px-6 text-fg" style={{ paddingTop: "max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))", paddingBottom: "max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))" }}>
+        <div className="nova-splash nova-scroll grid min-h-0 flex-1 place-items-center px-6 text-fg" style={{ paddingTop: "max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))", paddingBottom: "max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex flex-col items-center text-center">
             <StarMark className="size-[72px]" />
             <p className="nova-brand mt-5 text-[28px] leading-none">NOVA</p>
@@ -100,59 +111,64 @@ export function AdminApp() {
 
   const showTabs = name === "home" || name === "manage" || name === "messages" || name === "me";
 
+  const pages = (
+    <>
+      {name === "home" && <HomeScreen />}
+      {name === "manage" && <ManageScreen />}
+      {name === "messages" && <MessagesScreen />}
+      {name === "me" && <MeScreen />}
+      {name === "users" && <UsersScreen />}
+      {name === "user" && <UserScreen />}
+      {name === "content" && <ContentScreen />}
+      {name === "payments" && <PaymentsScreen />}
+      {name === "communities" && <CommunitiesScreen />}
+      {name === "community" && (userId ? <CommunityDetailScreen /> : <CommunitiesScreen />)}
+      {name === "channel" && <ChannelMessagesScreen />}
+      {name === "blockwords" && <BlockwordsScreen />}
+      {name === "reports" && <ReportsScreen />}
+      {name === "stats" && <StatsScreen />}
+      {name === "settings" && <SettingsScreen />}
+      {name === "audit" && <AuditScreen />}
+      {name === "security" && <SecurityScreen />}
+      {name === "events" && <EventsScreen />}
+      {name === "appeals" && <AppealsScreen />}
+      {name === "vip" && <VipScreen />}
+      {name === "announce" && <AnnounceScreen />}
+      {name === "devices" && <DevicesScreen />}
+      {name === "admins" && <AdminsScreen />}
+    </>
+  );
+
   return (
     <Frame>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {name === "home" && <HomeScreen />}
-        {name === "manage" && <ManageScreen />}
-        {name === "messages" && <MessagesScreen />}
-        {name === "me" && <MeScreen />}
-        {name === "users" && <UsersScreen />}
-        {name === "user" && <UserScreen />}
-        {name === "content" && <ContentScreen />}
-        {name === "payments" && <PaymentsScreen />}
-        {name === "communities" && <CommunitiesScreen />}
-        {name === "community" && (userId ? <CommunityDetailScreen /> : <CommunitiesScreen />)}
-        {name === "channel" && <ChannelMessagesScreen />}
-        {name === "blockwords" && <BlockwordsScreen />}
-        {name === "reports" && <ReportsScreen />}
-        {name === "stats" && <StatsScreen />}
-        {name === "settings" && <SettingsScreen />}
-        {name === "audit" && <AuditScreen />}
-        {name === "security" && <SecurityScreen />}
-        {name === "events" && <EventsScreen />}
-        {name === "appeals" && <AppealsScreen />}
-        {name === "vip" && <VipScreen />}
-        {name === "announce" && <AnnounceScreen />}
-        {name === "devices" && <DevicesScreen />}
-        {name === "admins" && <AdminsScreen />}
-      </div>
-      {showTabs && (
-        <nav className="nova-tabbar grid shrink-0 grid-cols-4 border-t border-line bg-surface">
-          {tabs.map((item) => {
-            const Icon = item.icon;
-            const on = name === item.id;
-            return (
-              <button key={item.id} type="button" onClick={() => tab(item.id)} className={`relative flex h-[49px] flex-col items-center justify-center gap-px ${on ? "font-semibold text-primary" : "text-muted"}`}>
-                <span className={`nova-tab-icon ${on ? "is-on" : ""}`}>
-                  <Icon className="size-[22px]" strokeWidth={on ? 2.2 : 1.8} />
-                </span>
-                <span className="text-[10px] leading-3">{item.label}</span>
-                {item.id === "messages" && unread > 0 && (
-                  <span className="absolute right-[18%] top-0.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold text-on-primary">
-                    {unread}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="absolute inset-0 flex flex-col overflow-hidden">{pages}</div>
+        {showTabs && (
+          <nav data-nova-chrome="tab" className="nova-tabbar nova-bar absolute inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line">
+            {tabs.map((item) => {
+              const on = name === item.id;
+              return (
+                <button key={item.id} type="button" onClick={() => tab(item.id)} className={`relative flex h-[49px] flex-col items-center justify-center gap-px ${on ? "font-semibold text-primary" : "text-muted"}`}>
+                  <span className={`nova-tab-icon ${on ? "is-on" : ""}`}>
+                    <SkinIcon name={item.icon} className="size-[22px]" />
                   </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      )}
-      {toast && (
-        <div className="nova-toast pointer-events-none absolute inset-x-0 z-40 flex justify-center px-6">
-          <div className="rounded-full bg-ink px-3.5 py-1.5 text-[13px] text-on-primary shadow-card">{toast}</div>
-        </div>
-      )}
+                  <span className="text-[10px] leading-3">{item.label}</span>
+                  {item.id === "messages" && unread > 0 && (
+                    <span className="absolute right-[18%] top-0.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold text-on-primary">
+                      {unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        )}
+        {toast && (
+          <div className="nova-toast pointer-events-none absolute inset-x-0 z-50 flex justify-center px-6">
+            <div className="rounded-full bg-ink px-3.5 py-1.5 text-[13px] text-on-primary shadow-card">{toast}</div>
+          </div>
+        )}
+      </div>
     </Frame>
   );
 }

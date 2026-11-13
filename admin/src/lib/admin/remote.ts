@@ -24,6 +24,7 @@ import {
   readErrorMessage,
   formatLockoutMessage,
   readRetryAfter,
+  listPageMeta,
   saveConfig,
   unwrapUser,
   type MappedAdmin,
@@ -44,7 +45,7 @@ import {
 } from "./backend";
 
 export type RemoteError = { ok: false; error: string; status: number; json: unknown; retryAfter?: number | null };
-export type RemoteOk<T> = { ok: true; data: T; json: unknown; status: number };
+export type RemoteOk<T> = { ok: true; data: T; json: unknown; status: number; total?: number | null; truncated?: boolean };
 export type Remote<T> = RemoteOk<T> | RemoteError;
 
 function fail(res: RequestResult, fallback: string): RemoteError {
@@ -411,7 +412,10 @@ export async function remoteSecurityEvents(query?: Record<string, string | numbe
 export async function remoteAppeals(query?: Record<string, string | number | undefined>): Promise<Remote<MappedAppeal[]>> {
   const res = await apiRequest("adminAppeals", { query, timeoutMs: 8000 });
   if (!res.ok) return fail(res, "无法读取申诉");
-  return ok(res, extractList(res.json).map(mapRemoteAppeal).filter((x): x is MappedAppeal => !!x));
+  const rows = extractList(res.json).map(mapRemoteAppeal).filter((x): x is MappedAppeal => !!x);
+  const limit = Number(query?.limit ?? 0) || 0;
+  const meta = listPageMeta(res.json, rows.length, limit);
+  return { ...ok(res, rows), total: meta.total, truncated: meta.truncated };
 }
 
 export async function remoteAppeal(id: string): Promise<Remote<MappedAppeal>> {

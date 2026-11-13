@@ -20,6 +20,7 @@ import {
   type MappedAppeal,
   type MappedSecurityEvent,
   formatAdminTime,
+  resolveBase,
 } from "./backend";
 import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
 import * as remote from "./remote";
@@ -255,6 +256,10 @@ type Persisted = {
   lockedUntil: number;
 };
 
+export type FeedState = "idle" | "ok" | "error";
+
+const idleFeeds = (): AdminState["feeds"] => ({ stats: "idle", appeals: "idle", audit: "idle", events: "idle" });
+
 export type AdminState = Persisted & {
   booted: boolean;
   bootError: string | null;
@@ -277,6 +282,8 @@ export type AdminState = Persisted & {
   blockwords: MappedBlockword[];
   securityEvents: MappedSecurityEvent[];
   appeals: MappedAppeal[];
+  appealsTruncated: boolean;
+  feeds: { stats: FeedState; appeals: FeedState; audit: FeedState; events: FeedState };
   attemptLogin: (account: string, password: string, remember?: boolean) => Promise<string | null>;
   confirmTotp: (code: string) => string | null;
   logout: () => Promise<void>;
@@ -517,7 +524,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
   // trap the user on the star splash. SSR still starts false (no window).
   booted: typeof window !== "undefined",
   bootError: null,
-  connection: emptyConnection(loadConfig().baseUrl),
+  connection: emptyConnection(resolveBase()),
   adminProfile: null,
   stats: null,
   payments: [],
@@ -528,6 +535,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
   blockwords: [],
   securityEvents: [],
   appeals: [],
+  appealsTruncated: false,
+  feeds: idleFeeds(),
   nav: { name: "home" },
   history: [],
   toast: null,
@@ -639,6 +648,10 @@ export const useAdmin = create<AdminState>((set, get) => ({
       announcements: [],
       payments: [],
       stats: null,
+      securityEvents: [],
+      appeals: [],
+      appealsTruncated: false,
+      feeds: idleFeeds(),
     });
     writeHash({ name: "home" });
   },
@@ -796,8 +809,11 @@ export const useAdmin = create<AdminState>((set, get) => ({
   },
   refreshAudit: async () => {
     const result = await remote.remoteAudit({ limit: 80 });
-    if (!result.ok) return;
-    set({ audits: result.data.map(toAudit) });
+    if (!result.ok) {
+      set((s) => ({ feeds: { ...s.feeds, audit: "error" } }));
+      return;
+    }
+    set((s) => ({ audits: result.data.map(toAudit), feeds: { ...s.feeds, audit: "ok" } }));
   },
   refreshAnnouncements: async () => {
     const result = await remote.remoteAnnouncements();
@@ -806,8 +822,11 @@ export const useAdmin = create<AdminState>((set, get) => ({
   },
   refreshStats: async () => {
     const result = await remote.remoteStats();
-    if (!result.ok) return;
-    set({ stats: result.data });
+    if (!result.ok) {
+      set((s) => ({ feeds: { ...s.feeds, stats: "error" } }));
+      return;
+    }
+    set((s) => ({ stats: result.data, feeds: { ...s.feeds, stats: "ok" } }));
   },
   refreshReports: async () => {
     const result = await remote.remoteReports({ limit: 50 });
@@ -1057,13 +1076,24 @@ export const useAdmin = create<AdminState>((set, get) => ({
   },
   refreshSecurityEvents: async (opts) => {
     const result = await remote.remoteSecurityEvents({ limit: 80, kind: opts?.kind || undefined });
-    if (!result.ok) return;
-    set({ securityEvents: result.data });
+    if (!result.ok) {
+      set((s) => ({ feeds: { ...s.feeds, events: "error" } }));
+      return;
+    }
+    set((s) => ({ securityEvents: result.data, feeds: { ...s.feeds, events: "ok" } }));
   },
   refreshAppeals: async (opts) => {
-    const result = await remote.remoteAppeals({ limit: 80, status: opts?.status && opts.status !== "all" ? opts.status : undefined });
-    if (!result.ok) return;
-    set({ appeals: result.data });
+    const limit = 100;
+    const result = await remote.remoteAppeals({ limit, status: opts?.status && opts.status !== "all" ? opts.status : undefined });
+    if (!result.ok) {
+      set((s) => ({ feeds: { ...s.feeds, appeals: "error" } }));
+      return;
+    }
+    set((s) => ({
+      appeals: result.data,
+      appealsTruncated: !!result.truncated,
+      feeds: { ...s.feeds, appeals: "ok" },
+    }));
   },
   decideAppeal: async (id, action, note) => {
     const result = await remote.remoteDecideAppeal(id, action, note);
@@ -1219,6 +1249,8 @@ export async function refreshLiveData() {
     s.refreshReports(),
     s.refreshCommunities(),
     s.refreshBlockwords(),
+    s.refreshSecurityEvents(),
+    s.refreshAppeals({ status: "pending" }),
   ]);
 }
 
@@ -1294,7 +1326,7 @@ export function hydrateAdmin() {
     if (!useAdmin.getState().booted) {
       useAdmin.setState({
         booted: true,
-        bootError: "启动超时。可在「设置服务器」填写后端地址后重试；列表在未登录时保持为空。",
+        bootError: "启动超时。默认服务器仍会在后台重试；列表在未登录时保持为空。",
       });
       markAppBooted();
     }
@@ -1327,13 +1359,12 @@ export function hydrateAdmin() {
         writeHash({ name: "home" });
       }
 
-      const base = (cfg.baseUrl || "").trim();
-      const sameOrigin = !base && window.location.protocol !== "file:" && window.location.protocol !== "capacitor:";
-      if (base || sameOrigin) {
+      const base = resolveBase();
+      if (base) {
         const status = await Promise.race([
-          probeConnection(base, 5000, false),
+          probeConnection(base, 8000, false),
           new Promise<ConnectionStatus>((resolve) =>
-            setTimeout(() => resolve({ ...emptyConnection(base), message: "检测超时，未连接后端。", lastChecked: Date.now() }), 5000),
+            setTimeout(() => resolve({ ...emptyConnection(base), message: "检测超时，未连接后端。", lastChecked: Date.now() }), 8000),
           ),
         ]);
         applyConnection(status);
