@@ -1002,6 +1002,9 @@ export const useAdmin = create<AdminState>((set, get) => ({
     }
     if (countChars(t) > ANNOUNCEMENT_TITLE_MAX) return `标题最多 ${ANNOUNCEMENT_TITLE_MAX} 个字`;
     if (countChars(b) > ANNOUNCEMENT_BODY_MAX) return `正文最多 ${ANNOUNCEMENT_BODY_MAX} 个字`;
+    const before = get().announcements;
+    const withdrawnNames = (ids: string[] | undefined) =>
+      before.filter((item) => (ids || []).includes(item.id)).map((item) => `《${item.title}》`);
     if (id) {
       const result = await remote.remoteEditAnnouncement(id, t, b);
       if (!result.ok) {
@@ -1009,10 +1012,19 @@ export const useAdmin = create<AdminState>((set, get) => ({
         get().flash(msg);
         return msg;
       }
+      const ids = result.withdrawnIds || [];
       set((s) => ({
-        announcements: s.announcements.map((item) => (item.id === id ? toAnnouncement(result.data) : item)),
+        announcements: s.announcements.map((item) =>
+          item.id === id
+            ? toAnnouncement(result.data)
+            : ids.includes(item.id)
+              ? { ...item, status: "withdrawn" as const, published: false }
+              : item,
+        ),
       }));
-      get().flash("公告已保存");
+      const names = withdrawnNames(ids);
+      get().flash(names.length ? `公告已保存，并自动下线${names.join("、")}` : "公告已保存");
+      if (ids.length) void get().refreshAnnouncements();
       void get().refreshAudit();
       return null;
     }
@@ -1022,11 +1034,10 @@ export const useAdmin = create<AdminState>((set, get) => ({
       get().flash(msg);
       return msg;
     }
-    if (result.data.length) set({ announcements: result.data.map(toAnnouncement), announcementsFeed: "ok" });
+    if (result.data.list.length) set({ announcements: result.data.list.map(toAnnouncement), announcementsFeed: "ok" });
     else void get().refreshAnnouncements();
-    get().flash(publish ? "公告已发布" : "已存为草稿");
-    // 只允许一条发布中：新发布的可能让旧公告自动下线，刷新一次拿到最新状态。
-    if (publish) void get().refreshAnnouncements();
+    const names = withdrawnNames(result.data.withdrawnIds);
+    get().flash(publish ? (names.length ? `公告已发布，并自动下线${names.join("、")}` : "公告已发布") : "已存为草稿");
     void get().refreshAudit();
     return null;
   },

@@ -121,9 +121,12 @@ export function HotScreen() {
         <p className="px-4 py-10 text-center text-[15px] text-muted">正在读取…</p>
       ) : (
         <>
-          <DataHint>这里的帖子会按顺序出现在用户首页的“热门话题”栏。共 {items.length}/{max} 条。</DataHint>
+          <DataHint>
+            这里的帖子会按顺序出现在用户首页的“热门话题”栏，只有公开的帖子能加入。共 {items.length}/{max} 条。
+            {items.length === 0 ? " 一条都没挑时，首页会显示自动推荐。" : ""}
+          </DataHint>
           {dirty && <p className="px-4 pb-2 text-[13px] text-primary">顺序已调整，记得点下方“保存顺序”。</p>}
-          {shown.length === 0 && <EmptyState title="还没有热门帖子" hint="点下方“添加帖子”，从最近的动态里挑选。" />}
+          {shown.length === 0 && <EmptyState title="还没有热门帖子" hint="未挑选时首页显示自动推荐。点下方“添加帖子”，从最近的动态里挑选。" />}
           <ol className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
             {shown.map((item, i) => (
               <li key={item.postId} className="flex items-start gap-2.5 border-b border-line px-3 py-3 last:border-b-0">
@@ -132,6 +135,7 @@ export function HotScreen() {
                   <p className={`line-clamp-2 text-[15px] leading-5 ${item.available ? "" : "text-muted line-through"}`}>{summary(item)}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
                     {!item.available && <Pill tone="danger">已失效</Pill>}
+                    {!item.available && <span>（已删除、被隐藏或不再公开）</span>}
                     <span>{sanitizeText(item.authorName) || "未知作者"}</span>
                     {item.postTime && <span>· {item.postTime}</span>}
                   </div>
@@ -256,6 +260,8 @@ function AddHotSheet({
         {state === "ok" && rows.length === 0 && <p className="py-6 text-center text-[14px] text-muted">{q.trim() ? "没有找到相关帖子" : "还没有动态"}</p>}
         {rows.map((item) => {
           const inHot = hotIds.includes(item.id);
+          // 定稿：只有公开帖子能进热门。后台列表若带了可见范围，就提前标出；没带时由服务器拒绝并提示。
+          const notPublic = !!item.audience && item.audience !== "public";
           return (
             <div key={item.id} className="flex items-start gap-2 border-b border-line py-2.5 last:border-b-0">
               <div className="min-w-0 flex-1">
@@ -264,6 +270,8 @@ function AddHotSheet({
               </div>
               {inHot ? (
                 <Pill tone="ok">已在热门</Pill>
+              ) : notPublic ? (
+                <Pill tone="muted">{item.audienceLabel || "非公开"}</Pill>
               ) : (
                 <button
                   type="button"

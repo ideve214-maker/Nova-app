@@ -9,6 +9,8 @@ import {
   mapRemoteAnnouncement,
   mapHotPostList,
   isFeatureMissing,
+  hotErrorMessage,
+  readErrorCode,
   mapRemoteAudit,
   mapRemoteAdmin,
   mapRemoteContent,
@@ -278,14 +280,24 @@ export async function remoteAnnouncements(): Promise<Remote<MappedAnnouncement[]
   return ok(res, rows);
 }
 
-export async function remoteAddAnnouncement(title: string, body: string, published = true): Promise<Remote<MappedAnnouncement[]>> {
+export type SavedAnnouncements = { list: MappedAnnouncement[]; announcement: MappedAnnouncement | null; withdrawnIds: string[] };
+
+function readWithdrawnIds(json: unknown): string[] {
+  const rec = asRecord(json);
+  return rec && Array.isArray(rec.withdrawnIds) ? rec.withdrawnIds.map((x) => String(x)) : [];
+}
+
+/** 新建公告（B2）：返回整表、新建的那条，以及因此自动下线的公告编号。 */
+export async function remoteAddAnnouncement(title: string, body: string, published = true): Promise<Remote<SavedAnnouncements>> {
   // 始终显式传 published：服务器不传时默认直接发布。
   const res = await apiRequest("adminAnnouncements", { method: "POST", body: { title, body, published }, timeoutMs: 8000 });
   if (!res.ok) return fail(res, published ? "发布公告失败" : "保存草稿失败");
-  const rows = extractList(res.json)
+  const rec = asRecord(res.json);
+  const list = (rec && Array.isArray(rec.announcements) ? rec.announcements : extractList(res.json))
     .map(mapRemoteAnnouncement)
     .filter((x): x is MappedAnnouncement => !!x);
-  return ok(res, rows);
+  const announcement = rec && rec.announcement ? mapRemoteAnnouncement(rec.announcement) : null;
+  return ok(res, { list, announcement, withdrawnIds: readWithdrawnIds(res.json) });
 }
 
 export async function remoteDeleteAnnouncement(id: string): Promise<Remote<{ deleted: string }>> {
@@ -320,7 +332,7 @@ export async function remoteDecideReport(id: string, action: "resolve" | "reject
 }
 
 
-export async function remoteEditAnnouncement(id: string, title: string, body: string, published?: boolean): Promise<Remote<MappedAnnouncement>> {
+export async function remoteEditAnnouncement(id: string, title: string, body: string, published?: boolean): Promise<Remote<MappedAnnouncement> & { withdrawnIds?: string[] }> {
   const payload: Record<string, unknown> = { title, body };
   if (published != null) payload.published = published;
   let res = await apiRequest("adminAnnouncementPatch", { method: "PATCH", params: { id }, body: payload, timeoutMs: 8000 });
@@ -330,7 +342,7 @@ export async function remoteEditAnnouncement(id: string, title: string, body: st
   if (!res.ok) return fail(res, "编辑公告失败");
   const rec = asRecord(res.json);
   const item = mapRemoteAnnouncement(rec && rec.announcement ? rec.announcement : res.json);
-  return item ? ok(res, item) : fail(res, "编辑公告失败");
+  return item ? { ...ok(res, item), withdrawnIds: readWithdrawnIds(res.json) } : fail(res, "编辑公告失败");
 }
 
 export async function remoteWithdrawAnnouncement(id: string): Promise<Remote<MappedAnnouncement>> {
@@ -483,11 +495,15 @@ export async function remotePublishAnnouncement(id: string): Promise<Remote<Publ
   const rec = asRecord(res.json);
   const item = mapRemoteAnnouncement(rec && rec.announcement ? rec.announcement : res.json);
   if (!item) return fail(res, "发布公告失败");
-  const withdrawnIds = rec && Array.isArray(rec.withdrawnIds) ? rec.withdrawnIds.map((x) => String(x)) : [];
-  return ok(res, { announcement: item, already: !!(rec && rec.already === true), withdrawnIds });
+  return ok(res, { announcement: item, already: !!(rec && rec.already === true), withdrawnIds: readWithdrawnIds(res.json) });
 }
 
 export type HotList = { items: MappedHotPost[]; max: number; already: boolean };
+
+function hotFail(res: RequestResult, fallback: string): RemoteError {
+  const out = fail(res, fallback);
+  return out.missing ? out : { ...out, error: hotErrorMessage(res.json, out.error) };
+}
 
 function hotOk(res: RequestResult): RemoteOk<HotList> {
   const rec = asRecord(res.json);
@@ -497,19 +513,19 @@ function hotOk(res: RequestResult): RemoteOk<HotList> {
 
 export async function remoteHotPosts(): Promise<Remote<HotList>> {
   const res = await apiRequest("adminHotPosts", { timeoutMs: 8000 });
-  if (!res.ok) return fail(res, "无法获取热门话题");
+  if (!res.ok) return hotFail(res, "无法获取热门话题");
   return hotOk(res);
 }
 
 export async function remoteAddHotPost(postId: string): Promise<Remote<HotList>> {
   const res = await apiRequest("adminHotPosts", { method: "POST", body: { postId }, timeoutMs: 8000 });
-  if (!res.ok) return fail(res, "加入热门失败");
+  if (!res.ok) return hotFail(res, "加入热门失败");
   return hotOk(res);
 }
 
 export async function remoteRemoveHotPost(postId: string): Promise<Remote<HotList>> {
   const res = await apiRequest("adminHotPostDelete", { method: "POST", params: { postId }, body: {}, timeoutMs: 8000 });
-  if (!res.ok) return fail(res, "移出热门失败");
+  if (!res.ok) return hotFail(res, "移出热门失败");
   return hotOk(res);
 }
 
@@ -517,11 +533,11 @@ export async function remoteRemoveHotPost(postId: string): Promise<Remote<HotLis
 export async function remoteSaveHotOrder(postIds: string[]): Promise<Remote<HotList> & { conflict?: HotList }> {
   const res = await apiRequest("adminHotPostsOrder", { method: "POST", body: { postIds }, timeoutMs: 8000 });
   if (!res.ok) {
-    const out = fail(res, "保存顺序失败");
-    const rec = asRecord(res.json);
-    const err = rec ? asRecord(rec.error) : null;
-    const code = err && typeof err.code === "string" ? err.code : "";
-    if (res.status === 409 || code === "ORDER_CONFLICT") {
+    const out = hotFail(res, "保存顺序失败");
+    if (res.status === 409 || readErrorCode(res.json) === "ORDER_CONFLICT") {
+      // 定稿：当前列表平铺在 error.items 里。
+      const rec = asRecord(res.json);
+      const err = rec ? asRecord(rec.error) : null;
       const current = err && Array.isArray(err.items) ? mapHotPostList({ items: err.items }) : null;
       return { ...out, conflict: current ? { ...current, already: false } : { items: [], max: 0, already: false } };
     }

@@ -1348,6 +1348,33 @@ export function mapHotPostList(json: unknown): { items: MappedHotPost[]; max: nu
   return { items: sorted, max: Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : HOT_POSTS_DEFAULT_MAX };
 }
 
+/** 读取错误码；附加字段平铺在 error 里（如 error.max、error.items），见定稿 r7-api-contract.md §0。 */
+export function readErrorCode(json: unknown): string {
+  if (!isRecord(json) || !isRecord(json.error)) return "";
+  return typeof json.error.code === "string" ? json.error.code : "";
+}
+
+export function readErrorField(json: unknown, key: string): unknown {
+  if (!isRecord(json) || !isRecord(json.error)) return undefined;
+  return json.error[key];
+}
+
+/** 热门话题操作失败时给管理员看的中文提示（按定稿错误码）。 */
+export function hotErrorMessage(json: unknown, fallback: string): string {
+  const code = readErrorCode(json);
+  if (code === "POST_NOT_PUBLIC") return "只有公开的帖子才能加入热门";
+  if (code === "POST_REMOVED") return "这条帖子已被删除，不能加入热门";
+  if (code === "HOT_FULL") {
+    const max = Number(readErrorField(json, "max"));
+    return `热门最多 ${Number.isFinite(max) && max > 0 ? max : HOT_POSTS_DEFAULT_MAX} 条，请先移出一些`;
+  }
+  if (code === "NOT_FOUND") return "这条帖子已不存在";
+  if (code === "BAD_POST_ID") return "请选择帖子";
+  if (code === "BAD_ORDER") return "顺序有误，请刷新后再试";
+  if (code === "ORDER_CONFLICT") return "列表已变化，已为你刷新";
+  return readErrorMessage(json, fallback);
+}
+
 /** 把列表里第 from 项移到第 to 项（越界时原样返回副本）。 */
 export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
   const out = list.slice();
