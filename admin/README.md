@@ -221,14 +221,15 @@ npm run build:spa
 
 | 键 | 作用 |
 | --- | --- |
-| `VITE_NOVA_UPDATE_URL`（或 `NOVA_UPDATE_URL`） | 自托管 manifest 地址。Dift 提供。**默认留空，热更新关闭。** 不要填 Capgo 云地址。 |
-| `VITE_NOVA_UPDATE_VERSION`（或 `NOVA_UPDATE_VERSION`） | 可选。写入 `plugins.CapacitorUpdater.version`（semver）。不填则用原生工程的版本号（iOS `CFBundleShortVersionString`）。 |
+| `VITE_NOVA_UPDATE_URL`（或 `NOVA_UPDATE_URL` / `NOVA_ADMIN_UPDATE_URL` / `ADMIN_UPDATE_URL`） | 自托管 manifest 地址，来自打包环境（GitHub secret `NOVA_ADMIN_UPDATE_URL`，build/v2 工作流里叫 `ADMIN_UPDATE_URL`）。**打包必填**：`CI=true` 或 `NOVA_REQUIRE_UPDATE_URL=1` 时缺失会让 `build:spa` 和 `cap add/sync` 直接报错；本地调试不填则热更新关闭。确需在 CI 打无热更新的包时设 `NOVA_REQUIRE_UPDATE_URL=0`。不要填 Capgo 云地址，也不要把真实地址提交进仓库。 |
+| `.nova-live-update.json` | `build:spa` 解析到地址后写在 `admin/` 下（已 gitignore，含真实地址，不要提交）。打包第 2 步在另一个 shell 里跑 `cap add/sync` 时，`capacitor.config.ts` 读不到第 1 步 export 的变量，就从这个文件拿地址。没有地址时 `build:spa` 会删掉旧文件。 |
+| `VITE_NOVA_UPDATE_VERSION`（或 `NOVA_UPDATE_VERSION`） | 可选。写入 `plugins.CapacitorUpdater.version`（semver）。**不填则用 `package.json` 的 `version`（当前 1.1.0）**，与打包脚本写入的 iOS `MARKETING_VERSION`（`CFBundleShortVersionString`）一致。 |
 | `VITE_NOVA_UPDATE_AUTO`（或 `NOVA_UPDATE_AUTO`） | 可选。有 URL 时默认开启（`atBackground`：前台检查、下载，下次进后台再切换）。设为 `off` / `0` / `false` 可只记下地址、不自动检查。 |
 | `capacitor.config.ts` → `plugins.CapacitorUpdater` | 原生侧生效（`npx cap sync ios` 时读入）。`updateUrl` / `autoUpdate` 由上面的环境变量填充；`statsUrl` 与 `channelUrl` 固定为空，关闭向 Capgo 的统计与频道请求；`appReadyTimeout` 为 10000 ms；`allowModifyUrl` 为 true，便于后续网页包覆盖地址。 |
 
 启动时（仅原生）会尽早调用 `notifyAppReady()`。若一次热更新加载后 10 秒内没能跑到这句，插件会**自动回滚**到上一版可用包（失败的包会按 `autoDeleteFailed` 删掉）。
 
-`.env.production` 里请把 `VITE_NOVA_UPDATE_URL` 留空，直到 Dift 给出地址。示例（不要把未确认的地址提交进仓库）：
+`.env.production` 里请把 `VITE_NOVA_UPDATE_URL` 留空（仓库公开），地址只从打包环境注入。示例（不要把未确认的地址提交进仓库）：
 
 ```bash
 # VITE_NOVA_UPDATE_URL=https://47.239.0.90/admin-updates/manifest.json
@@ -261,6 +262,10 @@ npm run build:spa
 - `checksum` 为 zip 的 SHA-256（小写十六进制）。推荐用官方命令生成，格式与插件校验一致。
 
 nginx 需要能访问到 manifest 和 zip（例如根路径 `/admin-updates/`）。zip 要允许直接下载；若网页也会请求 manifest，再补 CORS。把文件放到例如 `/var/www/admin-updates/`，并确保 POST 到 `manifest.json` 能返回上面的 JSON（可以用小脚本按请求体里的 `version_name` 决定是否带 `url`，或先返回固定 JSON 做联调）。
+
+### 启动图（@capacitor/assets）
+
+`npx capacitor-assets generate` 在 `admin/` 下先找 `assets/`，`assets/` 不存在才找 `resources/`（`--assetPath` 可指定）。文件名必须是 `splash.png` / `splash-dark.png`，官方要求至少 2732×2732。两个目录里都放了同样的 2732×2732 大图：`splash.png` 由 `splash-light.png` 生成，`splash-dark.png` 为暗色大图。竖版原图（1170×2532）按高度等比放进正方形中间，左右用边缘颜色补齐，这样工具按正方形裁切、iOS 启动页按比例填充时，手机上看到的就是完整原图。`splash-light.png` 与 SVG 源保留不动。
 
 ### 怎么从 dist-spa 打更新包
 

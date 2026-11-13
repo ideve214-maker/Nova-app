@@ -20,19 +20,90 @@ function envValue(name: string): string {
       const eq = trimmed.indexOf("=");
       if (eq <= 0) continue;
       if (trimmed.slice(0, eq).trim() !== name) continue;
-      return trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
+      return trimmed
+        .slice(eq + 1)
+        .trim()
+        .replace(/^['"]|['"]$/g, "");
     }
   }
   return "";
 }
 
 /**
- * Self-hosted live-update manifest URL (Dift will provide this).
- * Leave empty to keep auto-update off. Never default to Capgo cloud
- * (the plugin's built-in default is https://plugin.capgo.app/updates).
+ * 热更新（自托管 @capgo/capacitor-updater）。
+ *
+ * 地址按顺序取：
+ *   1. VITE_NOVA_UPDATE_URL / NOVA_UPDATE_URL（进程环境或 .env.*）
+ *   2. NOVA_ADMIN_UPDATE_URL / ADMIN_UPDATE_URL（打包工作流里的名字，
+ *      build/v2 的 v2-build.yml 把它设成整个 job 的环境变量）
+ *   3. .nova-live-update.json：npm run build:spa 用上面同一套变量解析后写下的，
+ *      专门给“第 1 步 build:spa、第 2 步 cap add/sync”分在不同 shell 的打包流程用。
+ *      该文件含真实地址，已 gitignore，不要提交。
+ * 不要把真实地址写进仓库：仓库公开，地址由打包环境（GitHub secret NOVA_ADMIN_UPDATE_URL）注入。
+ * 永远不回落到 Capgo 云（插件内置默认 https://plugin.capgo.app/updates）。
+ *
+ * 打包时必填：CI=true（GitHub Actions）或 NOVA_REQUIRE_UPDATE_URL=1 时，没有地址直接报错，
+ * 不再静默打出 autoUpdate:false 的包。本地调试可不填（热更新关闭），
+ * 确需在 CI 打无热更新的包时显式设 NOVA_REQUIRE_UPDATE_URL=0。
  */
-const updateUrl = envValue("VITE_NOVA_UPDATE_URL") || envValue("NOVA_UPDATE_URL");
-const updateVersion = envValue("VITE_NOVA_UPDATE_VERSION") || envValue("NOVA_UPDATE_VERSION");
+const LIVE_UPDATE_FILE = ".nova-live-update.json";
+
+function readLiveUpdateFile(): { updateUrl?: string; version?: string } {
+  const p = resolve(LIVE_UPDATE_FILE);
+  if (!existsSync(p)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(p, "utf8"));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function packageVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(resolve("package.json"), "utf8"));
+    return typeof pkg.version === "string" ? pkg.version.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+function isTruthy(v: string): boolean {
+  return ["1", "true", "yes", "on"].includes(v.toLowerCase());
+}
+
+const liveUpdateFile = readLiveUpdateFile();
+const updateUrl =
+  envValue("VITE_NOVA_UPDATE_URL") ||
+  envValue("NOVA_UPDATE_URL") ||
+  envValue("NOVA_ADMIN_UPDATE_URL") ||
+  envValue("ADMIN_UPDATE_URL") ||
+  String(liveUpdateFile.updateUrl ?? "").trim();
+
+const requireFlag = envValue("NOVA_REQUIRE_UPDATE_URL");
+const updateUrlRequired = requireFlag
+  ? isTruthy(requireFlag)
+  : isTruthy(envValue("CI")) || isTruthy(envValue("GITHUB_ACTIONS"));
+if (updateUrlRequired && !updateUrl) {
+  throw new Error(
+    "[nova-admin] 打包缺少热更新地址：请设置 ADMIN_UPDATE_URL（或 NOVA_ADMIN_UPDATE_URL / VITE_NOVA_UPDATE_URL），" +
+      "或先在同一目录用该变量跑 npm run build:spa 生成 .nova-live-update.json。" +
+      "确实要打不带热更新的包时设 NOVA_REQUIRE_UPDATE_URL=0。",
+  );
+}
+if (updateUrl && !/^https?:\/\//i.test(updateUrl)) {
+  throw new Error("[nova-admin] 热更新地址必须以 http:// 或 https:// 开头。");
+}
+
+/**
+ * 插件上报的 version_name。默认与 package.json version 一致；
+ * 打包脚本也用 package.json version 生成 iOS MARKETING_VERSION（CFBundleShortVersionString），三者对齐。
+ */
+const updateVersion =
+  envValue("VITE_NOVA_UPDATE_VERSION") ||
+  envValue("NOVA_UPDATE_VERSION") ||
+  String(liveUpdateFile.version ?? "").trim() ||
+  packageVersion();
 const autoFlag = (envValue("VITE_NOVA_UPDATE_AUTO") || envValue("NOVA_UPDATE_AUTO")).toLowerCase();
 const autoUpdateOn = !!updateUrl && autoFlag !== "off" && autoFlag !== "0" && autoFlag !== "false";
 
@@ -59,9 +130,8 @@ const config = {
       resize: "none",
       resizeOnFullScreen: false,
     },
-    // Live updates are self-hosted. Empty updateUrl + autoUpdate false means
-    // the app will not contact Capgo cloud. Fill VITE_NOVA_UPDATE_URL (Dift's
-    // manifest) before `cap sync` to turn auto-update on.
+    // 自托管热更新。地址来源见上方 updateUrl 注释；有地址即 autoUpdate "atBackground"。
+    // 没地址（仅限本地调试）时 autoUpdate false、updateUrl 为空，不会访问 Capgo 云。
     CapacitorUpdater: {
       appReadyTimeout: 10_000,
       autoDeleteFailed: true,
