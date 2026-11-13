@@ -283,9 +283,7 @@ export function PendingApi({ name, extra, needsAuth }: { name?: string; extra?: 
   if (needsAuth) {
     return <EmptyState title="暂时无法查看" hint="这项内容目前不能用管理账号打开，列表先保持为空。" />;
   }
-  const hint = reachable
-    ? "这项功能还不能用，列表先保持为空。"
-    : "现在连不上服务器，列表先保持为空。";
+  const hint = reachable ? "暂时还不能使用这项功能。" : "网络不太好，请稍后再试";
   return <EmptyState title="暂时没有数据" hint={hint} />;
 }
 

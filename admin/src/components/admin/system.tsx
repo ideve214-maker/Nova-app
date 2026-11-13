@@ -25,7 +25,7 @@ export function StatsScreen() {
     <Screen title="数据统计" onBack={back}>
       <DemoBanner />
       {!demoMode && !hasStats && !stats ? (
-        <PendingApi name="管理统计（GET /api/admin/stats）" />
+        <PendingApi />
       ) : !stats && !demoMode ? (
         <p className="px-4 py-10 text-center text-[15px] text-muted">暂无统计</p>
       ) : (
@@ -160,7 +160,7 @@ export function SettingsScreen() {
         <RowLink icon={<ShieldCheck className="size-5" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Bell className="size-5" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>
-      {detectedVersion && <p className="px-4 pt-3 text-[12px] text-muted">后端 {detectedVersion}</p>}
+      {detectedVersion && <p className="px-4 pt-3 text-[12px] text-muted">服务器 {detectedVersion}</p>}
       <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface px-4 shadow-card">
         {flagRows.map((item) => (
           <div key={item.key} className="flex items-center gap-3 border-b border-line py-3 last:border-b-0">
@@ -229,7 +229,7 @@ export function SecurityScreen() {
   return (
     <Screen title="安全中心" onBack={back}>
       <DemoBanner />
-      <DataHint>管理员密码请在服务器上修改。付款请到「付款审核」里人工核对。</DataHint>
+      <DataHint>管理员密码请联系技术人员修改。付款请到「付款审核」里人工核对。</DataHint>
       <div className="px-4 py-4 text-center">
         <span className="mx-auto grid size-12 place-items-center rounded-full nova-soft">
           <ShieldCheck className="size-6" />
@@ -395,8 +395,8 @@ export function CommunityScreen() {
         onChange={setTab}
       />
       <DemoBanner />
-      {tab === "topic" && topics.length === 0 && <PendingApi name="社区列表（GET /api/communities）" needsAuth={communitiesNeedAuth} />}
-      {tab === "board" && boards.length === 0 && <PendingApi name="社区列表（GET /api/communities）" needsAuth={communitiesNeedAuth} />}
+      {tab === "topic" && topics.length === 0 && <PendingApi needsAuth={communitiesNeedAuth} />}
+      {tab === "board" && boards.length === 0 && <PendingApi needsAuth={communitiesNeedAuth} />}
       {tab === "topic" &&
         topics.map((item) => (
           <div key={item.id} className="flex items-center justify-between border-b border-line bg-surface px-4 py-2.5">
@@ -524,9 +524,9 @@ export function VipScreen() {
           )}
         </>
       ) : reachable ? (
-        <DataHint>已连上服务器，但暂时读不到会员目录。</DataHint>
+        <DataHint>暂时没有数据</DataHint>
       ) : (
-        <DataHint>现在连不上服务器，无法读取会员目录。</DataHint>
+        <DataHint>网络不太好，请稍后再试</DataHint>
       )}
       {demoMode && (
         <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
@@ -553,7 +553,7 @@ export function VipScreen() {
           <Group title="已过期" empty="没有过期记录" rows={groups.expired} onOpen={(id) => go("user", id)} />
         </>
       ) : (
-        <PendingApi name="会员账号列表（需用户列表接口）" />
+        <PendingApi />
       )}
     </Screen>
   );

@@ -105,7 +105,7 @@ export function HomeScreen() {
           <span>平台概览</span>
           <ConnectionBadge />
         </div>
-        <p className="mt-2 text-[12px] text-on-primary/80">{statsOk ? "当前平台数据" : "暂时没有统计数字"}</p>
+        <p className="mt-2 text-[12px] text-on-primary/80">{statsOk ? "当前平台数据" : "暂时没有数据"}</p>
         <div className="mt-1.5 grid grid-cols-3 gap-2">
           <Metric value={statsOk && liveStats ? liveStats.usersTotal.toLocaleString("zh-CN") : dash} label="总用户" />
           <Metric value={statsOk && liveStats ? liveStats.usersActive.toLocaleString("zh-CN") : dash} label="活跃用户" />
@@ -162,10 +162,10 @@ export function HomeScreen() {
           )}
         </div>
         {feeds.stats === "error" && (
-          <p className="mt-2 text-[12px] leading-5 text-muted">暂时读不到待办数量，先显示为 —。</p>
+          <p className="mt-2 text-[12px] leading-5 text-muted">暂时没有数据</p>
         )}
         {feeds.appeals === "error" && (
-          <p className="mt-1 text-[12px] leading-5 text-muted">暂时读不到申诉数量。</p>
+          <p className="mt-1 text-[12px] leading-5 text-muted">暂时没有数据</p>
         )}
         {feeds.appeals === "ok" && appealsTruncated && (
           <p className="mt-1 text-[12px] leading-5 text-muted">这里只统计了已加载的待处理申诉。</p>
@@ -217,7 +217,7 @@ export function HomeScreen() {
         </div>
         <p className="px-3.5 pt-1 text-[12px] text-muted">服务器当前状态。没有的项不显示。</p>
         {!connection.reachable ? (
-          <p className="px-3.5 py-3 text-[13px] leading-5 text-muted">{connection.message || "尚未连上后端。"}</p>
+          <p className="px-3.5 py-3 text-[13px] leading-5 text-muted">{connection.message || "网络不太好，请稍后再试"}</p>
         ) : (
           <dl className="mt-1">
             {health.status && <StatusRow label="状态" value={health.status} />}
@@ -331,7 +331,7 @@ function FeedList({
         </button>
       </div>
       <p className="px-3.5 pb-1 text-[12px] text-muted">{endpoint}</p>
-      {state === "error" && <p className="px-3.5 py-3 text-[13px] text-muted">暂时读不到内容。</p>}
+      {state === "error" && <p className="px-3.5 py-3 text-[13px] text-muted">暂时没有数据</p>}
       {state !== "error" && !hasRows && <p className="px-3.5 py-3 text-[13px] text-muted">{state === "ok" ? empty : "正在读取…"}</p>}
       {state === "ok" && hasRows ? children : null}
     </section>
@@ -526,7 +526,7 @@ export function MeScreen() {
         </div>
       </div>
       {detectedVersion && (
-        <p className="mt-3 px-4 text-center text-[12px] text-muted">后端 {detectedVersion}</p>
+        <p className="mt-3 px-4 text-center text-[12px] text-muted">服务器 {detectedVersion}</p>
       )}
       <div className="mx-5 mt-3">
         <button type="button" onClick={() => void logout()} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-[16px] font-semibold text-danger shadow-card">

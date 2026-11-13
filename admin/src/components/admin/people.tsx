@@ -87,7 +87,7 @@ export function UsersScreen() {
           connection.available.adminUsers ? (
             <p className="px-4 py-10 text-center text-[15px] text-muted">暂无用户</p>
           ) : (
-            <PendingApi name="用户列表（GET /api/admin/users）" />
+            <PendingApi />
           )
         ) : (
           <p className="px-4 py-10 text-center text-[15px] text-muted">没有符合条件的用户</p>
@@ -283,7 +283,7 @@ export function UserScreen() {
         <div className="mt-2 bg-surface px-4 py-2">
           <ToggleRow label="允许发帖" on={member.canPost} disabled={member.status === "banned"} onClick={() => updateUser(member.id, { canPost: !member.canPost })} />
           <ToggleRow label="允许评论" on={member.canComment} disabled={member.status === "banned"} onClick={() => updateUser(member.id, { canComment: !member.canComment })} />
-          <p className="py-3 text-sm text-muted">发帖 / 评论开关尚无对应管理接口。封禁后该用户所有会话立即失效。</p>
+          <p className="py-3 text-sm text-muted">暂时不能单独开关发帖或评论。封禁后该用户会立即退出。</p>
         </div>
       )}
       {tab === "vip" && (

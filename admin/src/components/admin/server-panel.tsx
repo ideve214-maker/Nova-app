@@ -44,7 +44,7 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
       <p className="mb-3 text-[13px] leading-5 text-muted">
         应用已预填服务器地址，一般不用改。只有要换服务器时才改这里。留空再保存会回到默认地址。
       </p>
-      <Field label="接口根地址">
+      <Field label="服务器地址">
         <input
           className={inputClass}
           value={base}
@@ -59,12 +59,7 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
       <p className={`mb-3 text-[13px] leading-5 ${tone}`}>{msg || connection.message}</p>
       {connection.detectedVersion && <p className="mb-3 text-[12px] text-muted">检测到：{connection.detectedVersion}</p>}
       {Object.keys(connection.available).length > 0 && (
-        <p className="mb-3 text-[12px] text-muted">
-          可用接口：
-          {Object.entries(connection.available)
-            .map(([k, v]) => `${k}→${v}`)
-            .join("，")}
-        </p>
+        <p className="mb-3 text-[12px] text-muted">已找到可用的服务项目。</p>
       )}
       <button type="button" className="mb-3 h-11 text-[13px] text-primary" onClick={() => setAdvanced((v) => !v)}>
         {advanced ? "收起自定义路径" : "高级：自定义路径"}
@@ -75,7 +70,7 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
             className={`${inputClass} h-28 py-2 font-mono text-[12px]`}
             value={mapText}
             onChange={(e) => setMapText(e.target.value)}
-            placeholder='{"adminUsers":"/api/v2/admin/users"}'
+            placeholder="只需填写要覆盖的路径"
           />
         </Field>
       )}
@@ -98,7 +93,7 @@ export function ConnectionBadge() {
         ? "请先登录"
         : connection.mode === "degraded"
           ? "部分功能暂不可用"
-          : "未连接";
+          : "网络不太好";
   const cls = connection.mode === "live"
       ? "nova-ok-soft"
       : connection.mode === "degraded"

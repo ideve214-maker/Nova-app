@@ -88,7 +88,7 @@ export function PaymentsScreen() {
           (hasApi ? (
             <p className="py-10 text-center text-[15px] text-muted">{tab === "awaiting_review" ? "没有待审核的付款" : "这个分类里没有订单"}</p>
           ) : (
-            <PendingApi name="付款列表（GET /api/admin/payments）" />
+            <PendingApi />
           ))}
         {list.map((p) => (
           <button

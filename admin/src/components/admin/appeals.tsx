@@ -40,7 +40,7 @@ export function EventsScreen() {
         onChange={setKind}
       />
       {!hasApi && list.length === 0 ? (
-        <PendingApi name="安全事件（GET /api/admin/security/events）" />
+        <PendingApi />
       ) : list.length === 0 ? (
         <EmptyState title="暂无安全事件" hint="触发限流或异常时会出现在这里。" />
       ) : (
@@ -124,7 +124,7 @@ export function AppealsScreen() {
   return (
     <Screen title="申诉处理" onBack={back}>
       <p className="px-4 pt-2 text-[12px] leading-4 text-muted">
-        用户提交的账号申诉。通过封禁类申诉时，后端会自动解封该用户。
+        用户提交的账号申诉。通过封禁申诉后，该用户会自动解除封禁。
       </p>
       <Seg
         value={tab}
@@ -137,7 +137,7 @@ export function AppealsScreen() {
         onChange={setTab}
       />
       {!hasApi && list.length === 0 ? (
-        <PendingApi name="申诉（GET /api/admin/appeals）" />
+        <PendingApi />
       ) : list.length === 0 ? (
         <EmptyState title="暂无申诉" hint="用户提交申诉后会出现在这里。" />
       ) : (

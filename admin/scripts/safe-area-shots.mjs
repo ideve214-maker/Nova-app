@@ -94,7 +94,7 @@ await page.screenshot({ path: `${out}/users.png`, fullPage: false });
 await page.reload({ waitUntil: "networkidle", timeout: 30000 });
 await page.waitForTimeout(1200);
 const afterReload = await page.locator("body").innerText();
-const stillIn = afterReload.includes("管理后台") || afterReload.includes("用户管理") || afterReload.includes("接口待接入");
+const stillIn = afterReload.includes("管理后台") || afterReload.includes("用户管理") || afterReload.includes("暂时没有数据");
 const backToLogin = afterReload.includes("本机操作员登录") && !afterReload.includes("管理后台") && !afterReload.includes("用户管理");
 console.log("after reload still authed?", stillIn, "back to login?", backToLogin, "hash", await page.evaluate(() => location.hash));
 await overlays();

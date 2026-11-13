@@ -2,17 +2,17 @@
  * NOVA 管理端 · 与用户端后端的适配层。
  *
  * 设计目标（面向未来版本的用户端/后端压缩包）：
- * 1. 接口根地址可配置（localStorage），留空表示与当前页面同源（适合预览反代）。
+ * 1. 服务器根地址可配置（localStorage），留空表示与当前页面同源（适合预览反代）。
  * 2. 路径集中在 DEFAULT_ENDPOINT_MAP，设置页可覆盖；主路径 404 时再试别名。
  * 3. 通过 /api/health、/api/version 或响应头尽量识别后端版本；识别不到也不算失败。
  * 4. 字段名容错：username/name/displayName、vip_until/vipUntil 等都能读；未知字段忽略。
- * 5. 后端不可达或管理接口尚未实现时，列表与指标保持为空并标明「接口待接入」，绝不阻塞进入管理端；没有虚构数据，也没有演示模式。
+ * 5. 后端不可达或某项能力尚未实现时，列表与指标保持为空并显示简短中文提示，绝不阻塞进入管理端。
  */
 
 export const CONFIG_KEY = "nova-admin-api-config-v1";
 export const DEFAULT_TIMEOUT_MS = 4000;
 
-/** 当前已知 + 规划中的管理接口。新后端只要路径相近，就可以直接接上。 */
+/** 当前已知 + 规划中的管理端路径。新后端只要路径相近，就可以直接接上。 */
 export const DEFAULT_ENDPOINT_MAP = {
   health: "/api/health",
   version: "/api/version",
@@ -133,7 +133,7 @@ export type ConnectionStatus = {
   lastChecked: number;
   catalog: unknown | null;
   rawHealth: unknown | null;
-  /** 接口已存在但返回 401/403：需要用户令牌，管理端没有管理员鉴权，不能当已拉到数据。 */
+  /** 路径已存在但返回 401/403：需要用户令牌，管理端没有管理员鉴权，不能当已拉到数据。 */
   authRequired: Partial<Record<EndpointName, string>>;
 };
 
@@ -150,7 +150,7 @@ export const emptyConnection = (baseUrl = ""): ConnectionStatus => ({
   reachable: false,
   detectedVersion: null,
   available: {},
-  message: "未连接后端。列表与统计为空，没有虚构数字。",
+  message: "网络不太好，请稍后再试",
   lastChecked: 0,
   catalog: null,
   rawHealth: null,
@@ -237,7 +237,7 @@ export function isNativeShell(): boolean {
 }
 
 /**
- * 解析接口根地址。
+ * 解析服务器根地址。
  * 优先级：用户在「高级设置」保存的非空地址 > 打包地址或内置默认 http://47.239.0.90 > http(s) 网页同源。
  * 内置默认始终存在，因此 Capacitor / file:// 打开就会连到默认后端，不必先手填。
  */
@@ -296,13 +296,13 @@ function parseJsonSafe(text: string): unknown {
 
 let unauthorizedHandler: ((result: RequestResult) => void) | null = null;
 
-/** 注册 401 处理（例如清掉令牌并回到登录页）。登录接口本身的 401（口令错误）不会触发。 */
+/** 注册 401 处理（例如清掉令牌并回到登录页）。登录请求本身的 401（口令错误）不会触发。 */
 export function setUnauthorizedHandler(fn: ((result: RequestResult) => void) | null) {
   unauthorizedHandler = fn;
 }
 
 function maybeUnauthorized(name: EndpointName, token: string, result: RequestResult) {
-  // 只有管理接口的 401 才算会话过期。用管理员令牌去探用户接口（帖子、社区等）也会 401，不能因此退出。
+  // 只有管理端路径的 401 才算会话过期。用管理员令牌去探用户路径（帖子、社区等）也会 401，不能因此退出。
   if (!String(name).startsWith("admin")) return;
   if (name === "adminLogin") return;
   if (!token) return;
@@ -334,7 +334,7 @@ export async function apiRequest(
   const timeoutMs = options.timeoutMs ?? cfg.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const method = (options.method || "GET").toUpperCase();
   if (!base) {
-    return { ok: false, status: 0, path: DEFAULT_ENDPOINT_MAP[name], url: "", json: null, headers: {}, error: "未配置接口地址（file:// 下请手动填写）。" };
+    return { ok: false, status: 0, path: DEFAULT_ENDPOINT_MAP[name], url: "", json: null, headers: {}, error: "还没有服务器地址，请在高级设置里填写。" };
   }
 
   let last: RequestResult | null = null;
@@ -372,9 +372,9 @@ export async function apiRequest(
       const looksJson =
         ct.includes("json") ||
         (json !== null && typeof json === "object" && !("raw" in (json as object) && Object.keys(json as object).length === 1));
-      // 预览服务会把未知路径回退成管理端 HTML（200），不能当成管理接口存在。
+      // 预览服务会把未知路径回退成管理端 HTML（200），不能当成管理端已提供该能力。
       if (!looksJson) {
-        last = { ok: false, status: 404, path, url, json: null, headers: hdrs, error: "响应不是 JSON，视为接口不存在" };
+        last = { ok: false, status: 404, path, url, json: null, headers: hdrs, error: "服务器没有返回可用结果" };
         continue;
       }
       last = { ok: res.ok, status: res.status, path, url, json, headers: hdrs };
@@ -422,7 +422,7 @@ export function detectVersion(json: unknown, headers: Record<string, string> = {
   if (json && typeof json === "object") {
     const o = json as Record<string, unknown>;
     // 健康检查是 {status:'ok', time}（M2–M4 均如此），没有版本号。
-    if (o.status === "ok" && "time" in o) return "NOVA 用户端后端（/api/health 正常，未声明版本号）";
+    if (o.status === "ok" && "time" in o) return "未声明版本号";
   }
   return null;
 }
@@ -654,7 +654,7 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
   const status = emptyConnection(base);
   status.lastChecked = Date.now();
   if (!base) {
-    status.message = "未配置接口地址。高级设置中可填写用户端后端网址。";
+    status.message = "还没有服务器地址，请在高级设置里填写。";
     return status;
   }
 
@@ -667,7 +667,7 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
   if (!health.ok) {
     status.reachable = false;
     status.mode = "demo";
-    status.message = `无法连接后端（${health.error || "HTTP " + health.status}）。列表保持为空，未使用虚构数据。`;
+    status.message = "网络不太好，请稍后再试";
     return status;
   }
 
@@ -706,16 +706,14 @@ export async function probeConnection(baseUrl?: string, timeoutMs?: number, quic
   const gated = Object.keys(status.authRequired);
   if (adminKeys.length > 0) {
     status.mode = "live";
-    status.message = `已连接${status.detectedVersion ? " · " + status.detectedVersion : ""}。发现 ${adminKeys.length} 个管理接口，将优先用服务器数据；其余显示「接口待接入」，不用虚构数字。`;
+    status.message = `已连接${status.detectedVersion ? " · " + status.detectedVersion : ""}。`;
   } else {
     status.mode = "degraded";
     const adminGated = gated.filter((k) => k.startsWith("admin"));
-    const gatedNote = adminGated.length
-      ? "管理接口已存在，请先登录管理员账号。"
-      : gated.length
-        ? `已探测到需登录的接口（${gated.join("、")}）。`
-        : "";
-    status.message = `后端已连通${status.detectedVersion ? "（" + status.detectedVersion + "）" : ""}。${gatedNote || "管理专用接口尚未对当前会话开放。"}VIP 目录${status.catalog ? "已从服务器读取" : "未能读取"}。不用虚构数字。`;
+    const gatedNote = adminGated.length || gated.length
+      ? "请先登录管理员账号。"
+      : "";
+    status.message = `已连上服务器${status.detectedVersion ? "（" + status.detectedVersion + "）" : ""}。${gatedNote || "部分功能暂不可用。"}`;
   }
   return status;
 }
@@ -730,7 +728,7 @@ export type ServerHealthView = {
   diskLow: boolean | null;
 };
 
-/** 只读取 /api/health 里实际出现的字段，缺的保持 null，不当成 0。 */
+/** 只读取健康检查结果里实际出现的字段，缺的保持 null，不当成 0。 */
 export function readHealthView(raw: unknown): ServerHealthView {
   const empty: ServerHealthView = {
     ok: null,
@@ -780,7 +778,7 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(digits)} ${units[index]}`;
 }
 
-/** 列表接口若带回 total / next，用来判断已加载条数是不是全部。 */
+/** 列表结果若带回 total / next，用来判断已加载条数是不是全部。 */
 export function listPageMeta(json: unknown, len: number, limit: number): { total: number | null; truncated: boolean } {
   const rec = isRecord(json) ? json : null;
   const raw = rec ? rec.total ?? rec.count : undefined;
@@ -885,7 +883,7 @@ export const AUDIENCE_LABELS: Record<PostAudience, string> = {
   self: "仅自己",
 };
 
-/** 字段缺失时不默认成公开（管理端接口目前可能还没返回 audience）。非法值按公开。 */
+/** 字段缺失时不默认成公开（管理端目前可能还没返回 audience）。非法值按公开。 */
 export function mapAudience(raw: unknown): PostAudience | undefined {
   if (!isRecord(raw)) return undefined;
   const v = pick(raw, "audience");
@@ -899,7 +897,7 @@ export function audienceLabel(audience: PostAudience | string | undefined): stri
   return AUDIENCE_LABELS[audience as PostAudience] || AUDIENCE_LABELS.public;
 }
 
-/** r5 media.pub() 与帖子 media 数组里会出现的字段。只映射接口里真实存在的值。 */
+/** r5 media.pub() 与帖子 media 数组里会出现的字段。只映射结果里真实存在的值。 */
 export type MappedMedia = {
   id: string;
   url: string;
@@ -1247,7 +1245,7 @@ export type MappedStats = {
   reportsPending: number;
   paymentsPending: number;
   paymentsReview: number;
-  /** 仅当统计接口给出该字段时才有值，否则为 null，界面不展示虚构 0。 */
+  /** 仅当统计结果给出该字段时才有值，否则为 null，界面不展示 0。 */
   mediaReviewPending: number | null;
 };
 
@@ -1420,7 +1418,7 @@ export async function apiBinary(
   const token = options.token ?? cfg.token;
   const timeoutMs = options.timeoutMs ?? Math.max(cfg.timeoutMs, 15000);
   if (!base) {
-    return { ok: false, status: 0, path: DEFAULT_ENDPOINT_MAP[name], url: "", blob: null, mime: "", error: "未配置接口地址" };
+    return { ok: false, status: 0, path: DEFAULT_ENDPOINT_MAP[name], url: "", blob: null, mime: "", error: "还没有服务器地址，请在高级设置里填写。" };
   }
   let last: BinaryResult | null = null;
   for (const template of pathsFor(name, cfg.endpoints)) {

@@ -441,7 +441,7 @@ export async function remoteDecideAppeal(id: string, action: "accept" | "reject"
   return ok(res, item);
 }
 
-/** r5 图像待人工复核。当前管理端后端尚未提供该列表接口时会 404。 */
+/** r5 图像待人工复核。当前管理端后端尚未提供该列表时会 404。 */
 export async function remoteMediaReview(query?: Record<string, string | number | undefined>): Promise<Remote<MappedMedia[]>> {
   const res = await apiRequest("adminMedia", {
     query: { scanStatus: "review", ...(query || {}) },

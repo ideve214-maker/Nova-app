@@ -16,7 +16,7 @@ export function CommunitiesScreen() {
     <Screen title="社区" onBack={back}>
       <p className="px-4 pt-2 text-[12px] text-muted">成员数、频道和消息来自服务器，不是估计值。</p>
       <div className="space-y-2.5 p-4">
-        {list.length === 0 && (authed ? <EmptyState title="暂无社区" hint="用户创建社区后会出现在这里。" /> : <PendingApi name="社区列表（GET /api/admin/communities）" />)}
+        {list.length === 0 && (authed ? <EmptyState title="暂无社区" hint="用户创建社区后会出现在这里。" /> : <PendingApi />)}
         {list.map((c) => (
           <button
             key={c.id}

@@ -79,7 +79,7 @@ export function ContentScreen() {
             hasApi={hasMediaApi}
             onOpen={setViewer}
           />
-        ) : list.length === 0 && (hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi name="内容列表（GET /api/admin/content）" />)}
+        ) : list.length === 0 && (hasContentApi ? <p className="py-10 text-center text-[15px] text-muted">这个分类里没有内容</p> : <PendingApi />)}
         {kind !== "review" && (
           <VirtualRows
             items={list}
@@ -236,8 +236,8 @@ function MediaReviewList({
 }) {
   if (items.length === 0) {
     if (feed === "ok") return <p className="py-10 text-center text-[15px] text-muted">没有待人工复核的图像</p>;
-    if (hasApi || feed === "error") return <PendingApi name="图像复核（GET /api/admin/media?scanStatus=review）" />;
-    return <PendingApi name="图像复核（GET /api/admin/media?scanStatus=review）" />;
+    if (hasApi || feed === "error") return <PendingApi />;
+    return <PendingApi />;
   }
   return (
     <VirtualRows
@@ -346,7 +346,7 @@ export function ReportsScreen() {
         onChange={(id) => setTab(id as "open" | "done")}
       />
       <div className="p-4">
-        {list.length === 0 && (hasReportApi ? <p className="py-10 text-center text-[15px] text-muted">没有{tab === "open" ? "待处理" : "已处理"}举报</p> : <PendingApi name="举报队列" />)}
+        {list.length === 0 && (hasReportApi ? <p className="py-10 text-center text-[15px] text-muted">没有{tab === "open" ? "待处理" : "已处理"}举报</p> : <PendingApi />)}
         <VirtualRows
           items={list}
           getKey={(item) => item.id}

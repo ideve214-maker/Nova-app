@@ -559,7 +559,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     saveConfig({ baseUrl: (baseUrl || "").trim(), ...(endpoints ? { endpoints } : {}) });
     const status = await probeConnection(baseUrl);
     applyConnection(status);
-    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "已连上服务器，部分功能暂不可用") : "连不上服务器，列表先保持为空");
+    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "已连上服务器，部分功能暂不可用") : "网络不太好，请稍后再试");
     return status;
   },
   go: (name, userId, channelId) => {
@@ -669,7 +669,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     writeHash({ name: "home" });
   },
   changePassword: (_current, _next) => {
-    return "管理员密码请用服务器命令 node server/admin-cli.mjs 管理，管理端不能改口令";
+    return "管理员密码请联系技术人员修改";
   },
   resetDemo: () => {
     saveConfig({ token: "" });
@@ -721,7 +721,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return null;
   },
   updateUser: (_id, _patch) => {
-    get().flash("编辑资料接口尚未提供，未改动服务器数据");
+    get().flash("暂时不能改资料");
   },
   revealEmail: (id) => {
     const member = get().members.find((item) => item.id === id);
@@ -779,8 +779,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
     if (!post) return "找不到该内容";
     if (status === "removed") return get().hideContent(post.kind, id, reason);
     if (status === "approved") return get().restoreContent(post.kind, id);
-    get().flash("后端没有「待审」状态，内容只有可见或已删除");
-    return "后端没有待审状态";
+    get().flash("内容只有可见或已删除两种状态");
+    return "没有待审状态";
   },
   refreshContent: async (opts) => {
     const type = opts?.type;
@@ -899,7 +899,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     if (result.data.vipRevoked) {
       get().flash("已退款并撤销该订单开通的 VIP");
     } else {
-      get().flash("已标记退款。当前后端尚未自动撤销 VIP，如需撤销请到用户详情手动操作");
+      get().flash("已标记退款。如需撤销会员，请到用户详情手动操作");
     }
     void get().refreshUsers();
     void get().refreshAudit();
@@ -1228,7 +1228,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
         ],
       }),
     );
-    get().flash("已写入站内通知，外部推送未接入");
+    get().flash("已写入站内通知");
     return null;
   },
 }));
@@ -1242,7 +1242,7 @@ export function overviewOf(members: Member[], posts: PostItem[]) {
   };
 }
 
-/** 某类管理数据是否有真实接口；演示模式不算真实。 */
+/** 某类管理数据是否有真实来源；演示模式不算真实。 */
 export function hasLiveEndpoint(connection: ConnectionStatus, key: string) {
   return !!connection.available?.[key as keyof ConnectionStatus["available"]];
 }
@@ -1395,7 +1395,7 @@ export function hydrateAdmin() {
         const status = await Promise.race([
           probeConnection(base, 8000, false),
           new Promise<ConnectionStatus>((resolve) =>
-            setTimeout(() => resolve({ ...emptyConnection(base), message: "检测超时，未连接后端。", lastChecked: Date.now() }), 8000),
+            setTimeout(() => resolve({ ...emptyConnection(base), message: "网络不太好，请稍后再试", lastChecked: Date.now() }), 8000),
           ),
         ]);
         applyConnection(status);
@@ -1410,7 +1410,7 @@ export function hydrateAdmin() {
     } catch (err) {
       useAdmin.setState({
         booted: true,
-        bootError: err instanceof Error ? err.message : "后端检测失败，列表保持为空",
+        bootError: err instanceof Error ? err.message : "网络不太好，请稍后再试",
         connection: emptyConnection(),
       });
       markAppBooted();
