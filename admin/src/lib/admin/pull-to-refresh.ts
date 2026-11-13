@@ -53,6 +53,10 @@ export async function refreshForPage(name: PageName): Promise<void> {
     case "announce":
       await s.refreshAnnouncements();
       return;
+    case "hot":
+      // 热门话题页自己管理列表，收到这个事件后刷新。
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("nova-hot-refresh"));
+      return;
     case "communities":
     case "community":
     case "channel":

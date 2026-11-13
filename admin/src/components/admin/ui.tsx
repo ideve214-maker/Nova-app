@@ -329,3 +329,51 @@ export function DemoBanner() {
 export function DataHint({ children }: { children: ReactNode }) {
   return <div className="mx-4 mb-2 rounded-xl bg-subtle px-3 py-2 text-[13px] leading-5 text-muted">{children}</div>;
 }
+
+/** 二次确认（移出、删除等不可撤销的操作）。 */
+export function ConfirmSheet({
+  open,
+  title,
+  message,
+  confirmText,
+  danger,
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  message?: ReactNode;
+  confirmText: string;
+  danger?: boolean;
+  busy?: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet open={open} title={title} onClose={onClose}>
+      {message && <p className="mb-3 text-[15px] leading-6 text-muted">{message}</p>}
+      <div className="flex gap-2 pb-2">
+        <button type="button" className="h-11 flex-1 rounded-full bg-subtle text-[15px] font-semibold" onClick={onClose}>
+          取消
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          className={cn(
+            "h-11 flex-1 rounded-full text-[15px] font-semibold disabled:opacity-50",
+            danger ? "nova-danger-soft" : "bg-primary text-on-primary",
+          )}
+          onClick={onConfirm}
+        >
+          {busy ? "请稍候…" : confirmText}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+/** 服务器暂未开放某项功能时的统一提示（不弹红框）。 */
+export function NotOpenYet({ what }: { what: string }) {
+  return <EmptyState title="服务器暂未开放此功能" hint={`${what}需要服务器更新后才能使用，请稍后再来看看。`} />;
+}

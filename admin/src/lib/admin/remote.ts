@@ -7,6 +7,8 @@ import {
   apiRequest,
   extractList,
   mapRemoteAnnouncement,
+  mapHotPostList,
+  isFeatureMissing,
   mapRemoteAudit,
   mapRemoteAdmin,
   mapRemoteContent,
@@ -30,6 +32,7 @@ import {
   unwrapUser,
   type MappedAdmin,
   type MappedAnnouncement,
+  type MappedHotPost,
   type MappedAudit,
   type MappedBlockword,
   type MappedChannel,
@@ -46,7 +49,7 @@ import {
   type RequestResult,
 } from "./backend";
 
-export type RemoteError = { ok: false; error: string; status: number; json: unknown; retryAfter?: number | null };
+export type RemoteError = { ok: false; error: string; status: number; json: unknown; retryAfter?: number | null; missing?: boolean };
 export type RemoteOk<T> = { ok: true; data: T; json: unknown; status: number; total?: number | null; truncated?: boolean };
 export type Remote<T> = RemoteOk<T> | RemoteError;
 
@@ -56,7 +59,7 @@ function fail(res: RequestResult, fallback: string): RemoteError {
   const error = locked
     ? formatLockoutMessage(res.json, res.headers, res.error || fallback)
     : readErrorMessage(res.json, res.error || fallback);
-  return { ok: false, error, status: res.status, json: res.json, retryAfter };
+  return { ok: false, error, status: res.status, json: res.json, retryAfter, missing: isFeatureMissing(res) };
 }
 
 function ok<T>(res: RequestResult, data: T): RemoteOk<T> {
@@ -276,8 +279,9 @@ export async function remoteAnnouncements(): Promise<Remote<MappedAnnouncement[]
 }
 
 export async function remoteAddAnnouncement(title: string, body: string, published = true): Promise<Remote<MappedAnnouncement[]>> {
+  // 始终显式传 published：服务器不传时默认直接发布。
   const res = await apiRequest("adminAnnouncements", { method: "POST", body: { title, body, published }, timeoutMs: 8000 });
-  if (!res.ok) return fail(res, "发布公告失败");
+  if (!res.ok) return fail(res, published ? "发布公告失败" : "保存草稿失败");
   const rows = extractList(res.json)
     .map(mapRemoteAnnouncement)
     .filter((x): x is MappedAnnouncement => !!x);
@@ -331,10 +335,10 @@ export async function remoteEditAnnouncement(id: string, title: string, body: st
 
 export async function remoteWithdrawAnnouncement(id: string): Promise<Remote<MappedAnnouncement>> {
   const res = await apiRequest("adminAnnouncementWithdraw", { method: "POST", params: { id }, body: {}, timeoutMs: 8000 });
-  if (!res.ok) return fail(res, "撤回公告失败");
+  if (!res.ok) return fail(res, "下线公告失败");
   const rec = asRecord(res.json);
   const item = mapRemoteAnnouncement(rec && rec.announcement ? rec.announcement : res.json);
-  return item ? ok(res, item) : fail(res, "撤回公告失败");
+  return item ? ok(res, item) : fail(res, "下线公告失败");
 }
 
 export async function remoteCommunities(): Promise<Remote<MappedCommunity[]>> {
@@ -463,3 +467,65 @@ export async function remoteMediaFile(id: string, kind: "preview" | "file" = "pr
   return { ok: false, error: res.error || "无法获取图片", status: res.status, json: null };
 }
 
+
+export type PublishResult = { announcement: MappedAnnouncement; already: boolean; withdrawnIds: string[] };
+
+/** 发布公告：先用 /publish；服务器还没有这个功能时退回 PATCH {published: true}。 */
+export async function remotePublishAnnouncement(id: string): Promise<Remote<PublishResult>> {
+  let res = await apiRequest("adminAnnouncementPublish", { method: "POST", params: { id }, body: {}, timeoutMs: 8000 });
+  if (!res.ok && isFeatureMissing(res)) {
+    res = await apiRequest("adminAnnouncementPatch", { method: "PATCH", params: { id }, body: { published: true }, timeoutMs: 8000 });
+    if (res.status === 404 || res.status === 405) {
+      res = await apiRequest("adminAnnouncementEdit", { method: "POST", params: { id }, body: { published: true }, timeoutMs: 8000 });
+    }
+  }
+  if (!res.ok) return fail(res, "发布公告失败");
+  const rec = asRecord(res.json);
+  const item = mapRemoteAnnouncement(rec && rec.announcement ? rec.announcement : res.json);
+  if (!item) return fail(res, "发布公告失败");
+  const withdrawnIds = rec && Array.isArray(rec.withdrawnIds) ? rec.withdrawnIds.map((x) => String(x)) : [];
+  return ok(res, { announcement: item, already: !!(rec && rec.already === true), withdrawnIds });
+}
+
+export type HotList = { items: MappedHotPost[]; max: number; already: boolean };
+
+function hotOk(res: RequestResult): RemoteOk<HotList> {
+  const rec = asRecord(res.json);
+  const list = mapHotPostList(res.json);
+  return ok(res, { ...list, already: !!(rec && rec.already === true) });
+}
+
+export async function remoteHotPosts(): Promise<Remote<HotList>> {
+  const res = await apiRequest("adminHotPosts", { timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法获取热门话题");
+  return hotOk(res);
+}
+
+export async function remoteAddHotPost(postId: string): Promise<Remote<HotList>> {
+  const res = await apiRequest("adminHotPosts", { method: "POST", body: { postId }, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "加入热门失败");
+  return hotOk(res);
+}
+
+export async function remoteRemoveHotPost(postId: string): Promise<Remote<HotList>> {
+  const res = await apiRequest("adminHotPostDelete", { method: "POST", params: { postId }, body: {}, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "移出热门失败");
+  return hotOk(res);
+}
+
+/** 整体提交顺序。409 ORDER_CONFLICT 时 error.items 里带着服务器当前列表。 */
+export async function remoteSaveHotOrder(postIds: string[]): Promise<Remote<HotList> & { conflict?: HotList }> {
+  const res = await apiRequest("adminHotPostsOrder", { method: "POST", body: { postIds }, timeoutMs: 8000 });
+  if (!res.ok) {
+    const out = fail(res, "保存顺序失败");
+    const rec = asRecord(res.json);
+    const err = rec ? asRecord(rec.error) : null;
+    const code = err && typeof err.code === "string" ? err.code : "";
+    if (res.status === 409 || code === "ORDER_CONFLICT") {
+      const current = err && Array.isArray(err.items) ? mapHotPostList({ items: err.items }) : null;
+      return { ...out, conflict: current ? { ...current, already: false } : { items: [], max: 0, already: false } };
+    }
+    return out;
+  }
+  return hotOk(res);
+}

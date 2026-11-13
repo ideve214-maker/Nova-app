@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { Bell, ChevronRight, LockKeyhole, Megaphone, ScrollText, Server, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import {
@@ -6,10 +7,12 @@ import {
   fmtUntil,
   useAdmin,
   vipPhase,
+  type Announcement,
   type Flags,
 } from "@/lib/admin/store";
+import { ANNOUNCEMENT_BODY_MAX, ANNOUNCEMENT_TITLE_MAX, countChars } from "@/lib/admin/backend";
 import { sanitizeText } from "@/lib/admin/sanitize";
-import { DataHint, DemoBanner, EmptyState, Field, inputClass, PendingApi, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
+import { ConfirmSheet, DataHint, DemoBanner, EmptyState, Field, inputClass, NotOpenYet, PendingApi, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
 import { ServerPanel } from "./server-panel";
 import { getBugsinkDsn, isBugsinkEnabled, setBugsinkConfig } from "@/lib/admin/bugsink";
 
@@ -153,7 +156,7 @@ export function SettingsScreen() {
     <Screen title="系统设置" onBack={back}>
       <DataHint>这些开关只保存在这台设备上，还不会同步到服务器。密钥不会出现在此页面。</DataHint>
       <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
-        <RowLink icon={<Megaphone className="size-5" />} title="公告管理" desc="草稿、发布、撤回" onClick={() => go("announce")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<Megaphone className="size-5" />} title="公告管理" desc="草稿、发布、下线" onClick={() => go("announce")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<SlidersHorizontal className="size-5" />} title="权益开关" desc="套餐能力由配置控制" onClick={() => go("vip")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-5" />} title="内容规则" desc="举报、删除和审计都留记录" onClick={() => go("reports")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Server className="size-5" />} title="高级设置" desc="服务器地址，已填入默认" onClick={() => setServer(true)} extra={<ChevronRight className="size-4 text-muted" />} />
@@ -359,84 +362,6 @@ export function AdminsScreen() {
   );
 }
 
-export function CommunityScreen() {
-  const back = useAdmin((s) => s.back);
-  const topics = useAdmin((s) => s.topics);
-  const boards = useAdmin((s) => s.boards);
-  const addTopic = useAdmin((s) => s.addTopic);
-  const toggleBoard = useAdmin((s) => s.toggleBoard);
-  const demoMode = useAdmin((s) => s.demoMode);
-  const communitiesNeedAuth = useAdmin((s) => !!s.connection.authRequired.communities);
-  const [tab, setTab] = useState("topic");
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  return (
-    <Screen
-      title="社区管理"
-      onBack={back}
-      footer={
-        tab === "topic" && demoMode ? (
-          <div className="border-t border-line bg-surface px-4 py-2 pb-safe">
-            <button type="button" className="h-11 w-full rounded-full bg-primary text-[15px] font-semibold text-on-primary" onClick={() => setOpen(true)}>
-              + 创建话题
-            </button>
-          </div>
-        ) : tab === "topic" ? (
-          <div className="border-t border-line bg-surface px-4 py-2 pb-safe text-center text-[12px] text-muted">暂时还不能在这里创建话题</div>
-        ) : undefined
-      }
-    >
-      <Seg
-        value={tab}
-        options={[
-          { id: "topic", label: "话题管理" },
-          { id: "board", label: "版块管理" },
-        ]}
-        onChange={setTab}
-      />
-      <DemoBanner />
-      {tab === "topic" && topics.length === 0 && <PendingApi needsAuth={communitiesNeedAuth} />}
-      {tab === "board" && boards.length === 0 && <PendingApi needsAuth={communitiesNeedAuth} />}
-      {tab === "topic" &&
-        topics.map((item) => (
-          <div key={item.id} className="flex items-center justify-between border-b border-line bg-surface px-4 py-2.5">
-            <span className="text-[15px] font-medium">#{item.name}</span>
-            <span className="text-[13px] text-muted">{item.heat}</span>
-          </div>
-        ))}
-      {tab === "board" &&
-        boards.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5">
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold">{item.name}</div>
-              <div className="text-sm text-muted">{item.members}</div>
-            </div>
-            <Pill tone={item.locked ? "warn" : "ok"}>{item.locked ? "已锁定" : "开放"}</Pill>
-            {item.name !== "公告" && (
-              <button type="button" className="text-sm font-semibold text-primary" onClick={() => toggleBoard(item.id)}>
-                {item.locked ? "解锁" : "锁定"}
-              </button>
-            )}
-          </div>
-        ))}
-      <Sheet open={open} title="创建话题" onClose={() => setOpen(false)}>
-        <Field label="话题名">
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="例如 城市散步" />
-        </Field>
-        <PrimaryButton
-          onClick={() => {
-            addTopic(name);
-            setName("");
-            setOpen(false);
-          }}
-        >
-          创建
-        </PrimaryButton>
-      </Sheet>
-    </Screen>
-  );
-}
-
 function fmtEntValue(value: unknown): string {
   if (value == null) return "—";
   if (typeof value === "boolean") return value ? "有" : "无";
@@ -584,109 +509,225 @@ function Group({
   );
 }
 
+const ANN_STATUS: Record<Announcement["status"], { label: string; tone: "ok" | "muted" | "warn" }> = {
+  draft: { label: "草稿", tone: "muted" },
+  published: { label: "发布中", tone: "ok" },
+  withdrawn: { label: "已下线", tone: "warn" },
+};
+
+function Counter({ value, max }: { value: string; max: number }) {
+  const n = countChars(value);
+  return <span className={`text-[12px] tabular-nums ${n > max ? "text-danger" : "text-muted"}`}>{n}/{max}</span>;
+}
+
+/** 模拟用户打开应用时看到的公告弹窗。 */
+function AnnouncementPreview({ title, body, onClose }: { title: string; body: string; onClose: () => void }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/50 px-8" data-nova-modal="" role="presentation" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="预览弹窗" className="w-full max-w-[340px] rounded-2xl bg-surface p-5 shadow-card" onClick={(e) => e.stopPropagation()}>
+        <p className="mb-1 text-center text-[12px] text-muted">用户看到的样子</p>
+        <h2 className="text-center text-[18px] font-semibold">{sanitizeText(title) || "（未填写标题）"}</h2>
+        <div className="mt-3 max-h-[50dvh] overflow-y-auto whitespace-pre-wrap text-[15px] leading-6">{sanitizeText(body) || "（未填写正文）"}</div>
+        <button type="button" className="mt-4 h-11 w-full rounded-full bg-primary text-[16px] font-semibold text-on-primary" onClick={onClose}>
+          知道了
+        </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function AnnounceScreen() {
   const back = useAdmin((s) => s.back);
   const announcements = useAdmin((s) => s.announcements);
+  const feed = useAdmin((s) => s.announcementsFeed);
   const saveAnnouncement = useAdmin((s) => s.saveAnnouncement);
+  const publishAnnouncement = useAdmin((s) => s.publishAnnouncement);
   const deleteAnnouncement = useAdmin((s) => s.deleteAnnouncement);
   const withdrawAnnouncement = useAdmin((s) => s.withdrawAnnouncement);
   const refreshAnnouncements = useAdmin((s) => s.refreshAnnouncements);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Announcement | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<{ title: string; body: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Announcement | null>(null);
+  const [confirmPublish, setConfirmPublish] = useState<{ item: Announcement; others: Announcement[] } | null>(null);
   useEffect(() => { void refreshAnnouncements(); }, [refreshAnnouncements]);
+
+  const live = announcements.filter((item) => item.status === "published");
+  const tooLong = countChars(title.trim()) > ANNOUNCEMENT_TITLE_MAX || countChars(body.trim()) > ANNOUNCEMENT_BODY_MAX;
+  const empty = !title.trim() || !body.trim();
+
+  const startNew = () => {
+    setEditing(null);
+    setTitle("");
+    setBody("");
+    setError("");
+    setOpen(true);
+  };
+  const submit = (publish: boolean) => {
+    setBusy(true);
+    void saveAnnouncement({ id: editing?.id, title, body, publish }).then((msg) => {
+      setBusy(false);
+      setError(msg ?? "");
+      if (!msg) setOpen(false);
+    });
+  };
+  const askPublish = (item: Announcement) => {
+    const others = live.filter((x) => x.id !== item.id);
+    if (others.length) setConfirmPublish({ item, others });
+    else void publishAnnouncement(item.id);
+  };
+
   return (
     <Screen
       title="公告通知"
       onBack={back}
       footer={
-        <div className="border-t border-line bg-surface px-4 py-3 pb-safe">
-          <button
-            type="button"
-            className="h-11 w-full rounded-full bg-primary font-semibold text-on-primary"
-            onClick={() => {
-              setEditing(null);
-              setTitle("");
-              setBody("");
-              setError("");
-              setOpen(true);
-            }}
-          >
-            发布公告
-          </button>
-        </div>
+        feed === "missing" ? undefined : (
+          <div className="border-t border-line bg-surface px-4 py-3 pb-safe">
+            <button type="button" className="h-11 w-full rounded-full bg-primary font-semibold text-on-primary" onClick={startNew}>
+              新建公告
+            </button>
+          </div>
+        )
       }
     >
-      <p className="px-4 py-2 text-[13px] text-muted">发布即对用户可见。可编辑正文，撤回后 published 为否。外部推送通道未接。</p>
-      {announcements.length === 0 && <EmptyState title="暂无公告" hint="点下方按钮发布第一条。" />}
-      {announcements.map((item) => (
-        <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-semibold">{sanitizeText(item.title)}</h2>
-            <Pill tone={item.status === "published" ? "ok" : "muted"}>
-              {item.status === "published" ? "已发布" : "已撤回"}
-            </Pill>
-          </div>
-          <p className="mt-1 text-sm text-muted">{sanitizeText(item.body)}</p>
-          <p className="mt-1 text-xs text-muted">{item.time}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="h-9 rounded-full bg-subtle px-3 text-sm font-semibold"
-              onClick={() => {
-                setEditing(item.id);
-                setTitle(item.title);
-                setBody(item.body);
-                setError("");
-                setOpen(true);
-              }}
-            >
-              编辑
-            </button>
-            {item.status === "published" && (
-              <button
-                type="button"
-                className="h-9 rounded-full bg-subtle px-3 text-sm font-semibold"
-                onClick={() => void withdrawAnnouncement(item.id)}
-              >
-                撤回
-              </button>
-            )}
-            <button
-              type="button"
-              className="h-9 rounded-full nova-danger-soft px-3 text-sm font-semibold"
-              onClick={() => void deleteAnnouncement(item.id)}
-            >
-              删除
-            </button>
-          </div>
-        </article>
-      ))}
-      <Sheet open={open} title={editing ? "编辑公告" : "发布公告"} onClose={() => setOpen(false)}>
+      {feed === "missing" ? (
+        <NotOpenYet what="公告" />
+      ) : (
+        <>
+          <p className="px-4 py-2 text-[13px] leading-5 text-muted">发布中的公告会在用户打开应用时弹出，同一时间只有一条。草稿只有你能看到。</p>
+          {announcements.length === 0 && (
+            feed === "error" ? <PendingApi /> : <EmptyState title="暂无公告" hint="点下方“新建公告”写第一条。" />
+          )}
+          {announcements.map((item) => {
+            const st = ANN_STATUS[item.status] || ANN_STATUS.withdrawn;
+            return (
+              <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="min-w-0 truncate font-semibold">{sanitizeText(item.title)}</h2>
+                  <Pill tone={st.tone}>{st.label}</Pill>
+                </div>
+                <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-muted">{sanitizeText(item.body)}</p>
+                <p className="mt-1 text-xs text-muted">{item.status === "published" && item.publishedAt ? `发布于 ${item.publishedAt}` : item.time}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="h-9 rounded-full bg-subtle px-3 text-sm font-semibold"
+                    onClick={() => {
+                      setEditing(item);
+                      setTitle(item.title);
+                      setBody(item.body);
+                      setError("");
+                      setOpen(true);
+                    }}
+                  >
+                    编辑
+                  </button>
+                  <button type="button" className="h-9 rounded-full bg-subtle px-3 text-sm font-semibold" onClick={() => setPreview({ title: item.title, body: item.body })}>
+                    预览
+                  </button>
+                  {item.status === "published" ? (
+                    <button type="button" className="h-9 rounded-full bg-subtle px-3 text-sm font-semibold" onClick={() => void withdrawAnnouncement(item.id)}>
+                      下线
+                    </button>
+                  ) : (
+                    <button type="button" className="h-9 rounded-full bg-primary px-3 text-sm font-semibold text-on-primary" onClick={() => askPublish(item)}>
+                      发布
+                    </button>
+                  )}
+                  <button type="button" className="h-9 rounded-full nova-danger-soft px-3 text-sm font-semibold" onClick={() => setConfirmDelete(item)}>
+                    删除
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </>
+      )}
+
+      <Sheet open={open} title={editing ? "编辑公告" : "新建公告"} onClose={() => setOpen(false)}>
+        {editing?.status === "published" && (
+          <p className="mb-2 rounded-xl nova-warn-soft px-3 py-2 text-[13px] leading-5">这条公告正在发布中，保存后用户会再次看到弹窗。</p>
+        )}
         <Field label="标题">
-          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="标题" />
+          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="一句话说明公告内容" />
+          <span className="mt-1 flex justify-end"><Counter value={title.trim()} max={ANNOUNCEMENT_TITLE_MAX} /></span>
         </Field>
         <Field label="正文">
-          <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 text-[16px] outline-none" value={body} onChange={(e) => setBody(e.target.value)} placeholder="正文" />
+          <textarea
+            className="min-h-32 w-full rounded-2xl border border-line bg-subtle px-3 py-2 text-[16px] outline-none focus:border-primary"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="用户会在弹窗里看到这段文字"
+          />
+          <span className="mt-1 flex justify-end"><Counter value={body.trim()} max={ANNOUNCEMENT_BODY_MAX} /></span>
         </Field>
+        {tooLong && <p className="mb-2 text-sm text-danger">字数超出上限，请删减后再保存。</p>}
         {error && <p className="mb-2 text-sm text-danger">{error}</p>}
-        <PrimaryButton
-          disabled={busy}
-          onClick={() => {
-            setBusy(true);
-            void saveAnnouncement({ id: editing || undefined, title, body }).then((msg) => {
-              setBusy(false);
-              setError(msg ?? "");
-              if (!msg) setOpen(false);
-            });
-          }}
-        >
-          {busy ? "正在保存…" : editing ? "保存" : "发布"}
-        </PrimaryButton>
+        <button type="button" className="mb-2 h-10 w-full text-[15px] font-semibold text-primary" onClick={() => setPreview({ title, body })}>
+          预览弹窗
+        </button>
+        {editing ? (
+          <PrimaryButton disabled={busy || empty || tooLong} onClick={() => submit(false)}>
+            {busy ? "正在保存…" : "保存"}
+          </PrimaryButton>
+        ) : (
+          <div className="flex gap-2 pb-2">
+            <button
+              type="button"
+              disabled={busy || empty || tooLong}
+              className="h-11 flex-1 rounded-full bg-subtle text-[15px] font-semibold disabled:opacity-50"
+              onClick={() => submit(false)}
+            >
+              存为草稿
+            </button>
+            <button
+              type="button"
+              disabled={busy || empty || tooLong}
+              className="h-11 flex-1 rounded-full bg-primary text-[15px] font-semibold text-on-primary disabled:opacity-50"
+              onClick={() => submit(true)}
+            >
+              {busy ? "请稍候…" : "发布"}
+            </button>
+          </div>
+        )}
+        {!editing && live.length > 0 && (
+          <p className="pb-2 text-center text-[12px] text-muted">发布后，正在发布的《{sanitizeText(live[0].title)}》会自动下线。</p>
+        )}
       </Sheet>
+
+      <ConfirmSheet
+        open={!!confirmPublish}
+        title="发布这条公告？"
+        message={confirmPublish ? `发布后，${confirmPublish.others.map((x) => `《${sanitizeText(x.title)}》`).join("、")}会自动下线。` : undefined}
+        confirmText="发布"
+        onClose={() => setConfirmPublish(null)}
+        onConfirm={() => {
+          const target = confirmPublish;
+          setConfirmPublish(null);
+          if (target) void publishAnnouncement(target.item.id);
+        }}
+      />
+      <ConfirmSheet
+        open={!!confirmDelete}
+        title="删除这条公告？"
+        message={confirmDelete ? `《${sanitizeText(confirmDelete.title)}》删除后不能恢复。` : undefined}
+        confirmText="删除"
+        danger
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          const target = confirmDelete;
+          setConfirmDelete(null);
+          if (target) void deleteAnnouncement(target.id);
+        }}
+      />
+      {preview && <AnnouncementPreview title={preview.title} body={preview.body} onClose={() => setPreview(null)} />}
     </Screen>
   );
 }

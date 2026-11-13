@@ -9,6 +9,7 @@ import {
   Hash,
   KeyRound,
   LogOut,
+  Flame,
   Megaphone,
   MessagesSquare,
   ScrollText,
@@ -29,7 +30,8 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
   { name: "vip", label: "会员权益", desc: "开通与撤销", icon: Crown },
   { name: "content", label: "内容审核", desc: "帖子与评论", icon: Hash },
   { name: "communities", label: "社区管理", desc: "成员、频道、消息", icon: MessagesSquare },
-  { name: "announce", label: "公告通知", desc: "发布、编辑、撤回", icon: Megaphone },
+  { name: "hot", label: "热门话题", desc: "首页热门帖子与顺序", icon: Flame },
+  { name: "announce", label: "公告通知", desc: "弹窗公告的发布与下线", icon: Megaphone },
   { name: "blockwords", label: "屏蔽词", desc: "平台拦截规则", icon: Ban },
   { name: "payments", label: "付款审核", desc: "收款码人工核对", icon: CreditCard },
   { name: "reports", label: "举报处理", desc: "待处理队列", icon: Flag },
@@ -43,7 +45,7 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
 
 const groups: { title: string; names: PageName[] }[] = [
   { title: "用户与会员", names: ["users", "vip"] },
-  { title: "内容与社区", names: ["content", "communities", "announce", "blockwords"] },
+  { title: "内容与社区", names: ["content", "hot", "communities", "announce", "blockwords"] },
   { title: "审核与处理", names: ["payments", "reports", "appeals"] },
   { title: "安全", names: ["events", "security"] },
   { title: "系统与数据", names: ["stats", "settings", "audit"] },

@@ -14,6 +14,7 @@ export const PAGE_NAMES = [
   "community",
   "vip",
   "announce",
+  "hot",
   "devices",
   "admins",
   "payments",

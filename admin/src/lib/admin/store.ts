@@ -25,6 +25,7 @@ import {
 import { readInitialNav, startHashListener, writeHash, isWritingHash } from "./hash-route";
 import { captureCurrentScroll } from "./scroll-restore";
 import * as remote from "./remote";
+import { ANNOUNCEMENT_BODY_MAX, ANNOUNCEMENT_TITLE_MAX, countChars } from "./backend";
 
 export type { ConnectionStatus } from "./backend";
 
@@ -58,6 +59,7 @@ export type PageName =
   | "community"
   | "vip"
   | "announce"
+  | "hot"
   | "devices"
   | "admins"
   | "payments"
@@ -159,9 +161,9 @@ export type Announcement = {
   status: "draft" | "published" | "withdrawn";
   time: string;
   published?: boolean;
+  publishedAt?: string;
 };
 
-export type Topic = { id: string; name: string; heat: string };
 export type Board = { id: string; name: string; members: string; locked: boolean };
 export type Device = { id: string; name: string; current: boolean; ip: string; time: string };
 export type AdminAccount = { id: string; name: string; role: "root" | "moderator"; active: boolean };
@@ -249,7 +251,6 @@ type Persisted = {
   audits: AuditItem[];
   notices: NoticeItem[];
   announcements: Announcement[];
-  topics: Topic[];
   boards: Board[];
   devices: Device[];
   admins: AdminAccount[];
@@ -290,6 +291,8 @@ export type AdminState = Persisted & {
   appeals: MappedAppeal[];
   appealsTruncated: boolean;
   feeds: { stats: FeedState; appeals: FeedState; audit: FeedState; events: FeedState };
+  /** 公告列表的读取状态；missing 表示服务器暂未开放。 */
+  announcementsFeed: "idle" | "ok" | "error" | "missing";
   attemptLogin: (account: string, password: string, remember?: boolean) => Promise<string | null>;
   confirmTotp: (code: string) => string | null;
   logout: () => Promise<void>;
@@ -334,9 +337,9 @@ export type AdminState = Persisted & {
   decideAppeal: (id: string, action: "accept" | "reject", note?: string) => Promise<string | null>;
   openContentItem: (type: "post" | "comment", id: string) => Promise<import("./backend").MappedContent | null>;
   toggleEntitlement: (key: string) => void;
-  addTopic: (name: string) => void;
   toggleBoard: (id: string) => void;
-  saveAnnouncement: (input: { id?: string; title: string; body: string }) => Promise<string | null>;
+  saveAnnouncement: (input: { id?: string; title: string; body: string; publish?: boolean }) => Promise<string | null>;
+  publishAnnouncement: (id: string) => Promise<string | null>;
   setAnnouncement: (id: string, status: Announcement["status"]) => void;
   toggleFlag: (key: keyof Flags) => void;
   createInvite: () => string;
@@ -359,7 +362,6 @@ const emptyPersisted = (): Persisted => ({
   audits: [],
   notices: [],
   announcements: [],
-  topics: [],
   boards: [],
   devices: [{ id: "d1", name: "本机浏览器", current: true, ip: "本机", time: "现在" }],
   admins: [{ id: "root", name: "admin", role: "root", active: true }],
@@ -406,7 +408,6 @@ function restoreLocal(): Partial<Persisted> {
       reports: [],
       notices: [],
       announcements: [],
-      topics: [],
       boards: [],
       audits: [],
       entitlements: { ...entitlementMap(), ...(data.entitlements || {}) },
@@ -459,9 +460,10 @@ function toAnnouncement(a: import("./backend").MappedAnnouncement): Announcement
     id: a.id,
     title: a.title,
     body: a.body,
-    status: a.published ? "published" : "withdrawn",
+    status: a.status,
     time: a.time,
     published: a.published,
+    publishedAt: a.publishedAt,
   };
 }
 
@@ -547,6 +549,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
   appeals: [],
   appealsTruncated: false,
   feeds: idleFeeds(),
+  announcementsFeed: "idle",
   nav: { name: "home" },
   history: [],
   toast: null,
@@ -834,8 +837,11 @@ export const useAdmin = create<AdminState>((set, get) => ({
   },
   refreshAnnouncements: async () => {
     const result = await remote.remoteAnnouncements();
-    if (!result.ok) return;
-    set({ announcements: result.data.map(toAnnouncement) });
+    if (!result.ok) {
+      set({ announcementsFeed: result.missing ? "missing" : "error" });
+      return;
+    }
+    set({ announcements: result.data.map(toAnnouncement), announcementsFeed: "ok" });
   },
   refreshStats: async () => {
     const result = await remote.remoteStats();
@@ -977,19 +983,6 @@ export const useAdmin = create<AdminState>((set, get) => ({
       });
     });
   },
-  addTopic: (name) => {
-    const trimmed = name.trim().replace(/^#/, "");
-    if (trimmed.length < 2) {
-      get().flash("话题名至少 2 个字");
-      return;
-    }
-    set((s) =>
-      withAudit(s, { kind: "admin", action: "创建话题", target: trimmed }, {
-        topics: [{ id: uid("t"), name: trimmed, heat: "新" }, ...s.topics],
-      }),
-    );
-    get().flash("话题已创建");
-  },
   toggleBoard: (id) => {
     const board = get().boards.find((item) => item.id === id);
     if (!board) return;
@@ -1000,31 +993,64 @@ export const useAdmin = create<AdminState>((set, get) => ({
       }),
     );
   },
-  saveAnnouncement: async ({ id, title, body }) => {
-    if (title.trim().length < 2 || body.trim().length < 2) {
+  saveAnnouncement: async ({ id, title, body, publish }) => {
+    const t = title.trim();
+    const b = body.trim();
+    if (!t || !b) {
       get().flash("标题和正文都要填写");
       return "标题和正文都要填写";
     }
+    if (countChars(t) > ANNOUNCEMENT_TITLE_MAX) return `标题最多 ${ANNOUNCEMENT_TITLE_MAX} 个字`;
+    if (countChars(b) > ANNOUNCEMENT_BODY_MAX) return `正文最多 ${ANNOUNCEMENT_BODY_MAX} 个字`;
     if (id) {
-      const result = await remote.remoteEditAnnouncement(id, title.trim(), body.trim());
+      const result = await remote.remoteEditAnnouncement(id, t, b);
       if (!result.ok) {
-        get().flash(result.error);
-        return result.error;
+        const msg = result.missing ? "服务器暂未开放此功能" : result.error;
+        get().flash(msg);
+        return msg;
       }
       set((s) => ({
         announcements: s.announcements.map((item) => (item.id === id ? toAnnouncement(result.data) : item)),
       }));
-      get().flash("公告已更新");
+      get().flash("公告已保存");
       void get().refreshAudit();
       return null;
     }
-    const result = await remote.remoteAddAnnouncement(title.trim(), body.trim(), true);
+    const result = await remote.remoteAddAnnouncement(t, b, !!publish);
     if (!result.ok) {
-      get().flash(result.error);
-      return result.error;
+      const msg = result.missing ? "服务器暂未开放此功能" : result.error;
+      get().flash(msg);
+      return msg;
     }
-    set({ announcements: result.data.map(toAnnouncement) });
-    get().flash("公告已发布");
+    if (result.data.length) set({ announcements: result.data.map(toAnnouncement), announcementsFeed: "ok" });
+    else void get().refreshAnnouncements();
+    get().flash(publish ? "公告已发布" : "已存为草稿");
+    // 只允许一条发布中：新发布的可能让旧公告自动下线，刷新一次拿到最新状态。
+    if (publish) void get().refreshAnnouncements();
+    void get().refreshAudit();
+    return null;
+  },
+  publishAnnouncement: async (id) => {
+    const before = get().announcements;
+    const result = await remote.remotePublishAnnouncement(id);
+    if (!result.ok) {
+      const msg = result.missing ? "服务器暂未开放此功能" : result.error;
+      get().flash(msg);
+      return msg;
+    }
+    const { announcement, already, withdrawnIds } = result.data;
+    set((s) => ({
+      announcements: s.announcements.map((item) =>
+        item.id === id
+          ? toAnnouncement(announcement)
+          : withdrawnIds.includes(item.id)
+            ? { ...item, status: "withdrawn" as const, published: false }
+            : item,
+      ),
+    }));
+    const names = before.filter((item) => withdrawnIds.includes(item.id)).map((item) => `《${item.title}》`);
+    get().flash(already ? "这条公告已在发布中" : names.length ? `已发布，并自动下线${names.join("、")}` : "公告已发布");
+    void get().refreshAnnouncements();
     void get().refreshAudit();
     return null;
   },
@@ -1040,7 +1066,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set((s) => ({
       announcements: s.announcements.map((item) => (item.id === id ? toAnnouncement(result.data) : item)),
     }));
-    get().flash(result.json && (result.json as { already?: boolean }).already ? "公告本已撤回" : "公告已撤回");
+    get().flash(result.json && (result.json as { already?: boolean }).already ? "公告本来就已下线" : "公告已下线");
     void get().refreshAudit();
     return null;
   },
@@ -1304,7 +1330,6 @@ function startPersisting() {
       audits: state.audits,
       notices: state.notices,
       announcements: state.announcements,
-      topics: state.topics,
       boards: state.boards,
       devices: state.devices,
       admins: state.admins,

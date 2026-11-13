@@ -49,6 +49,11 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminAnnouncementEdit: "/api/admin/announcements/:id/edit",
   adminAnnouncementPatch: "/api/admin/announcements/:id",
   adminAnnouncementWithdraw: "/api/admin/announcements/:id/withdraw",
+  // 草案 v0.1（/workspace/admin-features/api-contract.md）新增；等 Bob 的定稿后只需改这里。
+  adminAnnouncementPublish: "/api/admin/announcements/:id/publish",
+  adminHotPosts: "/api/admin/hot-posts",
+  adminHotPostDelete: "/api/admin/hot-posts/:postId/delete",
+  adminHotPostsOrder: "/api/admin/hot-posts/order",
   adminCommunities: "/api/admin/communities",
   adminCommunity: "/api/admin/communities/:id",
   adminChannelMessages: "/api/admin/channels/:id/messages",
@@ -84,7 +89,8 @@ export const ENDPOINT_ALIASES: Partial<Record<EndpointName, string[]>> = {
   adminContent: ["/api/admin/content", "/api/admin/posts", "/api/posts"],
   adminAudit: ["/api/admin/audit", "/api/audit", "/api/admin/logs"],
   adminStats: ["/api/admin/stats", "/api/stats", "/api/admin/overview"],
-  adminAnnouncements: ["/api/admin/announcements", "/api/announcements"],
+  // 不再回退到 /api/announcements：那是用户端路径，可能把用户看到的公告误当成后台列表。
+  adminAnnouncements: ["/api/admin/announcements"],
   adminAnnouncementDelete: ["/api/admin/announcements/:id/delete"],
   adminLogout: ["/api/admin/auth/logout", "/api/admin/logout"],
   adminContentDelete: ["/api/admin/content/:type/:id/delete", "/api/admin/posts/:id/delete"],
@@ -98,6 +104,10 @@ export const ENDPOINT_ALIASES: Partial<Record<EndpointName, string[]>> = {
   adminAnnouncementEdit: ["/api/admin/announcements/:id/edit"],
   adminAnnouncementPatch: ["/api/admin/announcements/:id"],
   adminAnnouncementWithdraw: ["/api/admin/announcements/:id/withdraw"],
+  adminAnnouncementPublish: ["/api/admin/announcements/:id/publish"],
+  adminHotPosts: ["/api/admin/hot-posts"],
+  adminHotPostDelete: ["/api/admin/hot-posts/:postId/delete"],
+  adminHotPostsOrder: ["/api/admin/hot-posts/order"],
   adminCommunities: ["/api/admin/communities", "/api/admin/community"],
   adminCommunity: ["/api/admin/communities/:id"],
   adminChannelMessages: ["/api/admin/channels/:id/messages"],
@@ -1229,13 +1239,18 @@ export function mapRemoteAudit(raw: unknown): MappedAudit | null {
   };
 }
 
+export type AnnouncementStatus = "draft" | "published" | "withdrawn";
+
 export type MappedAnnouncement = {
   id: string;
   title: string;
   body: string;
   published: boolean;
   withdrawn: boolean;
+  status: AnnouncementStatus;
   time: string;
+  publishedAt: string;
+  version: string;
 };
 
 export function mapRemoteAnnouncement(raw: unknown): MappedAnnouncement | null {
@@ -1243,21 +1258,127 @@ export function mapRemoteAnnouncement(raw: unknown): MappedAnnouncement | null {
   const id = asString(pick(raw, "id"));
   if (!id) return null;
   const publishedFlag = pick(raw, "published");
-  const published = raw.withdrawn === true || raw.status === "draft" || raw.status === "withdrawn"
+  const statusRaw = asString(pick(raw, "status")).toLowerCase();
+  const published = raw.withdrawn === true || statusRaw === "draft" || statusRaw === "withdrawn"
     ? false
     : publishedFlag === false || publishedFlag === 0 || publishedFlag === "0" || publishedFlag === "false"
       ? false
       : publishedFlag === true || publishedFlag === 1 || publishedFlag === "1" || publishedFlag == null
         ? true
         : !!publishedFlag;
+  const publishedAtRaw = pick(raw, "publishedAtUtc", "publishedAt", "published_at");
+  // 新服务器会给 publishedAt：从没发布过（为空）就是草稿。旧服务器没有这个字段，未发布一律算已下线。
+  const knowsPublishedAt = "publishedAt" in raw || "published_at" in raw || "publishedAtUtc" in raw;
+  let status: AnnouncementStatus;
+  if (statusRaw === "draft" || statusRaw === "published" || statusRaw === "withdrawn") status = statusRaw;
+  else if (published) status = "published";
+  else if (knowsPublishedAt && (publishedAtRaw == null || publishedAtRaw === "")) status = "draft";
+  else status = "withdrawn";
+  if (status !== "published" && published) status = "published";
   return {
     id,
     title: asString(pick(raw, "title")),
     body: asString(pick(raw, "body", "content", "text")),
-    published,
-    withdrawn: raw.withdrawn === true || raw.withdrawn === 1 || !published,
+    published: status === "published",
+    withdrawn: status === "withdrawn",
+    status,
     time: asTime(pick(raw, "createdAtUtc", "updatedAt", "updated_at", "createdAt", "created_at", "time")),
+    publishedAt: publishedAtRaw == null || publishedAtRaw === "" ? "" : asTime(publishedAtRaw),
+    version: asString(pick(raw, "version")),
   };
+}
+
+/** 公告标题、正文的字数上限（按字计算，表情等也算一个字）。 */
+export const ANNOUNCEMENT_TITLE_MAX = 40;
+export const ANNOUNCEMENT_BODY_MAX = 2000;
+
+export function countChars(text: string): number {
+  return [...String(text || "")].length;
+}
+
+/** 热门话题：管理员挑选的帖子。 */
+export type MappedHotPost = {
+  postId: string;
+  position: number;
+  available: boolean;
+  addedAt: string;
+  title: string;
+  text: string;
+  authorId: string;
+  authorName: string;
+  postTime: string;
+};
+
+export const HOT_POSTS_DEFAULT_MAX = 20;
+
+export function mapRemoteHotPost(raw: unknown): MappedHotPost | null {
+  if (!isRecord(raw)) return null;
+  const post = isRecord(raw.post) ? raw.post : null;
+  const postId = asString(pick(raw, "postId", "post_id") ?? (post ? pick(post, "id") : undefined) ?? pick(raw, "id"));
+  if (!postId) return null;
+  const author = post && isRecord(post.author) ? post.author : {};
+  const deleted = !post || post.deleted === true || post.adminHidden === true || post.status === "removed" || !!pick(post, "deletedAt", "deleted_at");
+  const availableRaw = pick(raw, "available");
+  const available = typeof availableRaw === "boolean" ? availableRaw && !!post : !deleted;
+  const text = post ? asString(pick(post, "text", "body", "content")) : "";
+  const position = Number(pick(raw, "position", "order", "rank"));
+  return {
+    postId,
+    position: Number.isFinite(position) && position > 0 ? position : 0,
+    available,
+    addedAt: asTime(pick(raw, "addedAtUtc", "addedAt", "added_at")),
+    title: (post ? asString(pick(post, "title")).trim() : "") || text.slice(0, 40),
+    text,
+    authorId: post ? asString(pick(post, "authorId", "author_id") ?? pick(author, "id")) : "",
+    authorName: post ? asString(pick(post, "authorName") ?? pick(author, "displayName", "username", "name"), "") : "",
+    postTime: post ? asTime(pick(post, "createdAtUtc", "createdAt", "created_at")) : "",
+  };
+}
+
+/** 读取热门列表，按 position 排序；没有 position 的保持服务器给的顺序。 */
+export function mapHotPostList(json: unknown): { items: MappedHotPost[]; max: number } {
+  const rows = extractList(json)
+    .map(mapRemoteHotPost)
+    .filter((x): x is MappedHotPost => !!x);
+  const sorted = rows
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => (a.item.position || Infinity) - (b.item.position || Infinity) || a.i - b.i)
+    .map((x) => x.item);
+  const maxRaw = isRecord(json) ? Number(json.max) : NaN;
+  return { items: sorted, max: Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : HOT_POSTS_DEFAULT_MAX };
+}
+
+/** 把列表里第 from 项移到第 to 项（越界时原样返回副本）。 */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  const out = list.slice();
+  if (from < 0 || from >= out.length || to < 0 || to >= out.length || from === to) return out;
+  const [x] = out.splice(from, 1);
+  out.splice(to, 0, x);
+  return out;
+}
+
+/** 两组编号是否完全相同（不看顺序、无重复）。 */
+export function sameIdSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  if (set.size !== a.length) return false;
+  return b.every((id) => set.has(id));
+}
+
+/**
+ * 服务器还没开放这项功能：路径不存在（404 且没有业务错误，或提示“接口不存在”），
+ * 或预览服务把未知路径回退成页面（apiRequest 已转成 404 且 json 为空）。
+ * 业务上的“动态不存在 / 公告不存在”同样是 404，但带有具体提示，不算未开放。
+ */
+export function isFeatureMissing(res: { status: number; json: unknown }): boolean {
+  if (res.status !== 404 && res.status !== 405 && res.status !== 501) return false;
+  if (res.status === 405 || res.status === 501) return true;
+  const json = res.json;
+  if (!isRecord(json)) return true;
+  const err = isRecord(json.error) ? json.error : null;
+  if (!err && typeof json.error !== "string") return true;
+  const message = err && typeof err.message === "string" ? err.message : typeof json.error === "string" ? json.error : "";
+  return /接口不存在|not\s*found|cannot\s+(get|post)/i.test(message) && !/动态|帖子|公告/.test(message);
 }
 
 export type MappedStats = {
