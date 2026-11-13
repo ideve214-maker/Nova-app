@@ -73,12 +73,37 @@ function isTruthy(v: string): boolean {
 }
 
 const liveUpdateFile = readLiveUpdateFile();
-const updateUrl =
-  envValue("VITE_NOVA_UPDATE_URL") ||
-  envValue("NOVA_UPDATE_URL") ||
-  envValue("NOVA_ADMIN_UPDATE_URL") ||
-  envValue("ADMIN_UPDATE_URL") ||
-  String(liveUpdateFile.updateUrl ?? "").trim();
+let updateUrlSource = "";
+let updateUrl = "";
+for (const key of [
+  "VITE_NOVA_UPDATE_URL",
+  "NOVA_UPDATE_URL",
+  "NOVA_ADMIN_UPDATE_URL",
+  "ADMIN_UPDATE_URL",
+]) {
+  const v = envValue(key);
+  if (v) {
+    updateUrl = v;
+    updateUrlSource = `环境变量 ${key}`;
+    break;
+  }
+}
+if (!updateUrl) {
+  const fromFile = String(liveUpdateFile.updateUrl ?? "").trim();
+  if (fromFile) {
+    updateUrl = fromFile;
+    updateUrlSource = `文件 ${LIVE_UPDATE_FILE}（上一次 build:spa 写下的）`;
+  }
+}
+
+/** 只打印到域名，不打印完整地址（路径里有私有段）。 */
+function urlHost(u: string): string {
+  try {
+    return new URL(u).host || "?";
+  } catch {
+    return "?";
+  }
+}
 
 const requireFlag = envValue("NOVA_REQUIRE_UPDATE_URL");
 const updateUrlRequired = requireFlag
@@ -94,6 +119,12 @@ if (updateUrlRequired && !updateUrl) {
 if (updateUrl && !/^https?:\/\//i.test(updateUrl)) {
   throw new Error("[nova-admin] 热更新地址必须以 http:// 或 https:// 开头。");
 }
+// 打包日志里留一行来源，方便发现 .nova-live-update.json 残留的旧地址。
+console.log(
+  updateUrl
+    ? `[nova-admin] 热更新地址来源：${updateUrlSource}，域名 ${urlHost(updateUrl)}`
+    : "[nova-admin] 未设置热更新地址，热更新关闭",
+);
 
 /**
  * 插件上报的 version_name。默认与 package.json version 一致；

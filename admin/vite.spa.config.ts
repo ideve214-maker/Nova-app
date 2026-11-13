@@ -62,11 +62,7 @@ function liveUpdateHandoff(live: { url: string; version: string }): Plugin {
     name: "nova-live-update-handoff",
     apply: "build",
     closeBundle() {
-      if (!live.url) {
-        // 没地址就删掉旧文件，避免上一次打包的地址被 cap sync 误用。
-        rmSync(LIVE_UPDATE_FILE, { force: true });
-        return;
-      }
+      if (!live.url) return; // 开头已删掉旧文件
       const body: Record<string, string> = { updateUrl: live.url };
       if (live.version) body.version = live.version;
       writeFileSync(LIVE_UPDATE_FILE, JSON.stringify(body, null, 2) + "\n");
@@ -74,7 +70,9 @@ function liveUpdateHandoff(live: { url: string; version: string }): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
+  // 每次构建先删掉上一次写下的地址文件：构建失败或这次没地址时，都不会留下旧地址给 cap sync。
+  if (command === "build") rmSync(LIVE_UPDATE_FILE, { force: true });
   const live = resolveLiveUpdate(mode);
   return {
     root,

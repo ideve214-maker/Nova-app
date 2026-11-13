@@ -197,7 +197,7 @@ npm run build:spa
 打包图标与启动屏（供以后运行 `@capacitor/assets`）放在 `resources/`：
 
 - `resources/icon.png`：1024×1024 应用图标（另有 `icon.svg`、`icon-masked.png`）
-- `resources/splash-dark.png` / `resources/splash-light.png`：1170×2532 启动屏（深/浅），同目录还有 SVG 源稿
+- `resources/splash.png` / `resources/splash-dark.png`：2732×2732 启动屏（浅/深，capacitor-assets 读这两个）；`splash-light.png` 与 SVG 是源稿
 - 网页用：`public/favicon.svg`、`public/apple-touch-icon.png`（180）、`public/icon-192.png`
 
 
@@ -265,7 +265,14 @@ nginx 需要能访问到 manifest 和 zip（例如根路径 `/admin-updates/`）
 
 ### 启动图（@capacitor/assets）
 
-`npx capacitor-assets generate` 在 `admin/` 下先找 `assets/`，`assets/` 不存在才找 `resources/`（`--assetPath` 可指定）。文件名必须是 `splash.png` / `splash-dark.png`，官方要求至少 2732×2732。两个目录里都放了同样的 2732×2732 大图：`splash.png` 由 `splash-light.png` 生成，`splash-dark.png` 为暗色大图。竖版原图（1170×2532）按高度等比放进正方形中间，左右用边缘颜色补齐，这样工具按正方形裁切、iOS 启动页按比例填充时，手机上看到的就是完整原图。`splash-light.png` 与 SVG 源保留不动。
+`npx capacitor-assets generate` 在 `admin/` 下先找 `assets/`，**只要 `assets/` 存在就只读它**，不存在才读 `resources/`（`--assetPath` 可指定）。所以本项目**只用 `resources/`，不要新建 `admin/assets/`**：否则 `resources/` 里的图标不会被读到，App 图标会变回 Capacitor 默认图。
+
+`resources/` 里工具会读的文件：`icon.png`（1024×1024 应用图标）、`splash.png`（浅色）、`splash-dark.png`（深色）。启动图文件名必须是 `splash.png` / `splash-dark.png`，官方要求至少 2732×2732。现在两张都是 2732×2732：`splash.png` 由 `splash-light.png` 生成，`splash-dark.png` 为暗色大图。竖版原图（1170×2532）按高度等比放进正方形中间，左右用边缘颜色补齐，这样工具按正方形裁切、iOS 启动页按比例填充时，手机上看到的就是完整原图。`splash-light.png` 与 SVG 源保留不动（工具不读这两个名字）。
+
+### 打包注意（热更新地址）
+
+- 带地址跑过 `build:spa` 之后，`dist-spa/`（`assets/spa-*.js`、`NOVA_Admin.html`）里会带上真实更新地址。**这样的 `dist-spa/` 不要提交**；提交前用不带地址的环境重新跑一次 `npm run build:spa`。
+- `build:spa` 一开始就会删掉旧的 `.nova-live-update.json`，构建成功且有地址时才重新写入。单独跑 `cap add` / `cap sync` 时，`capacitor.config.ts` 会在日志里打印一行地址来源（环境变量名或这个文件，只显示域名）。**换打包环境前先删掉 `admin/.nova-live-update.json`**，避免用到上一次的旧地址。
 
 ### 怎么从 dist-spa 打更新包
 
