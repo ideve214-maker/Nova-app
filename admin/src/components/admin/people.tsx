@@ -330,7 +330,7 @@ export function UserScreen() {
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label="简介">
-          <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 outline-none" value={bio} onChange={(e) => setBio(e.target.value)} />
+          <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 text-[16px] outline-none" value={bio} onChange={(e) => setBio(e.target.value)} />
         </Field>
         <PrimaryButton
           onClick={() => {
@@ -356,7 +356,7 @@ export function UserScreen() {
       </Sheet>
       <Sheet open={notice} title="站内通知" onClose={() => setNotice(false)}>
         <Field label={`发给 ${sanitizeText(member.name)}`}>
-          <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 outline-none" value={note} onChange={(e) => setNote(e.target.value)} placeholder="通知内容" />
+          <textarea className="min-h-24 w-full rounded-2xl border border-line bg-subtle px-3 py-2 text-[16px] outline-none" value={note} onChange={(e) => setNote(e.target.value)} placeholder="通知内容" />
         </Field>
         {formError && <p className="mb-2 text-sm text-danger">{formError}</p>}
         <PrimaryButton

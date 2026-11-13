@@ -21,7 +21,7 @@ export function LoginScreen() {
     if (busy) return;
     const base = resolveBase();
     if (!base) {
-      setError("未配置接口地址。请打开「高级设置」填写后端网址。");
+      setError("还没有服务器地址，请在高级设置里填写。");
       setServerOpen(true);
       return;
     }

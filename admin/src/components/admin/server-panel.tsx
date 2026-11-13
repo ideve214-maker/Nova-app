@@ -24,7 +24,7 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
         else throw new Error("不是对象");
       } catch {
         setBusy(false);
-        setMsg("路径对照表需要是 JSON 对象，例如 {\"adminUsers\":\"/api/v2/users\"}");
+        setMsg("路径格式不对，请检查后再试");
         return;
       }
     }
@@ -42,8 +42,7 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
   return (
     <div>
       <p className="mb-3 text-[13px] leading-5 text-muted">
-        默认已经连到 <code className="text-[12px]">{builtIn}</code>
-        ，打开应用就能用。只有要换服务器时才改这里。保存后的地址记在本机，留空再保存会回到这个默认地址。
+        应用已预填服务器地址，一般不用改。只有要换服务器时才改这里。留空再保存会回到默认地址。
       </p>
       <Field label="接口根地址">
         <input
@@ -68,10 +67,10 @@ export function ServerPanel({ onDone }: { onDone?: () => void }) {
         </p>
       )}
       <button type="button" className="mb-3 h-11 text-[13px] text-primary" onClick={() => setAdvanced((v) => !v)}>
-        {advanced ? "收起路径对照表" : "高级：自定义接口路径（适配未来版本）"}
+        {advanced ? "收起自定义路径" : "高级：自定义路径"}
       </button>
       {advanced && (
-        <Field label="路径对照（JSON，只填要覆盖的项）">
+        <Field label="自定义路径（可选）">
           <textarea
             className={`${inputClass} h-28 py-2 font-mono text-[12px]`}
             value={mapText}
@@ -94,12 +93,12 @@ export function ConnectionBadge() {
     connection.mode !== "live" &&
     Object.keys(connection.authRequired || {}).some((k) => k.startsWith("admin"));
   const label = connection.mode === "live"
-      ? "已连接后端"
+      ? "已连接"
       : needLogin
-        ? "后端已通 · 请登录"
+        ? "请先登录"
         : connection.mode === "degraded"
-          ? "后端已通 · 管理接口待接入"
-          : "未连接后端";
+          ? "部分功能暂不可用"
+          : "未连接";
   const cls = connection.mode === "live"
       ? "nova-ok-soft"
       : connection.mode === "degraded"

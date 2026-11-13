@@ -37,14 +37,14 @@ export function StatsScreen() {
             <Card label="VIP" value={String(stats?.usersVip ?? 0)} delta="" />
           </div>
           <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
-            <Info label="可见帖子" value={String(stats?.postsVisible ?? 0)} hint="GET /api/admin/stats" />
+            <Info label="可见帖子" value={String(stats?.postsVisible ?? 0)} hint="来自当前统计" />
             <Info label="已删帖子" value={String(stats?.postsRemoved ?? 0)} />
             <Info label="可见评论" value={String(stats?.commentsVisible ?? 0)} />
             <Info label="待处理举报" value={String(stats?.reportsPending ?? 0)} />
             <Info label="待付款订单" value={String(stats?.paymentsPending ?? 0)} />
             <Info label="待审核付款" value={String(stats?.paymentsReview ?? 0)} />
           </div>
-          <p className="px-4 py-3 text-[12px] text-muted">后端目前不提供按日趋势，这里只展示当前真实汇总，没有虚构折线。</p>
+          <p className="px-4 py-3 text-[12px] text-muted">暂时没有按日趋势，这里只展示当前汇总。</p>
         </>
       )}
     </Screen>
@@ -151,7 +151,7 @@ export function SettingsScreen() {
   const [server, setServer] = useState(false);
   return (
     <Screen title="系统设置" onBack={back}>
-      <DataHint>下列开关目前只存在本机，没有写入服务器的配置接口（接口待接入）。密钥不会出现在此页面。</DataHint>
+      <DataHint>这些开关只保存在这台设备上，还不会同步到服务器。密钥不会出现在此页面。</DataHint>
       <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
         <RowLink icon={<Megaphone className="size-5" />} title="公告管理" desc="草稿、发布、撤回" onClick={() => go("announce")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<SlidersHorizontal className="size-5" />} title="权益开关" desc="套餐能力由配置控制" onClick={() => go("vip")} extra={<ChevronRight className="size-4 text-muted" />} />
@@ -176,7 +176,7 @@ export function SettingsScreen() {
       </div>
       <BugsinkSettings />
       <Sheet open={server} title="高级设置" onClose={() => setServer(false)}>
-        <p className="mb-3 text-xs text-muted">密钥只放环境变量，这里不能查看。支付未接入。地址已预填默认服务器。</p>
+        <p className="mb-3 text-xs text-muted">密钥不会显示在这里。服务器地址已预填，一般不用改。</p>
         <ServerPanel onDone={() => setServer(false)} />
       </Sheet>
     </Screen>
@@ -202,7 +202,7 @@ export function AuditScreen() {
         onChange={setTab}
       />
       <DemoBanner />
-      <p className="px-4 py-2 text-[12px] text-muted">来自 GET /api/admin/audit 的真实记录。</p>
+      <p className="px-4 py-2 text-[12px] text-muted">这里是实际发生过的操作记录。</p>
       {list.length === 0 && <EmptyState title="暂无审计记录" hint="登录、封禁、开通 VIP、审核付款等操作会出现在这里。" />}
       {list.map((item) => (
         <article key={item.id} className="flex gap-3 border-b border-line bg-surface px-4 py-3">
@@ -229,13 +229,13 @@ export function SecurityScreen() {
   return (
     <Screen title="安全中心" onBack={back}>
       <DemoBanner />
-      <DataHint>下面不是服务器体检结果。管理员口令由 admin-cli 管理。付款走人工核对，见「付款审核」。</DataHint>
+      <DataHint>管理员密码请在服务器上修改。付款请到「付款审核」里人工核对。</DataHint>
       <div className="px-4 py-4 text-center">
         <span className="mx-auto grid size-12 place-items-center rounded-full nova-soft">
           <ShieldCheck className="size-6" />
         </span>
         <h2 className="mt-2 text-[17px] font-semibold">安全中心</h2>
-        <p className="text-[13px] text-muted">接口待接入，不展示虚构「状态良好」。</p>
+        <p className="text-[13px] text-muted">暂时还没有服务器体检信息。</p>
       </div>
       <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
         <Check label="账户安全" ok={flags.loginProtect} desc={flags.loginProtect ? "登录保护已开启" : "登录保护已关闭"} />
@@ -260,7 +260,7 @@ export function SecurityScreen() {
       <Sheet open={report} title="安全报告" onClose={() => setReport(false)}>
         <p className="mb-3 text-sm text-muted">这是预览摘要，不是渗透测试结论。</p>
         <ul className="mb-4 space-y-2 text-sm">
-          <li>管理员口令只留在本机，不回读用户原密码。</li>
+          <li>用户密码不会显示在这里。</li>
           <li>邮箱默认脱敏，完整查看会写审计。</li>
           <li>邀请码一次性，根管理员不能在这里被撤销。</li>
           <li>用户付款为个人收款码人工核对：月卡 ¥9.9 / 30 天，年卡 ¥99 / 365 天。</li>
@@ -300,7 +300,7 @@ export function DevicesScreen() {
       }
     >
       <DemoBanner />
-      <p className="px-4 py-2 text-[13px] text-muted">本机会话。服务器设备列表接口待接入；关闭演示后只显示本机浏览器，没有虚构设备。</p>
+      <p className="px-4 py-2 text-[13px] text-muted">目前只能看到这台设备上的登录会话。</p>
       {devices.map((item) => (
         <article key={item.id} className="border-b border-line bg-surface px-4 py-3">
           <div className="flex items-center justify-between">
@@ -325,7 +325,7 @@ export function AdminsScreen() {
   return (
     <Screen title="管理员" onBack={back}>
       <DemoBanner />
-      <DataHint>后端尚无管理员账号接口。这里只显示本机操作员 admin。邀请码功能在未打开演示时不会生成服务器账号。</DataHint>
+      <DataHint>这里显示当前登录的管理员。暂时还不能在这里管理其他管理员账号。</DataHint>
       {admins.map((item) => (
         <article key={item.id} className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -382,7 +382,7 @@ export function CommunityScreen() {
             </button>
           </div>
         ) : tab === "topic" ? (
-          <div className="border-t border-line bg-surface px-4 py-2 pb-safe text-center text-[12px] text-muted">创建话题接口待接入</div>
+          <div className="border-t border-line bg-surface px-4 py-2 pb-safe text-center text-[12px] text-muted">暂时还不能在这里创建话题</div>
         ) : undefined
       }
     >
@@ -484,7 +484,7 @@ export function VipScreen() {
       <DemoBanner />
       {parsed.plans.length > 0 ? (
         <>
-          <p className="px-4 pt-2 pb-1.5 text-[12px] text-muted">以下套餐与权益来自后端 GET /api/vip/catalog，是真实目录。</p>
+          <p className="px-4 pt-2 pb-1.5 text-[12px] text-muted">以下套餐与权益来自服务器上的目录。</p>
           <div className="mx-4 mb-2 overflow-hidden rounded-card bg-surface shadow-card">
             {parsed.plans.map((plan) => {
               const prices = Array.isArray(plan.prices) ? (plan.prices as Record<string, unknown>[]) : [];
@@ -524,9 +524,9 @@ export function VipScreen() {
           )}
         </>
       ) : reachable ? (
-        <DataHint>已连接后端，但未能读取 /api/vip/catalog。</DataHint>
+        <DataHint>已连上服务器，但暂时读不到会员目录。</DataHint>
       ) : (
-        <DataHint>未连接后端，无法读取 VIP 目录。公开预览无法访问你电脑上的服务。</DataHint>
+        <DataHint>现在连不上服务器，无法读取会员目录。</DataHint>
       )}
       {demoMode && (
         <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">

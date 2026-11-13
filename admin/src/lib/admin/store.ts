@@ -559,7 +559,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     saveConfig({ baseUrl: (baseUrl || "").trim(), ...(endpoints ? { endpoints } : {}) });
     const status = await probeConnection(baseUrl);
     applyConnection(status);
-    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "后端已通，管理接口仍待接入，列表保持为空") : "后端不可达，列表保持为空");
+    get().flash(status.reachable ? (status.mode === "live" ? "已连接服务器" : "已连上服务器，部分功能暂不可用") : "连不上服务器，列表先保持为空");
     return status;
   },
   go: (name, userId, channelId) => {

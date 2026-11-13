@@ -178,7 +178,7 @@ export function Sheet({
 }) {
   if (!open || typeof document === "undefined") return null;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none bg-ink/40" role="presentation" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none bg-ink/40" data-nova-modal="" role="presentation" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -278,20 +278,15 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-export function PendingApi({ name, extra, needsAuth }: { name: string; extra?: string; needsAuth?: boolean }) {
+export function PendingApi({ name, extra, needsAuth }: { name?: string; extra?: string; needsAuth?: boolean }) {
   const reachable = useAdmin((s) => s.connection.reachable);
   if (needsAuth) {
-    return (
-      <EmptyState
-        title="需要用户登录 · 管理入口待接入"
-        hint={`${name}在当前后端已经存在，但必须带用户登录令牌。管理端尚无管理员鉴权，不会用普通用户身份代拉全站数据，因此这里保持为空，也没有虚构数字。`}
-      />
-    );
+    return <EmptyState title="暂时无法查看" hint="这项内容目前不能用管理账号打开，列表先保持为空。" />;
   }
   const hint = reachable
-    ? `${name}需要管理端专用接口。当前后端尚未提供该管理入口，因此这里没有数据，也没有虚构数字。可在「我的」中手动打开演示模式，仅用于预览界面。`
-    : `${name}无法读取：当前页面连不上后端（公开预览无法访问你电脑上的服务）。列表保持为空，没有虚构数字。${extra || ""}`;
-  return <EmptyState title="接口待接入" hint={hint} />;
+    ? "这项功能还不能用，列表先保持为空。"
+    : "现在连不上服务器，列表先保持为空。";
+  return <EmptyState title="暂时没有数据" hint={hint} />;
 }
 
 export function DemoBanner() {
@@ -299,7 +294,7 @@ export function DemoBanner() {
   if (!demoMode) return null;
   return (
     <div className="mx-4 mb-2 rounded-xl nova-warn-soft px-3 py-1.5 text-center text-[12px] font-medium leading-5">
-      演示模式 · 下列数据为本地虚构，不是服务器数据
+      演示数据，仅供预览
     </div>
   );
 }

@@ -105,7 +105,7 @@ export function HomeScreen() {
           <span>平台概览</span>
           <ConnectionBadge />
         </div>
-        <p className="mt-2 text-[12px] text-on-primary/80">{statsOk ? "来自 GET /api/admin/stats" : "统计接口未返回"}</p>
+        <p className="mt-2 text-[12px] text-on-primary/80">{statsOk ? "当前平台数据" : "暂时没有统计数字"}</p>
         <div className="mt-1.5 grid grid-cols-3 gap-2">
           <Metric value={statsOk && liveStats ? liveStats.usersTotal.toLocaleString("zh-CN") : dash} label="总用户" />
           <Metric value={statsOk && liveStats ? liveStats.usersActive.toLocaleString("zh-CN") : dash} label="活跃用户" />
@@ -162,19 +162,19 @@ export function HomeScreen() {
           )}
         </div>
         {feeds.stats === "error" && (
-          <p className="mt-2 text-[12px] leading-5 text-muted">付款与举报数量来自 GET /api/admin/stats，当前没有返回，所以显示为 —。</p>
+          <p className="mt-2 text-[12px] leading-5 text-muted">暂时读不到待办数量，先显示为 —。</p>
         )}
         {feeds.appeals === "error" && (
-          <p className="mt-1 text-[12px] leading-5 text-muted">申诉数量来自 GET /api/admin/appeals?status=pending，当前没有返回。</p>
+          <p className="mt-1 text-[12px] leading-5 text-muted">暂时读不到申诉数量。</p>
         )}
         {feeds.appeals === "ok" && appealsTruncated && (
-          <p className="mt-1 text-[12px] leading-5 text-muted">申诉接口没有给出总数，数字是已加载的待处理条数。</p>
+          <p className="mt-1 text-[12px] leading-5 text-muted">这里只统计了已加载的待处理申诉。</p>
         )}
       </section>
 
       <FeedList
         title="最近操作"
-        endpoint="GET /api/admin/audit"
+        endpoint="最近的管理操作"
         state={feeds.audit}
         empty="暂无操作记录"
         onMore={() => go("audit")}
@@ -193,7 +193,7 @@ export function HomeScreen() {
 
       <FeedList
         title="安全事件"
-        endpoint="GET /api/admin/security/events"
+        endpoint="最近的安全记录"
         state={feeds.events}
         empty="暂无安全事件"
         onMore={() => go("events")}
@@ -215,7 +215,7 @@ export function HomeScreen() {
           <h2 className="text-[15px] font-semibold">服务器状态</h2>
           <ConnectionBadge />
         </div>
-        <p className="px-3.5 pt-1 text-[12px] text-muted">来自 GET /api/health 与 GET /api/version。没有的字段不显示。</p>
+        <p className="px-3.5 pt-1 text-[12px] text-muted">服务器当前状态。没有的项不显示。</p>
         {!connection.reachable ? (
           <p className="px-3.5 py-3 text-[13px] leading-5 text-muted">{connection.message || "尚未连上后端。"}</p>
         ) : (
@@ -331,7 +331,7 @@ function FeedList({
         </button>
       </div>
       <p className="px-3.5 pb-1 text-[12px] text-muted">{endpoint}</p>
-      {state === "error" && <p className="px-3.5 py-3 text-[13px] text-muted">接口没有返回，这里不填数字。</p>}
+      {state === "error" && <p className="px-3.5 py-3 text-[13px] text-muted">暂时读不到内容。</p>}
       {state !== "error" && !hasRows && <p className="px-3.5 py-3 text-[13px] text-muted">{state === "ok" ? empty : "正在读取…"}</p>}
       {state === "ok" && hasRows ? children : null}
     </section>
@@ -428,7 +428,7 @@ export function MessagesScreen() {
       </div>
       <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <DemoBanner />
-      {list.length === 0 && <EmptyState title="没有消息" hint="管理端通知接口尚未提供，这里不会显示虚构消息。" />}
+      {list.length === 0 && <EmptyState title="没有消息" hint="暂时还没有通知。" />}
       {list.map((item) => (
         <article key={item.id} className="flex gap-3 border-b border-line bg-surface px-4 py-2.5">
           <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" style={{ opacity: item.read ? 0 : 1 }} />
@@ -480,9 +480,7 @@ export function MeScreen() {
           </div>
         </div>
       </div>
-      <DataHint>
-        已用服务器管理员账号登录，请求会带 na_ 令牌。口令由运营用 admin-cli 管理，这里不能改。401 会回到登录页。
-      </DataHint>
+      <DataHint>你已登录。在这里可以查看账号、外观和退出。</DataHint>
       <div className="mx-5 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
         <RowLink icon={<CreditCard className="size-4" />} title="付款审核" desc="收款码人工核对" onClick={() => go("payments")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ShieldCheck className="size-4" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />

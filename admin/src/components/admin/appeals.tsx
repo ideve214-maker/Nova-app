@@ -29,7 +29,7 @@ export function EventsScreen() {
 
   return (
     <Screen title="安全事件" onBack={back}>
-      <p className="px-4 pt-2 text-[12px] leading-4 text-muted">来自 GET /api/admin/security/events 的限流和异常记录，没有虚构数据。</p>
+      <p className="px-4 pt-2 text-[12px] leading-4 text-muted">这里是限流和异常记录。</p>
       <Seg
         value={kind}
         options={[

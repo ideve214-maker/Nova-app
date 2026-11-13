@@ -324,11 +324,29 @@ html[data-theme="light"] .nova-splash {
 }
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+
   button,
   a,
   [role="button"] {
     touch-action: manipulation;
-    -webkit-tap-highlight-color: var(--ac-soft);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+    font-size: 16px;
   }
 }
 
