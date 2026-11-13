@@ -115,6 +115,37 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const events = createEvents(db, {now, ...eventsOpts});
   const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
   const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan || createNsfwScan()});
+  media.attachPostAccess((user, mediaId) => {
+    const rows = db.prepare('SELECT * FROM posts WHERE deleted_at IS NULL AND instr(media, ?) > 0').all(mediaId);
+    return rows.some(row => {
+      let items;
+      try { items = JSON.parse(row.media || '[]'); } catch { return false; }
+      if (!Array.isArray(items)) return false;
+      const hit = items.some(it => (typeof it === 'string' ? it : (it && (it.id || it.mediaId))) === mediaId);
+      return hit && posts.canSee(row, user);
+    });
+  });
+  posts.attach({
+    resolveMedia(items, me) {
+      if (!Array.isArray(items) || !me) return items;
+      return items.map(it => {
+        const o = typeof it === 'string' ? {id: it} : Object.assign({}, it);
+        const id = o.id || o.mediaId;
+        if (!id) return o;
+        try {
+          const row = media._byId.get(id);
+          if (!row || row.deleted_at || !media.canAccess(me, row)) return o;
+          const tk = media.ticket(me, id, {ttlMs: 12 * 3600 * 1000});
+          o.id = id;
+          o.kind = o.kind || row.kind;
+          o.url = '/api/media/' + id + '/file?ticket=' + encodeURIComponent(tk.ticket);
+          if (row.preview_path) o.previewUrl = '/api/media/' + id + '/preview?ticket=' + encodeURIComponent(tk.ticket);
+          o.expiresAt = tk.expiresAt;
+        } catch {}
+        return o;
+      });
+    }
+  });
   let notifications;
   const onEvent = (ids, type, payload) => {
     events.publish(ids, type, payload);
@@ -423,6 +454,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/posts'(req, b) {
       const {user} = auth(req);
       const body = b || {};
+      if (body.kind === 'story') body.poll = undefined;
       if (body.poll) polls.validateSpec(body.poll);
       if (body.text) blockwords.assertPlatform(body.text);
       if (body.poll && body.poll.question) blockwords.assertPlatform(body.poll.question);
@@ -445,6 +477,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
       // feed=topic 由 posts.list 按话题/标签过滤，并套用受众权限。
       return posts.list(user, q);
+    },
+    'GET /api/stories'(req) {
+      const {user} = auth(req);
+      return posts.listStories(user, req.query || {});
     },
     'GET /api/posts/:id'(req) {
       const {user} = auth(req);
@@ -907,9 +943,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return media.get(user, req.params.id);
     },
-    'POST /api/media/:id/ticket'(req) {
+    'POST /api/media/:id/ticket'(req, b) {
       const {user} = auth(req);
-      return media.ticket(user, req.params.id);
+      return media.ticket(user, req.params.id, b || {});
     },
     'POST /api/media/:id/delete'(req) {
       const {user} = auth(req);
