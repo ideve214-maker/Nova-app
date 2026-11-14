@@ -42,7 +42,7 @@ permissions:
 
 env:
   # ---- source pins (full SHAs; never branch names) -------------------------
-  USER_SHA: 9b5bdb2154a5fac3675c0abc6959e558f4bbded0   # v7-m7.r8-vexo (Bob)
+  USER_SHA: ab74408303ec915497c5e7332aea9e99845025d3   # v7-m7.r8-vexo (Bob), reviewed; built in run 43563070464
   ADMIN_SHA: 8f927e430d3afde6892a6619a646d9660820ca96  # admin-vexo-1.1.0 (Agent): VEXO_Admin.html, sha256 checksum required
   # ---- versions --------------------------------------------------------------
   # Android versionCode = BASE + github.run_number of THIS workflow.
@@ -71,9 +71,12 @@ jobs:
       user_code: ${{ steps.p.outputs.user_code }}
       admin_code: ${{ steps.p.outputs.admin_code }}
       matrix: ${{ steps.p.outputs.matrix }}
+      admin_deploy_ok: ${{ steps.p.outputs.admin_deploy_ok }}
     steps:
       - id: p
         env:
+          GH_TOKEN: ${{ github.token }}
+          ADMIN_BRANCH: admin-vexo-1.1.0
           IN_USER: ${{ inputs.user_sha }}
           IN_ADMIN: ${{ inputs.admin_sha }}
           IN_APPS: ${{ inputs.apps }}
@@ -94,9 +97,24 @@ jobs:
             fi
             UC="$OVR"; AC="$OVR"
             echo "::notice::versionCode override from $SRC: $OVR (user and admin)"
+            if [ -z "$IN_CODE" ]; then
+              echo "::warning::repo variable VEXO_VERSION_CODE=$OVR is set: EVERY build (including pushes) uses this same versionCode until the variable is cleared"
+              WARN_VAR=1
+            fi
           else
             SRC="BASE + run_number"
             UC=$((USER_VERSION_CODE_BASE + N)); AC=$((ADMIN_VERSION_CODE_BASE + N))
+          fi
+          # A custom admin_sha is only deployed to the server if it is on $ADMIN_BRANCH
+          # (equal to or an ancestor of the branch head). The pinned default always is.
+          DEPLOY_OK=true
+          if [ -n "$IN_ADMIN" ] && [ "$IN_ADMIN" != "$ADMIN_SHA" ]; then
+            ST=$(gh api "repos/$GITHUB_REPOSITORY/compare/$IN_ADMIN...$ADMIN_BRANCH" --jq .status 2>/dev/null || echo error)
+            case "$ST" in
+              identical|ahead) echo "::notice::admin_sha $IN_ADMIN is on $ADMIN_BRANCH ($ST)";;
+              *) DEPLOY_OK=false
+                 echo "::warning::admin_sha $IN_ADMIN is not on origin/$ADMIN_BRANCH (compare: $ST); admin packages will NOT be deployed to the server";;
+            esac
           fi
           case "$APPS" in
             both)  M='["user","admin"]';;
@@ -107,7 +125,7 @@ jobs:
             echo "user_sha=$U"; echo "admin_sha=$A"
             echo "user_sha7=${U:0:7}"; echo "admin_sha7=${A:0:7}"
             echo "user_code=$UC"; echo "admin_code=$AC"
-            echo "matrix=$M"
+            echo "matrix=$M"; echo "admin_deploy_ok=$DEPLOY_OK"
           } >> "$GITHUB_OUTPUT"
           {
             echo "### VEXO packages, run #$N (versionCode: $SRC)"
@@ -115,6 +133,9 @@ jobs:
             echo "|---|---|---|---|"
             echo "| user | \`$U\` | $USER_VERSION_NAME | $UC |"
             echo "| admin | \`$A\` | $ADMIN_VERSION_NAME | $AC |"
+            [ -n "${WARN_VAR:-}" ] && echo "> ⚠️ versionCode comes from repo variable \`VEXO_VERSION_CODE\`. Clear it after this build, or every push reuses the same code."
+            [ "$DEPLOY_OK" = true ] || echo "> ⚠️ admin_sha is not on \`$ADMIN_BRANCH\`: admin server deploy skipped."
+            true
           } >> "$GITHUB_STEP_SUMMARY"
 
   build:
@@ -256,7 +277,7 @@ jobs:
           [ "$PKG_KIND" = apk ] && CERT_ARG=(--cert-sha256 "$EXPECT_CERT")
           node pack/scripts/verify-package.mjs --kind "$PKG_KIND" --file "out/$PKG_FILE" --project "$PROJ" \
             --name "$EXPECT_NAME" --version-name "$APP_VERSION_NAME" --version-code "$APP_VERSION_CODE" \
-            --url "$EXPECT_URL" "${CERT_ARG[@]}" --meta-out "out/$PKG_FILE.verify.json"
+            --url "$EXPECT_URL" ${CERT_ARG[@]+"${CERT_ARG[@]}"} --meta-out "out/$PKG_FILE.verify.json"
           node -e '
             const fs=require("fs"); const f=process.argv[1];
             const m=JSON.parse(fs.readFileSync(f+".verify.json"));
@@ -315,8 +336,23 @@ jobs:
       # Admin packages are not uploaded as (publicly downloadable) Actions
       # artifacts. They go to the hidden server dir; release-draft.yml fetches
       # them from there only when include_admin is ticked.
+      # Not deployed (deploy_admin=false or admin_sha not on the branch): keep the
+      # admin hot-update candidate as an artifact instead (user allowed admin publicly).
+      - name: Upload admin hot-update candidate (no server deploy)
+        if: >-
+          matrix.app == 'admin' && matrix.platform == 'android' &&
+          !(needs.plan.outputs.admin_deploy_ok == 'true' && (github.event_name == 'push' || inputs.deploy_admin))
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.HOTUPDATE_BASE }}
+          path: |
+            out/${{ env.HOTUPDATE_BASE }}.zip
+            out/${{ env.HOTUPDATE_BASE }}.manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Deploy admin package to server (hidden dir)
-        if: matrix.app == 'admin' && (github.event_name == 'push' || inputs.deploy_admin)
+        if: matrix.app == 'admin' && needs.plan.outputs.admin_deploy_ok == 'true' && (github.event_name == 'push' || inputs.deploy_admin)
         env:
           HOST: ${{ secrets.NOVA_ADMIN_DEPLOY_HOST }}
           DUSER: ${{ secrets.NOVA_ADMIN_DEPLOY_USER }}

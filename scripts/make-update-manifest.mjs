@@ -6,7 +6,7 @@
 //
 // Rules (admin client 8f927e4+ skips an update without them; user client passes
 // the same field to download()):
-//   - `checksum` (and the alias `sha256`) = lowercase 64-hex sha256 of the WHOLE zip
+//   - `checksum` (REQUIRED) and the optional alias `sha256` = lowercase 64-hex sha256 of the WHOLE zip
 //   - no `session_key` / `sessionKey` (bundles are not encrypted)
 //   - an `error` / kind:"up_to_date" manifest carries no bundle and needs no checksum
 import { createHash } from 'node:crypto';
@@ -25,7 +25,8 @@ export function checkManifest(m) {
   for (const f of ['checksum', 'sha256']) {
     if (f in m && !HEX64.test(String(m[f]))) return `${f} is not a lowercase 64-hex sha256`;
   }
-  if (!m.checksum && !m.sha256) return 'checksum (or sha256) is missing';
+  // `checksum` is mandatory: the user client reads only that field (admin accepts either).
+  if (!m.checksum) return 'checksum is missing (required; sha256 is only an optional alias)';
   if (m.checksum && m.sha256 && m.checksum !== m.sha256) return 'checksum and sha256 differ';
   return null;
 }
