@@ -81,7 +81,7 @@ test('GET /api/version 与 /api/health 含版本和提交', async () => {
   const v = await call('GET', '/api/version');
   assert.equal(v.s, 200, v.text);
   assert.equal(v.j.version, appVersion().version);
-  assert.match(v.j.version, /^0\.7\.0/);
+  assert.match(v.j.version, /^1\.0\.0/);
   if (v.j.commit) assert.match(v.j.commit, /^[0-9a-f]{7,40}$/);
   const h = await call('GET', '/api/health');
   assert.equal(h.s, 200);
@@ -139,9 +139,9 @@ test('频道消息 author.displayName：有显示名用显示名，否则回退�
 test('皮肤注册表与资源可被静态访问；默认是星澜', async () => {
   const idx = await call('GET', '/assets/skins/index.json');
   assert.equal(idx.s, 200, idx.text);
-  assert.equal(idx.j.defaultSkin, 'nova');
+  assert.equal(idx.j.defaultSkin, 'starlight');
   const ids = (idx.j.skins || []).map(s => s.id);
-  assert.ok(ids.includes('nova') && ids.includes('xinglan') && ids.includes('default'));
+  assert.ok(ids.includes('starlight') && ids.includes('nova') && ids.includes('xinglan') && ids.includes('default'));
   const meta = await call('GET', '/assets/skins/xinglan/skin.json');
   assert.equal(meta.s, 200);
   assert.equal(meta.j.id, 'xinglan');

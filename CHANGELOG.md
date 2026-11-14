@@ -1,5 +1,18 @@
 # 更新日志（最新在上）
 
+## VEXO 1.0.0 · 用户端（2026-11-14）
+
+分支 `v7-m7.r8-vexo`，从 `v7-m7.r7-bob`（`e971806`）接出。版本号 `1.0.0`（`package.json`、`capacitor.config.json` 的 `appName` 为 VEXO，热更新内置版本兜底）。Android `versionCode` 100、`versionName` 1.0.0，iOS `CURRENT_PROJECT_VERSION` 100、`MARKETING_VERSION` 1.0.0，由 `scripts/stamp-native.mjs` 在 `cap add` 之后写入。
+
+- 保留 `80cc697` 的建群修复：全屏面板、创建按钮在顶部、群名不自动聚焦、群名可空。也保留 `75_r7.js` 里的 `zoomGuard`。真机上仍坏的是打出来的 `v7-m7.r7`，不是这一支。
+- 用户可见名称改为 VEXO（网页标题、关于、分享、会员文案、图标替代文字）。存储键仍是 `nova_session` 等，避免把已登录的人踢掉。
+- 应用图标和启动图换成星澜 V（黑底，白到电光蓝，启动图只有标记、没有字）。`@capacitor/assets` 必须 `--assetPath resources`，生成失败就停止，不再退回默认图标。
+- 新皮肤 Starlight（`assets/skins/starlight`），默认启用。本地打包 Inter（OFL），`@font-face` 放在页面和各皮肤字体栈最前面。
+- 退出登录时清掉本机加密密钥（`e2eeKey`）、Dexie 的帖子和消息缓存、发帖草稿和最近位置。
+- 定位只要大致位置：清单里只留 `ACCESS_COARSE_LOCATION`，并用 `tools:node="remove"` 去掉 `ACCESS_FINE_LOCATION`。运行时只申请粗略定位。拒绝后仍可手动填地点。
+- 帖子带上 `audienceLabel` / `isPublic`（公开、仅粉丝、仅好友、仅自己）。两个不同的人有未处理举报时，看这个人的资料或发消息请求会看到风险提示；看自己没有。
+- 热更新：清单里的 `session_key` 传给 `CapacitorUpdater.download()` 的 `sessionKey`。仓库里没有找到 Dift 的现成提交。
+
 ## V7 0.7.0-m7.r7 · 防缩放、建群键盘、小组页、日常与发帖媒体（2026-11-13）
 
 从 `v7-m7.r6` 新开 `v7-m7.r7`，版本号 `0.7.0-m7.r7`（package.json、capacitor.config.json、内置版本兜底）。只改用户端网页部分，可热更新；`server/` 代码未改，需要服务端配合的地方见 `docs/r7-server-notes.md`。

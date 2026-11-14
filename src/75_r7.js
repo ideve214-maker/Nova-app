@@ -376,7 +376,7 @@ Object.assign(A,{
   xshare:v=>{S.sh={t:'xshare',id:v}},
   xcopylink:async v=>{S.sh=null;const ok=await copyText(postLink(v));T(ok?'已复制帖子链接':'复制失败，请长按手动复制')},
   xcopytext:async v=>{S.sh=null;const p=findPost(v);const ok=await copyText(p&&p.x||'');T(ok?'已复制正文':'复制失败')},
-  xsys:async v=>{S.sh=null;const p=findPost(v);try{await navigator.share({title:'NOVA',text:p&&p.x?[...p.x].slice(0,60).join(''):'',url:postLink(v)})}catch(e){}},
+  xsys:async v=>{S.sh=null;const p=findPost(v);try{await navigator.share({title:'VEXO',text:p&&p.x?[...p.x].slice(0,60).join(''):'',url:postLink(v)})}catch(e){}},
   xrt:v=>{S.sh={t:'xrt',id:v}},
   xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(repostMap()[v])return T('已经转过了');const text=repostText(p);
     let nid=null;
@@ -458,17 +458,31 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){annHiddenA
    没权限或失败时，仍可选最近用过的位置或手动输入 ---- */
 function geoLabel(lat,lng){const f=(v,p,n)=>Math.abs(v).toFixed(3)+'°'+(v>=0?p:n);return f(lat,'N','S')+', '+f(lng,'E','W')}
 function geoErrMsg(e){const c=e&&e.code;
-  if(c===1||/denied|permission/i.test(String(e&&e.message||'')))return '没有定位权限。可以到系统设置里允许 NOVA 使用位置，或者直接在下面输入。';
+  if(c===1||/denied|permission/i.test(String(e&&e.message||'')))return '没有定位权限。可以到系统设置里允许 VEXO 使用大致位置，或者直接在下面输入地点。';
   if(c===3)return '定位超时了，可以再试一次，或者直接在下面输入。';
   return '暂时获取不到位置，可以再试一次，或者直接在下面输入。'}
+/* 只要大致位置：enableHighAccuracy 一律为 false。原生壳只声明 ACCESS_COARSE_LOCATION。
+   插件若因为缺少精确定位权限失败，退回网页定位；再失败就让用户手动填写。 */
 async function geoGetPosition(){
+  const low={enableHighAccuracy:false,timeout:10000,maximumAge:300000};
   const cap=typeof window!=='undefined'&&window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Geolocation;
   if(cap&&typeof cap.getCurrentPosition==='function'){
-    try{if(cap.checkPermissions){const st=await cap.checkPermissions();if(st&&st.location!=='granted'&&cap.requestPermissions){const r=await cap.requestPermissions({permissions:['location']});if(r&&r.location==='denied')throw {code:1}}}}catch(e){if(e&&e.code===1)throw e}
-    const p=await cap.getCurrentPosition({enableHighAccuracy:false,timeout:10000,maximumAge:300000});return {lat:p.coords.latitude,lng:p.coords.longitude};
+    try{
+      if(cap.checkPermissions){
+        const st=await cap.checkPermissions();
+        if(st&&st.location!=='granted'&&st.coarseLocation!=='granted'&&cap.requestPermissions){
+          const r=await cap.requestPermissions({permissions:['location']});
+          if(r&&r.location==='denied'&&r.coarseLocation==='denied')throw {code:1};
+        }
+      }
+      const p=await cap.getCurrentPosition(low);
+      if(p&&p.coords)return {lat:p.coords.latitude,lng:p.coords.longitude};
+    }catch(e){
+      if(e&&e.code===1)throw e;
+    }
   }
   if(typeof navigator==='undefined'||!navigator.geolocation)throw {code:2,message:'unsupported'};
-  return await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),rej,{enableHighAccuracy:false,timeout:10000,maximumAge:300000}));
+  return await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),rej,low));
 }
 async function geoReverse(lat,lng){
   const u=typeof NOVA_CFG!=='undefined'?NOVA_CFG.reverseGeocodeUrl:'';if(!u)return '';

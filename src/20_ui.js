@@ -23,8 +23,9 @@ const fol=(a,b)=>D.f.some(e=>e[0]==a&&e[1]==b),ncm=id=>{const p=(typeof feedSrc=
 const T=m=>{const t=$('#tt');if(!t)return;t.textContent=m;t.style.display='block';t.classList.remove('tt-out');void t.offsetWidth;t.classList.add('tt-in');clearTimeout(T.h);clearTimeout(T.h2);T.h=setTimeout(()=>{t.classList.remove('tt-in');t.classList.add('tt-out');T.h2=setTimeout(()=>{t.style.display='none';t.classList.remove('tt-out')},200)},1800)};
 const sub=(t,r='')=>`<div class="top sub"><button class="ib" data-a="back" aria-label="返回">${ic('back')}</button><h1>${t}</h1>${r}</div>`;
 const rs=p=>{const t=p.r.reduce((a,b)=>a+b,0);return t?p.r.map((n,i)=>[n,i]).filter(a=>a[0]).sort((a,b)=>b[0]-a[0]).slice(0,3).map(a=>E[a[1]]).join('')+' '+t:''};
-const AUD_L={public:'公开',followers:'关注者',friends:'好友',self:'仅自己'};
-const pc=(p,det)=>{const u=P(p.a),n=typeof ncm==='function'?ncm(p.id):(p.commentCount||0),aud=AUD_L[p.aud||p.audience||'public']||'公开',tm=typeof fmtTime==='function'&&p.at?fmtTime(p.at):(p.t||'');
+const AUD_L={public:'公开',followers:'仅粉丝',friends:'仅好友',self:'仅自己'};
+function audLabel(p){const from=p&&(p.audienceLabel||p.audience_label);if(from)return String(from);const k=(p&&(p.aud||p.audience))||'public';return AUD_L[k]||(p&&p.isPublic===false?'非公开':'公开')}
+const pc=(p,det)=>{const u=P(p.a),n=typeof ncm==='function'?ncm(p.id):(p.commentCount||0),aud=audLabel(p),tm=typeof fmtTime==='function'&&p.at?fmtTime(p.at):(p.t||'');
 const nLike=(p.r||[]).reduce((a,b)=>a+(b||0),0),nC=p.commentCount!=null?p.commentCount:n;
 const media=Array.isArray(p.media)?p.media:[];
 const mediaH=typeof mediaHTML==='function'?mediaHTML(media,det,p.id):'';
@@ -32,6 +33,11 @@ const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:''
 const chips=[S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
 return `<article class="fcard" data-pid="${p.id}"><div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn">${esc(u.n)}${u.v?' '+vipBadge():''}</b><small>${esc(tm)}${tm?' · ':''}${aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>`:''}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
+function riskNoticeText(id){
+  const u=S.userView&&String(S.userView.id)===String(id)&&S.userView.user;
+  if(u&&String(u.id)===String(id)&&(u.riskNotice||u.risky))return u.riskNotice||'这个账号近期被多人举报。请核实对方身份，不要轻信转账、投资或私下链接。';
+  return (S.riskNote&&S.riskNote[String(id)])||'';
+}
 const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊已加密</b>一对一聊天会加密后发送。群聊暂时还没有加密。请核对手友的安全号码。</div>':'<div class="ban"><b>演示模式</b>这里只是演示，不会发送真实消息。</div>';
 
 function hasSafeArea(){

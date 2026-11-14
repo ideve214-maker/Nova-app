@@ -25,7 +25,7 @@ test('服务层：Basic 调用 flag 权益被拒，错误码 403 ENTITLEMENT_REQ
   for (const key of ['vip_badge', 'profile_theme_gold', 'profile_decoration', 'premium_emoji_pack']) {
     const e = catchVip(() => srv.vip.requireEntitlement(u, key));
     assert.equal(e.s, 403); assert.equal(e.code, 'ENTITLEMENT_REQUIRED');
-    assert.match(e.message, /NOVA VIP/); assert.match(e.message, new RegExp(C.entitlements[key].title));
+    assert.match(e.message, /VEXO VIP/); assert.match(e.message, new RegExp(C.entitlements[key].title));
     assert.equal(e.extra.entitlement, key); assert.equal(e.extra.plan, 'basic'); assert.equal(e.extra.upgrade, true);
   }
 });
@@ -109,7 +109,7 @@ test('HTTP：/api/vip/gate 需要登录；Basic 调 VIP 专属权益 403；VIP �
   const basic = await call('POST', '/api/vip/gate', {key: 'premium_emoji_pack'}, tok);
   assert.equal(basic.s, 403); assert.equal(basic.j.error.code, 'ENTITLEMENT_REQUIRED');
   assert.equal(basic.j.error.entitlement, 'premium_emoji_pack'); assert.equal(basic.j.error.plan, 'basic');
-  assert.match(basic.j.error.message, /NOVA VIP/);
+  assert.match(basic.j.error.message, /VEXO VIP/);
   // 隐藏按钮无效：只要有令牌就能打到接口，服务端仍然拒绝
   setVip(id, T0 + 5 * DAY);
   const ok = await call('POST', '/api/vip/gate', {key: 'premium_emoji_pack'}, tok);

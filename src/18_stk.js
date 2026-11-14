@@ -15,7 +15,7 @@ function stkp(v){S.sh={t:'stk',cid:v};if(MODE==='account')return loadStickers()}
 function stkuse(v){
   const[pack,id]=v.split('|'),packs=stkPacks(),p=packs.find(x=>x.id===pack),it=p&&p.items.find(x=>x.id===id);
   if(!it)return T('贴纸不存在');
-  if(p.premium&&!p.usable){S.sh=null;T('这项功能需要 NOVA VIP，才能使用「专属表情包」。');return}
+  if(p.premium&&!p.usable){S.sh=null;T('这项功能需要 VEXO VIP，才能使用「专属表情包」。');return}
   const sendLocal=st=>{const cid=S.sh&&S.sh.cid;S.sh=null;if(!cid)return;(D.m[cid]=D.m[cid]||[]).push(['me','k','刚刚','已发送',st,newId()]);const i=D.cv.findIndex(c=>c.id==cid);if(i>=0){const c=D.cv.splice(i,1)[0];D.cv.unshift(c)}S.bot=1;T('已发送 '+st.name)};
   const st={pack,id,glyph:it.glyph,name:it.name,premium:!!p.premium};
   if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{

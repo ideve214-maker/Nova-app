@@ -2,11 +2,15 @@
 <html lang="zh-CN" data-theme="dark" data-skin="nova"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VEXO">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0B0C0F">
-<title>NOVA</title>
+<meta name="theme-color" content="#000000">
+<title>VEXO</title>
 <style>
-:root{--ui-scale:1;--fs:calc(16px * var(--ui-scale));--fs-sm:calc(13px * var(--ui-scale));--fs-xs:calc(12px * var(--ui-scale));--fs-title:calc(17px * var(--ui-scale));--fs-h:calc(22px * var(--ui-scale));--btn-h:calc(36px * var(--ui-scale));--btn-h-sm:calc(32px * var(--ui-scale));--tap:calc(44px * var(--ui-scale));--pad:calc(16px * var(--ui-scale));--gap:calc(10px * var(--ui-scale));--top-h:calc(44px * var(--ui-scale));--nav-h:calc(50px * var(--ui-scale));--sb-h:47px;--cv:#0B0C0F;--bg:#0B0C0F;--sf:#14161A;--s2:#1B1E23;--s3:#23262C;--tx:#F5F6F7;--t2:#A4A9B2;--t3:#737985;--ln:#292D34;--ln2:rgba(255,255,255,.06);--ac:#2D88FF;--ac-hover:#4A9AFF;--ac-pressed:#1B6FE0;--ac-soft:rgba(45,136,255,.16);--ac-grad:#2D88FF;--onac:#fff;--dg:#D4655A;--dg-hover:#E07870;--dg-pressed:#C0544A;--dg-soft:rgba(212,101,90,.16);--dg-grad:#D4655A;--ok:#3DB8A8;--warn:#E0A03C;--vip:#C8A96A;--vip-grad:linear-gradient(135deg,#EBD9A8 0%,#C8A96A 55%,#B39455 100%);--onvip:#1A1408;--r-xs:8px;--r-sm:10px;--r-md:16px;--r-lg:20px;--r-btn:12px;--r-pill:999px;--sh-sm:0 1px 2px rgba(0,0,0,.28);--sh-md:0 8px 28px rgba(0,0,0,.40);--sh-sheet:0 -8px 32px rgba(0,0,0,.45);--sh-btn:none;--sh-dg:none;--tracking-brand:0;--tracking-btn:0;--font-stack:"Noto Sans CJK SC","Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;box-sizing:border-box}
+@font-face{font-family:Inter;font-style:normal;font-weight:400;font-display:swap;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");}
+@font-face{font-family:Inter;font-style:normal;font-weight:600;font-display:swap;src:url("assets/fonts/inter-latin-600.woff2") format("woff2");}
+@font-face{font-family:Inter;font-style:normal;font-weight:700;font-display:swap;src:url("assets/fonts/inter-latin-700.woff2") format("woff2");}
+:root{--ui-scale:1;--fs:calc(16px * var(--ui-scale));--fs-sm:calc(13px * var(--ui-scale));--fs-xs:calc(12px * var(--ui-scale));--fs-title:calc(17px * var(--ui-scale));--fs-h:calc(22px * var(--ui-scale));--btn-h:calc(36px * var(--ui-scale));--btn-h-sm:calc(32px * var(--ui-scale));--tap:calc(44px * var(--ui-scale));--pad:calc(16px * var(--ui-scale));--gap:calc(10px * var(--ui-scale));--top-h:calc(44px * var(--ui-scale));--nav-h:calc(50px * var(--ui-scale));--sb-h:47px;--cv:#0B0C0F;--bg:#0B0C0F;--sf:#14161A;--s2:#1B1E23;--s3:#23262C;--tx:#F5F6F7;--t2:#A4A9B2;--t3:#737985;--ln:#292D34;--ln2:rgba(255,255,255,.06);--ac:#2D88FF;--ac-hover:#4A9AFF;--ac-pressed:#1B6FE0;--ac-soft:rgba(45,136,255,.16);--ac-grad:#2D88FF;--onac:#fff;--dg:#D4655A;--dg-hover:#E07870;--dg-pressed:#C0544A;--dg-soft:rgba(212,101,90,.16);--dg-grad:#D4655A;--ok:#3DB8A8;--warn:#E0A03C;--vip:#C8A96A;--vip-grad:linear-gradient(135deg,#EBD9A8 0%,#C8A96A 55%,#B39455 100%);--onvip:#1A1408;--r-xs:8px;--r-sm:10px;--r-md:16px;--r-lg:20px;--r-btn:12px;--r-pill:999px;--sh-sm:0 1px 2px rgba(0,0,0,.28);--sh-md:0 8px 28px rgba(0,0,0,.40);--sh-sheet:0 -8px 32px rgba(0,0,0,.45);--sh-btn:none;--sh-dg:none;--tracking-brand:0;--tracking-btn:0;--font-stack:Inter,"Noto Sans CJK SC","Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;box-sizing:border-box}
 html[data-ui-size=sm]{--ui-scale:.88}
 html[data-ui-size=lg]{--ui-scale:1.15}
 html[data-ui-size=md],html:not([data-ui-size]){--ui-scale:1}
@@ -21,7 +25,7 @@ html,body{height:100%;height:-webkit-fill-available;min-height:100%;min-height:1
 /* 全局隐藏网页式滚动条，滚动仍可用 */
 html,body,#app,#v,.sc,.pn,.cropstage,.pswp,.pswp__scroll-wrap,.gtiles,.game-pg,.game-frame,*{scrollbar-width:none;-ms-overflow-style:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar,#app::-webkit-scrollbar,#v::-webkit-scrollbar,.sc::-webkit-scrollbar,.pn::-webkit-scrollbar,.cropstage::-webkit-scrollbar,.pswp::-webkit-scrollbar,.pswp__scroll-wrap::-webkit-scrollbar,.gtiles::-webkit-scrollbar,.game-pg::-webkit-scrollbar,.game-frame::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}
-body{font:var(--fs,16px)/1.45 var(--font-stack,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif);background:var(--cv);color:var(--tx)}
+body{font:var(--fs,16px)/1.45 var(--font-stack,Inter,"Noto Sans CJK SC","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif);background:var(--cv);color:var(--tx)}
 button,input,textarea,select{font:inherit;color:inherit;background:none;border:0;outline:0}input,textarea,select,[contenteditable],.bub,.cb,.fbd,.bio,.cta,.fld{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}input,textarea,select,.fld,.cta{font-size:16px;font-size:max(16px,var(--fs,16px));line-height:1.4}
 button{cursor:pointer}:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
 #app{width:100%;max-width:none;height:100%;height:-webkit-fill-available;min-height:100%;min-height:100dvh;margin:0;background:var(--bg);position:relative;overflow:hidden;overscroll-behavior:none;touch-action:none}@media (min-width:600px) and (hover:hover) and (pointer:fine){#app{max-width:430px;margin:0 auto}}
@@ -492,6 +496,7 @@ html.kb-open .pn{padding-bottom:12px}
 .annc h3{font-size:18px;line-height:1.35;margin:0;word-break:break-word}
 .annc small{color:var(--t2);font-size:12px}
 .annb{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;white-space:pre-wrap;word-break:break-word;line-height:1.6;font-size:15px;color:var(--tx,inherit)}
+.riskn{margin:12px 16px 4px;padding:10px 12px;border-radius:12px;background:rgba(224,160,60,.16);color:var(--warn,#E0A03C);font-size:13px;line-height:1.5}
 .annok{width:100%;margin-top:6px;height:44px}
 @keyframes annIn{from{opacity:0}to{opacity:1}}
 @keyframes annOut{from{opacity:1}to{opacity:0}}
@@ -510,7 +515,7 @@ html.kb-open .pn{padding-bottom:12px}
 <div id="app"><div id="v"></div><div id="tt" role="status"></div></div>
 <script>
 /* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */
-window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "0.7.0-m7.r7";
+window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "1.0.0";
 </script>
 <script>
 /* vendored @kinsh/vodozemac-wasm 0.4.2, Apache-2.0; crypto is official vodozemac (Olm). */
@@ -1642,14 +1647,14 @@ function errMsg(r,fallback){
   if(tech||(r&&!r.s)){try{console.warn('nova',r&&r.s,code,raw)}catch(e){} return fb}
   return raw;
 }
-function bootView(){return '<div class="pg"><div class="top"><h1 class="br">'+(typeof brandTitle==='function'?brandTitle():'NOVA')+'</h1></div><div class="sc"><p class="em">正在连接…</p></div></div>'}
-function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
+function bootView(){return '<div class="pg"><div class="top"><h1 class="br">'+(typeof brandTitle==='function'?brandTitle():'VEXO')+'</h1></div><div class="sc"><p class="em">正在连接…</p></div></div>'}
+function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
 function retryconnect(){return bootNet()}
 function gateView(){const reg=S.auth.pane==='reg',busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}</div>`:'';
 const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button> · <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">隐私政策</a> · <a class="lk" href="/legal/terms" target="_blank" rel="noopener">用户协议</a></p>`;
 const join=`<label class="lab">用户名</label><input class="fld" data-d="ru" autocomplete="username" placeholder="3–20 位文字、数字或下划线" data-af ${busy?'disabled':''}><label class="lab">邮箱</label><input class="fld" data-d="re" type="email" autocomplete="email" placeholder="name@example.com" ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="rpw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" ${busy?'disabled':''}><label class="lab">再输入一次</label><input class="fld" data-d="rpw2" type="password" autocomplete="new-password" placeholder="再输入一次密码" ${busy?'disabled':''}>${e}<p class="hint" style="margin:12px 0 4px"><button type="button" class="lk" data-a="agreetog" aria-pressed="${S.d.ragree==='1'?'true':'false'}">${S.d.ragree==='1'?'☑':'☐'} 我已阅读并同意</button> <a class="lk" href="/legal/terms" target="_blank" rel="noopener">《用户协议》</a> 和 <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">《隐私政策》</a></p><button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'注册中…':'注册并进入'}</button><p class="hint">已有账号？ <button class="lk" data-a="authpane" data-v="login" ${busy?'disabled':''}>去登录</button></p>`;
 const demoBtn=demoDisabled()?'':`<button class="pb s" style="width:100%" data-a="authdemo" ${busy?'disabled':''}>先用演示看看</button><p class="hint">演示内容只留在这台设备，和真实账号的内容分开存，不会互相覆盖。</p>`;
-return `<div class="pg" id="gate"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码会安全保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
+return `<div class="pg" id="gate"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码会安全保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
 function modeChip(){return '';if(!NET||MODE==='boot'||MODE==='gate')return '';if(MODE==='account'&&SESSION&&SESSION.user)return `<div class="ban ok"><b>已登录 ${esc(SESSION.user.username)}</b>私聊已加密。换账号不会串数据。</div>`;return `<div class="ban"><b>演示模式</b>这些内容只在这台设备。 <button class="lk" data-a="toacct" style="color:var(--ac)">${SESSION&&SESSION.user?'回到账号':'登录'}</button></div>`}
 function authpane(v){S.auth.pane=v==='reg'?'reg':'login';S.auth.err=''}
 function agreetog(){S.d.ragree=S.d.ragree==='1'?'':'1';S.auth.err=''}
@@ -1664,7 +1669,21 @@ async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.au
   S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password,agree:true});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'注册失败');return}
   S.d.rpw='';S.d.rpw2='';enterAccount(r.j.user,r.j.token)}
 function authdemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(S.auth.busy)return;localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;/* 演示提示条与该 toast 已按产品要求关闭 */}
-function logout(){if(typeof stopEvents==='function')stopEvents();const tok=SESSION&&SESSION.token;VIP.me=null;if(MODE==='account')save();clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':(demoDisabled()?'offline':'demo');if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch(apiUrl('/api/auth/logout'),{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+function logout(){
+  if(typeof stopEvents==='function')stopEvents();
+  const tok=SESSION&&SESSION.token;
+  const uid=SESSION&&SESSION.user&&SESSION.user.id;
+  VIP.me=null;
+  if(MODE==='account')save();
+  try{if(typeof e2eeForget==='function')e2eeForget(uid);else if(uid!=null&&typeof e2eeKey==='function')localStorage.removeItem(e2eeKey(uid));}catch(e){}
+  try{localStorage.removeItem('nova_compose_draft');localStorage.removeItem('nova_loc_recent');}catch(e){}
+  try{
+    const db=typeof novaDb==='function'?novaDb():null;
+    if(db){Promise.resolve(db.posts.clear()).catch(()=>{});Promise.resolve(db.msgs.clear()).catch(()=>{});}
+  }catch(e){}
+  try{S.posts=null;S.messages=null;S.conversations=null;if(S.comp)S.comp=null;}catch(e){}
+  clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':(demoDisabled()?'offline':'demo');if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch(apiUrl('/api/auth/logout'),{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})
+}
 function todemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(MODE==='account')save();localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('已切换到本机演示数据')}
 async function toacct(){if(MODE!=='gate')save();const tok=readTok();localStorage.setItem('nova_mode','account');if(!tok){MODE='gate';S.auth={pane:'login',err:'',busy:0};S.st=[];S.sh=null;return}const me=await api('GET','/api/me',null,tok);if(me.s!==200){clearTok();MODE='gate';S.auth={pane:'login',err:'登录已过期，请重新登录',busy:0};S.st=[];return}enterAccount(me.j.user,tok)}
 async function bootNet(){MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch(apiUrl('/api/health'),{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){if(demoDisabled()){MODE='offline';render();return}MODE='demo';D=load();render();return}const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'&&!demoDisabled()){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()}
@@ -1676,7 +1695,7 @@ function boot(){if(location.protocol==='file:'&&!demoDisabled()&&!apiBase()){NET
    这里只缓存服务端返回的结果用于显示；客户端既不保存也不能设置 VIP 身份。 */
 const VIP={cat:null,me:null,busy:0,err:''};
 /* 会员标识：只表示订阅状态，不是实名认证。 */
-const vipBadge=()=>'<i class="vip" role="img" aria-label="NOVA VIP 会员">VIP</i>';
+const vipBadge=()=>'<i class="vip" role="img" aria-label="VEXO VIP 会员">VIP</i>';
 const pad2=n=>String(n).padStart(2,'0');
 const vipDate=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())};
 /* 把「权益在某套餐下的取值」写成人能读的文字；数字都来自服务端目录。 */
@@ -1722,8 +1741,8 @@ function vipStatusCard(){
   const v=m.vip,until=v.until&&vipDate(v.until),since=v.since&&vipDate(v.since);
   const T={
     none:['当前套餐：Basic','免费使用。核心的社交、聊天、安全能力都已包含。'],
-    active:['当前套餐：NOVA VIP',(since?'开通于 '+since+' · ':'')+'到期 '+until+'（剩余 '+v.daysLeft+' 天）'],
-    expiring:['NOVA VIP · 即将到期','到期 '+until+'，还剩 '+v.daysLeft+' 天。到期后自动回到 Basic，你的内容都会保留。'],
+    active:['当前套餐：VEXO VIP',(since?'开通于 '+since+' · ':'')+'到期 '+until+'（剩余 '+v.daysLeft+' 天）'],
+    expiring:['VEXO VIP · 即将到期','到期 '+until+'，还剩 '+v.daysLeft+' 天。到期后自动回到 Basic，你的内容都会保留。'],
     expired:['VIP 已过期','已于 '+(v.expiredAt?vipDate(v.expiredAt):'—')+' 回到 Basic。你发过、收藏过的内容都还在。'],
     revoked:['VIP 已被撤销','已回到 Basic，你的内容都还在。如有疑问请联系管理员。']}[v.state]||['当前套餐：Basic',''];
   return `<div class="card vp" data-vs="${esc(v.state)}"><b>${esc(T[0])}</b><small>${esc(T[1])}</small></div>`}
@@ -1830,7 +1849,7 @@ const pVip=()=>{
   return `<div class="pg" id="vipc">${sub('会员中心')}<div class="sc">${body}</div></div>`};
 /* 设置页里的入口行 */
 const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip;
-  const t=MODE!=='account'?'登录后查看会员状态':!v?'Basic · 免费':v.active?'NOVA VIP · 剩余 '+v.daysLeft+' 天':'Basic · 免费';
+  const t=MODE!=='account'?'登录后查看会员状态':!v?'Basic · 免费':v.active?'VEXO VIP · 剩余 '+v.daysLeft+' 天':'Basic · 免费';
   return `<button class="row" style="width:100%;text-align:left" data-a="vip"><div class="gr"><b>会员中心</b><small>${esc(t)}</small></div><small>›</small></button>`};
 const vipOpen=()=>{S.sh=null;S.st.push('vip');Promise.all([loadVip(),loadPayOrders()]).then(()=>render())};
 const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};
@@ -1888,7 +1907,7 @@ const savedOpen=()=>{S.sh=null;S.st.push('saved');return MODE==='account'?loadSa
 function pSaved(){
   const lim=MODE==='account'&&S.saved&&typeof S.saved.limit==='number'?S.saved.limit:savedLimit(),items=savedItems(),n=items.length;
   const rows=n?items.map(i=>`<div class="row" ${i.kind==='post'?'data-a="post" data-v="'+esc(i.target)+'"':''}><div class="gr"><b>${esc(i.title||i.target)}</b><small>${esc(i.excerpt||'')}</small></div><button class="pb sm s" data-a="unsav" data-v="${esc(String(i.id))}">取消收藏</button></div>`).join(''):'<p class="em" data-sv="empty">还没有收藏。帖子或消息的菜单里可以收藏，只你自己看得到。</p>';
-  const who=MODE==='account'?(S.saved&&S.saved.plan==='vip'?'NOVA VIP 额度':'Basic 额度'):'演示额度';
+  const who=MODE==='account'?(S.saved&&S.saved.plan==='vip'?'VEXO VIP 额度':'Basic 额度'):'演示额度';
   return `<div class="pg" id="savedp">${sub('我的收藏')}<div class="sc"><p class="hint" style="padding:12px 16px 0" data-svq="${n}/${lim}">${esc(who)}：${n} / ${lim} 条。这是你的私人收藏，不会出现在群聊或社区的公共置顶里。</p>${rows}</div></div>`}
 const savedRow=()=>`<button class="row" style="width:100%;text-align:left" data-a="saved" id="svrow"><div class="gr"><b>我的收藏</b><small>私人收藏，最多 ${savedLimit()} 条</small></div><small>›</small></button>`;
 
@@ -2066,7 +2085,7 @@ function stkp(v){S.sh={t:'stk',cid:v};if(MODE==='account')return loadStickers()}
 function stkuse(v){
   const[pack,id]=v.split('|'),packs=stkPacks(),p=packs.find(x=>x.id===pack),it=p&&p.items.find(x=>x.id===id);
   if(!it)return T('贴纸不存在');
-  if(p.premium&&!p.usable){S.sh=null;T('这项功能需要 NOVA VIP，才能使用「专属表情包」。');return}
+  if(p.premium&&!p.usable){S.sh=null;T('这项功能需要 VEXO VIP，才能使用「专属表情包」。');return}
   const sendLocal=st=>{const cid=S.sh&&S.sh.cid;S.sh=null;if(!cid)return;(D.m[cid]=D.m[cid]||[]).push(['me','k','刚刚','已发送',st,newId()]);const i=D.cv.findIndex(c=>c.id==cid);if(i>=0){const c=D.cv.splice(i,1)[0];D.cv.unshift(c)}S.bot=1;T('已发送 '+st.name)};
   const st={pack,id,glyph:it.glyph,name:it.name,premium:!!p.premium};
   if(MODE==='account'&&NET&&SESSION)return api('POST','/api/stickers/use',{pack,id}).then(r=>{
@@ -2111,7 +2130,7 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;return o;
 }
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
@@ -2217,8 +2236,9 @@ const fol=(a,b)=>D.f.some(e=>e[0]==a&&e[1]==b),ncm=id=>{const p=(typeof feedSrc=
 const T=m=>{const t=$('#tt');if(!t)return;t.textContent=m;t.style.display='block';t.classList.remove('tt-out');void t.offsetWidth;t.classList.add('tt-in');clearTimeout(T.h);clearTimeout(T.h2);T.h=setTimeout(()=>{t.classList.remove('tt-in');t.classList.add('tt-out');T.h2=setTimeout(()=>{t.style.display='none';t.classList.remove('tt-out')},200)},1800)};
 const sub=(t,r='')=>`<div class="top sub"><button class="ib" data-a="back" aria-label="返回">${ic('back')}</button><h1>${t}</h1>${r}</div>`;
 const rs=p=>{const t=p.r.reduce((a,b)=>a+b,0);return t?p.r.map((n,i)=>[n,i]).filter(a=>a[0]).sort((a,b)=>b[0]-a[0]).slice(0,3).map(a=>E[a[1]]).join('')+' '+t:''};
-const AUD_L={public:'公开',followers:'关注者',friends:'好友',self:'仅自己'};
-const pc=(p,det)=>{const u=P(p.a),n=typeof ncm==='function'?ncm(p.id):(p.commentCount||0),aud=AUD_L[p.aud||p.audience||'public']||'公开',tm=typeof fmtTime==='function'&&p.at?fmtTime(p.at):(p.t||'');
+const AUD_L={public:'公开',followers:'仅粉丝',friends:'仅好友',self:'仅自己'};
+function audLabel(p){const from=p&&(p.audienceLabel||p.audience_label);if(from)return String(from);const k=(p&&(p.aud||p.audience))||'public';return AUD_L[k]||(p&&p.isPublic===false?'非公开':'公开')}
+const pc=(p,det)=>{const u=P(p.a),n=typeof ncm==='function'?ncm(p.id):(p.commentCount||0),aud=audLabel(p),tm=typeof fmtTime==='function'&&p.at?fmtTime(p.at):(p.t||'');
 const nLike=(p.r||[]).reduce((a,b)=>a+(b||0),0),nC=p.commentCount!=null?p.commentCount:n;
 const media=Array.isArray(p.media)?p.media:[];
 const mediaH=typeof mediaHTML==='function'?mediaHTML(media,det,p.id):'';
@@ -2226,6 +2246,11 @@ const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:''
 const chips=[S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
 return `<article class="fcard" data-pid="${p.id}"><div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn">${esc(u.n)}${u.v?' '+vipBadge():''}</b><small>${esc(tm)}${tm?' · ':''}${aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>`:''}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
+function riskNoticeText(id){
+  const u=S.userView&&String(S.userView.id)===String(id)&&S.userView.user;
+  if(u&&String(u.id)===String(id)&&(u.riskNotice||u.risky))return u.riskNotice||'这个账号近期被多人举报。请核实对方身份，不要轻信转账、投资或私下链接。';
+  return (S.riskNote&&S.riskNote[String(id)])||'';
+}
 const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊已加密</b>一对一聊天会加密后发送。群聊暂时还没有加密。请核对手友的安全号码。</div>':'<div class="ban"><b>演示模式</b>这里只是演示，不会发送真实消息。</div>';
 
 function hasSafeArea(){
@@ -2355,7 +2380,7 @@ async function loadConversation(id){
 }
 async function openDm(userId){
   const r=await api('POST','/api/conversations',{kind:'dm',userId:Number(userId)});
-  if(r.s!==200){if(r.j&&r.j.error&&r.j.error.code==='NOT_FRIENDS'){S.sh={t:'mrsend',uid:String(userId)};T('请先发送消息请求');if(typeof render==='function')render();return null}T(errMsg(r,'无法发起私聊'));return null}
+  if(r.s!==200){if(r.j&&r.j.error&&r.j.error.code==='NOT_FRIENDS'){S.sh={t:'mrsend',uid:String(userId)};T('请先发送消息请求');if(typeof loadUserCard==='function')loadUserCard(userId).then(()=>{if(typeof render==='function')render()});if(typeof render==='function')render();return null}T(errMsg(r,'无法发起私聊'));return null}
   const c=adoptCv(r.j.conversation);
   S.conversations=S.conversations||[];
   if(!S.conversations.some(x=>x.id===c.id))S.conversations.unshift(c);
@@ -2765,7 +2790,7 @@ const friendsRow=()=>`<button class="row" style="width:100%;text-align:left" dat
 function loadUserCard(id){
   if(typeof usingNet!=='function'||!usingNet())return Promise.resolve();
   return api('GET','/api/users/'+id).then(r=>{
-    if(r.s===200&&r.j&&r.j.user){S.userView={id:String(id),hidden:false,user:r.j.user}}
+    if(r.s===200&&r.j&&r.j.user){S.userView={id:String(id),hidden:false,user:r.j.user};const note=r.j.user.riskNotice||(r.j.user.risky?'这个账号近期被多人举报。请核实对方身份，不要轻信转账、投资或私下链接。':'');S.riskNote=S.riskNote||{};if(note)S.riskNote[String(id)]=note;else delete S.riskNote[String(id)];}
     else S.userView={id:String(id),hidden:true,code:r.j&&r.j.error&&r.j.error.code,message:(r.j&&r.j.error&&r.j.error.message)||'该用户资料不可见'};
     if(r.s!==200)return;
     return Promise.all([
@@ -2938,6 +2963,13 @@ async function safetyNumber(edA,edB){
 }
 
 function e2eeKey(userId){return E2EE_STORE_PREFIX+String(userId)}
+function e2eeForget(userId){
+  try{
+    const id=userId!=null?userId:_uid;
+    if(id!=null)localStorage.removeItem(e2eeKey(id));
+  }catch(e){}
+  _acct=null;_store=null;_uid=null;_ready=null;
+}
 function loadStore(userId){
   try{return JSON.parse(localStorage.getItem(e2eeKey(userId))||'null')||{}}
   catch(e){return {}}
@@ -3286,7 +3318,7 @@ async function e2eeDecryptExport(data){
 Object.assign(globalThis,{
   e2eeEnsure, e2eeEncrypt, e2eeDecrypt, e2eeSafetyOf, e2eeMarkVerified, e2eeOnLogin,
   e2eePeerOf:peerOfCv, e2eeIsDm, safetyNumber, e2eeUploadKeys, e2eePlainCache,
-  e2eeChatBar, safenum, safeok, safetySheet, e2eeDecryptExport,
+  e2eeChatBar, safenum, safeok, safetySheet, e2eeDecryptExport, e2eeKey, e2eeForget,
 });
 })();
 
@@ -3346,8 +3378,8 @@ function brandTitle(){
     rel=(light&&meta.logoLight)?meta.logoLight:(meta.logo||'');
   }
   const src=rel?skinBase(meta.id)+'/'+rel:(SKINS.logo||'');
-  if(src)return '<img class="br-logo" src="'+esc(src)+'" alt="NOVA">';
-  return 'NOVA';
+  if(src)return '<img class="br-logo" src="'+esc(src)+'" alt="VEXO">';
+  return 'VEXO';
 }
 function resolvedTheme(){
   const t=D&&D.st&&D.st.theme;
@@ -3521,7 +3553,7 @@ const base=src.filter(p=>S.feed=='rec'||S.feed=='topic'||p.a=='me'||fl.includes(
 const L=S.feed=='topic'&&!S.hotMode?base.filter(p=>(p.hashtags&&p.hashtags.length)||(p.x&&p.x.includes('#'))):base;
 /* r7：顶部一排只放「发日常」和有日常的人（日常独立于帖子，见 75_r7.js） */
 const stories=()=>typeof storyStrip==='function'?storyStrip():'';
-return `<div class="pg home${S._hc?' hc':''}"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1><button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
+return `<div class="pg home${S._hc?' hc':''}"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1><button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
 <div class="hcol"><div class="hcoli">${stories()}
 <div class="comp"><span data-a="user" data-v="me">${av('me',40)}</span><button class="p" data-a="compose">分享一下你的新鲜事</button><button class="ib" data-a="compose" aria-label="添加照片" style="color:var(--ac)">${ic('image')}</button></div></div></div>
@@ -3593,7 +3625,7 @@ const acts=me?`<div class="fr"><button class="pb" data-a="panel">面板</button>
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">查看全部</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
 const photoGrid=photos.length?`<div class="fmedia n2 prof-ph" style="margin:8px 0">${photos.flatMap(p=>(p.media||[]).map(m=>{const x=typeof mItem==='function'?mItem(m):(typeof m==='string'?{url:m}:m);const src=x.url?` src="${esc(x.url)}"`:x.id?` data-mid="${esc(x.id)}"`:'';if(!src)return '';return (typeof mKind==='function'&&mKind(x)==='video')?`<span class="mv" data-a="post" data-v="${p.id}"><video${src} muted playsinline preload="metadata"></video></span>`:`<img${src} alt="" data-a="post" data-v="${p.id}">`})).join('')}</div>`:'<p class="em">还没有照片或视频</p>';
 const body=tab==='photos'?photoGrid:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">好友 / 关注</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp"><span>${av('me',40)}</span><button class="p" data-a="compose">分享一下你的新鲜事</button></div>`:''}${posts.map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`;
-return `<div class="cvr tall${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,80)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="NOVA VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><div class="handle">@${u.h}</div>${u.b?`<p class="bio">${esc(u.b)}</p>`:''}<div class="sts r7"><span><b>${posts.length}</b>帖子</span><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b>粉丝</button><button data-a="fl" data-v="following|${id}"><b>${n(0)}</b>关注</button></div>${acts}</div><div class="seg"><button data-a="mt" data-v="all" class="${tab=='all'||tab=='about'?'on':''}">全部</button><button data-a="mt" data-v="photos" class="${tab=='photos'?'on':''}">照片</button></div>${body}`};
+return `<div class="cvr tall${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${bgCss(me?meCover():cove(id))}">${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,80)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="VEXO VIP 资料装饰"></span>':''}<h2>${esc(u.n)}${u.v?' '+vipBadge():''}</h2><div class="handle">@${u.h}</div>${u.b?`<p class="bio">${esc(u.b)}</p>`:''}<div class="sts r7"><span><b>${posts.length}</b>帖子</span><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b>粉丝</button><button data-a="fl" data-v="following|${id}"><b>${n(0)}</b>关注</button></div>${acts}</div><div class="seg"><button data-a="mt" data-v="all" class="${tab=='all'||tab=='about'?'on':''}">全部</button><button data-a="mt" data-v="photos" class="${tab=='photos'?'on':''}">照片</button></div>${body}`};
 const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
 
 /* ===== 31_games.js ===== */
@@ -3956,7 +3988,7 @@ function builtinAppVersion(){
     const v=typeof window!=='undefined'?window.NOVA_APP_VERSION:'';
     if(v)return String(v);
   }catch(e){}
-  return '0.7.0-m7.r7';
+  return '1.0.0';
 }
 let RUNNING_VERSION=builtinAppVersion();
 function runningAppVersion(){return RUNNING_VERSION||builtinAppVersion()}
@@ -4079,6 +4111,9 @@ async function checkAndDownloadUpdate(U){
   try{
     const opts={url:zip, version:ver};
     if(sum)opts.checksum=sum;
+    /* 清单里的 session_key 交给插件的 sessionKey（Capgo download 的字段名）。仓库里没有现成的 Dift 修复，这里自己接上。 */
+    const sessionKey=String(manifest.session_key||manifest.sessionKey||'').trim();
+    if(sessionKey){opts.sessionKey=sessionKey;opts.session_key=sessionKey;}
     bundle=await U.download(opts);
     if(!bundle||!bundle.id)throw new Error('empty bundle');
     scheduleBundleApply(U, bundle);
@@ -4136,7 +4171,8 @@ const pUser=id=>{
     const loc=typeof P==='function'?P(id):null;
     if(loc){if(u.displayName)loc.n=u.displayName;if(u.bio!==undefined)loc.bio=u.bio}
   }
-  return `<div class="pg">${sub(esc((u&&u.displayName)||P(id).n))}<div class="sc">${prof(id)}${u&&u.birthday?`<p class="hint" style="padding:8px 16px">生日 ${esc(u.birthday)}${u.age!=null?' · '+u.age+' 岁':''}</p>`:u&&u.age!=null?`<p class="hint" style="padding:8px 16px">${u.age} 岁</p>`:''}</div></div>`;
+  const note=typeof riskNoticeText==='function'?riskNoticeText(id):'';
+  return `<div class="pg">${sub(esc((u&&u.displayName)||P(id).n))}<div class="sc">${note?`<div class="riskn" role="note">${esc(note)}</div>`:''}${prof(id)}${u&&u.birthday?`<p class="hint" style="padding:8px 16px">生日 ${esc(u.birthday)}${u.age!=null?' · '+u.age+' 岁':''}</p>`:u&&u.age!=null?`<p class="hint" style="padding:8px 16px">${u.age} 岁</p>`:''}</div></div>`;
 };
 const pFl=(k,id)=>{const i=k=='following'?0:1,net=typeof usingNet==='function'&&usingNet()&&Array.isArray(S.followList),L=net?S.followList.map(u=>u.id):D.f.filter(e=>e[i]==id).map(e=>e[1-i]);return `<div class="pg" id="flp">${sub(k=='following'?'关注':'粉丝')}<div class="sc">${L.length?L.map(u=>`<div class="row" data-a="user" data-v="${u}" data-fid="${u}">${av(u,48)}<div class="gr"><b>${esc(P(u).n)}</b><small>@${P(u).h}</small></div>${u=='me'?'':`<button class="pb sm${(typeof isFollowed==='function'?isFollowed(u):fol('me',u))?' s':''}" data-a="fol" data-v="${u}">${(typeof isFollowed==='function'?isFollowed(u):fol('me',u))?'已关注':'关注'}</button>`}</div>`).join(''):'<p class="em">名单是空的</p>'}</div></div>`};
 /* r7：小组页身份说明——一句完整的话，放在按钮上方，不出现技术用语 */
@@ -4172,7 +4208,7 @@ const pGi=id=>{const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==id
 return `<div class="pg">${sub('群聊信息')}<div class="sc"><div class="pf pf2" style="padding-top:24px">${gface(c,80)}<h2 style="margin-top:8px">${esc(c.n)}</h2><small>${nMem} 位成员</small>${mine?`<div class="fr" style="margin-top:12px"><button class="pb s" data-a="grn" data-v="${id}">修改群名</button><button class="pb s" data-a="gav" data-v="${id}">更换群头像</button></div>`:''}</div><div class="shd">成员</div><button class="row" style="width:100%;text-align:left;color:var(--ac);font-weight:600" data-a="gadd" data-v="${id}">＋ 添加成员</button>${ids.map(u=>`<div class="row" data-a="user" data-v="${u}">${av(u,40)}<div class="gr"><b>${u=='me'?'我':esc(P(u).n)}${gRole(c,u)!='成员'?`<span class="tag">${gRole(c,u)}</span>`:''}</b><small>@${P(u).h}</small></div>${mine&&u!='me'&&gRole(c,u)=='成员'||own&&u!='me'?`<button class="pb sm s" data-a="gmr" data-v="${id}|${u}">管理</button>`:''}</div>`).join('')}<div class="shd">我</div><button class="row" style="width:100%;text-align:left" data-a="gnick" data-v="${id}"><div class="gr"><b>我在本群的昵称</b><small>${esc(c.myNickname||'未设置，使用账号名')}</small></div></button><div style="padding:16px"><button class="pb d" style="width:100%" data-a="gleave" data-v="${id}">退出群聊</button>${own?`<button class="pb d" style="width:100%;margin-top:8px" data-a="gdis" data-v="${id}">解散群聊</button>`:''}<button class="pb s" style="width:100%;margin-top:8px" data-a="reportcv" data-v="${id}">举报群聊</button></div></div></div>`};
 const pCmm=id=>{const c=cmp(id),rows=[...(c.j?[['me',c.r]]:[]),...Object.entries(c.mb||{})];
 return `<div class="pg">${sub('成员')}<div class="sc"><p style="padding:12px 16px 0;color:var(--t2);font-size:13px">所有者可以设置管理员和版主，管理员可以设置版主；只能管理身份比自己低的成员。</p>${rows.map(([u,r])=>`<div class="row" data-a="user" data-v="${u}">${av(u,40)}<div class="gr"><b>${u=='me'?'我':esc(P(u).n)}<span class="tag">${r}</span></b><small>@${P(u).h}</small></div>${u!='me'&&canManage(c.r,r)?`<button class="pb sm s" data-a="rolem" data-v="${id}|${u}">管理</button>`:''}</div>`).join('')||'<p class="em">还没有成员</p>'}</div></div>`};
-const INF={privacy:['隐私','你可以选择谁能看到资料：所有人、仅好友，或仅自己。邮箱在设置里会部分隐藏。一对一聊天会加密；群聊暂时还没有加密。'],security:['安全','密码经过保护，别人看不到原文。退出登录后，这台设备需要重新登录。一对一聊天的密钥只留在本机。请核对手友的安全号码。'],help:['帮助','这是给你和朋友用的版本。登录后刷新页面仍会保持登录。演示内容和真实账号的内容分开存放，互不影响。'],about:['关于','NOVA\n支持账号、动态、社区、聊天、好友和图片视频。\n一对一聊天会加密后发送，群聊暂时还没有加密。请核对手友的安全号码。']};
+const INF={privacy:['隐私','你可以选择谁能看到资料：所有人、仅好友，或仅自己。邮箱在设置里会部分隐藏。一对一聊天会加密；群聊暂时还没有加密。'],security:['安全','密码经过保护，别人看不到原文。退出登录后，这台设备需要重新登录。一对一聊天的密钥只留在本机。请核对手友的安全号码。'],help:['帮助','这是给你和朋友用的版本。登录后刷新页面仍会保持登录。演示内容和真实账号的内容分开存放，互不影响。'],about:['关于','VEXO\n支持账号、动态、社区、聊天、好友和图片视频。\n一对一聊天会加密后发送，群聊暂时还没有加密。请核对手友的安全号码。']};
 const pSet=()=>{const t=D.st.theme,r=D.st.rm,s=D.st.sound!==0,h=D.st.haptic!==0,acct=MODE==='account'&&SESSION&&SESSION.user,held=MODE==='demo'&&SESSION&&SESSION.user;
 const demoSwitch=(!demoDisabled()&&acct)?`<div class="row"><div class="gr"><b>切换到演示数据</b><small>和这个账号的本地内容分开保存，不会互相覆盖</small></div><button class="pb sm s" data-a="todemo">切换</button></div>`:'';
 const who=NET?(acct?`<div class="row"><div class="gr"><b>真实账号</b><small>@${esc(SESSION.user.username)} · ${esc(maskEmail(SESSION.user.email))}${SESSION.user.vip?' · VIP':''}</small></div><button class="pb sm" data-a="logout">退出</button></div>`+demoSwitch:`<div class="row"><div class="gr"><b>${held?'演示数据（登录还在）':'演示数据'}</b><small>${held?'@'+esc(SESSION.user.username)+' 还登录着，可以回去':'未登录。内容只存在这台设备'}</small></div><button class="pb sm" data-a="toacct">${held?'回到账号':'登录'}</button></div>`):(demoDisabled()?`<div class="row"><div class="gr"><b>无法连接服务器</b><small>当前版本未开放本机演示。</small></div><button class="pb sm" data-a="retryconnect">重试</button></div>`:`<div class="row"><div class="gr"><b>当前是离线演示</b><small>没有连上服务器，所以不能登录。数据只在这台设备。</small></div></div>`);
@@ -4210,7 +4246,7 @@ if(s.t=='rx')h=`<h3>表态</h3><div class="rxs">${E.map((e,i)=>`<button data-a="
 if(s.t=='more'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);h=`<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="savp" data-v="${s.id}">${isSaved('post',s.id)?'取消收藏':'收藏（仅自己可见）'}</button><button class="mi" data-a="reportp" data-v="${s.id}">举报</button>${p&&p.a=='me'?`<button class="mi" data-a="edp" data-v="${s.id}">编辑</button><button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
 if(s.t=='edp'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);S.d.ep=p?p.x:'';h=`<h3>编辑动态</h3><textarea class="fld" data-d="ep" data-max="${textLimit('post')}" data-af rows="5"></textarea><div class="fr"><span class="cn" data-cnt="ep"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="savep" data-v="${s.id}" data-for="ep">保存</button></div>`}
 if(s.t=='compose')h=`<h3>发帖</h3><textarea class="fld" data-d="pin" data-max="${textLimit('post')}" data-af rows="5" placeholder="写点什么"></textarea><div class="fr"><span class="cn" data-cnt="pin"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pub" data-for="pin" disabled>发布</button></div>`;
-if(s.t=='aud'){const cur=(S.comp&&S.comp.aud)||'public';const opts=[['public','公开','所有人可见'],['followers','关注者','关注你的人可见'],['friends','好友','仅互为好友的人可见'],['self','仅自己','只自己能看']];h=`<h3>选择受众</h3><div class="audlist">${opts.map(([k,n,d])=>`<button data-a="setaud" data-v="${k}" class="${cur==k?'on':''}"><div class="gr"><b>${n}</b><small>${d}</small></div>${cur==k?'✓':''}</button>`).join('')}</div>`}
+if(s.t=='aud'){const cur=(S.comp&&S.comp.aud)||'public';const opts=[['public','公开','所有人可见'],['followers','仅粉丝','关注你的人可见'],['friends','仅好友','仅互为好友的人可见'],['self','仅自己','只自己能看']];h=`<h3>选择受众</h3><div class="audlist">${opts.map(([k,n,d])=>`<button data-a="setaud" data-v="${k}" class="${cur==k?'on':''}"><div class="gr"><b>${n}</b><small>${d}</small></div>${cur==k?'✓':''}</button>`).join('')}</div>`}
 if(s.t=='mood'){const cur=(S.comp&&S.comp.mood)||'';h=`<h3>添加心情</h3><div class="moodg">${(typeof MOODS!=='undefined'?MOODS:['开心','兴奋','感恩','放松']).map(m=>`<button data-a="setmood" data-v="${m}" class="${cur==m?'on':''}"><span class="e">${(typeof MOOD_E!=='undefined'&&MOOD_E[m])||'😊'}</span>${m}</button>`).join('')}</div><div class="fr"><button class="pb s" data-a="clrmood">清除</button><button class="pb" data-a="x">完成</button></div>`}
 if(s.t=='loc'){if(S._locKeep)S._locKeep=0;else{S.d.locin=(S.comp&&S.comp.loc)||S.d.locin||''}const rl=typeof recentLocs==='function'?recentLocs():[];h=`<h3>添加位置</h3>${typeof geoRow==='function'?geoRow():''}${rl.length?`<div class="locq">${rl.map(l=>`<button data-a="setlocv" data-v="${esc(l)}">📍 ${esc(l)}</button>`).join('')}</div>`:''}<input class="fld" data-d="locin" ${rl.length?'':'data-af '}enterkeyhint="done" placeholder="输入地点，例如：上海 · 外滩" maxlength="80"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="setloc">确定</button></div>`}
 if(s.t=='tagfr'){const ids=typeof pickPeople==='function'?pickPeople((S.comp&&S.comp.tags)||[]):[];const sel=new Set(((S.comp&&S.comp.tags)||[]).map(String));h=`<h3>标记好友</h3>`+(ids.length?ids.map(i=>`<button class="row" style="width:100%;text-align:left" data-a="togtag" data-v="${i}">${av(i,40)}<div class="gr"><b>${esc(P(i).n)}</b><small>@${esc(P(i).h)}</small></div>${sel.has(String(i))?'✓':''}</button>`).join('')+'<div class="fr"><button class="pb" data-a="x">完成</button></div>':'<p class="em">'+(S.tagLoading?'正在加载好友…':'还没有可标记的好友。互相加为好友后就能标记。')+'</p><div class="fr"><button class="pb s" data-a="x">关闭</button></div>')}
@@ -4220,7 +4256,7 @@ if(s.t=='notif')h='<h3>通知</h3>'+((typeof nSrc==='function'?nSrc():D.n).lengt
 if(s.t=='leave')h=`<h3>退出这个社区？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="leave2" data-v="${s.id}">确定</button></div>`;
 if(s.t=='panel')h=`<h3>面板</h3><button class="mi" data-a="edit">编辑资料</button><button class="mi" data-a="go" data-v="set">设置</button>`+(MODE==='account'?`<button class="mi" data-a="vip">会员中心</button>`:'')+`<button class="mi" data-a="friends">好友</button><button class="mi" data-a="x">关闭</button>`;
 if(s.t=='resetq')h='<h3>重置当前数据？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="reset">确定</button></div>';
-if(s.t=='mrsend'){h=`<h3>发送消息请求</h3><p class="hint">对方通过后才能进入正常聊天。接受前对方不会向你透露已读。</p><textarea class="fld" data-d="mrtxt" data-af rows="4" maxlength="2000" placeholder="打个招呼…"></textarea><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="mrsend2" data-v="${s.uid}">发送</button></div>`}
+if(s.t=='mrsend'){const note=typeof riskNoticeText==='function'?riskNoticeText(s.uid):'';h=`<h3>发送消息请求</h3>${note?`<div class="riskn" role="note">${esc(note)}</div>`:''}<p class="hint">对方通过后才能进入正常聊天。接受前对方不会向你透露已读。</p><textarea class="fld" data-d="mrtxt" data-af rows="4" maxlength="2000" placeholder="打个招呼…"></textarea><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="mrsend2" data-v="${s.uid}">发送</button></div>`}
 if(s.t=='mrmore')h=`<button class="mi dg" data-a="mrblock" data-v="${s.id}">屏蔽</button><button class="mi" data-a="mrreport" data-v="${s.id}">举报</button><button class="mi" data-a="x">取消</button>`;
 if(s.t=='mrblockq')h=`<h3>屏蔽此人？</h3><p class="hint">屏蔽后对方不能再向你发送消息请求，当前请求也会关闭。与「删除」不同，删除只处理这一条请求。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="mrblock2" data-v="${s.id}">屏蔽</button></div>`;
 
@@ -4246,7 +4282,7 @@ if(s.t=='msg'){const[k,cid,id]=[s.k,s.cid,s.id],m=msgs(k,cid).find(x=>mid(k,x)==
  h=`<div class="rxs" style="padding:8px 16px">${['👍','😄','❤️','🎉','😮'].map(e=>`<button class="rx" data-a="mreact" data-v="${k}|${cid}|${id}|${e}">${e}</button>`).join('')}</div><button class="mi" data-a="mreply" data-v="${k}|${cid}|${id}">引用回复</button><button class="mi" data-a="mfwd" data-v="${k}|${cid}|${id}">转发</button><button class="mi" data-a="mcopy" data-v="${k}|${cid}|${id}">复制文字</button><button class="mi" data-a="savm" data-v="${k}|${cid}|${id}">${isSaved('message',cid+':'+id)?'取消收藏':'收藏（仅自己可见）'}</button>${msgPerm(k,cid,'pinMsg')?`<button class="mi" data-a="${pn?'unpinm':'pinm'}" data-v="${k}|${cid}|${id}">${pn?'取消置顶':'置顶这条消息'}</button>`:''}${del?`<button class="mi dg" data-a="delmsg" data-v="${k}|${cid}|${id}">删除这条消息</button>`:''}<button class="mi" data-a="reportm" data-v="${k}|${cid}|${id}">举报这条消息</button>`}}
 if(s.t=='ment'){const all=msgPerm(s.k,s.cid,'atAll'),L=s.k=='cv'?((typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==s.cid).mem):Object.keys((cmOf(s.cid)||{mb:{}}).mb);
  h=`<h3>提及</h3><button class="nr" data-a="mins" data-v="${s.key}|@所有人"${all?'':' disabled'} style="opacity:${all?1:.45}"><span class="gr"><b>@所有人</b><small>${all?'群里每个人都会看到高亮提醒':'只有群主/管理员能@所有人'}</small></span></button>${L.map(i=>`<button class="nr" data-a="mins" data-v="${s.key}|@${esc(P(i).n)}">${av(i,32)}<span class="gr"><b>${esc(P(i).n)}</b></span></button>`).join('')}`}
-if(s.t=='stk'){const packs=stkPacks();h=`<h3>表情贴纸</h3>`+packs.map(pk=>`<div class="shd" data-pack="${esc(pk.id)}">${esc(pk.title)}${pk.premium?' <span class="tag">VIP</span>':''}</div>`+(pk.premium&&!pk.usable?`<p class="stklok" data-stk-lock="${esc(pk.id)}">开通 NOVA VIP 后可使用。已发出的贴纸所有人都能看见，免费用户可以继续用常用表情交流。</p>`:'')+`<div class="stkgrid" data-pack="${esc(pk.id)}">${pk.items.map(it=>`<button ${pk.premium&&!pk.usable?'disabled':'data-a="stkuse" data-v="'+pk.id+'|'+it.id+'"'} aria-label="${esc(it.name)}" title="${esc(it.name)}">${it.glyph}</button>`).join('')}</div>`).join('')+`<p class="lab">已发出的贴纸所有人可见。专属包内容为原创 Unicode 白名单。</p>`}
+if(s.t=='stk'){const packs=stkPacks();h=`<h3>表情贴纸</h3>`+packs.map(pk=>`<div class="shd" data-pack="${esc(pk.id)}">${esc(pk.title)}${pk.premium?' <span class="tag">VIP</span>':''}</div>`+(pk.premium&&!pk.usable?`<p class="stklok" data-stk-lock="${esc(pk.id)}">开通 VEXO VIP 后可使用。已发出的贴纸所有人都能看见，免费用户可以继续用常用表情交流。</p>`:'')+`<div class="stkgrid" data-pack="${esc(pk.id)}">${pk.items.map(it=>`<button ${pk.premium&&!pk.usable?'disabled':'data-a="stkuse" data-v="'+pk.id+'|'+it.id+'"'} aria-label="${esc(it.name)}" title="${esc(it.name)}">${it.glyph}</button>`).join('')}</div>`).join('')+`<p class="lab">已发出的贴纸所有人可见。专属包内容为原创 Unicode 白名单。</p>`}
 if(s.t=='revothers')h=`<h3>退出其他设备？</h3><p style="color:var(--t2);margin-bottom:8px">其他设备的登录将立即失效，当前这台设备保持登录。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="revothers">退出其他设备</button></div>`;
 if(s.t=='cminv'){const invs=S.d.cminvs||[];h=`<h3>邀请码</h3>${invs.length?invs.map(i=>`<div class="nr"><span class="gr"><b>${esc(i.code)}</b><small>${i.revoked?'已撤销':(i.uses||0)+'/'+(i.maxUses||'∞')+' 次'}${i.expiresAt?' · 到期 '+new Date(i.expiresAt).toLocaleDateString():''}</small></span>${i.revoked?'':`<button class="pb sm d" data-a="rvinv" data-v="${s.id}|${i.id}">撤销</button>`}</div>`).join(''):'<p class="em">还没有邀请码</p>'}<div class="fr"><button class="pb s" data-a="x">关闭</button><button class="pb" data-a="mkinv" data-v="${s.id}">生成邀请码</button></div>`}
 if(s.t=='dis')h=`<h3>解散这个小组？</h3><p style="color:var(--t2);margin-bottom:8px">解散后，频道和消息都会被删除，成员也无法再进入。</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="dis2" data-v="${s.id}">确定解散</button></div>`;
@@ -5021,7 +5057,7 @@ Object.assign(A,{
   xshare:v=>{S.sh={t:'xshare',id:v}},
   xcopylink:async v=>{S.sh=null;const ok=await copyText(postLink(v));T(ok?'已复制帖子链接':'复制失败，请长按手动复制')},
   xcopytext:async v=>{S.sh=null;const p=findPost(v);const ok=await copyText(p&&p.x||'');T(ok?'已复制正文':'复制失败')},
-  xsys:async v=>{S.sh=null;const p=findPost(v);try{await navigator.share({title:'NOVA',text:p&&p.x?[...p.x].slice(0,60).join(''):'',url:postLink(v)})}catch(e){}},
+  xsys:async v=>{S.sh=null;const p=findPost(v);try{await navigator.share({title:'VEXO',text:p&&p.x?[...p.x].slice(0,60).join(''):'',url:postLink(v)})}catch(e){}},
   xrt:v=>{S.sh={t:'xrt',id:v}},
   xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(repostMap()[v])return T('已经转过了');const text=repostText(p);
     let nid=null;
@@ -5103,17 +5139,31 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){annHiddenA
    没权限或失败时，仍可选最近用过的位置或手动输入 ---- */
 function geoLabel(lat,lng){const f=(v,p,n)=>Math.abs(v).toFixed(3)+'°'+(v>=0?p:n);return f(lat,'N','S')+', '+f(lng,'E','W')}
 function geoErrMsg(e){const c=e&&e.code;
-  if(c===1||/denied|permission/i.test(String(e&&e.message||'')))return '没有定位权限。可以到系统设置里允许 NOVA 使用位置，或者直接在下面输入。';
+  if(c===1||/denied|permission/i.test(String(e&&e.message||'')))return '没有定位权限。可以到系统设置里允许 VEXO 使用大致位置，或者直接在下面输入地点。';
   if(c===3)return '定位超时了，可以再试一次，或者直接在下面输入。';
   return '暂时获取不到位置，可以再试一次，或者直接在下面输入。'}
+/* 只要大致位置：enableHighAccuracy 一律为 false。原生壳只声明 ACCESS_COARSE_LOCATION。
+   插件若因为缺少精确定位权限失败，退回网页定位；再失败就让用户手动填写。 */
 async function geoGetPosition(){
+  const low={enableHighAccuracy:false,timeout:10000,maximumAge:300000};
   const cap=typeof window!=='undefined'&&window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Geolocation;
   if(cap&&typeof cap.getCurrentPosition==='function'){
-    try{if(cap.checkPermissions){const st=await cap.checkPermissions();if(st&&st.location!=='granted'&&cap.requestPermissions){const r=await cap.requestPermissions({permissions:['location']});if(r&&r.location==='denied')throw {code:1}}}}catch(e){if(e&&e.code===1)throw e}
-    const p=await cap.getCurrentPosition({enableHighAccuracy:false,timeout:10000,maximumAge:300000});return {lat:p.coords.latitude,lng:p.coords.longitude};
+    try{
+      if(cap.checkPermissions){
+        const st=await cap.checkPermissions();
+        if(st&&st.location!=='granted'&&st.coarseLocation!=='granted'&&cap.requestPermissions){
+          const r=await cap.requestPermissions({permissions:['location']});
+          if(r&&r.location==='denied'&&r.coarseLocation==='denied')throw {code:1};
+        }
+      }
+      const p=await cap.getCurrentPosition(low);
+      if(p&&p.coords)return {lat:p.coords.latitude,lng:p.coords.longitude};
+    }catch(e){
+      if(e&&e.code===1)throw e;
+    }
   }
   if(typeof navigator==='undefined'||!navigator.geolocation)throw {code:2,message:'unsupported'};
-  return await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),rej,{enableHighAccuracy:false,timeout:10000,maximumAge:300000}));
+  return await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),rej,low));
 }
 async function geoReverse(lat,lng){
   const u=typeof NOVA_CFG!=='undefined'?NOVA_CFG.reverseGeocodeUrl:'';if(!u)return '';

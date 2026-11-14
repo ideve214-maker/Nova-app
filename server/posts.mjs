@@ -6,6 +6,7 @@ import {ApiError} from './errors.mjs';
 const nid = () => 'po_' + randomBytes(12).toString('base64url');
 const len = s => [...String(s)].length;
 const AUDIENCES = new Set(['public', 'followers', 'friends', 'self']);
+const AUD_LABEL = {public: '公开', followers: '仅粉丝', friends: '仅好友', self: '仅自己'};
 function normAud(v) {
   const s = String(v == null ? 'public' : v).trim().toLowerCase();
   return AUDIENCES.has(s) ? s : 'public';
@@ -131,6 +132,8 @@ export function createPosts(db, {vip, profile, now}) {
       edited: row.updated_at > row.created_at,
       mine: !!(me && Number(me.id) === Number(row.author_id)),
       audience: normAud(row.audience),
+      audienceLabel: AUD_LABEL[normAud(row.audience)],
+      isPublic: normAud(row.audience) === 'public',
       reactions: [0, 0, 0, 0, 0, 0],
       myReaction: -1,
       commentCount: 0,

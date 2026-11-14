@@ -36,6 +36,6 @@ const savedOpen=()=>{S.sh=null;S.st.push('saved');return MODE==='account'?loadSa
 function pSaved(){
   const lim=MODE==='account'&&S.saved&&typeof S.saved.limit==='number'?S.saved.limit:savedLimit(),items=savedItems(),n=items.length;
   const rows=n?items.map(i=>`<div class="row" ${i.kind==='post'?'data-a="post" data-v="'+esc(i.target)+'"':''}><div class="gr"><b>${esc(i.title||i.target)}</b><small>${esc(i.excerpt||'')}</small></div><button class="pb sm s" data-a="unsav" data-v="${esc(String(i.id))}">取消收藏</button></div>`).join(''):'<p class="em" data-sv="empty">还没有收藏。帖子或消息的菜单里可以收藏，只你自己看得到。</p>';
-  const who=MODE==='account'?(S.saved&&S.saved.plan==='vip'?'NOVA VIP 额度':'Basic 额度'):'演示额度';
+  const who=MODE==='account'?(S.saved&&S.saved.plan==='vip'?'VEXO VIP 额度':'Basic 额度'):'演示额度';
   return `<div class="pg" id="savedp">${sub('我的收藏')}<div class="sc"><p class="hint" style="padding:12px 16px 0" data-svq="${n}/${lim}">${esc(who)}：${n} / ${lim} 条。这是你的私人收藏，不会出现在群聊或社区的公共置顶里。</p>${rows}</div></div>`}
 const savedRow=()=>`<button class="row" style="width:100%;text-align:left" data-a="saved" id="svrow"><div class="gr"><b>我的收藏</b><small>私人收藏，最多 ${savedLimit()} 条</small></div><small>›</small></button>`;

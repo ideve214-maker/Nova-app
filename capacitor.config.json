@@ -1,6 +1,6 @@
 {
   "appId": "app.nova.client",
-  "appName": "NOVA",
+  "appName": "VEXO",
   "webDir": "dist",
   "ios": {
     "scrollEnabled": false
@@ -16,7 +16,7 @@
       "updateUrl": "",
       "statsUrl": "",
       "channelUrl": "",
-      "version": "0.7.0-m7.r7"
+      "version": "1.0.0"
     }
   }
 }

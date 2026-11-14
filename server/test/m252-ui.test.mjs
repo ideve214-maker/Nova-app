@@ -48,8 +48,8 @@ test('M2.5.2 开发环境：开通 VIP 后头像金边、主页装饰、标识�
     const on = await deco(p);
     assert.equal(on.av, 1, '头像金边'); assert.equal(on.avw, 1); assert.equal(on.pdec, 1, '主页装饰');
     assert.equal(on.cvr, 1); assert.equal(on.pf, 1); assert.equal(on.badge, 1);
-    assert.equal(on.label, 'NOVA VIP 资料装饰');
-    assert.equal(await p.getAttribute('#v .pf2 h2 .vip', 'aria-label'), 'NOVA VIP 会员');
+    assert.equal(on.label, 'VEXO VIP 资料装饰');
+    assert.equal(await p.getAttribute('#v .pf2 h2 .vip', 'aria-label'), 'VEXO VIP 会员');
     await p.waitForTimeout(800);
     await p.screenshot({path: SHOT + 'm252-deco-profile.png'});
     // 刷新后仍在（来自服务端，不是本机伪造）

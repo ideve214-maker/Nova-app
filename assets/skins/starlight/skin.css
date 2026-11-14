@@ -1,0 +1,23 @@
+/* Starlight 只改色彩、光晕和标志。按下用变淡，不用 scale，避免整页看起来在缩放。 */
+html[data-skin="starlight"] .pb {
+  border-radius: var(--r-btn, 14px);
+  background: var(--ac-grad, var(--ac));
+  color: var(--onac);
+  letter-spacing: var(--tracking-btn, .01em);
+  box-shadow: var(--sh-btn);
+  font-weight: 700;
+}
+html[data-skin="starlight"] .pb:hover { filter: brightness(1.06); }
+html[data-skin="starlight"] .pb:active { transform: none; opacity: .72; box-shadow: none; }
+html[data-skin="starlight"] .pb:disabled { opacity: .4; box-shadow: none; filter: none; }
+html[data-skin="starlight"] .pb.s { background: var(--s2); color: var(--tx); box-shadow: none; border: 1px solid var(--ln); }
+html[data-skin="starlight"] .pb.d { background: var(--dg-grad, var(--dg)); color: #fff; box-shadow: var(--sh-dg); }
+html[data-skin="starlight"] .pb.off:disabled { opacity: 1; background: var(--s2); color: var(--t2); border: 1px dashed var(--t3); box-shadow: none; }
+html[data-skin="starlight"] .ib { border-radius: 12px; }
+html[data-skin="starlight"] .ib:active { transform: none; }
+html[data-skin="starlight"] nav svg,
+html[data-skin="starlight"] .ib svg,
+html[data-skin="starlight"] .bar svg { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+html[data-skin="starlight"] nav button.on { color: var(--ac); text-shadow: 0 0 12px rgba(47, 123, 255, .45); }
+html[data-skin="starlight"] .br-logo { height: 28px; width: auto; display: block; filter: drop-shadow(0 0 8px rgba(47, 123, 255, .55)); }
+html[data-skin="starlight"] .top h1.br { color: #fff; }

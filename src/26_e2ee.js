@@ -35,6 +35,13 @@ async function safetyNumber(edA,edB){
 }
 
 function e2eeKey(userId){return E2EE_STORE_PREFIX+String(userId)}
+function e2eeForget(userId){
+  try{
+    const id=userId!=null?userId:_uid;
+    if(id!=null)localStorage.removeItem(e2eeKey(id));
+  }catch(e){}
+  _acct=null;_store=null;_uid=null;_ready=null;
+}
 function loadStore(userId){
   try{return JSON.parse(localStorage.getItem(e2eeKey(userId))||'null')||{}}
   catch(e){return {}}
@@ -383,6 +390,6 @@ async function e2eeDecryptExport(data){
 Object.assign(globalThis,{
   e2eeEnsure, e2eeEncrypt, e2eeDecrypt, e2eeSafetyOf, e2eeMarkVerified, e2eeOnLogin,
   e2eePeerOf:peerOfCv, e2eeIsDm, safetyNumber, e2eeUploadKeys, e2eePlainCache,
-  e2eeChatBar, safenum, safeok, safetySheet, e2eeDecryptExport,
+  e2eeChatBar, safenum, safeok, safetySheet, e2eeDecryptExport, e2eeKey, e2eeForget,
 });
 })();

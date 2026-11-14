@@ -57,7 +57,7 @@ const friendsRow=()=>`<button class="row" style="width:100%;text-align:left" dat
 function loadUserCard(id){
   if(typeof usingNet!=='function'||!usingNet())return Promise.resolve();
   return api('GET','/api/users/'+id).then(r=>{
-    if(r.s===200&&r.j&&r.j.user){S.userView={id:String(id),hidden:false,user:r.j.user}}
+    if(r.s===200&&r.j&&r.j.user){S.userView={id:String(id),hidden:false,user:r.j.user};const note=r.j.user.riskNotice||(r.j.user.risky?'这个账号近期被多人举报。请核实对方身份，不要轻信转账、投资或私下链接。':'');S.riskNote=S.riskNote||{};if(note)S.riskNote[String(id)]=note;else delete S.riskNote[String(id)];}
     else S.userView={id:String(id),hidden:true,code:r.j&&r.j.error&&r.j.error.code,message:(r.j&&r.j.error&&r.j.error.message)||'该用户资料不可见'};
     if(r.s!==200)return;
     return Promise.all([

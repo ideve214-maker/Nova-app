@@ -27,8 +27,8 @@ function loadUpdater(){
 test('清单地址默认为空，版本比较按 SemVer（含预发布号）', () => {
   const ctx = loadUpdater();
   assert.equal(ctx.updateManifestUrl(), '');
-  assert.equal(ctx.builtinAppVersion(), '0.7.0-m7.r7');
-  assert.equal(ctx.runningAppVersion(), '0.7.0-m7.r7');
+  assert.equal(ctx.builtinAppVersion(), '1.0.0');
+  assert.equal(ctx.runningAppVersion(), '1.0.0');
   assert.equal(ctx.cmpVer('0.7.0-m7.r6', '0.7.0-m7.r6'), 0);
   assert.ok(ctx.versionNewer('0.7.0-m7.r7', '0.7.0-m7.r6'));
   assert.ok(ctx.versionNewer('0.7.1', '0.7.0-m7.r6'));
@@ -145,7 +145,7 @@ test('capacitor.config 为自托管手动模式且不指向 Capgo 云', () => {
   assert.equal(u.channelUrl, '');
   assert.equal(u.appReadyTimeout, 10000);
   assert.equal(u.autoDeleteFailed, true);
-  assert.equal(u.version, '0.7.0-m7.r7');
+  assert.equal(u.version, '1.0.0');
 });
 
 test('小游戏宫格使用自绘 SVG 图标，不再用单字', () => {

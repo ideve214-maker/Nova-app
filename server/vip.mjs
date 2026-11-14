@@ -118,7 +118,7 @@ export function createVip(db, {clock = Date.now, config = VIP_CONFIG} = {}) {
     const st = status(user, at), ent = entitlements(user, at)[key];
     if (e.kind === 'flag' && !ent.enabled) {
       throw new VipError(403, 'ENTITLEMENT_REQUIRED',
-        `这项功能需要 NOVA VIP。开通后即可使用「${e.title}」。`,
+        `这项功能需要 VEXO VIP。开通后即可使用「${e.title}」。`,
         {entitlement: key, plan: st.plan, state: st.state, upgrade: true});
     }
     if (e.kind === 'quota' && ent.value === null) {

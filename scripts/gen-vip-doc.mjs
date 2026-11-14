@@ -16,7 +16,7 @@ export function renderDoc() {
   const vip = C.plans.vip;
   const rows = Object.entries(C.entitlements).map(([k, e]) =>
     `| \`${k}\` | ${e.title} | ${fmt(e, 'basic')} | ${fmt(e, 'vip')} | ${e.status === 'live' ? '已实现' : '待实现'} · ${e.phase} | ${e.onExpire} |`);
-  return `# NOVA VIP 权益与额度（自动生成，请勿手改）
+  return `# VEXO VIP 权益与额度（自动生成，请勿手改）
 
 > 来源：\`server/vip-config.mjs\`。改配置后运行 \`node scripts/gen-vip-doc.mjs\` 重新生成；\`npm run test:server\` 会检查本文件是否最新。
 > 价格与权益均为占位，支付功能未接入。调研依据见 \`docs/research/\`。

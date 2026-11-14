@@ -39,14 +39,14 @@ function errMsg(r,fallback){
   if(tech||(r&&!r.s)){try{console.warn('nova',r&&r.s,code,raw)}catch(e){} return fb}
   return raw;
 }
-function bootView(){return '<div class="pg"><div class="top"><h1 class="br">'+(typeof brandTitle==='function'?brandTitle():'NOVA')+'</h1></div><div class="sc"><p class="em">正在连接…</p></div></div>'}
-function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
+function bootView(){return '<div class="pg"><div class="top"><h1 class="br">'+(typeof brandTitle==='function'?brandTitle():'VEXO')+'</h1></div><div class="sc"><p class="em">正在连接…</p></div></div>'}
+function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
 function retryconnect(){return bootNet()}
 function gateView(){const reg=S.auth.pane==='reg',busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}</div>`:'';
 const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button> · <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">隐私政策</a> · <a class="lk" href="/legal/terms" target="_blank" rel="noopener">用户协议</a></p>`;
 const join=`<label class="lab">用户名</label><input class="fld" data-d="ru" autocomplete="username" placeholder="3–20 位文字、数字或下划线" data-af ${busy?'disabled':''}><label class="lab">邮箱</label><input class="fld" data-d="re" type="email" autocomplete="email" placeholder="name@example.com" ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="rpw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" ${busy?'disabled':''}><label class="lab">再输入一次</label><input class="fld" data-d="rpw2" type="password" autocomplete="new-password" placeholder="再输入一次密码" ${busy?'disabled':''}>${e}<p class="hint" style="margin:12px 0 4px"><button type="button" class="lk" data-a="agreetog" aria-pressed="${S.d.ragree==='1'?'true':'false'}">${S.d.ragree==='1'?'☑':'☐'} 我已阅读并同意</button> <a class="lk" href="/legal/terms" target="_blank" rel="noopener">《用户协议》</a> 和 <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">《隐私政策》</a></p><button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'注册中…':'注册并进入'}</button><p class="hint">已有账号？ <button class="lk" data-a="authpane" data-v="login" ${busy?'disabled':''}>去登录</button></p>`;
 const demoBtn=demoDisabled()?'':`<button class="pb s" style="width:100%" data-a="authdemo" ${busy?'disabled':''}>先用演示看看</button><p class="hint">演示内容只留在这台设备，和真实账号的内容分开存，不会互相覆盖。</p>`;
-return `<div class="pg" id="gate"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'NOVA'}</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码会安全保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
+return `<div class="pg" id="gate"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码会安全保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
 function modeChip(){return '';if(!NET||MODE==='boot'||MODE==='gate')return '';if(MODE==='account'&&SESSION&&SESSION.user)return `<div class="ban ok"><b>已登录 ${esc(SESSION.user.username)}</b>私聊已加密。换账号不会串数据。</div>`;return `<div class="ban"><b>演示模式</b>这些内容只在这台设备。 <button class="lk" data-a="toacct" style="color:var(--ac)">${SESSION&&SESSION.user?'回到账号':'登录'}</button></div>`}
 function authpane(v){S.auth.pane=v==='reg'?'reg':'login';S.auth.err=''}
 function agreetog(){S.d.ragree=S.d.ragree==='1'?'':'1';S.auth.err=''}
@@ -61,7 +61,21 @@ async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.au
   S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password,agree:true});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'注册失败');return}
   S.d.rpw='';S.d.rpw2='';enterAccount(r.j.user,r.j.token)}
 function authdemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(S.auth.busy)return;localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;/* 演示提示条与该 toast 已按产品要求关闭 */}
-function logout(){if(typeof stopEvents==='function')stopEvents();const tok=SESSION&&SESSION.token;VIP.me=null;if(MODE==='account')save();clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':(demoDisabled()?'offline':'demo');if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch(apiUrl('/api/auth/logout'),{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+function logout(){
+  if(typeof stopEvents==='function')stopEvents();
+  const tok=SESSION&&SESSION.token;
+  const uid=SESSION&&SESSION.user&&SESSION.user.id;
+  VIP.me=null;
+  if(MODE==='account')save();
+  try{if(typeof e2eeForget==='function')e2eeForget(uid);else if(uid!=null&&typeof e2eeKey==='function')localStorage.removeItem(e2eeKey(uid));}catch(e){}
+  try{localStorage.removeItem('nova_compose_draft');localStorage.removeItem('nova_loc_recent');}catch(e){}
+  try{
+    const db=typeof novaDb==='function'?novaDb():null;
+    if(db){Promise.resolve(db.posts.clear()).catch(()=>{});Promise.resolve(db.msgs.clear()).catch(()=>{});}
+  }catch(e){}
+  try{S.posts=null;S.messages=null;S.conversations=null;if(S.comp)S.comp=null;}catch(e){}
+  clearTok();localStorage.removeItem('nova_mode');MODE=NET?'gate':(demoDisabled()?'offline':'demo');if(MODE==='demo')D=load();S.auth={pane:'login',err:'',busy:0};S.st=[];S.tab='home';S.sh=null;S.d.pw='';S.d.rpw='';S.d.rpw2='';if(tok)fetch(apiUrl('/api/auth/logout'),{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:'{}'}).catch(()=>{})
+}
 function todemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(MODE==='account')save();localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('已切换到本机演示数据')}
 async function toacct(){if(MODE!=='gate')save();const tok=readTok();localStorage.setItem('nova_mode','account');if(!tok){MODE='gate';S.auth={pane:'login',err:'',busy:0};S.st=[];S.sh=null;return}const me=await api('GET','/api/me',null,tok);if(me.s!==200){clearTok();MODE='gate';S.auth={pane:'login',err:'登录已过期，请重新登录',busy:0};S.st=[];return}enterAccount(me.j.user,tok)}
 async function bootNet(){MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch(apiUrl('/api/health'),{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){if(demoDisabled()){MODE='offline';render();return}MODE='demo';D=load();render();return}const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'&&!demoDisabled()){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()}

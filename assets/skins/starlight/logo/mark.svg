@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="VEXO">
+  <title>VEXO</title>
+  <defs>
+    <linearGradient id="v" x1="180" y1="160" x2="860" y2="880" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".42" stop-color="#d5e6ff"/>
+      <stop offset="1" stop-color="#1c6bff"/>
+    </linearGradient>
+    <filter id="g" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="#000000"/>
+  <path filter="url(#g)" fill="url(#v)" d="M250 210h150L512 760 624 210h150L560 900H464L250 210z"/>
+</svg>

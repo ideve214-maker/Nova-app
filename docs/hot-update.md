@@ -19,7 +19,7 @@
 - `updateUrl` / `statsUrl` / `channelUrl`: 一律 `""`
 - `appReadyTimeout`: `10000`（10 秒内未调用 `notifyAppReady()` 则自动回滚）
 - `autoDeleteFailed`: `true`
-- `version`: 与 `package.json` 一致（目前 `0.7.0-m7.r7`），作为内置包版本
+- `version`: 与 `package.json` 一致（目前 `1.0.0`），作为内置包版本
 
 ## 清单格式
 
@@ -27,15 +27,17 @@
 
 ```json
 {
-  "version": "0.7.0-m7.r7",
-  "url": "https://example.com/nova/bundles/nova-0.7.0-m7.r7.zip",
-  "checksum": "64 位小写十六进制 SHA-256（整个 zip 文件）"
+  "version": "1.0.0",
+  "url": "https://example.com/vexo/bundles/vexo-1.0.0.zip",
+  "checksum": "64 位小写十六进制 SHA-256（整个 zip 文件）",
+  "session_key": "可选。加密包才需要，原样传给 CapacitorUpdater.download() 的 sessionKey"
 }
 ```
 
 - `version`：建议与 `package.json` 相同的 SemVer（可带预发布号，如 `0.7.0-m7.r6`）。只有**严格新于**当前正在运行的包版本时才会下载。
 - `url`：zip 的下载地址。真机请使用 HTTPS。由 Dift 提供，不要写死在仓库里。
 - `checksum`：可选但强烈建议。传给 `CapacitorUpdater.download()`，校验失败则丢弃该包，不切换版本。
+- `session_key`（也接受 `sessionKey`）：可选。有值时同时作为 `sessionKey` 和 `session_key` 传给 `CapacitorUpdater.download()`。仓库里没有找到 Dift 的现成提交，由本版客户端接上。没有这个字段时行为和以前一样。
 - 若清单含 `error` 字段，客户端会忽略这次更新。
 
 zip 根目录必须有 `index.html`（可与 `nova_v5.html` 内容相同），并包含 `assets/` 等资源。不要加密、不要多余的隐藏文件。可用下面的脚本生成：
@@ -52,7 +54,7 @@ npm run bundle
 1. 仅在 Capacitor 原生环境运行；浏览器预览里 `notifyAppReady`、检查清单都是空操作。
 2. 启动时立刻调用 `CapacitorUpdater.notifyAppReady()`。若约 10 秒内未调用，插件会把这次启动视为失败并回滚到上一个可用包（通常是内置包）。
 3. 用 `current()` 读取正在运行的包：`id === "builtin"` 时界面显示内置版本（`NOVA_APP_VERSION` / `package.json`）；否则显示已下载包的 `version`。
-4. 若清单地址非空：拉取清单，比较版本，必要时 `download({ url, version, checksum })`。
+4. 若清单地址非空：拉取清单，比较版本，必要时 `download({ url, version, checksum, sessionKey, session_key })`。`sessionKey` 只在清单带了 `session_key` 或 `sessionKey` 时才传。
 5. 下载成功后调用 `next({ id })`，**在下次启动时**启用新包，不会在当前会话中途 `set()` 重载。
 6. 下载失败或校验和不匹配：删除这次下载的包（`autoDeleteFailed` 也会清理），保持当前正在运行的包。不会因为一次失败的下载而 `reset()` 掉已经可用的版本。
 

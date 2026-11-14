@@ -94,7 +94,7 @@ test('M2.4.5 开发环境：切到 VIP 立即换成香槟金，切回普通立�
     // 个人资料里有 VIP 标识
     await p.click('[data-a=back]');
     assert.equal(await p.locator('#v .pf2 h2 .vip').count(), 1, '我的主页名字旁有 VIP 标识');
-    assert.equal((await p.getAttribute('#v .pf2 h2 .vip', 'aria-label')), 'NOVA VIP 会员');
+    assert.equal((await p.getAttribute('#v .pf2 h2 .vip', 'aria-label')), 'VEXO VIP 会员');
     await p.waitForTimeout(900);   // 等页面转场和提示条结束再截图
     await p.screenshot({path: SHOT + 'm245-gold-profile.png'});
 

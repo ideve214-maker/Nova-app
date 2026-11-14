@@ -27,7 +27,7 @@ export const VIP_CONFIG = Object.freeze({
     }),
     vip: Object.freeze({
       id: 'vip',
-      name: 'NOVA VIP',
+      name: 'VEXO VIP',
       tagline: '更多个性化与适度额度，不影响任何人的基本使用',
       prices: Object.freeze([
         Object.freeze({period: 'month', label: '¥9.9/月', amountCents: 990, currency: 'CNY'}),
@@ -53,7 +53,7 @@ export const VIP_CONFIG = Object.freeze({
   // status: live = 功能已实现并通过测试；planned = 尚未实现（对应步骤完成并验证后才改成 live，不提前承诺）。
   entitlements: Object.freeze({
     vip_badge: Object.freeze({
-      title: 'NOVA VIP 标识', kind: 'flag', basic: false, vip: true, status: 'live', phase: 'M2.5.2',
+      title: 'VEXO VIP 标识', kind: 'flag', basic: false, vip: true, status: 'live', phase: 'M2.5.2',
       description: '名字旁显示 VIP 标识。它只表示订阅状态，不是实名认证。',
       onExpire: '标识立即消失。',
     }),

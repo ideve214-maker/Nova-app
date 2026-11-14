@@ -49,7 +49,7 @@ test('M2.4.3 页面数据不是硬编码：目录和状态被改写，页面必�
   await openCenter();
   const text = await page.innerText('#vipc');
   assert.equal(await page.getAttribute('#vipc .vp[data-vs]', 'data-vs'), 'active');
-  assert.match(text, /当前套餐：NOVA VIP/); assert.match(text, /剩余 40 天/); assert.match(text, /开通于/);
+  assert.match(text, /当前套餐：VEXO VIP/); assert.match(text, /剩余 40 天/); assert.match(text, /开通于/);
   assert.match(text, /测试标题XYZ/); assert.match(text, /¥1\.23\/月/);
   assert.match(await page.locator('[data-ent=personal_saved_items_plus] [data-p=vip]').innerText(), /77 条/);
   assert.match(await page.locator('[data-ent=personal_saved_items_plus] [data-p=basic]').innerText(), /7 条/);
@@ -113,7 +113,7 @@ test('M2.4.4 开发环境：一键切 VIP / 普通，状态由服务端返回并
     assert.equal(await p.getAttribute('#vipc .vp[data-vs]', 'data-vs'), 'none');
     await p.click('[data-a=viptoggle][data-v="1"]');
     await p.waitForSelector('#vipc .vp[data-vs=active]');
-    assert.match(await p.innerText('#vipc'), /当前套餐：NOVA VIP[\s\S]*剩余 30 天/);
+    assert.match(await p.innerText('#vipc'), /当前套餐：VEXO VIP[\s\S]*剩余 30 天/);
     assert.equal(D.srv.db.prepare("SELECT vip_source s FROM users WHERE username='vip_dev_1'").get().s, 'test', '服务端真实入库');
     await p.screenshot({path: SHOT + 'm244-center-vip-test.png'});
     await p.reload(); await p.waitForSelector('nav');

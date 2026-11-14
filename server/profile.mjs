@@ -173,7 +173,18 @@ export function createProfile(db, {now}) {
       avatar: p.avatar,
       isFriend,
       isSelf: !!self,
+      risky: false,
+      riskNotice: '',
     };
+    if (!self) {
+      try {
+        const row = db.prepare(`SELECT COUNT(DISTINCT reporter_id) AS n FROM reports WHERE target_user_id=? AND status='pending'`).get(target.id);
+        if (row && Number(row.n) >= 2) {
+          card.risky = true;
+          card.riskNotice = '这个账号近期被多人举报。请核实对方身份，不要轻信转账、投资或私下链接。';
+        }
+      } catch {}
+    }
     if (self || priv.showGender) card.gender = p.gender || '';
     else card.gender = '';
     if (self || priv.showBirthday) card.birthday = p.birthday || '';

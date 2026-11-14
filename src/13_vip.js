@@ -3,7 +3,7 @@
    这里只缓存服务端返回的结果用于显示；客户端既不保存也不能设置 VIP 身份。 */
 const VIP={cat:null,me:null,busy:0,err:''};
 /* 会员标识：只表示订阅状态，不是实名认证。 */
-const vipBadge=()=>'<i class="vip" role="img" aria-label="NOVA VIP 会员">VIP</i>';
+const vipBadge=()=>'<i class="vip" role="img" aria-label="VEXO VIP 会员">VIP</i>';
 const pad2=n=>String(n).padStart(2,'0');
 const vipDate=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())};
 /* 把「权益在某套餐下的取值」写成人能读的文字；数字都来自服务端目录。 */
@@ -49,8 +49,8 @@ function vipStatusCard(){
   const v=m.vip,until=v.until&&vipDate(v.until),since=v.since&&vipDate(v.since);
   const T={
     none:['当前套餐：Basic','免费使用。核心的社交、聊天、安全能力都已包含。'],
-    active:['当前套餐：NOVA VIP',(since?'开通于 '+since+' · ':'')+'到期 '+until+'（剩余 '+v.daysLeft+' 天）'],
-    expiring:['NOVA VIP · 即将到期','到期 '+until+'，还剩 '+v.daysLeft+' 天。到期后自动回到 Basic，你的内容都会保留。'],
+    active:['当前套餐：VEXO VIP',(since?'开通于 '+since+' · ':'')+'到期 '+until+'（剩余 '+v.daysLeft+' 天）'],
+    expiring:['VEXO VIP · 即将到期','到期 '+until+'，还剩 '+v.daysLeft+' 天。到期后自动回到 Basic，你的内容都会保留。'],
     expired:['VIP 已过期','已于 '+(v.expiredAt?vipDate(v.expiredAt):'—')+' 回到 Basic。你发过、收藏过的内容都还在。'],
     revoked:['VIP 已被撤销','已回到 Basic，你的内容都还在。如有疑问请联系管理员。']}[v.state]||['当前套餐：Basic',''];
   return `<div class="card vp" data-vs="${esc(v.state)}"><b>${esc(T[0])}</b><small>${esc(T[1])}</small></div>`}
@@ -157,7 +157,7 @@ const pVip=()=>{
   return `<div class="pg" id="vipc">${sub('会员中心')}<div class="sc">${body}</div></div>`};
 /* 设置页里的入口行 */
 const vipRow=()=>{if(!NET)return '';const v=MODE==='account'&&VIP.me&&VIP.me.vip;
-  const t=MODE!=='account'?'登录后查看会员状态':!v?'Basic · 免费':v.active?'NOVA VIP · 剩余 '+v.daysLeft+' 天':'Basic · 免费';
+  const t=MODE!=='account'?'登录后查看会员状态':!v?'Basic · 免费':v.active?'VEXO VIP · 剩余 '+v.daysLeft+' 天':'Basic · 免费';
   return `<button class="row" style="width:100%;text-align:left" data-a="vip"><div class="gr"><b>会员中心</b><small>${esc(t)}</small></div><small>›</small></button>`};
 const vipOpen=()=>{S.sh=null;S.st.push('vip');Promise.all([loadVip(),loadPayOrders()]).then(()=>render())};
 const vipRetry=()=>{VIP.err='';loadVip().then(()=>render())};

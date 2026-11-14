@@ -1,6 +1,11 @@
 {
-  "defaultSkin": "nova",
+  "defaultSkin": "starlight",
   "skins": [
+    {
+      "id": "starlight",
+      "name": "Starlight",
+      "path": "starlight"
+    },
     {
       "id": "nova",
       "name": "NOVA",

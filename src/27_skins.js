@@ -53,8 +53,8 @@ function brandTitle(){
     rel=(light&&meta.logoLight)?meta.logoLight:(meta.logo||'');
   }
   const src=rel?skinBase(meta.id)+'/'+rel:(SKINS.logo||'');
-  if(src)return '<img class="br-logo" src="'+esc(src)+'" alt="NOVA">';
-  return 'NOVA';
+  if(src)return '<img class="br-logo" src="'+esc(src)+'" alt="VEXO">';
+  return 'VEXO';
 }
 function resolvedTheme(){
   const t=D&&D.st&&D.st.theme;

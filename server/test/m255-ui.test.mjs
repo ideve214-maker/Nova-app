@@ -53,7 +53,7 @@ test('M2.5.5 Basic：面板能看到香槟金系列但不可用；常用表情�
     assert.ok(await p.locator('.pn [data-pack=nova_gold]').count() >= 1, '免费用户看得到专属包');
     assert.equal(await p.locator('.pn [data-stk-lock=nova_gold]').count(), 1, '有锁定说明');
     assert.equal(await p.locator('.pn [data-v="nova_gold|gold_star"]').count(), 0, '专属按钮不可用（disabled，无 data-a）');
-    assert.match(await p.innerText('.pn'), /开通 NOVA VIP/);
+    assert.match(await p.innerText('.pn'), /开通 VEXO VIP/);
     await p.click('.pn [data-v="basic|smile"]');
     await p.waitForSelector('.stk[data-stk="basic:smile"]');
     assert.equal(await p.locator('.stk[data-stk="basic:smile"]').count(), 1);

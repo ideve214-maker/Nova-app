@@ -38,7 +38,7 @@ async function loadConversation(id){
 }
 async function openDm(userId){
   const r=await api('POST','/api/conversations',{kind:'dm',userId:Number(userId)});
-  if(r.s!==200){if(r.j&&r.j.error&&r.j.error.code==='NOT_FRIENDS'){S.sh={t:'mrsend',uid:String(userId)};T('请先发送消息请求');if(typeof render==='function')render();return null}T(errMsg(r,'无法发起私聊'));return null}
+  if(r.s!==200){if(r.j&&r.j.error&&r.j.error.code==='NOT_FRIENDS'){S.sh={t:'mrsend',uid:String(userId)};T('请先发送消息请求');if(typeof loadUserCard==='function')loadUserCard(userId).then(()=>{if(typeof render==='function')render()});if(typeof render==='function')render();return null}T(errMsg(r,'无法发起私聊'));return null}
   const c=adoptCv(r.j.conversation);
   S.conversations=S.conversations||[];
   if(!S.conversations.some(x=>x.id===c.id))S.conversations.unshift(c);

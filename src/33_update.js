@@ -6,7 +6,7 @@ function builtinAppVersion(){
     const v=typeof window!=='undefined'?window.NOVA_APP_VERSION:'';
     if(v)return String(v);
   }catch(e){}
-  return '0.7.0-m7.r7';
+  return '1.0.0';
 }
 let RUNNING_VERSION=builtinAppVersion();
 function runningAppVersion(){return RUNNING_VERSION||builtinAppVersion()}
@@ -129,6 +129,9 @@ async function checkAndDownloadUpdate(U){
   try{
     const opts={url:zip, version:ver};
     if(sum)opts.checksum=sum;
+    /* 清单里的 session_key 交给插件的 sessionKey（Capgo download 的字段名）。仓库里没有现成的 Dift 修复，这里自己接上。 */
+    const sessionKey=String(manifest.session_key||manifest.sessionKey||'').trim();
+    if(sessionKey){opts.sessionKey=sessionKey;opts.session_key=sessionKey;}
     bundle=await U.download(opts);
     if(!bundle||!bundle.id)throw new Error('empty bundle');
     scheduleBundleApply(U, bundle);
