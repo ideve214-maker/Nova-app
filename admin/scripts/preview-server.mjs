@@ -100,5 +100,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`NOVA admin preview  http://127.0.0.1:${PORT}/   (API → ${API})`);
+  console.log(`VEXO admin preview  http://127.0.0.1:${PORT}/   (API → ${API})`);
 });

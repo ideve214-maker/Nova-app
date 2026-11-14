@@ -1,6 +1,6 @@
 # 许可与来源
 
-- 本主题的 CSS/JSON 令牌、NOVA 专用原创标志构图、启动屏排版及预览布局：本提案原创，MIT License。
+- 本主题的 CSS/JSON 令牌、VEXO（原 NOVA）专用原创标志构图、启动屏排版及预览布局：本提案原创，MIT License。
 - 界面 SVG 图标：沿用上传的 Xinglan 模板中原创 24px 描边图标（MIT）；保留原始图标文件结构。
 - 字体：使用操作系统字体栈；推荐 Noto Sans SC，SIL Open Font License 1.1。字体文件未打包。
 - 未包含 TikTok 或 Facebook 的官方商标、官方应用图标、专有界面截图或受版权保护的媒体内容。主题名称仅表示视觉灵感方向。

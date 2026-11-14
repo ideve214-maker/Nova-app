@@ -1,6 +1,6 @@
 # VEXO 管理端（1.1.0 · 星光 Starlight · 原 NOVA 管理端）
 
-这是 NOVA 社区的**管理端**网页 / Capacitor App。它连到用户端的同一套后端，用真实管理员账号和真实数据。
+这是 VEXO 社区的**管理端**网页 / Capacitor App。它连到用户端的同一套后端，用真实管理员账号和真实数据。
 
 **管理员登录**（`POST /api/admin/auth/login`）：
 
@@ -33,7 +33,7 @@
 - 启动画面最多等约 2.5 秒，超时会提示原因，并提供「进入应用」按钮。
 - 页面里有一段不依赖框架的保护脚本：4 秒后若应用仍未启动，会显示中文错误和「刷新重试」。
 - 首页路由关闭服务端渲染（`ssr: false`），避免把一颗永远不会消失的星星写进 HTML。
-- 提供**单文件 HTML**（`dist-spa/NOVA_Admin.html`），把脚本、样式和演示图片都内嵌进去，在 iPhone 上用文件打开也能进入。
+- 提供**单文件 HTML**（`dist-spa/VEXO_Admin.html`），把脚本、样式和演示图片都内嵌进去，在 iPhone 上用文件打开也能进入。
 - 给较老的 Safari 补了 `color-mix`、`100dvh` 的后备样式，输入框 16px 避免聚焦时被放大。
 
 ---
@@ -43,7 +43,7 @@
 ```bash
 cd admin          # 或本项目根目录
 npm ci
-npm run build:spa           # 生成 dist-spa/（Capacitor webDir：index.html + assets）以及单文件 NOVA_Admin.html
+npm run build:spa           # 生成 dist-spa/（Capacitor webDir：index.html + assets）以及单文件 VEXO_Admin.html
 npm run preview:admin       # 本地 http://127.0.0.1:4173/ ，并把 /api 反代到用户端后端
 ```
 
@@ -55,7 +55,7 @@ npm run build && npm run preview   # 8081
 npm run test:admin          # 适配层单测
 ```
 
-`dist-spa/` 是多文件静态包（`index.html` + `assets/`，资源路径为相对路径 `./`，hash 路由 `#/users`），可作为 Capacitor 的 `webDir`，离线也能打开。同时会生成单文件 `dist-spa/NOVA_Admin.html`，方便用 Safari 打开或分享。不要用只能「看一眼」而不能跑脚本的文件预览器。
+`dist-spa/` 是多文件静态包（`index.html` + `assets/`，资源路径为相对路径 `./`，hash 路由 `#/users`），可作为 Capacitor 的 `webDir`，离线也能打开。同时会生成单文件 `dist-spa/VEXO_Admin.html`，方便用 Safari 打开或分享。不要用只能「看一眼」而不能跑脚本的文件预览器。
 
 ---
 
@@ -117,7 +117,7 @@ src/spa-main.tsx        单文件 / 静态预览的入口（不走服务端渲�
 spa.html                带启动保护的静态壳
 scripts/preview-server.mjs  预览服务（静态页 + /api 反代）
 dist-spa/                   Capacitor webDir：index.html + assets/（相对路径）
-dist-spa/NOVA_Admin.html    构建后的单文件（额外产物）
+dist-spa/VEXO_Admin.html    构建后的单文件（额外产物）
 capacitor.config.ts         Capacitor 占位配置（appId com.nova.admin，未安装 iOS 平台）
 resources/                   星澜 App 图标 1024 与深/浅启动屏，供 @capacitor/assets
 .env.production            生产默认后端 http://47.239.0.90（已提交，无密钥）
@@ -187,7 +187,7 @@ npm run build:spa
 # 得到：
 #   dist-spa/index.html      ← Capacitor 打开的页面（相对路径引用 ./assets/*）
 #   dist-spa/assets/         ← JS / CSS
-#   dist-spa/NOVA_Admin.html ← 单文件版，不是 webDir 的入口
+#   dist-spa/VEXO_Admin.html ← 单文件版，不是 webDir 的入口
 ```
 
 `capacitor.config.ts` 已写好占位：`appId: "com.nova.admin"`，`webDir: "dist-spa"`，iOS `contentInset: "never"`（刘海和 Home Indicator 由页面的 `viewport-fit=cover` 与 `env(safe-area-inset-*)` 处理）。**本仓库没有执行 `npx cap add ios`，也不包含 ios/ 工程**；以后在本机包装时再安装 Capacitor 与 iOS 平台，把 `dist-spa` 指过去即可。
@@ -224,8 +224,8 @@ npm run build:spa
 | `VITE_NOVA_UPDATE_URL`（或 `NOVA_UPDATE_URL` / `NOVA_ADMIN_UPDATE_URL` / `ADMIN_UPDATE_URL`） | 自托管 manifest 地址，来自打包环境（GitHub secret `NOVA_ADMIN_UPDATE_URL`，build/v2 工作流里叫 `ADMIN_UPDATE_URL`）。**打包必填**：`CI=true` 或 `NOVA_REQUIRE_UPDATE_URL=1` 时缺失会让 `build:spa` 和 `cap add/sync` 直接报错；本地调试不填则热更新关闭。确需在 CI 打无热更新的包时设 `NOVA_REQUIRE_UPDATE_URL=0`。不要填 Capgo 云地址，也不要把真实地址提交进仓库。 |
 | `.nova-live-update.json` | `build:spa` 解析到地址后写在 `admin/` 下（已 gitignore，含真实地址，不要提交）。打包第 2 步在另一个 shell 里跑 `cap add/sync` 时，`capacitor.config.ts` 读不到第 1 步 export 的变量，就从这个文件拿地址。没有地址时 `build:spa` 会删掉旧文件。 |
 | `VITE_NOVA_UPDATE_VERSION`（或 `NOVA_UPDATE_VERSION`） | 可选。写入 `plugins.CapacitorUpdater.version`（semver）。**不填则用 `package.json` 的 `version`（当前 1.1.0）**，与打包脚本写入的 iOS `MARKETING_VERSION`（`CFBundleShortVersionString`）一致。 |
-| `VITE_NOVA_UPDATE_AUTO`（或 `NOVA_UPDATE_AUTO`） | 可选。有 URL 时默认开启（`atBackground`：前台检查、下载，下次进后台再切换）。设为 `off` / `0` / `false` 可只记下地址、不自动检查。 |
-| `capacitor.config.ts` → `plugins.CapacitorUpdater` | 原生侧生效（`npx cap sync ios` 时读入）。`updateUrl` / `autoUpdate` 由上面的环境变量填充；`statsUrl` 与 `channelUrl` 固定为空，关闭向 Capgo 的统计与频道请求；`appReadyTimeout` 为 10000 ms；`allowModifyUrl` 为 true，便于后续网页包覆盖地址。 |
+| `VITE_NOVA_UPDATE_AUTO`（或 `NOVA_UPDATE_AUTO`） | 已不再使用。1.1.0 起插件的 `autoUpdate` 固定为 `false`，检查与下载只走 `src/lib/admin/live-update.ts` 的手动流程：每次原生启动 `getLatest()` → `download()`（带服务端 `session_key` 作为 `sessionKey`）→ `next()`，下次进后台时切换。这样插件不会再自己下载一次。 |
+| `capacitor.config.ts` → `plugins.CapacitorUpdater` | 原生侧生效（`npx cap sync ios` 时读入）。`updateUrl` 由上面的环境变量填充，`autoUpdate` 固定为 `false`（见上一行）；`statsUrl` 与 `channelUrl` 固定为空，关闭向 Capgo 的统计与频道请求；`appReadyTimeout` 为 10000 ms；`allowModifyUrl` 为 true，便于后续网页包覆盖地址。 |
 
 启动时（仅原生）会尽早调用 `notifyAppReady()`。若一次热更新加载后 10 秒内没能跑到这句，插件会**自动回滚**到上一版可用包（失败的包会按 `autoDeleteFailed` 删掉）。
 
@@ -271,12 +271,12 @@ CI 与 `scripts/generate-capacitor-assets.sh` 执行 `npx @capacitor/assets gene
 
 ### 打包注意（热更新地址）
 
-- 带地址跑过 `build:spa` 之后，`dist-spa/`（`assets/spa-*.js`、`NOVA_Admin.html`）里会带上真实更新地址。**这样的 `dist-spa/` 不要提交**；提交前用不带地址的环境重新跑一次 `npm run build:spa`。
+- 带地址跑过 `build:spa` 之后，`dist-spa/`（`assets/spa-*.js`、`VEXO_Admin.html`）里会带上真实更新地址。**这样的 `dist-spa/` 不要提交**；提交前用不带地址的环境重新跑一次 `npm run build:spa`。
 - `build:spa` 一开始就会删掉旧的 `.nova-live-update.json`，构建成功且有地址时才重新写入。单独跑 `cap add` / `cap sync` 时，`capacitor.config.ts` 会在日志里打印一行地址来源（环境变量名或这个文件，只显示域名）。**换打包环境前先删掉 `admin/.nova-live-update.json`**，避免用到上一次的旧地址。
 
 ### 怎么从 dist-spa 打更新包
 
-`dist-spa` 是 Capacitor 的 `webDir`，热更新 zip 也从这里打。zip **根目录必须能看到 `index.html`**（不要把 `dist-spa` 再包一层文件夹，也不要把单文件 `NOVA_Admin.html` 当入口）。
+`dist-spa` 是 Capacitor 的 `webDir`，热更新 zip 也从这里打。zip **根目录必须能看到 `index.html`**（不要把 `dist-spa` 再包一层文件夹，也不要把单文件 `VEXO_Admin.html` 当入口）。
 
 ```bash
 cd admin
@@ -291,4 +291,4 @@ npx @capgo/cli bundle zip com.nova.admin --path dist-spa --json
 #   shasum -a 256 ../nova-admin-1.0.1.zip
 ```
 
-把 zip 和 manifest 放到 nginx 目录，把 manifest 里的 `version`、`url`、`checksum` 改成这一包的值。用户下次把 App 送到前台就会检查；下载完成后，按 `atBackground` 会在进入后台后再切换，下一次冷启动（或再回前台，视系统回收情况）加载新包。新包同样必须在启动时调用 `notifyAppReady()`，否则 10 秒后回滚。
+把 zip 和 manifest 放到 nginx 目录，把 manifest 里的 `version`、`url`、`checksum` 改成这一包的值。用户下次冷启动 App 时由 `live-update.ts` 检查并下载；下载完成后调用 `next()`，在进入后台后再切换，下一次冷启动（或再回前台，视系统回收情况）加载新包。新包同样必须在启动时调用 `notifyAppReady()`，否则 10 秒后回滚。

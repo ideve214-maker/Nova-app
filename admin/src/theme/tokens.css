@@ -1,10 +1,10 @@
-/* NOVA admin skins.
+/* VEXO admin skins.
    社交蓝 (data-skin=social) is the default. 脉冲 is data-skin=pulse.
    Each skin has dark and light tokens. Invalid `%s` placeholders in the
    source packs were replaced with that skin's own accent and vip colors.
 */
 
-/* NOVA skin: social blue. Variable names match the NOVA token set. */
+/* VEXO skin: social blue. Variable names match the VEXO token set. */
 :root,
 :root[data-skin="social-blue"] {
   --cv: #101820;
@@ -83,7 +83,7 @@
 .ib:active { transform:scale(.9); background:var(--s2); }
 :focus-visible { outline:2px solid var(--ac); outline-offset:2px; }
 
-/* NOVA skin: pulse. Variable names match the NOVA token set. */
+/* VEXO skin: pulse. Variable names match the VEXO token set. */
 :root[data-skin="pulse"] {
   --cv: #050505;
   --bg: #0B0B0D;

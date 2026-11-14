@@ -2,7 +2,7 @@
 /**
  * After Vite writes dist-spa/ (multi-file: HTML + ./assets, base="./"):
  *   1. Ensure dist-spa/index.html is the MULTI-FILE shell (Capacitor webDir).
- *   2. Also emit dist-spa/NOVA_Admin.html — a single inlined file for file:// / 分享。
+ *   2. Also emit dist-spa/VEXO_Admin.html — a single inlined file for file:// / 分享。
  * Never overwrite index.html with the inlined bundle.
  */
 import { readFileSync, writeFileSync, copyFileSync, statSync, existsSync } from "node:fs";
@@ -85,7 +85,7 @@ for (const name of brandFiles) {
   if (existsSync(src)) copyFileSync(src, join(dir, name));
 }
 
-const out = join(dir, "NOVA_Admin.html");
+const out = join(dir, "VEXO_Admin.html");
 writeFileSync(out, html);
 console.log(`Multi-file (Capacitor webDir): ${multi}`);
 console.log(`Single-file: ${out} (${(html.length / 1024 / 1024).toFixed(2)} MB)`);
