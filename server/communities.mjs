@@ -1,6 +1,7 @@
 // M4.2 社区：创建/加入/角色/频道/邀请。权限在服务端校验，不信任客户端角色字段。
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
+import {createLook} from './look.mjs';
 
 const nid = p => p + '_' + randomBytes(12).toString('base64url');
 const len = s => [...String(s)].length;
@@ -15,6 +16,7 @@ const NEED = Object.freeze({
 
 export function createCommunities(db, {profile, vip, now, notifications, blockwords} = {}) {
   const deps = {notifications: notifications || null, blockwords: blockwords || null};
+  const look = createLook(db);
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
   const insCm = db.prepare(`INSERT INTO communities(id,name,description,visibility,owner_id,created_at) VALUES(?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM communities WHERE id=?');
@@ -66,20 +68,6 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
   }
   function cmStatus(row) { return !row ? 'active' : row.deleted_at ? 'deleted' : row.taken_down_at ? 'taken_down' : 'active'; }
   function isTaken(row) { return cmStatus(row) === 'taken_down'; }
-  function normCover(v) {
-    if (v == null) return undefined;
-    const s = String(v).trim();
-    if (!s || s === 'default') return '';
-    if (/^assets\/bg-[a-z0-9_-]+\.(jpg|png|webp)$/i.test(s) && s.length < 180) return s;
-    const prefix = 'data:image/jpeg;base64,';
-    if (s.startsWith(prefix)) {
-      if (s.length > 450000) throw new ApiError(400, 'BAD_COVER', '封面太大，请换一张小一点的');
-      const body = s.slice(prefix.length).replace(/\s+/g, '');
-      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(body)) throw new ApiError(400, 'BAD_COVER', '封面格式不正确');
-      return prefix + body;
-    }
-    throw new ApiError(400, 'BAD_COVER', '封面格式不正确');
-  }
   function pubCm(row, user, {withMembers} = {}) {
     if (!row || row.deleted_at || row.taken_down_at) return null;
     const m = user ? mem.get(row.id, user.id) : null;
@@ -90,6 +78,7 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     const out = {
       id: row.id, name: row.name, description: row.description, visibility: row.visibility,
       cover: row.cover || null,
+      avatar: row.avatar || null,
       status: cmStatus(row),
       takedownReason: takenDown ? (row.takedown_reason || '') : '',
       takenDownAt: takenDown ? (row.taken_down_at || null) : null,
@@ -151,7 +140,7 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     insCh.run(nid('ch'), id, '公告', 'announce', 1, 1, t);
     return {community: pubCm(byId.get(id), user)};
   }
-  const setInfo = db.prepare('UPDATE communities SET name=?, description=?, cover=? WHERE id=? AND deleted_at IS NULL');
+  const setInfo = db.prepare('UPDATE communities SET name=?, description=?, cover=?, avatar=? WHERE id=? AND deleted_at IS NULL');
   function update(user, id, body) {
     const row = getVisible(user, id);
     requireMem(row, user, 'editInfo');
@@ -159,12 +148,16 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     const description = body && body.description != null ? String(body.description).trim() : (row.description || '');
     if (len(name) < 2 || len(name) > 20) throw new ApiError(400, 'BAD_NAME', '名称需要 2 到 20 个字');
     if (len(description) > 80) throw new ApiError(400, 'BAD_DESC', '简介最多 80 字');
-    let cover = row.cover || '';
+    let cover = row.cover || '', avatar = row.avatar || '';
     if (body && (body.cover !== undefined || body.bg !== undefined)) {
-      const n = normCover(body.cover !== undefined ? body.cover : body.bg);
+      const n = look.norm(body.cover !== undefined ? body.cover : body.bg, user, {code: 'BAD_COVER', label: '封面'});
       if (n !== undefined) cover = n;
     }
-    setInfo.run(name, description, cover || null, id);
+    if (body && (body.avatar !== undefined || body.cp !== undefined)) {
+      const n = look.norm(body.avatar !== undefined ? body.avatar : body.cp, user, {code: 'BAD_AVATAR', label: '社区头像'});
+      if (n !== undefined) avatar = n;
+    }
+    setInfo.run(name, description, cover || null, avatar || null, id);
     return {community: pubCm(byId.get(id), user)};
   }
   function get(user, id) { return {community: pubCm(getVisible(user, id), user, {withMembers: true})}; }
@@ -298,7 +291,52 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     assertOpen(row);
     requireMem(row, user, 'post', 1);
     const limit = Math.min(Math.max(+(q.limit) || 50, 1), 100);
-    return {messages: msgs.all(chId, limit).reverse().map(r => ({id: r.id, channelId: chId, author: authorOf(r.author_id), text: r.text, createdAt: r.created_at, createdAtUtc: new Date(r.created_at).toISOString()}))};
+    return {messages: msgs.all(chId, limit).reverse().map(r => ({id: r.id, channelId: chId, author: authorOf(r.author_id), text: r.text, createdAt: r.created_at, createdAtUtc: new Date(r.created_at).toISOString()})),
+      pins: pinList.all(chId).map(p => p.message_id)};
+  }
+  // r10：频道消息删除与置顶（之前只在本机改，联网后点了没反应）。
+  const msgBy = db.prepare('SELECT * FROM community_messages WHERE id=?');
+  const delMsg = db.prepare('UPDATE community_messages SET deleted_at=? WHERE id=? AND deleted_at IS NULL');
+  const pinList = db.prepare(`SELECT p.message_id FROM community_pins p JOIN community_messages m ON m.id=p.message_id
+    WHERE p.channel_id=? AND m.deleted_at IS NULL ORDER BY p.pinned_at ASC`);
+  const pinIns = db.prepare('INSERT OR REPLACE INTO community_pins(channel_id,message_id,pinned_by,pinned_at) VALUES(?,?,?,?)');
+  const pinDel = db.prepare('DELETE FROM community_pins WHERE channel_id=? AND message_id=?');
+  const pinCount = db.prepare('SELECT message_id FROM community_pins WHERE channel_id=? ORDER BY pinned_at ASC');
+  const PIN_MAX = 5;
+  function msgCtx(user, msgId) {
+    const m = msgBy.get(String(msgId || ''));
+    if (!m || m.deleted_at) throw new ApiError(404, 'NOT_FOUND', '消息不存在');
+    const ch = chBy.get(m.channel_id);
+    if (!ch || ch.deleted_at) throw new ApiError(404, 'NOT_FOUND', '频道不存在');
+    const row = getVisible(user, ch.community_id);
+    assertOpen(row);
+    return {m, ch, row};
+  }
+  function deleteMessage(user, msgId) {
+    const {m, ch, row} = msgCtx(user, msgId);
+    if (Number(m.author_id) !== Number(user.id)) requireMem(row, user, 'delMsg');
+    else requireMem(row, user, 'post', 1);
+    delMsg.run(now(), m.id);
+    pinDel.run(ch.id, m.id);
+    return {deleted: m.id, channelId: ch.id, pins: pinList.all(ch.id).map(p => p.message_id)};
+  }
+  function pinMessage(user, msgId) {
+    const {m, ch, row} = msgCtx(user, msgId);
+    requireMem(row, user, 'pinMsg');
+    pinIns.run(ch.id, m.id, Number(user.id), now());
+    const all = pinCount.all(ch.id);
+    for (let i = 0; i < all.length - PIN_MAX; i++) pinDel.run(ch.id, all[i].message_id);
+    return {pinned: m.id, channelId: ch.id, pins: pinList.all(ch.id).map(p => p.message_id)};
+  }
+  function unpinMessage(user, msgId) {
+    const m = msgBy.get(String(msgId || ''));
+    if (!m) throw new ApiError(404, 'NOT_FOUND', '消息不存在');
+    const ch = chBy.get(m.channel_id);
+    if (!ch || ch.deleted_at) throw new ApiError(404, 'NOT_FOUND', '频道不存在');
+    const row = getVisible(user, ch.community_id);
+    requireMem(row, user, 'pinMsg');
+    pinDel.run(ch.id, m.id);
+    return {unpinned: m.id, channelId: ch.id, pins: pinList.all(ch.id).map(p => p.message_id)};
   }
   function invite(user, id, body = {}) {
     const row = getVisible(user, id);
@@ -358,6 +396,6 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     create, update, get, list, join, apply, leave, members, setMemberRole, kick,
     addChannel, renameChannel, removeChannel, postMessage, listMessages,
     invite, listInvites, revokeInvite, joinByCode, dissolve, getVisible, ROLE_CN, roleOf,
-    peek, canAppeal, attach,
+    peek, canAppeal, attach, deleteMessage, pinMessage, unpinMessage, look,
   };
 }

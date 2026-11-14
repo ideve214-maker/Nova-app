@@ -27,6 +27,10 @@ function rememberAuthor(a){
   const l=(a.avatar&&a.avatar.letter)||[...String(a.displayName||a.username||'用')][0];
   const c=(a.avatar&&a.avatar.color)||'#3A3F46';
   D.u[id]=[a.displayName||a.username,a.username,l,c,'',a.vip?1:0];
+  /* r10：别人的图片头像 / 背景（服务器返回 avatar.image、cover）。 */
+  D.uph=D.uph||{};
+  if(a.avatar&&Object.prototype.hasOwnProperty.call(a.avatar,'image'))D.uph[id]=a.avatar.image||'';
+  if(Object.prototype.hasOwnProperty.call(a,'cover')){D.ubg=D.ubg||{};D.ubg[id]=a.cover||''}
 }
 function adoptPost(p){
   rememberAuthor(p.author);

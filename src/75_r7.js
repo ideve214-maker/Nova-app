@@ -94,6 +94,13 @@ function mediaFileUrl(id,ticket,preview){
 }
 function hydrateLook(root){
   if(typeof SESSION==='undefined'||!SESSION)return;
+  /* r10：图片头像。拿不到时保留默认头像，不显示「暂时无法显示」。 */
+  (root||document).querySelectorAll('img[data-avm]:not([data-mh])').forEach(el=>{
+    el.setAttribute('data-mh','1');
+    const id=el.getAttribute('data-avm');
+    if(!id||typeof mediaTicket!=='function')return;
+    mediaTicket(id).then(ticket=>{if(el.isConnected&&ticket)el.src=mediaFileUrl(id,ticket,false)}).catch(()=>{});
+  });
   (root||document).querySelectorAll('[data-mbg]:not([data-mh])').forEach(el=>{
     el.setAttribute('data-mh','1');
     const id=el.getAttribute('data-mbg');

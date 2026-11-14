@@ -277,7 +277,7 @@
         }
         this.isMoveAllowed = true;
         if (!actionSuccesful) {
-          console.log("Move not allowed! Try again.");
+          console.log("这里不能落子，请重试。");
         } else {
           this.afterMove(action);
         }
@@ -1000,15 +1000,15 @@
         return;
       }
       if (statusboxBodyGame) {
-        statusboxBodyGame.textContent = "Wating for move";
+        statusboxBodyGame.textContent = "等待落子";
       }
       const currentPlayer = this.players[this.currentPlayerId];
       if (statusboxBodyPlayer) {
         statusboxBodyPlayer.textContent = `${currentPlayer.label} ${currentPlayer.boardPiece}`;
       }
-      const turnAnnouncement = `${currentPlayer.label}'s turn.`;
+      const turnAnnouncement = `${currentPlayer.label}.`;
       announce(
-        this.pendingMoveAnnouncement ? `${this.pendingMoveAnnouncement} It is now ${turnAnnouncement}` : turnAnnouncement
+        this.pendingMoveAnnouncement ? `${this.pendingMoveAnnouncement}轮到${turnAnnouncement}` : turnAnnouncement
       );
       this.pendingMoveAnnouncement = void 0;
     }
@@ -1016,7 +1016,7 @@
       renderBoardState(this.board, this.players);
       const currentPlayer = this.players[this.currentPlayerId];
       const row = getMoveRow(this.board, action);
-      this.pendingMoveAnnouncement = `${currentPlayer.label} placed a disc in column ${action + 1}${row ? `, row ${row}` : ""}.`;
+      this.pendingMoveAnnouncement = `${currentPlayer.label} 落在第 ${action + 1} 列${row ? `第 ${row} 行` : ""}。`;
     }
     announceWinner(winnerBoardPiece) {
       this.controls?.setTurn(false);
@@ -1034,25 +1034,25 @@
           (player) => player.boardPiece === winnerBoardPiece
         );
         if (winnerPlayer) {
-          result = `${winnerPlayer.label} won.`;
+          result = `${winnerPlayer.label} 获胜。`;
         } else {
-          result = `Player ${winnerBoardPiece} won.`;
+          result = `玩家 ${winnerBoardPiece} 获胜。`;
         }
       }
       renderBoardState(this.board, this.players);
       const messageDialog = showMessage({
-        title: "Thank you for playing.",
-        messages: [result, "Use the Play again button to start a new game."]
+        title: "感谢游玩。",
+        messages: [result, "点击“再来一局”开始新对局。"]
       });
       messageDialog?.addEventListener("close", () => playAgainButton?.focus(), {
         once: true
       });
       playAgainButton?.classList.remove("hidden");
       if (statusboxBodyGame) {
-        statusboxBodyGame.textContent = "Game over";
+        statusboxBodyGame.textContent = "游戏结束";
       }
       if (statusboxBodyPlayer) {
-        statusboxBodyPlayer.textContent = winnerBoardPiece === "D" /* DRAW */ ? `It's a draw` : winnerPlayer ? `${winnerPlayer.label} ${winnerPlayer.boardPiece} won` : `Player ${winnerBoardPiece === "\u{1F534}" /* PLAYER_1 */ ? "1 \u{1F534}" : "2 \u{1F535}"} won`;
+        statusboxBodyPlayer.textContent = winnerBoardPiece === "D" /* DRAW */ ? `平局` : winnerPlayer ? `${winnerPlayer.label} ${winnerPlayer.boardPiece} 获胜` : `玩家${winnerBoardPiece === "\u{1F534}" /* PLAYER_1 */ ? "1 \u{1F534}" : "2 \u{1F535}"} 获胜`;
       }
       announce(result);
     }
@@ -1070,7 +1070,7 @@
     statusboxBodyConnection?.classList.add("hidden");
     playAgainButton?.classList.add("hidden");
     if (statusboxBodyGame) {
-      statusboxBodyGame.textContent = "Wating for move";
+      statusboxBodyGame.textContent = "等待落子";
     }
     if (statusboxBodyPlayer) {
       statusboxBodyPlayer.textContent = `${firstPlayer.label} ${firstPlayer.boardPiece}`;
@@ -1153,8 +1153,8 @@
       return;
     }
     const board = new Board(canvas);
-    const firstPlayer = new PlayerAi("\u{1F534}" /* PLAYER_1 */, `AI Player 1`);
-    const secondPlayer = new PlayerAi("\u{1F535}" /* PLAYER_2 */, `AI Player 2`);
+    const firstPlayer = new PlayerAi("\u{1F534}" /* PLAYER_1 */, `电脑1`);
+    const secondPlayer = new PlayerAi("\u{1F535}" /* PLAYER_2 */, `电脑2`);
     const game = new GameAiVsAi([firstPlayer, secondPlayer], board);
     let disposed = false;
     statusbox2?.classList.remove("hidden");
@@ -1201,7 +1201,7 @@
   };
   function initGameLocalAi(playerName) {
     const firstPlayer = new PlayerHuman("\u{1F534}" /* PLAYER_1 */, playerName);
-    const aiPlayer = new PlayerAi("\u{1F535}" /* PLAYER_2 */, `AI Player`);
+    const aiPlayer = new PlayerAi("\u{1F535}" /* PLAYER_2 */, `电脑`);
     return initGameLocal(GameLocalAi, firstPlayer, aiPlayer);
   }
 
@@ -1394,17 +1394,17 @@
           {
             this.playerShadow.label = message.payload.otherPlayerName;
             showMessage({
-              title: "Game started",
+              title: "游戏开始",
               messages: [
                 `The first piece should be dropped by ${this.isCurrentMoveByCurrentPlayer() ? "you" : "the other player"}.`
               ]
             });
             if (statusboxBodyGame3) {
-              statusboxBodyGame3.textContent = "Wating for move";
+              statusboxBodyGame3.textContent = "等待落子";
             }
             if (statusboxBodyPlayer3) {
               const currentPlayer = this.players[this.currentPlayerId];
-              statusboxBodyPlayer3.textContent = `${currentPlayer.label} ${currentPlayer.boardPiece} ` + (this.isCurrentMoveByCurrentPlayer() ? `(you)` : `(the other player)`);
+              statusboxBodyPlayer3.textContent = `${currentPlayer.label} ${currentPlayer.boardPiece} ` + (this.isCurrentMoveByCurrentPlayer() ? `（你）` : `(the other player)`);
             }
             this.start();
           }
@@ -1423,13 +1423,13 @@
             const winnerPlayer = this.players.find(
               (player) => player.boardPiece === winnerBoardPiece
             );
-            const messageWinner = winnerBoardPiece === "D" /* DRAW */ ? `It's a draw` : winnerPlayer ? `${winnerPlayer.label} ${winnerPlayer.boardPiece} won` : `Player ${winnerBoardPiece === "\u{1F534}" /* PLAYER_1 */ ? "1 \u{1F534}" : "2 \u{1F535}"} won`;
+            const messageWinner = winnerBoardPiece === "D" /* DRAW */ ? `平局` : winnerPlayer ? `${winnerPlayer.label} ${winnerPlayer.boardPiece} 获胜` : `玩家${winnerBoardPiece === "\u{1F534}" /* PLAYER_1 */ ? "1 \u{1F534}" : "2 \u{1F535}"} 获胜`;
             showMessage({
-              title: "Thank you for playing",
-              messages: [messageWinner, "Next game will start in 10 seconds."]
+              title: "感谢游玩",
+              messages: [messageWinner, "10 秒后开始下一局。"]
             });
             if (statusboxBodyGame3) {
-              statusboxBodyGame3.textContent = "Game over";
+              statusboxBodyGame3.textContent = "游戏结束";
             }
             if (statusboxBodyPlayer3) {
               statusboxBodyPlayer3.textContent = messageWinner;
@@ -1523,15 +1523,15 @@
         this.isMoveAllowed && !this.isGameWon && !this.isGameEnded && this.isCurrentMoveByCurrentPlayer()
       );
       if (statusboxBodyGame3) {
-        statusboxBodyGame3.textContent = "Wating for move";
+        statusboxBodyGame3.textContent = "等待落子";
       }
       const currentPlayer = this.players[this.currentPlayerId];
-      const turnAnnouncement = `${currentPlayer.label}'s turn${this.isCurrentMoveByCurrentPlayer() ? " (you)" : ""}.`;
+      const turnAnnouncement = `${currentPlayer.label}${this.isCurrentMoveByCurrentPlayer() ? " (you)" : ""}.`;
       if (statusboxBodyPlayer3) {
-        statusboxBodyPlayer3.textContent = `${currentPlayer.label} ${currentPlayer.boardPiece} ` + (this.isCurrentMoveByCurrentPlayer() ? `(you)` : `(the other player)`);
+        statusboxBodyPlayer3.textContent = `${currentPlayer.label} ${currentPlayer.boardPiece} ` + (this.isCurrentMoveByCurrentPlayer() ? `（你）` : `(the other player)`);
       }
       announce(
-        this.pendingMoveAnnouncement ? `${this.pendingMoveAnnouncement} It is now ${turnAnnouncement}` : turnAnnouncement
+        this.pendingMoveAnnouncement ? `${this.pendingMoveAnnouncement}轮到${turnAnnouncement}` : turnAnnouncement
       );
       this.pendingMoveAnnouncement = void 0;
     };
@@ -1539,7 +1539,7 @@
       renderBoardState(this.board, this.players);
       const currentPlayer = this.players[this.currentPlayerId];
       const row = getMoveRow(this.board, action);
-      this.pendingMoveAnnouncement = `${currentPlayer.label} placed a disc in column ${action + 1}${row ? `, row ${row}` : ""}.`;
+      this.pendingMoveAnnouncement = `${currentPlayer.label} 落在第 ${action + 1} 列${row ? `第 ${row} 行` : ""}。`;
       if (!this.connectionPlayerId || !this.connectionMatchId) {
         return;
       }
@@ -1726,8 +1726,8 @@
         player1NameInput.disabled = false;
         player2NameInput.disabled = false;
       } else if (chosenMode === "offline-ai") {
-        player1NameLabel.textContent = `Player's name:`;
-        player2NameLabel.textContent = `Player's name:`;
+        player1NameLabel.textContent = `玩家名称：`;
+        player2NameLabel.textContent = `玩家名称：`;
         player1NameLabel.classList.remove("hidden");
         player1NameInput.classList.remove("hidden");
         player2NameLabel.classList.add("hidden");
@@ -1744,8 +1744,8 @@
         player1NameInput.disabled = false;
         player2NameInput.disabled = true;
       } else if (chosenMode === "ai-vs-ai") {
-        player1NameLabel.textContent = `Player's name:`;
-        player2NameLabel.textContent = `Player's name:`;
+        player1NameLabel.textContent = `玩家名称：`;
+        player2NameLabel.textContent = `玩家名称：`;
         player1NameLabel.classList.add("hidden");
         player1NameInput.classList.add("hidden");
         player2NameLabel.classList.add("hidden");

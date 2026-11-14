@@ -15,7 +15,7 @@ function msgPerm(k,cid,act){
   if(k=='cv'){const c=(typeof cvSrc==='function'?cvSrc():D.cv).find(x=>x.id==cid);if(!c||!c.g)return false;return canG(gRole(c,'me'),act=='delMsg'?'pinMsg':act)}
   const c=cmOf(cid);return !!c&&!!c.j&&canC(c.r,act);
 }
-const pinned=(k,cid)=>{if(k=='cv'&&typeof usingNet==='function'&&usingNet()){const c=typeof cvSrc==='function'?cvSrc().find(x=>x.id==cid):null;const ids=[...new Set([...(c&&c.publicPins||[]),...(c&&c.personalPins||[])])];return ids.filter(id=>msgs(k,cid).some(m=>mid(k,m)==id))}return (D.pm[cid]||[]).filter(id=>msgs(k,cid).some(m=>mid(k,m)==id))};
+const pinned=(k,cid)=>{if(k=='cv'&&typeof usingNet==='function'&&usingNet()){const c=typeof cvSrc==='function'?cvSrc().find(x=>x.id==cid):null;const ids=[...new Set([...(c&&c.publicPins||[]),...(c&&c.personalPins||[])])];return ids.filter(id=>msgs(k,cid).some(m=>mid(k,m)==id))}if(k=='ch'&&typeof usingNet==='function'&&usingNet()&&S.channelPins){const ids=S.channelPins[cid]||[];return ids.filter(id=>msgs(k,cid).some(m=>mid(k,m)==id))}return (D.pm[cid]||[]).filter(id=>msgs(k,cid).some(m=>mid(k,m)==id))};
 /* 把文字里的 @所有人 / @某人 渲染成高亮（先转义，再替换，防注入） */
 function fmt(t){
   const names=Object.keys(D.u).filter(i=>i!='notice').map(i=>P(i).n).sort((a,b)=>b.length-a.length).map(n=>n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));

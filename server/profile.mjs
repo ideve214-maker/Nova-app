@@ -1,6 +1,7 @@
 // M2.6 个人资料、颜色文字头像、隐私设置。每项都有默认值；写入服务端校验。
 import {ApiError} from './errors.mjs';
 import {randomBytes} from 'node:crypto';
+import {createLook} from './look.mjs';
 
 export const AVATAR_COLORS = Object.freeze(['#2F6F5E', '#5C4A3A', '#243044', '#6B3A4A', '#3A465C', '#6A5A3C', '#3A3F46', '#C8A96A']);
 const GENDERS = new Set(['男', '女', '其他', '']);
@@ -28,6 +29,9 @@ function ageOf(b) {
 }
 
 export function createProfile(db, {now}) {
+  const look = createLook(db);
+  const setLook = db.prepare(`INSERT INTO profiles(user_id,display_name,avatar_image,cover_image,updated_at) VALUES(?,?,?,?,?)
+    ON CONFLICT(user_id) DO UPDATE SET avatar_image=excluded.avatar_image, cover_image=excluded.cover_image, updated_at=excluded.updated_at`);
   const getP = db.prepare('SELECT * FROM profiles WHERE user_id=?');
   const upsP = db.prepare(`INSERT INTO profiles(user_id,display_name,bio,gender,birthday,avatar_kind,avatar_color,avatar_letter,updated_at)
     VALUES(@user_id,@display_name,@bio,@gender,@birthday,@avatar_kind,@avatar_color,@avatar_letter,@updated_at)
@@ -43,7 +47,8 @@ export function createProfile(db, {now}) {
     const name = user.username;
     return {
       displayName: name, bio: '', gender: '', birthday: '',
-      avatar: {kind: 'color', color: colorOf(name), letter: letterOf(name)},
+      avatar: {kind: 'default', image: null, color: colorOf(name), letter: letterOf(name)},
+      cover: null,
     };
   }
   function publicOf(user) {
@@ -55,11 +60,28 @@ export function createProfile(db, {now}) {
       gender: r.gender || '',
       birthday: r.birthday || '',
       avatar: {
-        kind: r.avatar_kind || 'color',
+        // r10：图片头像（媒体 id / 内置样板）。没有图片时 kind=default，新版客户端显示官方默认头像；
+        // color/letter 只为兼容旧版客户端保留。
+        kind: r.avatar_image ? 'image' : (r.avatar_kind === 'color' ? 'default' : (r.avatar_kind || 'default')),
+        image: r.avatar_image || null,
         color: r.avatar_color || d.avatar.color,
         letter: r.avatar_letter || letterOf(r.display_name || d.displayName),
       },
+      cover: r.cover_image || null,
     };
+  }
+  /** r10：保存图片头像 / 背景。body.avatar 或 body.avatarImage、body.cover；空串恢复默认。 */
+  function saveLook(user, body = {}) {
+    const r = getP.get(user.id) || {};
+    let av = r.avatar_image || '', cv = r.cover_image || '';
+    const rawAv = body.avatarImage !== undefined ? body.avatarImage
+      : (body.avatar && typeof body.avatar === 'object' ? (body.avatar.kind === 'image' ? body.avatar.image : (body.avatar.kind === 'default' ? '' : undefined)) : body.avatar);
+    const nAv = look.norm(rawAv, user, {code: 'BAD_AVATAR', label: '头像'});
+    if (nAv !== undefined) av = nAv;
+    const nCv = look.norm(body.cover !== undefined ? body.cover : body.bg, user, {code: 'BAD_COVER', label: '背景'});
+    if (nCv !== undefined) cv = nCv;
+    setLook.run(user.id, r.display_name || user.username, av || null, cv || null, now());
+    return publicOf(user);
   }
   function validateProfile(b, user, cur) {
     const out = {...cur};
@@ -88,7 +110,9 @@ export function createProfile(db, {now}) {
       }
       out.birthday = bd;
     }
-    if (b.avatar) {
+    if (b.avatar && (b.avatar.kind === 'image' || b.avatar.kind === 'default')) {
+      // 图片头像走 saveLook，这里只保留旧的颜色字段不变。
+    } else if (b.avatar) {
       if (b.avatar.kind && b.avatar.kind !== 'color') throw new ApiError(400, 'AVATAR_IMAGE_PENDING', '图片头像将在后续版本提供（需完成媒体上传）。现在请使用颜色和文字头像。');
       const color = String((b.avatar.color || out.avatar.color) || '').toUpperCase();
       if (!/^#[0-9A-F]{6}$/.test(color)) throw new ApiError(400, 'BAD_AVATAR_COLOR', '头像颜色不正确');
@@ -103,7 +127,7 @@ export function createProfile(db, {now}) {
     const next = validateProfile(body || {}, user, cur);
     upsP.run({
       user_id: user.id, display_name: next.displayName, bio: next.bio, gender: next.gender, birthday: next.birthday,
-      avatar_kind: next.avatar.kind, avatar_color: next.avatar.color, avatar_letter: next.avatar.letter, updated_at: now(),
+      avatar_kind: 'color', avatar_color: next.avatar.color, avatar_letter: next.avatar.letter, updated_at: now(),
     });
     return publicOf(user);
   }
@@ -171,6 +195,7 @@ export function createProfile(db, {now}) {
       displayName: p.displayName,
       bio: p.bio || '',
       avatar: p.avatar,
+      cover: p.cover || null,
       isFriend,
       isSelf: !!self,
       risky: false,
@@ -194,7 +219,7 @@ export function createProfile(db, {now}) {
     return {user: card};
   }
 
-  return {publicOf, save, defaults, privacyOf, savePrivacy, PRIVACY_DEFAULTS, AVATAR_COLORS, attach, viewFor, ageYears};
+  return {publicOf, save, saveLook, defaults, privacyOf, savePrivacy, PRIVACY_DEFAULTS, AVATAR_COLORS, attach, viewFor, ageYears};
 }
 
 export function newSessionId() { return 'ss_' + randomBytes(16).toString('base64url'); }

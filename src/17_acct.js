@@ -14,6 +14,20 @@ function applyUser(user){
   u[5]=user.vip?1:0;
   D.acct=user.id;
   D.pf=D.pf||{};D.pf.me=D.pf.me||{g:'',b:'',gp:1,bp:1,ap:1,cv:0};
+  /* r10：图片头像 / 背景以服务器为准，换设备、重新登录都在；本机旧版只存在这台设备上的图片，第一次登录时补传到服务器。 */
+  const av=p.avatar||{};
+  if(Object.prototype.hasOwnProperty.call(av,'image')){
+    if(av.image)D.pf.me.ph=av.image;
+    else if(D.pf.me.ph&&!D.pf.me.phSynced)setTimeout(()=>saveMyLook({avatarImage:D.pf.me.ph},''),0);
+    else delete D.pf.me.ph;
+    D.pf.me.phSynced=1;
+  }
+  if(Object.prototype.hasOwnProperty.call(p,'cover')){
+    if(p.cover)D.pf.me.bg=p.cover;
+    else if(D.pf.me.bg&&!D.pf.me.bgSynced)setTimeout(()=>saveMyLook({cover:D.pf.me.bg},''),0);
+    else delete D.pf.me.bg;
+    D.pf.me.bgSynced=1;
+  }
   if(p.gender!=null)D.pf.me.g=p.gender;
   if(p.birthday!=null)D.pf.me.b=p.birthday;
 }
@@ -81,8 +95,21 @@ async function revsess(id){
   if(r.s!==200){T(errMsg(r,'无法退出这台设备'));return}
   T('已退出该设备');return loadSessions()}
 
-function avcol(c){if(!AV_COLS.includes(c)&&!/^#[0-9A-Fa-f]{6}$/.test(c))return;S.d.avc=c;D.u.me[3]=c;if(MODE==='account'&&SESSION)return api('POST','/api/me/avatar',{avatar:{kind:'color',color:c,letter:(S.d.al||D.u.me[2]||'我')[0]}}).then(r=>{if(r.s!==200){T(errMsg(r,'头像保存失败'));return}if(r.j.user)SESSION.user=r.j.user;T('已保存头像')});T('已更换颜色')}
-function avlet(){const l=[...(S.d.al||D.u.me[2]||'我')][0];if(!l)return T('请输入一个字');D.u.me[2]=l;if(MODE==='account'&&SESSION)return api('POST','/api/me/avatar',{avatar:{kind:'color',color:S.d.avc||D.u.me[3],letter:l}}).then(r=>{if(r.s!==200){T(errMsg(r,'头像保存失败'));return}T('已保存头像')});T('已更换文字')}
+/* r10：去掉「颜色 + 文字」头像。保留函数名，旧的按钮如果还在也不会报错。 */
+function avcol(){T('头像请用官方默认头像或从相册导入')}
+function avlet(){T('头像请用官方默认头像或从相册导入')}
+/* r10：保存自己的头像 / 背景到服务器（媒体 id、内置样板路径，空串 = 恢复默认）。 */
+function saveMyLook(body,okMsg){
+  if(!(MODE==='account'&&NET&&SESSION)){if(okMsg)T(okMsg);return Promise.resolve(true)}
+  return api('POST','/api/me/look',body).then(r=>{
+    if(r.s!==200){T(errMsg(r,'没有保存到服务器'));return false}
+    if(r.j.user)SESSION.user=r.j.user;
+    const p=r.j.profile||{};
+    if(p.avatar){if(p.avatar.image)D.pf.me.ph=p.avatar.image;else delete D.pf.me.ph}
+    if(Object.prototype.hasOwnProperty.call(p,'cover')){if(p.cover)D.pf.me.bg=p.cover;else delete D.pf.me.bg}
+    save();if(okMsg)T(okMsg);if(typeof render==='function')render();return true;
+  });
+}
 
 function deltog(){S.d.delok=S.d.delok==='1'?'':'1';S.delerr=''}
 function delacctq(){

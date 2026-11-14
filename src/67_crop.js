@@ -62,6 +62,14 @@ function applyLook(kind,id,url){
   if(kind==='cmbg'||kind==='cmav'){const c=cmp(id);if(!c||(c.r!=='所有者'&&c.r!=='管理员')){T('没有权限');return false}if(kind==='cmbg')c.bg=url;else c.cp=url;return true}
   return false;
 }
+function saveGroupAvatar(id,src){
+  return api('POST','/api/conversations/'+encodeURIComponent(id)+'/avatar',{avatar:src||''}).then(r=>{
+    if(r.s!==200){T(errMsg(r,'群头像没有保存到服务器'));return false}
+    const c=typeof cvf==='function'?cvf(id):null;
+    if(c&&r.j&&r.j.conversation)c.gp=r.j.conversation.avatar||'';
+    T('已更换群头像');if(typeof render==='function')render();return true;
+  });
+}
 function canvasToJpegBlob(canvas,qStart){
   return new Promise((resolve,reject)=>{
     const tryQ=q=>{
@@ -105,11 +113,17 @@ function applyCrop(){
     closeCrop();
     if((kind==='cmbg'||kind==='cmav')&&typeof saveCmLook==='function')
       return saveCmLook(id,kind==='cmbg'?{cover:url}:{avatar:url},'已保存');
+    if((kind==='av'||kind==='bg')&&typeof saveMyLook==='function')
+      return saveMyLook(kind==='av'?{avatarImage:url}:{cover:url},'已保存');
+    if(kind==='gav'&&typeof saveGroupAvatar==='function'&&typeof usingNet==='function'&&usingNet()&&SESSION)
+      return saveGroupAvatar(id,url);
     T('已保存');
   };
-  if((c.kind==='cmbg'||c.kind==='cmav')&&typeof usingNet==='function'&&usingNet()&&SESSION){
+  /* r10：个人头像/背景、群头像和社区封面一样，先上传成图片再把图片 id 存到服务器，别人也能看到，刷新不丢。 */
+  if(['cmbg','cmav','av','bg','gav'].includes(c.kind)&&typeof usingNet==='function'&&usingNet()&&SESSION){
     if(S.lookBusy)return;S.lookBusy=1;T('正在上传…');
-    return canvasToJpegBlob(canvas,0.82).then(b=>uploadJpegBlob(b,c.kind==='cmbg'?'cm-cover.jpg':'cm-avatar.jpg')).then(mid=>{
+    const nm={cmbg:'cm-cover.jpg',cmav:'cm-avatar.jpg',av:'avatar.jpg',bg:'cover.jpg',gav:'group-avatar.jpg'}[c.kind];
+    return canvasToJpegBlob(canvas,0.82).then(b=>uploadJpegBlob(b,nm)).then(mid=>{
       S.lookBusy=0;finish(mid);
     }).catch(e=>{
       S.lookBusy=0;T((e&&e.message)==='too large'?'裁剪结果太大，请缩小一点或换一张':((e&&e.message)||'上传失败，请稍后再试'));

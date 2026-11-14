@@ -14,7 +14,7 @@ function adoptCv(c){
   return {
     id:c.id,g,n:title,mem:g?memAll:others.map(m=>String(m.id)),memberCount:memCount,members:c.members||[],u:c.unread||0,mute:c.muted?1:0,pin:c.pinned?1:0,lastRead:c.lastReadMessageId||null,
     own:owner?(Number(owner.id)===Number(me)?'me':String(owner.id)):'',
-    adm,r:c.myRole||(my&&my.role)||'',myNickname:c.myNickname||(my&&my.nickname)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:c.kind==='dm',peerId:others[0]&&others[0].id,publicPins:c.publicPins||[],personalPins:c.personalPins||[]
+    adm,r:c.myRole||(my&&my.role)||'',myNickname:c.myNickname||(my&&my.nickname)||'',src:'net',kind:c.kind,last:c.lastMessage||null,e2ee:c.kind==='dm',peerId:others[0]&&others[0].id,publicPins:c.publicPins||[],personalPins:c.personalPins||[],gp:g?(c.avatar||''):''
   };
 }
 function netCv(){return typeof usingNet==='function'&&usingNet()&&Array.isArray(S.conversations)}
@@ -165,6 +165,7 @@ function stopEvents(){if(S.evtAbort){try{S.evtAbort.abort()}catch(e){}S.evtAbort
 function applyEvent(ev,data){
   if(ev&&ev.startsWith('friend.')&&typeof loadFriends==='function'){loadFriends().then(()=>{if(typeof render==='function')render()});}
   if(ev==='draft.sync'&&data){S.drafts=S.drafts||{};const cid=data.conversationId;if(data.cleared||!(data.draft&&data.draft.text)){delete S.drafts[cid];if(typeof storeLocalDraft==='function')storeLocalDraft(cid,'')}else{S.drafts[cid]={text:data.draft.text,replyToId:data.draft.replyToId,updatedAt:data.draft.updatedAt};if(typeof storeLocalDraft==='function')storeLocalDraft(cid,data.draft.text,data.draft.replyToId)}const cur=S.st&&S.st[S.st.length-1];if(cur&&String(cur)==='chat:'+cid&&typeof applyDraft==='function')applyDraft(cid);return}
+  if(ev==='conversation.updated'&&data&&data.conversationId){const c=typeof cvf==='function'?cvf(data.conversationId):null;if(c&&Object.prototype.hasOwnProperty.call(data,'avatar'))c.gp=data.avatar||'';if(typeof render==='function')render();return}
   if(ev==='conversation.typing'&&data){if(typeof noteTyping==='function')noteTyping(data);return}
   if(ev==='conversation.reaction'&&data){const cid=data.conversationId,arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.messageId);if(i>=0)arr[i].reactions=data.reactions||[]}if(typeof render==='function')render();return}
   if(ev==='conversation.recall'&&data&&data.message){const cid=data.conversationId||data.message.conversationId;const arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.message.id);if(i>=0){arr[i][4]='（已撤回）';arr[i].deleted=1}}if(typeof render==='function')render();return}
@@ -251,6 +252,18 @@ async function doForward(dest,srcId,srcCid){
   const destCv=typeof cvf==='function'?cvf(dest):null;
   const arr=(S.messages&&S.messages[srcCid])||[];
   const row=arr.find(x=>x[5]==srcId);
+  /* r10：小组频道消息转发——频道消息不在私聊消息表里，按「转发自小组」的普通消息发到目标会话。 */
+  const chRow=!row&&S.channelMessages&&S.channelMessages[srcCid]?S.channelMessages[srcCid].find(x=>String(x[3])===String(srcId)):null;
+  if(chRow){
+    if(destCv&&!destCv.g&&destCv.e2ee){T('小组消息暂时只能转发到群聊');return}
+    const cm=typeof cmOf==='function'?cmOf(srcCid):null;
+    const who=chRow[0]=='me'?'我':P(chRow[0]).n;
+    const text='［转发自小组'+(cm?'「'+cm.n+'」':'')+'］'+who+'：'+String(chRow[2]||'');
+    const r=await api('POST','/api/conversations/'+dest+'/messages',{text,clientId:'fwd'+Date.now()});
+    if(r.s!==200){T(errMsg(r,'转发失败'));return}
+    if(typeof adoptMsg==='function'&&r.j&&r.j.message){S.messages=S.messages||{};S.messages[dest]=S.messages[dest]||[];S.messages[dest].push(adoptMsg(r.j.message))}
+    T('已转发');return;
+  }
   const plain=row?((typeof mtext==='function'?mtext('cv',row):row[4])||''):'';
   const body={conversationId:dest,clientId:'fwd'+Date.now()};
   const needEnc=destCv&&!destCv.g&&destCv.e2ee&&typeof e2eeEncrypt==='function';

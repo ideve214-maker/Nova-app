@@ -56,6 +56,19 @@ async function loadChannelMessages(cid){
   if(r.s!==200)return;
   S.channelMessages=S.channelMessages||{};
   S.channelMessages[cid]=(r.j.messages||[]).map(adoptChMsg);
+  S.channelPins=S.channelPins||{};
+  if(Array.isArray(r.j.pins))S.channelPins[cid]=r.j.pins.map(String);
+}
+/* r10：频道消息置顶 / 取消置顶 / 删除都走服务器（之前只改本机，联网时点了没反应）。 */
+async function chMsgAct(act,cid,id){
+  const r=await api('POST','/api/channel-messages/'+encodeURIComponent(id)+'/'+act,{});
+  if(r.s!==200){T(errMsg(r,act==='delete'?'无法删除':act==='pin'?'无法置顶':'无法取消置顶'));return false}
+  S.channelPins=S.channelPins||{};
+  if(Array.isArray(r.j.pins))S.channelPins[cid]=r.j.pins.map(String);
+  if(act==='delete'&&S.channelMessages&&S.channelMessages[cid])S.channelMessages[cid]=S.channelMessages[cid].filter(m=>String(m[3])!==String(id));
+  S.sh=null;
+  T(act==='delete'?'已删除':act==='pin'?'已置顶，所有成员都能看到':'已取消置顶');
+  return true;
 }
 
 /* r8.3：社区被下架/删除（服务器返回 403/404/410）时，不再进入空页面或报通用错误，退回上一页并说明原因 */

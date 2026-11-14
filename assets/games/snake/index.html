@@ -69,6 +69,7 @@
         display: none;
       }
     }
+    .snake-link{pointer-events:none;display:none}
   </style>
   <script>
     // To add a theme, add its stylesheet to src/css and push an entry here.
@@ -120,17 +121,17 @@
          It is passed to the board via the dialogControls config option. -->
     <div class="snake-dialog-controls" id="snake-dialog-controls">
       <div class="snake-control-row">
-        <label for="select">Theme:</label>
+        <label for="select">主题：</label>
         <select autocomplete="off" id="select" class="tui-input"></select>
       </div>
       <div class="snake-control-row">
-        <label for="selectMode">Mode:</label>
+        <label for="selectMode">难度：</label>
         <select id="selectMode" class="tui-input">
-          <option value="100">Easy</option>
-          <option value="75" selected>Medium</option>
-          <option value="50">Hard</option>
-          <option value="25">Impossible</option>
-          <option value="110">Rush</option>
+          <option value="100">简单</option>
+          <option value="75" selected>中等</option>
+          <option value="50">困难</option>
+          <option value="25">地狱</option>
+          <option value="110">冲刺</option>
         </select>
       </div>
       <div class="snake-control-buttons">
@@ -188,7 +189,7 @@
   var game='snake';
   function send(n){n=Number(n)||0;if(n>0)try{parent.postMessage({type:'nova-score',game:game,score:n},'*')}catch(e){}}
   setInterval(function(){
-    var el=document.querySelector('.snake-panel-component');
+    var el=document.querySelector('.snake-length-panel');
     if(!el)return;
     var m=String(el.textContent).match(/(\d+)/);
     var n=m?parseInt(m[1],10):0;

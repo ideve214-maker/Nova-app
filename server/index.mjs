@@ -118,6 +118,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const events = createEvents(db, {now, ...eventsOpts});
   const mediaRoot = mediaDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/media');
   const media = createMedia(db, {now, vip, profile, mediaDir: mediaRoot, scanImpl: mediaScan || createNsfwScan()});
+  media.attachLook(id => communities.look.isLookMedia(id));
   let notifications;
   const onEvent = (ids, type, payload) => {
     events.publish(ids, type, payload);
@@ -200,6 +201,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       if (t) blockwords.assertPlatform(String(t));
     }
   }
+  // r10：名称、简介、昵称等也按平台屏蔽词拦截。
+  function assertNames(b, keys) {
+    if (!b) return;
+    for (const k of keys) if (b[k] != null && String(b[k]).trim()) blockwords.assertPlatform(String(b[k]));
+  }
   function maintenanceBlocks(method, path) {
     if (!flags.read().maintenance) return false;
     const m = String(method || 'GET').toUpperCase();
@@ -209,6 +215,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     if (path === '/api/auth/logout' || path === '/api/auth/login' || path === '/api/auth/csrf') return false;
     if (path === '/api/appeals' || path.startsWith('/api/appeals/')) return false;
     if (path.startsWith('/api/legal')) return false;
+    // r10：已读、输入中、在线心跳、通知已读这类后台请求不算“写内容”，维护期间照常放行，避免刷屏报错。
+    if (/\/(read|typing|read-all)$/.test(path) || path === '/api/me/presence/ping' || path.startsWith('/api/notifications')) return false;
+    if (path === '/api/auth/refresh' || path === '/api/media/' || /^\/api\/media\/[^/]+\/ticket$/.test(path)) return false;
     return true;
   }
 
@@ -383,13 +392,21 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/me/profile'(req) { const {user} = auth(req); return {profile: profile.publicOf(user)}; },
     'POST /api/me/profile'(req, b) {
       const {user} = auth(req);
+      assertNames(b, ['displayName', 'bio']);
       const p = profile.save(user, b || {});
       audit(user.id, 'user.profile_update', 'user:' + user.id, ip(req));
       return {profile: p, user: pubUser(q.userBy.get(user.id))};
     },
+    'POST /api/me/look'(req, b) {
+      const {user} = auth(req);
+      const p = profile.saveLook(user, b || {});
+      audit(user.id, 'user.look_update', 'user:' + user.id, ip(req));
+      return {profile: p, user: pubUser(q.userBy.get(user.id))};
+    },
     'POST /api/me/avatar'(req, b) {
       const {user} = auth(req);
-      const p = profile.save(user, {avatar: (b && b.avatar) || b || {}});
+      const avIn = (b && b.avatar) || b || {};
+      const p = (avIn.kind === 'image' || avIn.kind === 'default') ? profile.saveLook(user, {avatar: avIn}) : profile.save(user, {avatar: avIn});
       audit(user.id, 'user.avatar_update', 'user:' + user.id, ip(req));
       return {profile: p, user: pubUser(q.userBy.get(user.id))};
     },
@@ -618,6 +635,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
     'POST /api/communities'(req, b) {
       const {user} = auth(req);
+      assertNames(b, ['name', 'description']);
       const r = communities.create(user, b || {});
       audit(user.id, 'community.create', 'community:' + r.community.id, ip(req));
       return r;
@@ -632,6 +650,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/communities/:id/edit'(req, b) {
       const {user} = auth(req);
+      assertNames(b, ['name', 'description']);
       const r = communities.update(user, req.params.id, b || {});
       audit(user.id, 'community.edit', 'community:' + req.params.id, ip(req));
       return r;
@@ -683,6 +702,24 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/channels/:id/messages'(req) {
       const {user} = auth(req);
       return communities.listMessages(user, req.params.id, req.query || {});
+    },
+    'POST /api/channel-messages/:id/delete'(req) {
+      const {user} = auth(req);
+      const r = communities.deleteMessage(user, req.params.id);
+      audit(user.id, 'community.message.delete', 'channel_message:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/channel-messages/:id/pin'(req) {
+      const {user} = auth(req);
+      const r = communities.pinMessage(user, req.params.id);
+      audit(user.id, 'community.message.pin', 'channel_message:' + req.params.id, ip(req));
+      return r;
+    },
+    'POST /api/channel-messages/:id/unpin'(req) {
+      const {user} = auth(req);
+      const r = communities.unpinMessage(user, req.params.id);
+      audit(user.id, 'community.message.unpin', 'channel_message:' + req.params.id, ip(req));
+      return r;
     },
     'POST /api/channels/:id/messages'(req, b) {
       const {user} = auth(req);
@@ -754,6 +791,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
         'POST /api/conversations'(req, b) {
       const {user} = auth(req);
+      assertNames(b, ['name']);
       const r = chats.create(user, b || {});
       audit(user.id, 'chat.create', 'conversation:' + r.conversation.id, ip(req), {kind: r.conversation.kind});
       return r;
@@ -792,12 +830,20 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/conversations/:id/rename'(req, b) {
       const {user} = auth(req);
+      assertNames(b, ['name']);
       const r = chats.rename(user, req.params.id, b || {});
       audit(user.id, 'chat.rename', 'conversation:' + req.params.id, ip(req));
       return r;
     },
+    'POST /api/conversations/:id/avatar'(req, b) {
+      const {user} = auth(req);
+      const r = chats.setAvatar(user, req.params.id, b || {}, communities.look);
+      audit(user.id, 'chat.avatar', 'conversation:' + req.params.id, ip(req));
+      return r;
+    },
     'POST /api/conversations/:id/nickname'(req, b) {
       const {user} = auth(req);
+      assertNames(b, ['nickname']);
       const r = chats.setNickname(user, req.params.id, b || {});
       audit(user.id, 'chat.nickname', 'conversation:' + req.params.id, ip(req));
       return r;

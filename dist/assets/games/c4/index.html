@@ -17,7 +17,7 @@
       content="四子棋 game in JS + Canvas. Play against artificial intelligence or with other human offline or online!"
     />
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
-  <link rel="stylesheet" href="app.css"><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style></head>
+  <link rel="stylesheet" href="app.css"><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style><style data-nova-fit>table.visually-hidden{display:none!important}html,body{max-width:100%;overflow-x:hidden}.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}dialog.init-screen{box-sizing:border-box;max-width:calc(100vw - 24px)!important;max-height:calc(100vh - 24px);overflow:auto}dialog.init-screen *{max-width:100%;box-sizing:border-box}.section-canvas{max-width:100%}</style></head>
 
   <body data-game="c4">
     <header class="header">
@@ -139,31 +139,13 @@
         />
         四子棋
       </h1>
-      <h2>How to play?</h2>
-      <p>四子棋 is a two-player game.</p>
-      <p>
-        Taking turn, each player drops a coloured piece to one of the 7-columns
-        of the board. The piece will then travel down to the next empty row in
-        that column.
-      </p>
-      <p>
-        The first player to form a connection of four pieces horizontally,
-        vertically, or diagonally wins the game. If the board is completely
-        filled but no one has won, the game is a draw.
-      </p>
-      <p>
-        For a more detailed explanation, you can refer to
-        <a
-          href="https://en.wikipedia.org/wiki/Connect_Four"
-          target="_blank"
-          rel="noopener noreferrer"
-          >四子棋 article on Wikipedia</a
-        >.
-      </p>
-      <h2>Game Settings</h2>
+      <h2>玩法</h2>
+      <p>两人轮流把棋子投入 7 列中的任意一列，棋子会落到该列最下方的空位。</p>
+      <p>先在横、竖或斜线上连成四子的一方获胜；棋盘下满仍无人连成四子则为平局。</p>
+      <h2>对局设置</h2>
       <form method="dialog" class="game-settings-form">
         <fieldset class="game-settings-form-section">
-          <legend>Playing mode</legend>
+          <legend>对局模式</legend>
           <ul class="game-settings-mode-list">
             <li>
               <label
@@ -175,7 +157,7 @@
                   checked
                   autofocus
                 />
-                Offline: Human player vs AI player</label
+                人机对战</label
               >
             </li>
             <li>
@@ -186,7 +168,7 @@
                   name="mode"
                   value="offline-human"
                 />
-                Offline: Human player vs human player</label
+                双人同屏</label
               >
             </li>
             <li>
@@ -197,46 +179,35 @@
                   name="mode"
                   value="ai-vs-ai"
                 />
-                Spectator: AI player vs AI player</label
-              >
-            </li>
-            <li>
-              <label
-                ><input
-                  class="game-settings-mode-input"
-                  type="radio"
-                  name="mode"
-                  value="online-human"
-                />
-                Online: Human player vs human player</label
+                观战：电脑对电脑</label
               >
             </li>
           </ul>
         </fieldset>
         <label class="game-settings-player-1-name-label" for="player-1-name">
-          Player's name:
+          玩家名称：
         </label>
         <input
           type="text"
           class="game-settings-player-1-name-input"
           id="player-1-name"
-          value="Player 1"
+          value="玩家1"
           name="player-1-name"
-          placeholder="Player 1"
+          placeholder="玩家1"
         />
         <label class="game-settings-player-2-name-label" for="player-2-name">
-          Player's name:
+          玩家名称：
         </label>
         <input
           type="text"
           class="game-settings-player-2-name-input"
           id="player-2-name"
-          value="Player 2"
+          value="玩家2"
           name="player-2-name"
-          placeholder="Player 2"
+          placeholder="玩家2"
         />
         <button class="game-settings-submit" type="submit" value="confirm">
-          Start game
+          开始游戏
         </button>
       </form>
     </dialog>
@@ -257,13 +228,13 @@
           class="hidden statusbox-button statusbox-button-back"
           type="button"
         >
-          End game
+          结束对局
         </button>
         <button
           class="hidden statusbox-button statusbox-button-play-again"
           type="button"
         >
-          Play again
+          再来一局
         </button>
       </div>
     </div>
@@ -272,16 +243,12 @@
       <form method="dialog" class="message-form">
         <div class="message-body-content"></div>
         <button class="message-body-dismiss" type="submit" value="ok">
-          OK
+          确定
         </button>
       </form>
     </dialog>
     <footer class="footer">
-      By <a href="#" rel="noopener">Kenrick95</a>. Source
-      code available on
-      <a href="#" rel="noopener">GitHub</a>.
     </footer>
-    <script type="module" src="./src/app.ts"></script>
   <script src="app.js"></script><script>
 (function(){
   var game=document.body.getAttribute('data-game')||'';

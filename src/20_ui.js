@@ -9,17 +9,21 @@ const avx=(c,l,s)=>`<span class="av" style="width:${s}px;height:${s}px;backgroun
 const phImg=(src,s)=>`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${esc(src)}" alt=""></span>`;
 function cssUrl(src){return String(src||'').replace(/["'\\\n\r<>]/g,'')}
 function bgCss(src){const s=cssUrl(src);if(!s)return 'background:#1a1c20';if(s.startsWith('linear-gradient')||s.startsWith('#'))return 'background:'+s;return "background-color:#1a1c20;background-image:url('"+s+"');background-size:cover;background-position:center"}
-const av=(id,s,opt)=>{const own=id==='me'&&D.pf&&D.pf.me&&D.pf.me.ph;
-  const acctColor=id==='me'&&MODE==='account'&&!own;
-  let h=own?phImg(D.pf.me.ph,s):acctColor?avx(P(id).c,P(id).l,s):PH[id]?phImg(PH[id],s):avx(P(id).c,P(id).l,s);
+/* r10：头像只有两种——官方默认头像，或者从相册导入的图片（存服务器，别人也能看到）。去掉了「颜色 + 文字」头像。 */
+const DEF_AV='assets/av-default.svg';
+const avSrcOf=id=>{if(id==='me')return (D.pf&&D.pf.me&&D.pf.me.ph)||'';return (D.uph&&D.uph[id])||''};
+const lookImg=(src,s)=>isMediaId(src)?`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${DEF_AV}" data-avm="${esc(src)}" alt=""></span>`:phImg(src,s);
+const av=(id,s,opt)=>{const src=avSrcOf(id);
+  let h=src?lookImg(src,s):(MODE!=='account'&&PH[id])?phImg(PH[id],s):phImg(DEF_AV,s);
   const deco=opt&&Object.prototype.hasOwnProperty.call(opt,'dec')?!!opt.dec:(id==='me'&&typeof vipDecoOn==='function'&&vipDecoOn());
   if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');return h};
-const gface=(c,s)=>phImg(c&&c.gp&&(String(c.gp).startsWith('data:')||String(c.gp).startsWith('assets/'))?c.gp:PH.group,s);
+const gface=(c,s)=>{const src=c&&c.gp||'';if(isMediaId(src))return lookImg(src,s).replace(DEF_AV,PH.group);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('assets/'))?src:PH.group,s)};
 const isMediaId=src=>/^md_[A-Za-z0-9_-]{8,80}$/.test(String(src||''));
 function lookCss(src,fallback){const s=String(src||'');return bgCss(isMediaId(s)?(fallback||''):(s||fallback||''))}
 function lookMbg(src){return isMediaId(src)?` data-mbg="${esc(src)}"`:''}
-const cmface=(c,s)=>{const src=c&&c.cp||'';if(isMediaId(src))return `<span class="av ph" style="width:${s}px;height:${s}px"><img data-mid="${esc(src)}" alt=""></span>`;return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('assets/'))?src:cove(c&&c.id||''),s)};
+const cmface=(c,s)=>{const src=c&&c.cp||'';if(isMediaId(src))return lookImg(src,s);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('assets/'))?src:cove(c&&c.id||''),s)};
 const meCover=()=>{const f=D.pf&&D.pf.me||{};return f.bg||BG[(+f.cv||0)%BG.length]};
+const userCover=id=>(D.ubg&&D.ubg[id])||'';
 const cove=(key)=>BG[[...String(key)].reduce((a,c)=>a+c.charCodeAt(0),0)%BG.length];
 const PAL=['#2F6F5E','#5C4A3A','#243044','#6B3A4A','#3A465C','#6A5A3C'],hc=s=>PAL[[...s].reduce((a,c)=>a+c.charCodeAt(0),0)%6];
 const fol=(a,b)=>D.f.some(e=>e[0]==a&&e[1]==b),ncm=id=>{const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==id);if(p&&p.commentCount!=null)return p.commentCount;return D.c.filter(c=>c.p==id).length};

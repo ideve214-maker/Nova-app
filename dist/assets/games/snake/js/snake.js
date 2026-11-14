@@ -312,13 +312,7 @@ SNAKE.Snake =
         const highScore = localStorage[HIGH_SCORE_KEY];
         if (me.snakeLength > highScore) {
           localStorage.setItem(HIGH_SCORE_KEY, me.snakeLength);
-          SNAKE.showAlert(
-            "Congratulations! You have beaten your previous high score, which was " +
-              highScore +
-              ".",
-            onDone,
-          );
-          return;
+          // 新纪录直接记下，不再弹出额外确认框（之前要先点 OK 才会出现“再来一局”）。
         }
         onDone();
       }
@@ -586,7 +580,7 @@ SNAKE.Snake =
           blocks[ii].elm.className += " snake-snakebody-alive";
         }
 
-        blockPool.concat(blocks);
+        blockPool.push(...blocks);
         me.snakeHead.elm.className = me.snakeHead.elm.className.replace(
           /\bsnake-snakebody-dead\b/,
           "",
@@ -899,7 +893,7 @@ SNAKE.Board =
         elmPauseScreen.className =
           "snake-pause-screen tui-window tui-border-double";
         elmPauseScreen.innerHTML =
-          "<div style='padding:10px;'>[Paused]<p/>Press [space] to unpause.</div>";
+          "<div style='padding:10px;'>[已暂停]<p/>点暂停键继续。</div>";
 
         elmAboutPanel = document.createElement("div");
         elmAboutPanel.className = "snake-panel-component";
@@ -907,11 +901,11 @@ SNAKE.Board =
           "<a href='http://patorjk.com/' class='snake-link'>patorjk.com</a> - <a href='https://github.com/patorjk/JavaScript-Snake' class='snake-link'>source code</a> - <a href='https://www.youtube.com/channel/UCpcCLm9y6CsjHUrCvJHYHUA' class='snake-link'>pat's youtube</a>";
         
         elmLengthPanel = document.createElement("div");
-        elmLengthPanel.className = "snake-panel-component";
+        elmLengthPanel.className = "snake-panel-component snake-length-panel";
         elmLengthPanel.style.paddingLeft = "0px";
         elmLengthPanel.style.paddingRight = "0px";
         elmLengthPanel.style.textAlign = "left";
-        elmLengthPanel.innerHTML = "Length: 1";
+        elmLengthPanel.innerHTML = "长度: 1";
 
         elmHighscorePanel = document.createElement("div");
         elmHighscorePanel.className = "snake-panel-component";
@@ -919,7 +913,7 @@ SNAKE.Board =
         elmHighscorePanel.style.paddingRight = "0px";
         elmHighscorePanel.style.textAlign = "right";
         elmHighscorePanel.innerHTML =
-          "Highscore: " + (localStorage[HIGH_SCORE_KEY] || 0);
+          "最高: " + (localStorage[HIGH_SCORE_KEY] || 0);
 
         // stacked links shown under the highscore in the compact
         // (mobile/on-screen-controls) layout; replaces the about panel
@@ -1019,16 +1013,16 @@ SNAKE.Board =
           window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
         let fullScreenText = "";
         if (config.fullScreen) {
-          fullScreenText = "On Windows, press F11 to play in Full Screen mode.";
+          fullScreenText = "";
         }
         welcomeTxt.innerHTML = isTouchDevice
-          ? "JavaScript Snake<p></p>Use the <strong>on-screen game pad</strong> to play the game.<p></p>"
-          : "JavaScript Snake<p></p>Use the <strong>arrow keys</strong> on your keyboard to play the game. " +
+          ? "贪吃蛇<p></p>点下方<strong>方向键</strong>开始并控制蛇移动。<p></p>"
+          : "贪吃蛇<p></p>用键盘<strong>方向键</strong>开始并控制蛇移动。" +
             fullScreenText +
             "<p></p>";
         const welcomeStart = document.createElement("button");
         welcomeStart.className = "tui-button";
-        welcomeStart.appendChild(document.createTextNode("Play Game"));
+        welcomeStart.appendChild(document.createTextNode("开始游戏"));
 
         const loadGame = function () {
           SNAKE.removeEventListener(window, "keyup", kbShortcut, false);
@@ -1063,10 +1057,10 @@ SNAKE.Board =
         tmpElm.className = elmClassName + " tui-window tui-border-double";
 
         const gameEndTxt = document.createElement("div");
-        gameEndTxt.innerHTML = "JavaScript Snake<p></p>" + message + "<p></p>";
+        gameEndTxt.innerHTML = "贪吃蛇<p></p>" + message + "<p></p>点“再来一局”后，按方向键开始。<p></p>";
         const gameEndStart = document.createElement("button");
         gameEndStart.className = "tui-button";
-        gameEndStart.appendChild(document.createTextNode("Play Again?"));
+        gameEndStart.appendChild(document.createTextNode("再来一局"));
 
         const reloadGame = function () {
           tmpElm.style.display = "none";
@@ -1098,14 +1092,14 @@ SNAKE.Board =
 
       function createTryAgainElement() {
         return createGameEndElement(
-          "You died :(",
+          "游戏结束",
           "sbTryAgain",
           "snake-try-again-dialog",
         );
       }
 
       function createWinElement() {
-        return createGameEndElement("You win! :D", "sbWin", "snake-win-dialog");
+        return createGameEndElement("你赢了！", "sbWin", "snake-win-dialog");
       }
 
       function handleEndCondition(elmDialog) {
@@ -1174,7 +1168,7 @@ SNAKE.Board =
         );
         mySnake.reset();
         config.onLengthUpdate(1);
-        elmLengthPanel.innerHTML = "Length: 1";
+        elmLengthPanel.innerHTML = "长度: 1";
         me.setupPlayingField();
         me.grid[getStartRow()][getStartCol()] = 1; // snake head
       };
@@ -1509,9 +1503,9 @@ SNAKE.Board =
        */
       me.foodEaten = function () {
         config.onLengthUpdate(mySnake.snakeLength);
-        elmLengthPanel.innerHTML = "Length: " + mySnake.snakeLength;
+        elmLengthPanel.innerHTML = "长度: " + mySnake.snakeLength;
         if (mySnake.snakeLength > localStorage[HIGH_SCORE_KEY]) {
-          elmHighscorePanel.innerHTML = "Highscore: " + mySnake.snakeLength;
+          elmHighscorePanel.innerHTML = "最高: " + mySnake.snakeLength;
         }
         if (!myFood.randomlyPlaceFood()) {
           return false;

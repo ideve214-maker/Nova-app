@@ -140,6 +140,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       id: row.id,
       kind: row.kind,
       name: row.kind === 'group' ? row.name : null,
+      avatar: row.kind === 'group' ? (row.avatar || null) : null,
       owner: row.kind === 'group' && row.owner_id ? authorOf(row.owner_id) : null,
       memberCount: members.length,
       members,
@@ -354,6 +355,19 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return {conversation: pub(byId.get(id), user)};
   }
 
+  // r10：群头像存服务器（之前只改本机，退出再进就变回默认）。
+  const setAv = db.prepare('UPDATE conversations SET avatar=? WHERE id=?');
+  function setAvatar(user, id, body, look) {
+    const row = requireConv(id);
+    if (row.kind !== 'group') throw new ApiError(400, 'NOT_GROUP', '只有群聊能设置群头像');
+    const m = requireMem(row, user);
+    requireAct(m, 'rename');
+    const v = look ? look.norm(body && body.avatar !== undefined ? body.avatar : '', user, {code: 'BAD_AVATAR', label: '群头像'}) : '';
+    setAv.run(v || null, id);
+    const conv = pub(byId.get(id), user);
+    emit(mems.all(id).map(x => x.user_id), 'conversation.updated', {conversationId: id, avatar: v || null});
+    return {conversation: conv};
+  }
   const setNick = db.prepare('UPDATE conversation_members SET nickname=? WHERE conversation_id=? AND user_id=?');
   function setNickname(user, id, body) {
     const row = requireConv(id);
@@ -859,7 +873,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return mems.all(id).map(m => Number(m.user_id));
   }
   return {
-    create, list, get, addMember, setMemberRole, kick, leave, rename, setNickname, dissolve,
+    create, list, get, addMember, setMemberRole, kick, leave, rename, setAvatar, setNickname, dissolve,
     send, listMessages, pubMsg, quoteOf, forward, react, messageOf, getMessageDraft, listMessageDrafts, putMessageDraft, clearMessageDraft, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
