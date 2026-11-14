@@ -153,17 +153,25 @@ function uiSizeRow(){
   /* r7：去掉滑杆。上下滑动设置页时手指划过滑杆会实时改界面大小，整页跟着放大缩小；只保留三个按钮。 */
   return `<div class="row" style="flex-wrap:wrap;align-items:flex-start"><div class="gr"><b>界面大小</b><small>缩放字体、按钮和间距。偏好保存在本机。</small></div><div class="sw uis">${btns}</div></div>`;
 }
+/* r8.3：按键皮肤分两组。「基础」= 初代 / 经典 / 液态玻璃，用按键预览卡；「精选」= Starlight / 星澜 / 社交蓝 / 脉冲，
+   每个只放一个应用图标式的方块（skin.json 的 tile），不再加载整屏截图预览。统一 3 列网格、卡片同尺寸。
+   分组来自 index.json 的 group；没有标注的按 id 兜底（nova/default/glass 归基础）。皮肤 id、切换和失败回退逻辑不变。 */
+const SKIN_BASIC_IDS=['nova','default','glass'];
+function skinGroup(s){const g=s&&(s.group||(SKINS.groups&&SKINS.groups[s.id]));if(g==='basic'||g==='featured')return g;return SKIN_BASIC_IDS.includes(s&&s.id)?'basic':'featured'}
+function skinCard(s,cur){
+  const on=s.id===cur,basic=skinGroup(s)==='basic';
+  const rel=basic?(s.preview||''):(s.tile||'');
+  const src=rel?(skinBase(s.id)+'/'+rel):'';
+  const art=src?`<img class="skart${basic?' skbtn':' sktile'}" src="${esc(src)}" alt="" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`:`<span class="skart skph">${esc(String(s.name||s.id).slice(0,1))}</span>`;
+  return `<button type="button" class="skcard${on?' on':''}" data-a="setskin" data-v="${esc(s.id)}" aria-pressed="${on?'true':'false'}">${art}<span class="skname">${esc(s.name||s.id)}</span>${on?'<i class="skon" aria-hidden="true">✓</i>':''}</button>`;
+}
 function skinRow(){
   const list=SKINS.list||[];
   if(!list.length)return '';
   const cur=SKINS.current||SKIN_FALLBACK;
-  const picks=list.map(s=>{
-    const on=s.id===cur;
-    const prev=s.preview?(skinBase(s.id)+'/'+s.preview):'';
-    const img=prev?`<img src="${esc(prev)}" alt="" onerror="this.remove()" style="height:36px;width:auto;border-radius:8px;display:block">`:'';
-    return `<button type="button" class="pb sm${on?'':' s'}" data-a="setskin" data-v="${esc(s.id)}" aria-pressed="${on?'true':'false'}" style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;height:auto;padding:8px 12px">${img}<span>${esc(s.name||s.id)}</span></button>`;
-  }).join('');
-  return `<div class="shd">按键皮肤</div><p class="hint" style="padding:8px 16px 0">换一套按键和主题色彩。加载失败时会回到可用的皮肤。</p><div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px">${picks}</div>`;
+  const basic=list.filter(s=>skinGroup(s)==='basic'),feat=list.filter(s=>skinGroup(s)!=='basic');
+  const sec=(t,arr)=>arr.length?`<div class="skgl">${t}</div><div class="skgrid">${arr.map(s=>skinCard(s,cur)).join('')}</div>`:'';
+  return `<div class="shd">按键皮肤</div><p class="hint" style="padding:8px 16px 0">换一套按键和主题色彩。加载失败时会回到可用的皮肤。</p><div class="skwrap">${sec('基础',basic)}${sec('精选',feat)}</div>`;
 }
 function setskin(id){
   const meta=SKINS.byId[canonSkin(id)];
@@ -189,6 +197,7 @@ async function bootSkins(){
         meta.id=meta.id||id;
         meta.name=meta.name||e.name||meta.id;
         meta.path=e.path||id;
+        if(e.group)meta.group=e.group;
         SKINS.byId[meta.id]=meta;
         loaded.push(meta);
       }catch(err){}

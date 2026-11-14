@@ -94,7 +94,7 @@ function mediaFileUrl(id,ticket,preview){
 }
 function hydrateMedia(root){
   if(typeof SESSION==='undefined'||!SESSION)return;
-  (root||document).querySelectorAll('[data-mid]:not([data-mh])').forEach(el=>{
+  (root||document).querySelectorAll('img[data-mid]:not([data-mh]),video[data-mid]:not([data-mh]),source[data-mid]:not([data-mh])').forEach(el=>{
     el.setAttribute('data-mh','1');
     const id=el.getAttribute('data-mid');
     mediaTicket(id).then(t=>{
@@ -359,7 +359,7 @@ function repostForget(id){id=String(id);const m=repostMap();let ch=0;for(const k
 async function repostVerify(id){const m=repostMap(),nid=m[id];if(!nid||!(typeof usingNet==='function'&&usingNet())||typeof api!=='function')return;try{const r=await api('GET','/api/posts/'+encodeURIComponent(nid));if(r&&(r.s===404||r.s===410)){repostForget(nid);if(typeof render==='function')render()}}catch(e){}}
 function postReposts(p){return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
 function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Number.isFinite(s)&&s>0?s:(mine?1:0)}
-function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[]);return a.find(x=>String(x.id)===String(id))}
+function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[],S.postCache?Object.values(S.postCache):[]);return a.find(x=>String(x.id)===String(id))}
 function xbar(p,nLike,nC){
   const id=esc(String(p.id)),liked=p.m>=0,rt=!!repostMap()[p.id],bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
   const likeIc=liked&&p.m!==0&&typeof E!=='undefined'&&E[p.m]?`<span class="xemo">${E[p.m]}</span>`:xic('lk',liked);
@@ -422,32 +422,20 @@ function openHashPost(){const m=/^#\/post\/([^/?#]+)/.exec(location.hash||'');if
 window.addEventListener('hashchange',openHashPost);
 setTimeout(openHashPost,600);
 
-/* ---- 8 & 9. 首页：往下滑收起「日常 + 分享新鲜事」，回到最顶部再展开；回到顶部按钮 ---- */
-function homeEls(){const pg=document.querySelector('#v .pg.home');if(!pg)return null;return {pg,sc:pg.querySelector(':scope > .sc'),col:pg.querySelector('.hcol'),tt:pg.querySelector('.totop')}}
-function homeApply(h,y,instant){
-  if(!h||!h.sc)return;
-  const room=h.sc.scrollHeight-h.sc.clientHeight,colH=h.col?h.col.scrollHeight:0;
-  let hc=!!S._hc,tt=!!S._tt;
-  /* r8：收起/展开后 450ms 内不再反向切换（动画 300ms），iOS 回弹时 scrollTop 会来回过 0，否则会连着切、上下抽搐 */
-  const now=Date.now(),lock=now-(homeApply.at||0)<450;
-  if(!lock){
-    if(!hc&&y>48&&room>colH+120)hc=true;
-    else if(hc&&y<=1)hc=false;
-  }
-  const th=Math.max(800,h.sc.clientHeight*1.3);
-  if(!tt&&y>th)tt=true;else if(tt&&y<240)tt=false;
-  if(instant)h.pg.classList.add('hnoanim');
-  if(hc!==!!S._hc||h.pg.classList.contains('hc')!==hc){if(hc!==!!S._hc&&!instant)homeApply.at=now;S._hc=hc;h.pg.classList.toggle('hc',hc)}
-  if(tt!==!!S._tt||(h.tt&&h.tt.classList.contains('on')!==tt)){S._tt=tt;if(h.tt){h.tt.classList.toggle('on',tt);h.tt.tabIndex=tt?0:-1;h.tt.setAttribute('aria-hidden',tt?'false':'true')}}
-  if(instant)requestAnimationFrame(()=>requestAnimationFrame(()=>h.pg.classList.remove('hnoanim')));
+/* ---- 8 & 9. 首页：「日常 + 分享新鲜事」在滚动区里跟内容一起滚走（r8.3 起不再收起/展开、不改滚动区高度）；回到顶部按钮 ----
+   滚动时只做一件事：每帧最多读一次 scrollTop，按阈值切换回到顶部按钮的 class。不读 scrollHeight、不写样式变量、不改 .pg 的 class。 */
+function homeEls(){const pg=document.querySelector('#v .pg.home');if(!pg)return null;return {pg,sc:pg.querySelector(':scope > .sc'),tt:pg.querySelector('.totop')}}
+function homeTT(h,y){
+  if(!h||!h.tt)return;
+  const th=homeTT.th||(homeTT.th=Math.max(800,(window.innerHeight||800)*1.1));
+  let tt=!!S._tt;if(!tt&&y>th)tt=true;else if(tt&&y<240)tt=false;
+  if(tt!==!!S._tt||h.tt.classList.contains('on')!==tt){S._tt=tt;h.tt.classList.toggle('on',tt);h.tt.tabIndex=tt?0:-1;h.tt.setAttribute('aria-hidden',tt?'false':'true')}
 }
-function homeSync(){const h=homeEls();if(!h)return;
-  if(h.col&&!S._hc){const inner=h.col.firstElementChild;if(inner)h.col.style.setProperty('--hch',inner.scrollHeight+'px')}
-  homeApply(h,h.sc?h.sc.scrollTop:0,true)}
-document.addEventListener('scroll',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('sc'))return;const pg=t.parentElement;if(!pg||!pg.classList.contains('home'))return;
-  const h={pg,sc:t,col:pg.querySelector('.hcol'),tt:pg.querySelector('.totop')};
-  if(h.col&&!S._hc){const inner=h.col.firstElementChild;if(inner)h.col.style.setProperty('--hch',inner.scrollHeight+'px')}
-  homeApply(h,t.scrollTop,false)},true);
+function homeApply(h,y){homeTT(h,y)}
+function homeSync(){const h=homeEls();if(h&&h.sc)homeTT(h,h.sc.scrollTop)}
+let homeRaf=0;
+document.addEventListener('scroll',e=>{const t=e.target;if(homeRaf||!t||!t.classList||!t.classList.contains('sc'))return;const pg=t.parentElement;if(!pg||!pg.classList.contains('home'))return;
+  homeRaf=requestAnimationFrame(()=>{homeRaf=0;if(!t.isConnected)return;homeTT({pg,sc:t,tt:pg.querySelector('.totop')},t.scrollTop);if(typeof feedAtTop==='function')feedAtTop(t)})},{capture:true,passive:true});
 function smoothTop(sc){
   if('scrollBehavior' in document.documentElement.style){try{sc.scrollTo({top:0,behavior:'smooth'});return}catch(e){}}
   const y0=sc.scrollTop,t0=performance.now(),d=Math.min(600,250+y0/8);
