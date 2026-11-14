@@ -83,6 +83,8 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminMarketingAdDelete: "/api/admin/marketing/ads/:id/delete",
   adminMarketingSettings: "/api/admin/marketing/settings",
   adminMarketingMedia: "/api/admin/marketing/media",
+  adminMarketingPosts: "/api/admin/marketing/posts",
+  adminMarketingPostStats: "/api/admin/marketing/posts/:id/stats",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",

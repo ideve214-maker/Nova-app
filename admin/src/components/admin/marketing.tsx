@@ -45,17 +45,17 @@ const TABS = [
   { id: "boost", label: "推流加热" },
   { id: "ai", label: "AI 审查" },
 ];
-const tabExtra: Record<string, () => ReactNode> = {};
-export function registerMarketingTab(id: string, render: () => ReactNode) { tabExtra[id] = render; }
+const READY = new Set(["ads", "stats"]);
 
 export function MarketingScreen() {
   const back = useAdmin((s) => s.back);
   const [tab, setTab] = useState("ads");
-  const tabs = TABS.filter((t) => t.id === "ads" || tabExtra[t.id]);
+  const tabs = TABS.filter((t) => READY.has(t.id));
   return (
     <Screen title="营销管理" onBack={back}>
       <Seg value={tab} options={tabs} onChange={setTab} />
-      {tab === "ads" ? <AdsTab /> : tabExtra[tab] ? tabExtra[tab]() : null}
+      {tab === "ads" && <AdsTab />}
+      {tab === "stats" && <StatsTab />}
     </Screen>
   );
 }
@@ -242,5 +242,82 @@ function SettingNum({ label, value, onSave }: { label: string; value: number; on
       <span className="mb-1 block min-h-8 text-[11px] leading-4 text-muted">{label}</span>
       <input className={inputClass + " text-center"} inputMode="numeric" value={v} onChange={(e) => setV(e.target.value.replace(/\D/g, ""))} onBlur={() => { const n = Math.max(0, Math.round(Number(v) || 0)); if (n !== value) onSave(n); }} />
     </label>
+  );
+}
+
+type StatPost = {
+  id: string; text: string; createdAt: number; author: { id: number; username: string; displayName: string } | null;
+  real: { views: number; likes: number; saves: number }; adj: { views: number; likes: number; saves: number };
+  shown: { views: number; likes: number; saves: number };
+};
+function StatsTab() {
+  const flash = useAdmin((s) => s.flash);
+  const [q, setQ] = useState("");
+  const [list, setList] = useState<StatPost[]>([]);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [edit, setEdit] = useState<null | { p: StatPost; views: string; likes: string; saves: string }>(null);
+  const search = useCallback(async (kw: string) => {
+    setBusy(true);
+    const r = await mk<{ posts: StatPost[] }>("adminMarketingPosts", { query: { q: kw.trim(), limit: 50 } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setErr(""); setList(r.data.posts || []);
+  }, []);
+  useEffect(() => { void search(""); }, [search]);
+  const save = async (reset = false) => {
+    if (!edit) return;
+    const body = reset ? { reset: true } : { views: edit.views, likes: edit.likes, saves: edit.saves };
+    const r = await mk<{ post: StatPost }>("adminMarketingPostStats", { method: "POST", params: { id: edit.p.id }, body });
+    if (!r.ok) { flash(r.error); return; }
+    setList((l) => l.map((x) => (x.id === r.data.post.id ? r.data.post : x)));
+    setEdit(null); flash(reset ? "已恢复真实数据" : "已保存，用户端刷新后可见");
+  };
+  return (
+    <div className="pb-6">
+      <form className="flex gap-2 px-4 pt-3" onSubmit={(e) => { e.preventDefault(); void search(q); }}>
+        <input className={inputClass} value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索帖子内容或用户名" enterKeyHint="search" />
+        <button type="submit" className="nova-btn-primary h-11 shrink-0 px-4 text-[15px]">{busy ? "…" : "搜索"}</button>
+      </form>
+      <p className="px-4 pt-2 text-[12px] leading-4 text-muted">修改的是用户看到的数字；真实数据单独保留，可随时恢复。之后的真实阅读、点赞、收藏会在此基础上继续累加。</p>
+      {err && <p className="px-4 pt-2 text-sm text-danger">{err}</p>}
+      {!err && list.length === 0 && !busy && <EmptyState title="没有找到帖子" hint="换个关键词或用户名试试。" />}
+      <ul className="mt-2 space-y-2 px-4">
+        {list.map((p) => {
+          const adjusted = p.adj.views || p.adj.likes || p.adj.saves;
+          return (
+            <li key={p.id}>
+              <button type="button" className="w-full rounded-card bg-surface p-3 text-left shadow-card" onClick={() => setEdit({ p, views: String(p.shown.views), likes: String(p.shown.likes), saves: String(p.shown.saves) })}>
+                <div className="flex items-center gap-2 text-[12px] text-muted">
+                  <span className="truncate font-semibold">{p.author ? sanitizeText(p.author.displayName) : "未知用户"}</span>
+                  <span className="truncate">@{p.author?.username}</span>
+                  {adjusted ? <span className="ml-auto"><Pill tone="warn">已调整</Pill></span> : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-[14px]">{sanitizeText(p.text) || "（无文字）"}</p>
+                <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[12px]">
+                  <Stat n={p.shown.views} l={"阅读" + (p.adj.views ? "（真实 " + p.real.views + "）" : "")} />
+                  <Stat n={p.shown.likes} l={"点赞" + (p.adj.likes ? "（真实 " + p.real.likes + "）" : "")} />
+                  <Stat n={p.shown.saves} l={"收藏" + (p.adj.saves ? "（真实 " + p.real.saves + "）" : "")} />
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <Sheet open={!!edit} title="调整显示数据" onClose={() => setEdit(null)}>
+        {edit && (
+          <div className="px-4 pb-4">
+            <p className="mb-3 line-clamp-2 text-[13px] text-muted">{sanitizeText(edit.p.text)}</p>
+            {(["views", "likes", "saves"] as const).map((k) => (
+              <Field key={k} label={{ views: "阅读数", likes: "点赞数", saves: "收藏数" }[k] + "（真实 " + edit.p.real[k] + "）"}>
+                <input className={inputClass} inputMode="numeric" value={edit[k]} onChange={(e) => setEdit({ ...edit, [k]: e.target.value.replace(/\D/g, "") })} />
+              </Field>
+            ))}
+            <PrimaryButton onClick={() => void save(false)}>保存</PrimaryButton>
+            <button type="button" className="mt-2 h-11 w-full rounded-full bg-subtle text-[15px] font-semibold" onClick={() => void save(true)}>恢复真实数据</button>
+          </div>
+        )}
+      </Sheet>
+    </div>
   );
 }
