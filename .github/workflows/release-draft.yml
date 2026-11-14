@@ -1,0 +1,162 @@
+name: VEXO draft release (manual)
+
+# Creates a DRAFT GitHub Release from packages that a successful
+# "VEXO packages (build only)" run on build/v2 already built and verified.
+# Nothing is rebuilt here, so what you tested is exactly what gets attached.
+#
+# The push trigger below only exists so GitHub registers this
+# workflow_dispatch workflow once it lands on build/v2; every job is skipped
+# on push, so a push never creates a release.
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Run ID of a successful "VEXO packages (build only)" run on build/v2'
+        required: true
+        type: string
+      user_sha:
+        description: 'User app commit that run must have built (full 40-char SHA)'
+        required: true
+        type: string
+      admin_sha:
+        description: 'Admin app commit that run must have built (full 40-char SHA)'
+        required: true
+        type: string
+      include_admin:
+        description: 'Also attach the admin APK/IPA to the (public) release'
+        type: boolean
+        default: false
+      tag:
+        description: 'Tag the draft will use when published (not created now)'
+        required: true
+        type: string
+        default: 'vexo-v1.0.0'
+      title:
+        description: 'Release title'
+        required: true
+        type: string
+        default: 'VEXO 第3版'
+  push:
+    branches: [build/v2]
+    paths: ['.github/workflows/release-draft.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vexo-release-draft
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write   # create the draft release
+      actions: read     # read the build run and its artifacts
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: ${{ inputs.build_run_id }}
+      USER_SHA: ${{ inputs.user_sha }}
+      ADMIN_SHA: ${{ inputs.admin_sha }}
+      INCLUDE_ADMIN: ${{ inputs.include_admin }}
+      TAG: ${{ inputs.tag }}
+      TITLE: ${{ inputs.title }}
+    steps:
+      - name: Check inputs and the build run
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::build_run_id must be numeric"; exit 1; }
+          for s in "$USER_SHA" "$ADMIN_SHA"; do
+            [[ "$s" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::'$s' is not a full 40-char SHA"; exit 1; }
+          done
+          gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json workflowName,headBranch,conclusion,status,event > run.json
+          cat run.json
+          jq -e '.workflowName == "VEXO packages (build only)"' run.json >/dev/null || { echo "::error::run is not a VEXO packages build"; exit 1; }
+          jq -e '.headBranch == "build/v2"' run.json >/dev/null || { echo "::error::run was not on build/v2"; exit 1; }
+          jq -e '.status == "completed" and .conclusion == "success"' run.json >/dev/null || { echo "::error::run did not succeed"; exit 1; }
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::a release with tag $TAG already exists"; exit 1
+          fi
+          if git ls-remote --exit-code --tags "https://github.com/$GITHUB_REPOSITORY" "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::tag $TAG already exists"; exit 1
+          fi
+
+      - name: Download user packages + all metadata from the build run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+          path: dl
+          merge-multiple: true
+
+      - name: Match packages to the requested commits
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          ls -la dl
+          pick() {  # app platform sha -> prints package file name from metadata
+            jq -r --arg a "$1" --arg p "$2" --arg s "$3" \
+              'select(.app==$a and .platform==$p and .sourceSha==$s) | .file' dl/*.json | head -1
+          }
+          for p in android ios; do
+            f=$(pick user "$p" "$USER_SHA")
+            [ -n "$f" ] && [ -f "dl/$f" ] || { echo "::error::run $RUN_ID has no verified user $p package for $USER_SHA"; exit 1; }
+            want=$(jq -r .sha256 "dl/$f.json"); got=$(sha256sum "dl/$f" | cut -d' ' -f1)
+            [ "$want" = "$got" ] || { echo "::error::$f checksum mismatch"; exit 1; }
+            cp "dl/$f" assets/
+            echo "USER_${p^^}=$f" >> "$GITHUB_ENV"
+          done
+          if [ "$INCLUDE_ADMIN" = true ]; then
+            for p in android ios; do
+              f=$(pick admin "$p" "$ADMIN_SHA")
+              [ -n "$f" ] || { echo "::error::run $RUN_ID has no verified admin $p package for $ADMIN_SHA"; exit 1; }
+              echo "$f" >> admin-files.txt
+            done
+          fi
+
+      - name: Fetch admin packages from the server (include_admin only)
+        if: inputs.include_admin
+        env:
+          HOST: ${{ secrets.NOVA_ADMIN_DEPLOY_HOST }}
+          DUSER: ${{ secrets.NOVA_ADMIN_DEPLOY_USER }}
+          DPATH: ${{ secrets.NOVA_ADMIN_DEPLOY_PATH }}
+          KEY: ${{ secrets.NOVA_ADMIN_DEPLOY_SSH_KEY }}
+          KNOWN: ${{ secrets.NOVA_ADMIN_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/deploy_key"
+          printf '%s\n' "$KNOWN" > "$RUNNER_TEMP/known_hosts"
+          SSH_OPTS=(-i "$RUNNER_TEMP/deploy_key" -o IdentitiesOnly=yes -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o StrictHostKeyChecking=yes -o BatchMode=yes)
+          while read -r f; do
+            scp -q "${SSH_OPTS[@]}" "$DUSER@$HOST:$DPATH/$f" assets/
+            want=$(jq -r .sha256 "dl/$f.json"); got=$(sha256sum "assets/$f" | cut -d' ' -f1)
+            [ "$want" = "$got" ] || { echo "::error::$f on the server does not match the verified build"; exit 1; }
+          done < admin-files.txt
+          rm -f "$RUNNER_TEMP/deploy_key"
+
+      - name: Create DRAFT release
+        run: |
+          set -euo pipefail
+          {
+            echo "## $TITLE"
+            echo
+            echo "**新版签名与旧包不同，请先卸载旧版再安装。**（以后的版本都用同一把签名，可以直接覆盖安装。）"
+            echo
+            echo "| 文件 | 说明 | 源码 commit | sha256 |"
+            echo "|---|---|---|---|"
+            for f in assets/*; do
+              b=$(basename "$f"); m="dl/$b.json"
+              desc=$(jq -r '"\(.label) \(.versionName) (\(.versionCode))"' "$m")
+              echo "| \`$b\` | $desc | \`$(jq -r .sourceSha "$m" | cut -c1-7)\` | \`$(sha256sum "$f" | cut -c1-16)…\` |"
+            done
+            echo
+            echo "- Android：debug APK（固定 debug 签名）。iOS：未签名 IPA，需要自行签名或用侧载工具安装。"
+            echo "- 构建记录：https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN_ID"
+          } > notes.md
+          cat notes.md
+          gh release create "$TAG" assets/* -R "$GITHUB_REPOSITORY" \
+            --draft --target "$GITHUB_SHA" --title "$TITLE" --notes-file notes.md
+          echo "Draft created (not published): $TAG" >> "$GITHUB_STEP_SUMMARY"

@@ -1,36 +1,43 @@
 #!/usr/bin/env bash
-# Build an UNSIGNED device IPA from a Capacitor project directory.
+# Build the ADMIN app UNSIGNED device IPA from a Capacitor project directory.
 # Usage: build-unsigned-ipa.sh <project-dir> <output.ipa>
+#
+# Env: APP_VERSION_NAME / APP_VERSION_CODE (required), NOVA_ADMIN_UPDATE_URL (required).
+# The user app (VEXO) is built with the pinned user commit's own script.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJ="${1:?project dir}"
 OUT_IPA="${2:?output ipa path}"
-cd "$ROOT/$PROJ"
+[[ "$PROJ" = /* ]] || PROJ="$ROOT/$PROJ"
+[[ "$OUT_IPA" = /* ]] || OUT_IPA="$ROOT/$OUT_IPA"
+: "${APP_VERSION_NAME:?APP_VERSION_NAME required}"
+: "${APP_VERSION_CODE:?APP_VERSION_CODE required}"
+: "${NOVA_ADMIN_UPDATE_URL:?NOVA_ADMIN_UPDATE_URL required}"
+export ADMIN_UPDATE_URL="$NOVA_ADMIN_UPDATE_URL" VITE_NOVA_UPDATE_URL="$NOVA_ADMIN_UPDATE_URL"
+cd "$PROJ"
 
 echo "==> $(pwd)  ->  $OUT_IPA"
 echo "==> node $(node -v)  npm $(npm -v)"
 xcodebuild -version
-
-echo "==> npm install"
-# sharp (capacitor-assets) may need its install script
-npm install --no-audit --no-fund
-CAP_VER="$(node -p "require('@capacitor/core/package.json').version")"
-npm install --no-audit --no-fund --save-dev "@capacitor/cli@${CAP_VER}" "@capacitor/ios@${CAP_VER}" "@capacitor/assets@3.0.5"
+test -d node_modules/@capacitor/ios || { echo "ERROR: run prepare-v2-web.sh first" >&2; exit 1; }
 
 echo "==> cap add ios"
-npx cap add ios
+[ -d ios ] || npx cap add ios
 
-echo "==> capacitor-assets (ios icons/splash)"
-# Dummy www/manifest.json so assets CLI does not fail on pwa (admin has no www)
-mkdir -p www
-if [ ! -f www/manifest.json ]; then echo '{}' > www/manifest.json; fi
-npx capacitor-assets generate --iconBackgroundColor '#0A0C14' --splashBackgroundColor '#0A0C14' || {
-  echo "WARN: capacitor-assets failed, continuing (cap add already drops default icons)"
-}
+# Icons + splash only from resources/; any failure stops the build.
+"$ROOT/scripts/generate-icons.sh" "$PROJ" ios
 
 echo "==> cap sync ios"
 npx cap sync ios
+
+echo "==> stamp version ${APP_VERSION_NAME} (${APP_VERSION_CODE})"
+node "$ROOT/scripts/stamp-version.mjs" . --version-name "$APP_VERSION_NAME" --version-code "$APP_VERSION_CODE"
+
+grep -F -q -- "$NOVA_ADMIN_UPDATE_URL" ios/App/App/capacitor.config.json || {
+  echo "ERROR: admin update URL missing from ios capacitor.config.json" >&2
+  exit 1
+}
 
 INFO="ios/App/App/Info.plist"
 if [ ! -f "$INFO" ]; then
@@ -104,14 +111,8 @@ SIGN_FLAGS=(
   COMPILER_INDEX_STORE_ENABLE=NO
 )
 
-# Xcode MARKETING_VERSION must be N.N.N. package.json may have a pre-release
-# suffix (e.g. 0.7.0-m7.r6); strip it. CapacitorUpdater still uses the full version.
-PKG_VER="$(node -p "try{require('./package.json').version||''}catch(e){''}" 2>/dev/null || true)"
-MKT_VER="$(printf '%s' "$PKG_VER" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || true)"
-[ -z "$MKT_VER" ] && MKT_VER="1.0.0"
-BLD_VER="${IPA_BUILD_VERSION:-2}"
-SIGN_FLAGS+=(MARKETING_VERSION="$MKT_VER" CURRENT_PROJECT_VERSION="$BLD_VER")
-echo "==> iOS MARKETING_VERSION=$MKT_VER CURRENT_PROJECT_VERSION=$BLD_VER (package=$PKG_VER)"
+# No MARKETING_VERSION / CURRENT_PROJECT_VERSION override on the xcodebuild
+# command line: versions come only from stamp-version.mjs above.
 
 LOG="$PWD/build/xcodebuild.log"
 
