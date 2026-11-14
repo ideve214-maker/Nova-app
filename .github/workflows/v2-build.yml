@@ -28,6 +28,10 @@ on:
         description: 'Upload admin APK/IPA to the hidden server download dir'
         type: boolean
         default: true
+      version_code:
+        description: 'Optional versionCode / CFBundleVersion override (positive integer, used verbatim for every app built). Empty = repo variable VEXO_VERSION_CODE, else BASE + run_number.'
+        type: string
+        default: ''
 
 concurrency:
   group: vexo-packages-${{ github.ref }}
@@ -41,7 +45,10 @@ env:
   USER_SHA: 9b5bdb2154a5fac3675c0abc6959e558f4bbded0   # v7-m7.r8-vexo (Bob)
   ADMIN_SHA: c67a21cecca1b3aeae106df13492d4d9ab606dfd  # admin-vexo-1.1.0 (Agent), entry dist-spa/VEXO_Admin.html
   # ---- versions --------------------------------------------------------------
-  # Android versionCode = BASE + github.run_number of THIS workflow (monotonic).
+  # Android versionCode = BASE + github.run_number of THIS workflow.
+  # run_number restarts if the workflow is renamed/replaced, so it can be
+  # overridden: workflow_dispatch input `version_code`, else repo variable
+  # VEXO_VERSION_CODE (also applies to push builds). Override is used verbatim.
   USER_VERSION_NAME: '1.0.0'
   USER_VERSION_CODE_BASE: '100'
   USER_DISPLAY_NAME: 'VEXO'
@@ -70,6 +77,8 @@ jobs:
           IN_USER: ${{ inputs.user_sha }}
           IN_ADMIN: ${{ inputs.admin_sha }}
           IN_APPS: ${{ inputs.apps }}
+          IN_CODE: ${{ inputs.version_code }}
+          VAR_CODE: ${{ vars.VEXO_VERSION_CODE }}
         run: |
           set -euo pipefail
           U="${IN_USER:-$USER_SHA}"; A="${IN_ADMIN:-$ADMIN_SHA}"; APPS="${IN_APPS:-both}"
@@ -77,7 +86,18 @@ jobs:
             [[ "$s" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::'$s' is not a full 40-char commit SHA"; exit 1; }
           done
           N="${GITHUB_RUN_NUMBER}"
-          UC=$((USER_VERSION_CODE_BASE + N)); AC=$((ADMIN_VERSION_CODE_BASE + N))
+          OVR="${IN_CODE:-$VAR_CODE}"; OVR="${OVR//[[:space:]]/}"
+          if [ -n "$OVR" ]; then
+            SRC=$([ -n "$IN_CODE" ] && echo "input version_code" || echo "repo variable VEXO_VERSION_CODE")
+            if ! [[ "$OVR" =~ ^[1-9][0-9]{0,9}$ ]] || [ "$OVR" -gt 2100000000 ]; then
+              echo "::error::$SRC='$OVR' is not a positive integer (1..2100000000)"; exit 1
+            fi
+            UC="$OVR"; AC="$OVR"
+            echo "::notice::versionCode override from $SRC: $OVR (user and admin)"
+          else
+            SRC="BASE + run_number"
+            UC=$((USER_VERSION_CODE_BASE + N)); AC=$((ADMIN_VERSION_CODE_BASE + N))
+          fi
           case "$APPS" in
             both)  M='["user","admin"]';;
             user)  M='["user"]';;
@@ -90,7 +110,7 @@ jobs:
             echo "matrix=$M"
           } >> "$GITHUB_OUTPUT"
           {
-            echo "### VEXO packages, run #$N"
+            echo "### VEXO packages, run #$N (versionCode: $SRC)"
             echo "| app | commit | versionName | versionCode |"
             echo "|---|---|---|---|"
             echo "| user | \`$U\` | $USER_VERSION_NAME | $UC |"
