@@ -33,6 +33,26 @@ describe("toDownloadOptions", () => {
   });
 });
 
+describe("unencrypted bundles (no session_key)", () => {
+  const sha = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+  it("passes the sha256 checksum and no sessionKey when the manifest has none", () => {
+    const options = toDownloadOptions({ version: "1.1.1", url: "https://updates.example/a.zip", checksum: sha });
+    assert.deepEqual(options, { url: "https://updates.example/a.zip", version: "1.1.1", checksum: sha });
+    assert.equal("sessionKey" in (options ?? {}), false);
+  });
+  it("treats an empty or blank session_key as absent", () => {
+    for (const session_key of ["", "   "]) {
+      const options = toDownloadOptions({ version: "1.1.1", url: "https://updates.example/a.zip", checksum: sha, session_key });
+      assert.equal("sessionKey" in (options ?? {}), false);
+      assert.equal(options?.checksum, sha);
+    }
+  });
+  it("accepts a manifest that names the field sha256", () => {
+    const options = toDownloadOptions({ version: "1.1.1", url: "https://updates.example/a.zip", sha256: sha });
+    assert.equal(options?.checksum, sha);
+  });
+});
+
 describe("runLiveUpdate", () => {
   function fakeUpdater(latest: UpdateCheck) {
     const calls: { download: unknown[]; next: unknown[] } = { download: [], next: [] };
@@ -68,6 +88,13 @@ describe("runLiveUpdate", () => {
       checksum: "c0ffee",
       sessionKey: "server-session-key",
     });
+    assert.deepEqual(updater.calls.next, [{ id: "bundle-7" }]);
+  });
+
+  it("calls download() with the checksum and without sessionKey for an unencrypted bundle", async () => {
+    const updater = fakeUpdater({ version: "1.1.2", url: "https://updates.example/b.zip", checksum: "abc123" });
+    await runLiveUpdate(updater);
+    assert.deepEqual(updater.calls.download, [{ url: "https://updates.example/b.zip", version: "1.1.2", checksum: "abc123" }]);
     assert.deepEqual(updater.calls.next, [{ id: "bundle-7" }]);
   });
 

@@ -43,7 +43,7 @@ function envValue(name: string): string {
  * 永远不回落到 Capgo 云（插件内置默认 https://plugin.capgo.app/updates）。
  *
  * 打包时必填：CI=true（GitHub Actions）或 NOVA_REQUIRE_UPDATE_URL=1 时，没有地址直接报错，
- * 不再静默打出 autoUpdate:false 的包。本地调试可不填（热更新关闭），
+ * 不再静默打出没有热更新地址的包。本地调试可不填（热更新关闭），
  * 确需在 CI 打无热更新的包时显式设 NOVA_REQUIRE_UPDATE_URL=0。
  */
 const LIVE_UPDATE_FILE = ".nova-live-update.json";
@@ -135,8 +135,6 @@ const updateVersion =
   envValue("NOVA_UPDATE_VERSION") ||
   String(liveUpdateFile.version ?? "").trim() ||
   packageVersion();
-const autoFlag = (envValue("VITE_NOVA_UPDATE_AUTO") || envValue("NOVA_UPDATE_AUTO")).toLowerCase();
-const autoUpdateOn = !!updateUrl && autoFlag !== "off" && autoFlag !== "0" && autoFlag !== "false";
 
 const config = {
   appId: "com.nova.admin",
@@ -161,15 +159,17 @@ const config = {
       resize: "none",
       resizeOnFullScreen: false,
     },
-    // 自托管热更新。地址来源见上方 updateUrl 注释；有地址即 autoUpdate "atBackground"。
-    // 没地址（仅限本地调试）时 autoUpdate false、updateUrl 为空，不会访问 Capgo 云。
+    // 自托管热更新。地址来源见上方 updateUrl 注释。
+    // autoUpdate 固定为 false：检查和下载只走 src/lib/admin/live-update.ts 的手动流程
+    // （getLatest → download(带 sessionKey) → next），避免插件自己再下载一次或抢占。
+    // 没地址（仅限本地调试）时 updateUrl 为空，不会访问 Capgo 云。
     CapacitorUpdater: {
       appReadyTimeout: 10_000,
       autoDeleteFailed: true,
       autoDeletePrevious: true,
       resetWhenUpdate: true,
       allowModifyUrl: true,
-      autoUpdate: autoUpdateOn ? "atBackground" : false,
+      autoUpdate: false,
       updateUrl,
       statsUrl: "",
       channelUrl: "",

@@ -11,12 +11,16 @@ export function getUpdateUrl(): string {
 
 /**
  * Shape returned by the self-hosted updater.
- * The server sends `session_key` (Capgo encrypt payload). `download()` takes `sessionKey`.
+ * Bundles are not encrypted (no publicKey in capacitor.config.ts). The manifest's
+ * sha256 `checksum` is always passed to download() so the plugin verifies the zip.
+ * `session_key` is only forwarded as `sessionKey` when the manifest has a non-empty one.
  */
 export type UpdateCheck = {
   url?: string;
   version?: string;
   checksum?: string;
+  /** Some manifests name the sha256 field explicitly. */
+  sha256?: string;
   sessionKey?: string;
   session_key?: string;
   error?: string;
@@ -29,7 +33,7 @@ export function toDownloadOptions(latest: UpdateCheck | null | undefined) {
   const url = String(latest.url ?? "").trim();
   const version = String(latest.version ?? "").trim();
   if (!url || !version) return null;
-  const checksum = String(latest.checksum ?? "").trim();
+  const checksum = String(latest.checksum || latest.sha256 || "").trim();
   const sessionKey = String(latest.sessionKey ?? latest.session_key ?? "").trim();
   const options: { url: string; version: string; checksum?: string; sessionKey?: string } = { url, version };
   if (checksum) options.checksum = checksum;

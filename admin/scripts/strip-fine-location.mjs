@@ -2,6 +2,11 @@
  * Drop ACCESS_FINE_LOCATION from Android manifests.
  * ACCESS_COARSE_LOCATION is kept. If a manifest had only fine, it is replaced
  * with coarse so location still works without high accuracy.
+ *
+ * The app manifest (android/app/src/main/AndroidManifest.xml) also gets
+ * <uses-permission android:name="...ACCESS_FINE_LOCATION" tools:node="remove" />
+ * so a plugin that declares fine location cannot bring it back through the
+ * Gradle manifest merge.
  */
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -9,12 +14,19 @@ import { join, resolve } from "node:path";
 const FINE = "android.permission.ACCESS_FINE_LOCATION";
 const COARSE = "android.permission.ACCESS_COARSE_LOCATION";
 
+const REMOVE_LINE = `<uses-permission android:name="${FINE}" tools:node="remove" />`;
+const TOOLS_NS = 'xmlns:tools="http://schemas.android.com/tools"';
+
+function isRemoveMarker(tag) {
+  return /tools:node="remove"/.test(tag);
+}
+
 export function stripFineLocation(xml) {
-  const hadFine = xml.includes(FINE);
+  const hadFine = (xml.match(/<uses-permission\b[^>]*ACCESS_FINE_LOCATION[^>]*>/g) || []).some((t) => !isRemoveMarker(t));
   const hadCoarse = xml.includes(COARSE);
   let next = xml.replace(
     /[ \t]*<uses-permission\b[^>]*android:name="android\.permission\.ACCESS_FINE_LOCATION"[^>]*\/>\s*\n?/g,
-    "",
+    (m) => (isRemoveMarker(m) ? m : ""),
   );
   next = next.replace(
     /[ \t]*<uses-permission\b[^>]*android:name="android\.permission\.ACCESS_FINE_LOCATION"[^>]*>\s*<\/uses-permission>\s*\n?/g,
@@ -25,6 +37,18 @@ export function stripFineLocation(xml) {
       /<manifest\b([^>]*)>/,
       `<manifest$1>\n    <uses-permission android:name="${COARSE}" />`,
     );
+  }
+  return next;
+}
+
+/** Block fine location from merged library manifests (app manifest only). */
+export function addFineLocationRemoveMarker(xml) {
+  let next = xml;
+  if (!/<manifest\b[^>]*xmlns:tools=/.test(next)) {
+    next = next.replace(/<manifest\b/, `<manifest ${TOOLS_NS}`);
+  }
+  if (!/ACCESS_FINE_LOCATION"[^>]*tools:node="remove"/.test(next)) {
+    next = next.replace(/(<manifest\b[^>]*>)/, `$1\n    ${REMOVE_LINE}`);
   }
   return next;
 }
@@ -46,7 +70,8 @@ export function stripFineLocationIn(root) {
   const changed = [];
   for (const file of files) {
     const source = readFileSync(file, "utf8");
-    const next = stripFineLocation(source);
+    let next = stripFineLocation(source);
+    if (file.endsWith(join("app", "src", "main", "AndroidManifest.xml"))) next = addFineLocationRemoveMarker(next);
     if (next !== source) {
       writeFileSync(file, next);
       changed.push(file);
@@ -58,5 +83,5 @@ export function stripFineLocationIn(root) {
 const isMain = process.argv[1] && process.argv[1].endsWith("strip-fine-location.mjs");
 if (isMain) {
   const changed = stripFineLocationIn(resolve(process.argv[2] || "."));
-  console.log(`[vexo-admin] removed ACCESS_FINE_LOCATION from ${changed.length} manifest(s)`);
+  console.log(`[vexo-admin] removed/blocked ACCESS_FINE_LOCATION in ${changed.length} manifest(s)`);
 }

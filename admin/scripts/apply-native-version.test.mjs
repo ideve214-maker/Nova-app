@@ -7,6 +7,7 @@ import {
   applyStringsXml,
   marketingVersion,
   nextVersionCode,
+  versionCodeFromEnv,
 } from "./apply-native-version.mjs";
 
 describe("native version from package.json", () => {
@@ -20,12 +21,12 @@ describe("native version from package.json", () => {
           versionName "1.0"
       }
     `;
-    const first = applyAndroidGradle(source, "1.1.0");
+    const first = applyAndroidGradle(source, "1.1.0", {});
     assert.equal(first.versionName, "1.1.0");
     assert.equal(first.versionCode, 2);
     assert.match(first.text, /versionCode 2/);
     assert.match(first.text, /versionName "1\.1\.0"/);
-    const second = applyAndroidGradle(first.text, "1.1.0");
+    const second = applyAndroidGradle(first.text, "1.1.0", {});
     assert.equal(second.versionCode, 2);
   });
 
@@ -55,5 +56,31 @@ describe("native version from package.json", () => {
     assert.match(xml, /<string name="title_activity_main">VEXO 管理端<\/string>/);
     assert.equal(marketingVersion("1.1.0-beta"), "1.1.0");
     assert.equal(nextVersionCode(4, "1.1.0", "1.1.0"), 4);
+  });
+});
+
+describe("versionCode from the build environment", () => {
+  const gradle = `
+      defaultConfig {
+          versionCode 1
+          versionName "1.0"
+      }
+  `;
+  it("uses NOVA_VERSION_CODE first, then GITHUB_RUN_NUMBER", () => {
+    assert.equal(versionCodeFromEnv({ NOVA_VERSION_CODE: "37", GITHUB_RUN_NUMBER: "512" }), 37);
+    assert.equal(versionCodeFromEnv({ GITHUB_RUN_NUMBER: "512" }), 512);
+    const applied = applyAndroidGradle(gradle, "1.1.0", { GITHUB_RUN_NUMBER: "512" });
+    assert.equal(applied.versionCode, 512);
+    assert.match(applied.text, /versionCode 512/);
+    assert.match(applied.text, /versionName "1\.1\.0"/);
+  });
+  it("falls back to the calculated code when no env var is set", () => {
+    assert.equal(versionCodeFromEnv({}), null);
+    assert.equal(versionCodeFromEnv({ NOVA_VERSION_CODE: "  " }), null);
+    assert.equal(applyAndroidGradle(gradle, "1.1.0", {}).versionCode, 2);
+  });
+  it("rejects a value Android cannot use", () => {
+    assert.throws(() => versionCodeFromEnv({ NOVA_VERSION_CODE: "abc" }), /not a valid Android versionCode/);
+    assert.throws(() => versionCodeFromEnv({ NOVA_VERSION_CODE: "0" }), /not a valid Android versionCode/);
   });
 });

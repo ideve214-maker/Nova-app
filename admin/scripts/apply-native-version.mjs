@@ -3,6 +3,7 @@
  * versionName / MARKETING_VERSION / CFBundleShortVersionString = x.y.z
  * versionCode / CURRENT_PROJECT_VERSION / CFBundleVersion bumps when the
  * marketing version changes, and stays put when the build is run again.
+ * NOVA_VERSION_CODE or GITHUB_RUN_NUMBER overrides that calculation.
  *
  * Missing native projects are skipped (exit 0) so a web-only build still works.
  */
@@ -24,11 +25,31 @@ export function nextVersionCode(existingCode, existingName, nextName) {
   return base + 1;
 }
 
-export function applyAndroidGradle(source, pkgVersion) {
+/**
+ * versionCode from the build environment, when given: NOVA_VERSION_CODE first,
+ * then GITHUB_RUN_NUMBER. Returns null when neither is a positive integer, so
+ * the caller falls back to nextVersionCode(). A fresh `cap add` otherwise
+ * always starts at 1 and computes 2.
+ */
+export const VERSION_CODE_ENV = ["NOVA_VERSION_CODE", "GITHUB_RUN_NUMBER"];
+export function versionCodeFromEnv(env = process.env) {
+  for (const key of VERSION_CODE_ENV) {
+    const raw = String(env?.[key] ?? "").trim();
+    if (!raw) continue;
+    if (!/^\d+$/.test(raw) || Number(raw) <= 0 || Number(raw) > 2100000000) {
+      throw new Error(`[vexo-admin] ${key}=${raw} is not a valid Android versionCode (1..2100000000)`);
+    }
+    return Number(raw);
+  }
+  return null;
+}
+
+export function applyAndroidGradle(source, pkgVersion, env = process.env) {
   const versionName = marketingVersion(pkgVersion);
   const nameMatch = source.match(/versionName\s+["']([^"']+)["']/);
   const codeMatch = source.match(/versionCode\s+(\d+)/);
-  const versionCode = nextVersionCode(codeMatch?.[1], nameMatch?.[1] ?? "", versionName);
+  const versionCode =
+    versionCodeFromEnv(env) ?? nextVersionCode(codeMatch?.[1], nameMatch?.[1] ?? "", versionName);
   let text = source;
   if (codeMatch) text = text.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
   else text = text.replace(/defaultConfig\s*\{/, `defaultConfig {\n        versionCode ${versionCode}`);
@@ -83,15 +104,15 @@ export function readPackageVersion(root) {
   return String(pkg.version || "1.1.0");
 }
 
-export function applyNativeVersion(root) {
+export function applyNativeVersion(root, env = process.env) {
   const pkgVersion = readPackageVersion(root);
   const versionName = marketingVersion(pkgVersion);
   const written = [];
 
   const gradlePath = resolve(root, "android/app/build.gradle");
-  let versionCode = nextVersionCode(undefined, "", versionName);
+  let versionCode = versionCodeFromEnv(env) ?? nextVersionCode(undefined, "", versionName);
   if (existsSync(gradlePath)) {
-    const applied = applyAndroidGradle(readFileSync(gradlePath, "utf8"), pkgVersion);
+    const applied = applyAndroidGradle(readFileSync(gradlePath, "utf8"), pkgVersion, env);
     versionCode = applied.versionCode;
     writeFileSync(gradlePath, applied.text);
     written.push(gradlePath);
