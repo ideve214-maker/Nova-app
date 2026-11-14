@@ -41,6 +41,7 @@ import {
 } from './security.mjs';
 import {createAccount} from './account.mjs';
 import {createFlags} from './flags.mjs';
+import {createMarketing} from './marketing.mjs';
 import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
@@ -136,6 +137,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     }
   };
   const blockwords = createBlockwords(db, {now});
+  const marketing = createMarketing(db, {now, blockwords, dataDir: pathJoin(mediaRoot, '..', 'marketing')});
   const presence = createPresence(db, {now, friends, events, chats: null});
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
   presence.attach({chats, events, friends});
@@ -492,7 +494,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         q.authors = ids;
       }
       // feed=topic 由 posts.list 按话题/标签过滤，并套用受众权限。
-      return posts.list(user, q);
+      const r = posts.list(user, q);
+      // r10 营销帖：推荐 / 关注流的第一页附带为这个用户随机挑选的广告，客户端每 every 条普通帖插 1 条。
+      if (!q.cursor && q.feed !== 'topic' && !q.author) {
+        const m = marketing.pickFor(user);
+        r.ads = m.ads; r.adEvery = m.every;
+      }
+      return r;
     },
     // r7 热门话题：管理员挑选的帖子，按管理员设定的顺序；结构同 GET /api/posts。
     'GET /api/hot-posts'(req) {
@@ -1504,6 +1512,16 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return r;
     },
 
+    // ---- r10 营销帖 ----
+    'POST /api/marketing/ads/:id/impression'(req) { const {user} = auth(req); return marketing.track(user, req.params.id, 'impression'); },
+    'POST /api/marketing/ads/:id/click'(req) { const {user} = auth(req); return marketing.track(user, req.params.id, 'click'); },
+    'POST /api/marketing/ads/:id/hide'(req, b) { const {user} = auth(req); return marketing.track(user, req.params.id, 'hide', b || {}); },
+    'GET /api/admin/marketing/ads'(req) { adminAuth(req); return marketing.adminList(); },
+    'POST /api/admin/marketing/ads'(req, b) { const {admin} = adminAuth(req); const r = marketing.create(b || {}); audit(admin.id, 'admin.marketing.ad.create', 'ad:' + r.ad.id, ip(req)); return r; },
+    'POST /api/admin/marketing/ads/:id'(req, b) { const {admin} = adminAuth(req); const r = marketing.update(req.params.id, b || {}); audit(admin.id, 'admin.marketing.ad.update', 'ad:' + r.ad.id, ip(req)); return r; },
+    'POST /api/admin/marketing/ads/:id/delete'(req) { const {admin} = adminAuth(req); const r = marketing.remove(req.params.id); audit(admin.id, 'admin.marketing.ad.delete', 'ad:' + req.params.id, ip(req)); return r; },
+    'POST /api/admin/marketing/settings'(req, b) { const {admin} = adminAuth(req); const st = marketing.saveSettings(b || {}); audit(admin.id, 'admin.marketing.settings', 'marketing', ip(req), st); return {settings: st}; },
+    'POST /api/admin/marketing/media'(req, b) { adminAuth(req); return marketing.saveMedia(b || {}); },
     'GET /api/app/status'() {
       const f = flags.read();
       return {
@@ -1740,6 +1758,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
       return;
     }
+    const mkMedia = /^\/api\/marketing\/media\/([A-Za-z0-9_.-]+)$/.exec(path);
+    if (req.method === 'GET' && mkMedia) {
+      try {
+        const f = marketing.mediaFile(mkMedia[1]);
+        res.writeHead(200, {...corsHeaders(req), 'Content-Type': f.mime, 'Content-Length': f.buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'});
+        return res.end(f.buf);
+      } catch (e) {
+        if (e instanceof ApiError) return send(e.s, {error: {code: e.code, message: e.message}});
+        return send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}});
+      }
+    }
     const payQr = /^\/api\/pay\/qr\/(wechat|alipay)$/.exec(path);
     if (req.method === 'GET' && payQr) {
       try {
@@ -1801,6 +1830,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     }
     let size = 0; const chunks = [];
     const bodyLimit = (req.method === 'POST' && path === '/api/media') ? 100 * 1024 * 1024
+      : (req.method === 'POST' && path === '/api/admin/marketing/media') ? 42 * 1024 * 1024
       : (req.method === 'POST' && /\/api\/pay\/orders\/[^/]+\/paid$/.test(path)) ? 8 * 1024 * 1024
       : 1e6;
     req.on('data', c => { size += c.length; if (size > bodyLimit) { send(413, {error: {code: 'TOO_LARGE', message: '请求过大'}}); req.destroy(); } else chunks.push(c); });
@@ -1834,7 +1864,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
