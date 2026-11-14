@@ -44,6 +44,7 @@ import {createFlags} from './flags.mjs';
 import {createMarketing} from './marketing.mjs';
 import {createPostStats} from './post-stats.mjs';
 import {createBoost} from './boost.mjs';
+import {createAiModeration} from './ai-moderation.mjs';
 import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
@@ -71,6 +72,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   hsts = process.env.NOVA_HSTS === '1',
   rateLimitMode = process.env.NOVA_RATE_LIMIT || '',
   alertWebhook = process.env.NOVA_ALERT_WEBHOOK || '',
+  aiEnv = process.env, aiFetch,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -141,6 +143,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const blockwords = createBlockwords(db, {now});
   const marketing = createMarketing(db, {now, blockwords, dataDir: pathJoin(mediaRoot, '..', 'marketing')});
   const postStats = createPostStats(db, {now, posts, comments});
+  const aiMod = createAiModeration(db, {now, env: aiEnv || process.env, fetchImpl: aiFetch});
   const presence = createPresence(db, {now, friends, events, chats: null});
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
   presence.attach({chats, events, friends});
@@ -476,13 +479,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return stickers.use(user, b || {});
     },
     // ---- 动态（M4.1）帖子真实入库；发布成功以服务端响应为准 ----
-    'POST /api/posts'(req, b) {
+    async 'POST /api/posts'(req, b) {
       const {user} = auth(req);
       const body = b || {};
       if (body.poll) polls.validateSpec(body.poll);
       if (body.text) blockwords.assertPlatform(body.text);
       if (body.poll) assertPollText(body.poll);
+      // r10 AI 审查：关键词过滤之后再交给 AI；AI 不可用时已由上面的关键词过滤兜底。
+      const aiText = [body.text, body.poll && body.poll.question, ...((body.poll && body.poll.options) || []).map(o => (o && o.text) || o)].filter(x => typeof x === 'string' && x.trim()).join('\n');
+      const ai = await aiMod.enforce(aiText, {user, kind: 'post'});
       const r = posts.create(user, body);
+      aiMod.linkPost(ai, r.post.id);
       if (body.poll) {
         const pr = polls.createForPost(user, r.post.id, body.poll);
         r.post.poll = pr.poll;
@@ -522,10 +529,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return posts.get(user, req.params.id);
     },
-    'POST /api/posts/:id/edit'(req, b) {
+    async 'POST /api/posts/:id/edit'(req, b) {
       const {user} = auth(req);
       if (b && b.text) blockwords.assertPlatform(b.text);
+      const ai = b && typeof b.text === 'string' ? await aiMod.enforce(b.text, {user, kind: 'edit'}) : null;
       const r = posts.edit(user, req.params.id, b || {});
+      aiMod.linkPost(ai, req.params.id);
       r.post.hashtags = hashtags.syncPost(user, r.post);
       audit(user.id, 'post.edit', 'post:' + r.post.id, ip(req));
       return r;
@@ -1519,6 +1528,20 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return r;
     },
 
+    // ---- r10 AI 审查（Groq） ----
+    'GET /api/admin/ai-moderation'(req) { adminAuth(req); return {settings: aiMod.settings(), status: aiMod.status(), logs: aiMod.logs(req.query || {})}; },
+    'POST /api/admin/ai-moderation'(req, b) {
+      const {admin} = adminAuth(req);
+      const st = aiMod.save(b || {});
+      audit(admin.id, 'admin.ai_moderation', 'ai', ip(req), {enabled: st.enabled, mode: st.mode, model: st.model});
+      return {settings: st, status: aiMod.status()};
+    },
+    async 'POST /api/admin/ai-moderation/test'(req, b) {
+      adminAuth(req);
+      const text = String((b && b.text) || '').trim();
+      if (!text) throw bad('BAD_TEXT', '请输入要测试的内容');
+      return {result: await aiMod.check(text, {kind: 'test', force: true}), status: aiMod.status()};
+    },
     // ---- r10 推流 / 加热 ----
     'GET /api/boost/catalog'(req) { const {user} = auth(req); return boost.catalog(user); },
     'GET /api/boost/orders'(req) { const {user} = auth(req); return boost.listMine(user, req.query || {}); },
@@ -1890,7 +1913,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
