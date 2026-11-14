@@ -45,7 +45,7 @@ const TABS = [
   { id: "boost", label: "推流加热" },
   { id: "ai", label: "AI 审查" },
 ];
-const READY = new Set(["ads", "stats", "boost"]);
+const READY = new Set(["ads", "stats", "boost", "ai"]);
 
 export function MarketingScreen() {
   const back = useAdmin((s) => s.back);
@@ -57,6 +57,7 @@ export function MarketingScreen() {
       {tab === "ads" && <AdsTab />}
       {tab === "stats" && <StatsTab />}
       {tab === "boost" && <BoostTab />}
+      {tab === "ai" && <AiTab />}
     </Screen>
   );
 }
@@ -473,5 +474,168 @@ function SlotsInput({ value, onSave }: { value: number[]; onSave: (v: number[]) 
   return (
     <input className={inputClass + " text-center"} value={v} onChange={(e) => setV(e.target.value.replace(/[^\d,，]/g, ""))}
       onBlur={() => { const arr = v.split(/[,，]/).map((x) => Math.round(Number(x))).filter((n) => Number.isFinite(n) && n >= 0).slice(0, 5); if (arr.length && arr.join(",") !== value.join(",")) onSave(arr); }} />
+  );
+}
+
+/* ---------- AI 审查（Groq） ---------- */
+type AiSettings = { enabled: boolean; mode: "block" | "flag"; model: string; rules: string; timeoutMs: number };
+type AiStatus = {
+  provider: string; keyConfigured: boolean; rpm: number; rpd: number; usedLastMinute: number; usedToday: number;
+  cooldownUntil: number | null; lastError: string | null; models: string[]; defaultRules: string;
+};
+type AiLog = {
+  id: number; kind: string; username: string | null; postId: string | null; excerpt: string; verdict: string;
+  category: string | null; reason: string | null; source: string; model: string | null; latencyMs: number | null; error: string | null; createdAt: number;
+};
+const AI_FILTERS = [
+  { id: "", label: "全部" }, { id: "block", label: "已拦截" }, { id: "flag", label: "已标记" }, { id: "fallback", label: "兜底" },
+];
+const VERDICT: Record<string, { t: string; tone: "ok" | "warn" | "danger" | "muted" }> = {
+  allow: { t: "通过", tone: "ok" }, block: { t: "拦截", tone: "danger" }, flag: { t: "标记", tone: "warn" }, fallback: { t: "兜底", tone: "muted" },
+};
+const FALLBACK_WHY: Record<string, string> = {
+  no_key: "未配置密钥", rate_limited: "Groq 限速冷却中", timeout: "超时", bad_json: "返回格式不对", bad_verdict: "返回格式不对",
+  local_limit_rpm: "本地每分钟限额", local_limit_rpd: "本地每日限额",
+};
+const KIND_TXT: Record<string, string> = { post: "发帖", edit: "编辑", test: "测试" };
+function fmtTime(t: number) {
+  const d = new Date(t);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function AiTab() {
+  const flash = useAdmin((s) => s.flash);
+  const [st, setSt] = useState<AiSettings | null>(null);
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [logs, setLogs] = useState<AiLog[]>([]);
+  const [filter, setFilter] = useState("");
+  const [rules, setRules] = useState("");
+  const [err, setErr] = useState("");
+  const [testText, setTestText] = useState("");
+  const [testRes, setTestRes] = useState<AiLog | null | { verdict: string; reason?: string; category?: string; source: string; error?: string; latencyMs?: number }>(null);
+  const [busy, setBusy] = useState(false);
+  const [showDefault, setShowDefault] = useState(false);
+  const load = useCallback(async (f: string) => {
+    const r = await mk<{ settings: AiSettings; status: AiStatus; logs: AiLog[] }>("adminAiModeration", { query: { verdict: f || undefined } });
+    if (!r.ok) { setErr(r.error); return; }
+    setErr(""); setSt(r.data.settings); setStatus(r.data.status); setLogs(r.data.logs || []); setRules(r.data.settings.rules || "");
+  }, []);
+  useEffect(() => { void load(filter); }, [load, filter]);
+  const save = async (body: Partial<AiSettings>) => {
+    const r = await mk<{ settings: AiSettings; status: AiStatus }>("adminAiModeration", { method: "POST", body });
+    if (!r.ok) { flash(r.error); return; }
+    setSt(r.data.settings); setStatus(r.data.status); flash("已保存");
+  };
+  const runTest = async () => {
+    if (!testText.trim()) return;
+    setBusy(true);
+    const r = await mk<{ result: { verdict: string; reason?: string; category?: string; source: string; error?: string; latencyMs?: number }; status: AiStatus }>(
+      "adminAiModerationTest", { method: "POST", body: { text: testText }, timeoutMs: 20000 });
+    setBusy(false);
+    if (!r.ok) { flash(r.error); return; }
+    setTestRes(r.data.result); setStatus(r.data.status); void load(filter);
+  };
+  const delPost = async (l: AiLog) => {
+    if (!l.postId) return;
+    const r = await mk("adminContentDelete", { method: "POST", params: { type: "post", id: l.postId }, body: { reason: "AI 审查标记：" + (l.reason || l.category || "") } });
+    if (!r.ok) { flash(r.error); return; }
+    flash("已删除该帖子");
+  };
+  const tr = testRes as { verdict: string; reason?: string; category?: string; source: string; error?: string; latencyMs?: number } | null;
+  return (
+    <div className="pb-6">
+      {err && <p className="px-4 pt-3 text-sm text-danger">{err}</p>}
+      {status && !status.keyConfigured && (
+        <div className="mx-4 mt-3 rounded-card border border-warn/40 bg-warn/10 p-3 text-[13px] leading-5">
+          服务器还没配置 <span className="font-mono">GROQ_API_KEY</span>，AI 审查不会调用，发帖只走屏蔽词过滤。在服务器环境变量里设置后重启服务即可生效。
+        </div>
+      )}
+      {st && status && (
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold">AI 审查新帖</div>
+              <p className="text-[12px] text-muted">发帖和编辑时先过屏蔽词，再交给 AI 判断</p>
+            </div>
+            <Toggle on={st.enabled} label="AI 审查开关" onChange={(v) => void save({ enabled: v })} />
+          </div>
+          <div className="mt-3">
+            <span className="mb-1 block text-[12px] text-muted">判定违规时</span>
+            <Seg value={st.mode} options={[{ id: "block", label: "直接拦截" }, { id: "flag", label: "仅标记，人工处理" }]} onChange={(v) => void save({ mode: v as "block" | "flag" })} />
+          </div>
+          <div className="mt-3">
+            <Field label="模型">
+              <select className={inputClass} value={st.model} onChange={(e) => void save({ model: e.target.value })}>
+                {Array.from(new Set([st.model, ...status.models])).map((m) => (
+                  <option key={m} value={m}>{m}{m === "openai/gpt-oss-20b" ? "（推荐）" : m === "openai/gpt-oss-safeguard-20b" ? "（审核专用，限速低）" : ""}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <Stat n={`${status.usedLastMinute}/${status.rpm}`} l="本分钟" />
+            <Stat n={`${status.usedToday}/${status.rpd}`} l="今日" />
+            <Stat n={status.cooldownUntil ? "冷却中" : status.keyConfigured ? "正常" : "未配置"} l="Groq" />
+          </div>
+          {status.lastError && <p className="mt-2 break-all text-[11px] text-muted">最近一次失败：{FALLBACK_WHY[status.lastError] || status.lastError}（已自动改用屏蔽词过滤）</p>}
+        </Card>
+      )}
+      {st && status && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-[15px] font-semibold">补充规则</span>
+            <button type="button" className="text-[13px] font-semibold text-primary" onClick={() => setShowDefault((v) => !v)}>{showDefault ? "收起内置规则" : "查看内置规则"}</button>
+          </div>
+          {showDefault && <pre className="mt-2 whitespace-pre-wrap rounded-xl bg-subtle p-3 text-[12px] leading-5 text-muted">{status.defaultRules}</pre>}
+          <textarea className={textareaClass + " mt-2 min-h-24"} value={rules} maxLength={4000} placeholder={"每行一条，例如：\n禁止推销保健品\n禁止发布代练、代充信息"} onChange={(e) => setRules(e.target.value)} />
+          <div className="mt-2 flex justify-end">
+            <PrimaryButton disabled={rules === st.rules} onClick={() => void save({ rules })}>保存规则</PrimaryButton>
+          </div>
+        </Card>
+      )}
+      {st && (
+        <Card>
+          <span className="text-[15px] font-semibold">试一试</span>
+          <textarea className={textareaClass + " mt-2 min-h-20"} value={testText} maxLength={2000} placeholder="输入一段内容，看看 AI 会怎么判断（不会发布）" onChange={(e) => setTestText(e.target.value)} />
+          {tr && (
+            <div className="mt-2 rounded-xl bg-subtle px-3 py-2 text-[13px] leading-5">
+              <Pill tone={(VERDICT[tr.verdict] || VERDICT.fallback).tone}>{(VERDICT[tr.verdict] || VERDICT.fallback).t}</Pill>{" "}
+              {tr.source === "fallback" ? "AI 不可用：" + (FALLBACK_WHY[tr.error || ""] || tr.error) : (tr.category ? tr.category + " · " : "") + (tr.reason || "未发现问题")}
+              {tr.latencyMs != null && tr.source === "ai" ? ` · ${tr.latencyMs}ms` : ""}
+            </div>
+          )}
+          <div className="mt-2">
+            <PrimaryButton disabled={busy || !testText.trim()} onClick={() => void runTest()}>{busy ? "判断中…" : "测试"}</PrimaryButton>
+          </div>
+        </Card>
+      )}
+      <div className="mt-3"><Seg value={filter} options={AI_FILTERS} onChange={setFilter} /></div>
+      {logs.length === 0 && !err && <EmptyState title="还没有审查记录" hint="开启后，新帖的判断结果会显示在这里。" />}
+      <ul className="mt-2 space-y-2 px-4">
+        {logs.map((l) => {
+          const v = VERDICT[l.verdict] || VERDICT.fallback;
+          return (
+            <li key={l.id} className="rounded-card bg-surface p-3 shadow-card">
+              <div className="flex items-center gap-2 text-[12px] text-muted">
+                <Pill tone={v.tone}>{v.t}</Pill>
+                <span>{KIND_TXT[l.kind] || l.kind}</span>
+                {l.username && <span className="truncate">@{sanitizeText(l.username)}</span>}
+                <span className="ml-auto shrink-0">{fmtTime(l.createdAt)}</span>
+              </div>
+              <p className="mt-1 line-clamp-3 break-words text-[13px]">{sanitizeText(l.excerpt)}</p>
+              <p className="mt-1 text-[12px] text-muted">
+                {l.source === "fallback" ? "AI 不可用（" + (FALLBACK_WHY[l.error || ""] || l.error || "未知") + "），已用屏蔽词过滤" : (l.category ? l.category + " · " : "") + (l.reason || "未发现问题")}
+                {l.latencyMs != null && l.source === "ai" ? ` · ${l.latencyMs}ms` : ""}
+              </p>
+              {l.verdict === "flag" && l.postId && (
+                <div className="mt-2 flex justify-end">
+                  <button type="button" className="rounded-full border border-danger/50 px-3 py-1 text-[13px] font-semibold text-danger" onClick={() => void delPost(l)}>删除该帖</button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

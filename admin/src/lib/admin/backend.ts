@@ -90,6 +90,8 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminBoostReject: "/api/admin/boost/orders/:id/reject",
   adminBoostStop: "/api/admin/boost/orders/:id/stop",
   adminBoostSettings: "/api/admin/boost/settings",
+  adminAiModeration: "/api/admin/ai-moderation",
+  adminAiModerationTest: "/api/admin/ai-moderation/test",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",
