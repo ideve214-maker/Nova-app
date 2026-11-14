@@ -309,7 +309,7 @@ html.has-safe-area .ios-sb{display:none}@media (max-width:599px),(hover:none),(p
 /* 社区大卡片：单列，全宽圆角封面，完整「加入小组」按钮 */
 .ggrid{display:flex;flex-direction:column;gap:14px;padding:10px 16px 24px}
 .gcard{background:var(--sf);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;text-align:left;min-width:0;box-shadow:0 1px 4px rgba(0,0,0,.22)}
-.gcover{width:100%;height:168px;background:var(--s3) center/cover no-repeat;border:0;display:block;border-radius:18px 18px 0 0}
+.gcover{width:100%;height:auto;aspect-ratio:20/9;background:var(--s3) center/cover no-repeat;border:0;display:block;border-radius:18px 18px 0 0}
 .gbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:5px;flex:1}
 .gbody b{font-size:17px;font-weight:800;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .gbody .gmeta{font-size:13px;color:var(--t2);font-weight:500}
@@ -367,7 +367,7 @@ html.rm #tt.tt-in,html.rm #tt.tt-out,html.rm .ov,html.rm .pn,body.rm #tt.tt-in,b
 /* 社区视图：单 / 双 / 四 */
 .ggrid.v1{display:flex;flex-direction:column;gap:14px;padding:10px 16px 24px}
 .ggrid.v2{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 12px 24px}
-.ggrid.v2 .gcover{height:112px;border-radius:14px 14px 0 0}
+.ggrid.v2 .gcover{height:auto;aspect-ratio:20/9;border-radius:14px 14px 0 0}
 .ggrid.v2 .gbody{padding:8px 10px 10px;gap:4px}
 .ggrid.v2 .gbody b{font-size:14px}
 .ggrid.v2 .gmeta{font-size:11px}
@@ -375,7 +375,7 @@ html.rm #tt.tt-in,html.rm #tt.tt-out,html.rm .ov,html.rm .pn,body.rm #tt.tt-in,b
 .ggrid.v2 .gbody .pb{height:32px;min-height:32px;margin-top:6px;font-size:13px;border-radius:10px}
 .ggrid.v4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px 8px 24px}
 .ggrid.v4 .gcard{border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.ggrid.v4 .gcover{height:68px;border-radius:12px 12px 0 0}
+.ggrid.v4 .gcover{height:auto;aspect-ratio:20/9;border-radius:12px 12px 0 0}
 .ggrid.v4 .gbody{padding:5px 5px 6px;gap:2px}
 .ggrid.v4 .gbody b{font-size:11px;line-height:1.25;font-weight:700;-webkit-line-clamp:2}
 .ggrid.v4 .gmeta,.ggrid.v4 .gintro{display:none}
