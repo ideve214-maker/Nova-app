@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" role="img" aria-label="NOVA 星澜">
-  <title>NOVA Lockup · 星澜</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" role="img" aria-label="VEXO 星澜">
+  <title>VEXO Lockup · 星澜</title>
   <defs>
     <linearGradient id="star" x1="48" y1="8" x2="48" y2="88" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#C5D0FF"/>
@@ -23,16 +23,16 @@
     <path fill="none" stroke="url(#wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55"
           d="M12 55.5c5.5-4.2 11-4.2 16.5 0s11 4.2 16.5 0 8.5-4 9.5-3.8"/>
   </g>
-  <!-- Geometric wordmark NOVA, original letterforms, 800-ish weight -->
-  <g fill="url(#type)" transform="translate(128 28)">
-    <!-- N -->
-    <path d="M0 4h18.2V56.5H0V4zm7.4 11.2v17.8L16.2 15.2h1.9v30.1h-7.4V27.6L3.9 45.3H2V15.2h5.4z"/>
-    <!-- O -->
-    <path d="M47.2 5.2c12.6 0 20.8 9.2 20.8 25.6S59.8 56.5 47.2 56.5 26.3 47.2 26.3 30.8 34.6 5.2 47.2 5.2zm0 8.4c-7.3 0-12.3 6.3-12.3 17.2s5 17.3 12.3 17.3 12.3-6.4 12.3-17.3-5-17.2-12.3-17.2z"/>
+  <!-- Geometric wordmark VEXO, original letterforms, 800-ish weight -->
+  <g fill="url(#type)" fill-rule="evenodd" transform="translate(128 28)">
     <!-- V -->
-    <path d="M73.2 15.2h8.4L92.4 51h-8.2L76.8 24.6 69.3 51h-8.1l10.7-35.8h1.3z"/>
-    <!-- A -->
-    <path d="M115.6 15.2 129 56.5h-8.4l-2.5-8.3H100.6l-2.6 8.3h-8.1L103.4 15.2h12.2zm-3.6 11.2-5.1 16.2h10.3l-5.2-16.2z"/>
+    <path d="M0 15.2h8.6L15 45l6.4-29.8H30L19.4 56.5h-8.8z"/>
+    <!-- E -->
+    <path d="M36 15.2h24v7.4H44.4v9.6H58v7.2H44.4v9.7H60v7.4H36z"/>
+    <!-- X -->
+    <path d="M66 15.2h9.4l6.6 14.4 6.6-14.4H98L86.8 35.8 98 56.5h-9.4L82 42l-6.6 14.5H66l11.2-20.7z"/>
+    <!-- O -->
+    <path d="M104 35.85a18 20.65 0 1 0 36 0a18 20.65 0 1 0-36 0zM112.4 35.85a9.6 12.4 0 1 1 19.2 0a9.6 12.4 0 1 1-19.2 0z"/>
   </g>
   <text x="132" y="108" font-family="Noto Sans CJK SC, Noto Sans SC, sans-serif" font-size="13" font-weight="600" fill="#6B7388" letter-spacing="4">星澜  XINGLAN</text>
 </svg>
