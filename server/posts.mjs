@@ -44,6 +44,8 @@ export function createPosts(db, {vip, profile, now}) {
   const upd = db.prepare('UPDATE posts SET text=?, updated_at=?, audience=COALESCE(?,audience), mood=COALESCE(?,mood), location=COALESCE(?,location), tagged=COALESCE(?,tagged), media=COALESCE(?,media) WHERE id=? AND author_id=? AND deleted_at IS NULL');
   const del = db.prepare('UPDATE posts SET deleted_at=? WHERE id=? AND author_id=? AND deleted_at IS NULL');
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
+  const viewCnt = db.prepare('SELECT COUNT(*) n FROM post_views WHERE post_id=?');
+  const saveCnt = db.prepare("SELECT COUNT(*) n FROM saved_items WHERE kind='post' AND target=?");
   // vis: 作者本人；公开；关注者（查看者关注了作者）；好友（已接受的双向好友）。仅自己只走作者分支。
   const vis = `AND (
     author_id = ?
@@ -137,6 +139,8 @@ export function createPosts(db, {vip, profile, now}) {
       reactions: [0, 0, 0, 0, 0, 0],
       myReaction: -1,
       commentCount: 0,
+      viewCount: Math.max(0, viewCnt.get(row.id).n + (row.adj_views || 0)),
+      bookmarkCount: Math.max(0, saveCnt.get(row.id).n + (row.adj_saves || 0)),
     };
     if (row.mood) out.mood = row.mood;
     if (row.location) out.location = row.location;

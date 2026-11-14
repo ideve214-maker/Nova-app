@@ -36,9 +36,16 @@ export function createComments(db, {profile, vip, posts, now}) {
     const p = profile.publicOf(u);
     return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active};
   }
+  const adjLikes = db.prepare('SELECT adj_likes FROM posts WHERE id=?');
   function reactOf(postId, me) {
     const counts = [0, 0, 0, 0, 0, 0];
     for (const r of grpRx.all(postId)) counts[r.emoji_idx] = r.n;
+    // r10 数据调整：管理端设置的点赞调整值加在第一种表态（赞）上，总数不小于 0。
+    const adj = adjLikes.get(postId);
+    if (adj && adj.adj_likes) {
+      const total = counts.reduce((a, b) => a + b, 0);
+      counts[0] = Math.max(0, counts[0] + Math.max(-total, adj.adj_likes));
+    }
     const mine = me ? myRx.get(postId, me.id) : null;
     return {reactions: counts, myReaction: mine ? mine.emoji_idx : -1};
   }

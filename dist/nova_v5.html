@@ -2395,7 +2395,7 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;return o;
 }
 /* 帖子已被删除（作者删帖或管理员处理举报）：从内存列表和离线缓存里去掉，避免继续显示旧帖子 */
 function dropPost(id,toast){
@@ -5647,7 +5647,7 @@ function xbar(p,nLike,nC){
 if(typeof IntersectionObserver!=='undefined'){
   const timers=new Map();
   const io=new IntersectionObserver(es=>{es.forEach(en=>{const id=en.target.getAttribute('data-pid');if(!id)return;
-    if(en.isIntersecting&&en.intersectionRatio>=.5){if(viewedSet().has(id)||timers.has(id))return;timers.set(id,setTimeout(()=>{timers.delete(id);viewedAdd(id);const sp=en.target.querySelector('.xv span');if(sp&&!sp.textContent)sp.textContent='1'},800))}
+    if(en.isIntersecting&&en.intersectionRatio>=.5){if(viewedSet().has(id)||timers.has(id))return;timers.set(id,setTimeout(()=>{timers.delete(id);viewedAdd(id);const sp=en.target.querySelector('.xv span');if(sp&&!sp.textContent)sp.textContent='1';if(typeof postViewReport==='function')postViewReport(id,sp)},800))}
     else if(timers.has(id)){clearTimeout(timers.get(id));timers.delete(id)}})},{threshold:[0,.5]});
   const seen=new WeakSet();
   const scan=()=>document.querySelectorAll('.fcard[data-pid]').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el)}});
@@ -5852,6 +5852,14 @@ r7Sheet=function(s){
   if(s.t==='adwhy')return `<h3>关于推广</h3><p style="color:var(--t2);line-height:1.6;margin-bottom:12px">带「推广」标记的内容是平台投放的广告，按固定频率出现在信息流里，不代表你关注的人发布。选择「不感兴趣」后，这条推广不会再出现。</p><div class="fr"><button class="pb" data-a="x">知道了</button></div>`;
   return _r7SheetMk?_r7SheetMk(s):'';
 };
+/* r10 数据调整：真实阅读回报服务器（每人每帖只算一次），返回的显示数直接更新到卡片上 */
+const _viewSent=new Set();
+function postViewReport(id,sp){
+  if(!usingNet()||_viewSent.has(id)||/^c\d/.test(String(id)))return;_viewSent.add(id);
+  api('POST','/api/posts/'+encodeURIComponent(id)+'/view',{}).then(r=>{if(!r||r.s!==200||!r.j)return;const n=Number(r.j.viewCount);if(!Number.isFinite(n))return;
+    const p=typeof findPost==='function'?findPost(id):null;if(p)p.viewCount=n;
+    if(sp&&n>0)sp.textContent=typeof fmtN==='function'?fmtN(n):String(n)}).catch(()=>{});
+}
 
 /* ===== 80_events.js ===== */
 Object.assign(A,{setlang:v=>setLang(v),authpane,authgo,agreetog,authdemo,logout,todemo,toacct,retryconnect,maintretry,setskin,legal,deltog,delacctq,delacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,vipbuy:vipBuyGo,vipmethod:vipMethodGo,vippaid:vipPaidGo,vipord:vipOrdGo,vipshow:vipShowGo,vippayclose:vipPayClose,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen,rpreason,rptog,rpsubmit,reportp:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'post',targetId:v})},reportu:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'user',targetId:v,targetUserId:v})},reportcm:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'community',targetId:v})},reportcv:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'conversation',targetId:v,conversationId:v})},reportm:v=>{const p=String(v).split('|');const cid=p[1],mid=p[2];if(typeof reportOpen==='function')reportOpen({targetType:'message',targetId:mid,conversationId:cid,messageIds:[mid]})},blockq:blockAsk,block2:blockUser,unblock:unblockUser,safenum,safeok,e2eerev});

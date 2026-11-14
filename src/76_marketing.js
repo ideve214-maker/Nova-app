@@ -46,3 +46,11 @@ r7Sheet=function(s){
   if(s.t==='adwhy')return `<h3>关于推广</h3><p style="color:var(--t2);line-height:1.6;margin-bottom:12px">带「推广」标记的内容是平台投放的广告，按固定频率出现在信息流里，不代表你关注的人发布。选择「不感兴趣」后，这条推广不会再出现。</p><div class="fr"><button class="pb" data-a="x">知道了</button></div>`;
   return _r7SheetMk?_r7SheetMk(s):'';
 };
+/* r10 数据调整：真实阅读回报服务器（每人每帖只算一次），返回的显示数直接更新到卡片上 */
+const _viewSent=new Set();
+function postViewReport(id,sp){
+  if(!usingNet()||_viewSent.has(id)||/^c\d/.test(String(id)))return;_viewSent.add(id);
+  api('POST','/api/posts/'+encodeURIComponent(id)+'/view',{}).then(r=>{if(!r||r.s!==200||!r.j)return;const n=Number(r.j.viewCount);if(!Number.isFinite(n))return;
+    const p=typeof findPost==='function'?findPost(id):null;if(p)p.viewCount=n;
+    if(sp&&n>0)sp.textContent=typeof fmtN==='function'?fmtN(n):String(n)}).catch(()=>{});
+}

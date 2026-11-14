@@ -42,6 +42,7 @@ import {
 import {createAccount} from './account.mjs';
 import {createFlags} from './flags.mjs';
 import {createMarketing} from './marketing.mjs';
+import {createPostStats} from './post-stats.mjs';
 import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
@@ -138,6 +139,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   };
   const blockwords = createBlockwords(db, {now});
   const marketing = createMarketing(db, {now, blockwords, dataDir: pathJoin(mediaRoot, '..', 'marketing')});
+  const postStats = createPostStats(db, {now, posts, comments});
   const presence = createPresence(db, {now, friends, events, chats: null});
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
   presence.attach({chats, events, friends});
@@ -1512,6 +1514,15 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return r;
     },
 
+    // ---- r10 数据调整 ----
+    'POST /api/posts/:id/view'(req) { const {user} = auth(req); return postStats.view(user, req.params.id); },
+    'GET /api/admin/marketing/posts'(req) { adminAuth(req); return postStats.search(req.query || {}); },
+    'POST /api/admin/marketing/posts/:id/stats'(req, b) {
+      const {admin} = adminAuth(req);
+      const r = postStats.setShown(req.params.id, b || {});
+      audit(admin.id, 'admin.marketing.stats', 'post:' + req.params.id, ip(req), {shown: r.post.shown, real: r.post.real});
+      return r;
+    },
     // ---- r10 营销帖 ----
     'POST /api/marketing/ads/:id/impression'(req) { const {user} = auth(req); return marketing.track(user, req.params.id, 'impression'); },
     'POST /api/marketing/ads/:id/click'(req) { const {user} = auth(req); return marketing.track(user, req.params.id, 'click'); },
@@ -1864,7 +1875,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

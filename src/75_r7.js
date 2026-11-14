@@ -392,7 +392,7 @@ function xbar(p,nLike,nC){
 if(typeof IntersectionObserver!=='undefined'){
   const timers=new Map();
   const io=new IntersectionObserver(es=>{es.forEach(en=>{const id=en.target.getAttribute('data-pid');if(!id)return;
-    if(en.isIntersecting&&en.intersectionRatio>=.5){if(viewedSet().has(id)||timers.has(id))return;timers.set(id,setTimeout(()=>{timers.delete(id);viewedAdd(id);const sp=en.target.querySelector('.xv span');if(sp&&!sp.textContent)sp.textContent='1'},800))}
+    if(en.isIntersecting&&en.intersectionRatio>=.5){if(viewedSet().has(id)||timers.has(id))return;timers.set(id,setTimeout(()=>{timers.delete(id);viewedAdd(id);const sp=en.target.querySelector('.xv span');if(sp&&!sp.textContent)sp.textContent='1';if(typeof postViewReport==='function')postViewReport(id,sp)},800))}
     else if(timers.has(id)){clearTimeout(timers.get(id));timers.delete(id)}})},{threshold:[0,.5]});
   const seen=new WeakSet();
   const scan=()=>document.querySelectorAll('.fcard[data-pid]').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el)}});
