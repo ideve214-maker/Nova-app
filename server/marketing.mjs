@@ -30,6 +30,7 @@ function sniff(buf) {
   return null;
 }
 
+function hostOf(u) { try { return u ? new URL(u).hostname.replace(/^www\./, '') : ''; } catch { return ''; } }
 export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) {
   const mediaDir = dataDir;
   if (mediaDir) mkdirSync(mediaDir, {recursive: true});
@@ -45,6 +46,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
   const upd = db.prepare(`UPDATE marketing_ads SET kind=?,advertiser=?,title=?,text=?,media=?,link_url=?,cta=?,sdk_provider=?,sdk_slot=?,enabled=?,weight=?,starts_at=?,ends_at=?,updated_at=? WHERE id=?`);
   const del = db.prepare('UPDATE marketing_ads SET deleted_at=?, enabled=0 WHERE id=?');
+  const setCard = db.prepare('UPDATE marketing_ads SET avatar=?, domain=?, subtitle=? WHERE id=?');
   const bump = {
     impression: db.prepare('UPDATE marketing_ads SET impressions=impressions+1 WHERE id=?'),
     click: db.prepare('UPDATE marketing_ads SET clicks=clicks+1 WHERE id=?'),
@@ -93,6 +95,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     const out = {
       id: row.id, kind: row.kind, advertiser: row.advertiser || '', title: row.title || '', text: row.text || '',
       media: parseMedia(row.media), linkUrl: row.link_url || '', cta: row.cta || '',
+      avatar: row.avatar || '', domain: row.domain || hostOf(row.link_url), subtitle: row.subtitle || '',
       sdk: row.kind === 'sdk' ? {provider: row.sdk_provider || '', slot: row.sdk_slot || ''} : null,
       badge: '推广',
     };
@@ -115,6 +118,9 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
       media: b.media !== undefined ? JSON.stringify(parseMedia(b.media)) : (cur.media || '[]'),
       link_url: b.linkUrl !== undefined ? str(b.linkUrl, 500) : cur.link_url,
       cta: b.cta !== undefined ? str(b.cta, 12) : cur.cta,
+      avatar: b.avatar !== undefined ? str(b.avatar, 500) : cur.avatar,
+      domain: b.domain !== undefined ? str(b.domain, 60) : cur.domain,
+      subtitle: b.subtitle !== undefined ? str(b.subtitle, 60) : cur.subtitle,
       sdk_provider: b.sdkProvider !== undefined ? str(b.sdkProvider, 20) : cur.sdk_provider,
       sdk_slot: b.sdkSlot !== undefined ? str(b.sdkSlot, 300) : cur.sdk_slot,
       enabled: b.enabled !== undefined ? (b.enabled && b.enabled !== 'false' && b.enabled !== '0' ? 1 : 0) : (cur.enabled == null ? 1 : cur.enabled),
@@ -124,6 +130,8 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     };
     for (const k of Object.keys(o)) if (o[k] === undefined) o[k] = null;
     if (o.link_url && !isHttpUrl(o.link_url)) throw new ApiError(400, 'BAD_LINK', '链接需要以 http:// 或 https:// 开头');
+    if (o.avatar && !isHttpUrl(o.avatar) && !/^\/api\//.test(o.avatar)) throw new ApiError(400, 'BAD_AVATAR', '头像需要是 http(s) 地址或已上传的图片');
+    if (o.domain) o.domain = o.domain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
     const media = JSON.parse(o.media);
     if (kind === 'text' && !o.text && !o.title) throw new ApiError(400, 'BAD_TEXT', '请填写广告文字');
     if ((kind === 'image' || kind === 'video') && !media.length) throw new ApiError(400, 'BAD_MEDIA', kind === 'video' ? '请上传视频' : '请上传图片');
@@ -133,7 +141,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
       if (o.sdk_provider === 'revive' && !isHttpUrl(o.sdk_slot)) throw new ApiError(400, 'BAD_SDK', 'Revive 广告位请填写完整的 afr.php 地址');
     }
     if (blockwords && typeof blockwords.assertPlatform === 'function') {
-      for (const t of [o.title, o.text]) if (t) blockwords.assertPlatform(t);
+      for (const t of [o.title, o.text, o.subtitle, o.advertiser]) if (t) blockwords.assertPlatform(t);
     }
     return o;
   }
@@ -141,6 +149,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     const f = fields(b);
     const id = nid(), t = now();
     ins.run(id, f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, f.weight, f.starts_at, f.ends_at, t, t);
+    setCard.run(f.avatar, f.domain, f.subtitle, id);
     return {ad: pub(byId.get(id), {admin: true})};
   }
   function update(id, b = {}) {
@@ -148,6 +157,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     if (!cur) throw new ApiError(404, 'NOT_FOUND', '营销帖不存在');
     const f = fields(b, cur);
     upd.run(f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, f.weight, f.starts_at, f.ends_at, now(), id);
+    setCard.run(f.avatar, f.domain, f.subtitle, id);
     return {ad: pub(byId.get(id), {admin: true})};
   }
   function remove(id) {

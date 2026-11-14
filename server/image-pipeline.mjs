@@ -22,3 +22,11 @@ export async function processUploadImage(buffer) {
     mime: 'image/jpeg',
   };
 }
+
+/** 2.0.1：背景 / 封面变体——最长边 1080、WebP，体积通常是原图的 1/3。 */
+export async function makeCoverVariant(buffer) {
+  return sharp(buffer, {failOn: 'none', animated: false}).rotate()
+    .resize({width: 1080, height: 1080, fit: 'inside', withoutEnlargement: true})
+    .webp({quality: 78, effort: 4})
+    .toBuffer();
+}

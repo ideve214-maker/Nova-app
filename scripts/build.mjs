@@ -31,6 +31,7 @@ export function parseBuildOpts(argv = process.argv.slice(2), env = process.env) 
     bugsink: on('bugsink', 'NOVA_BUGSINK'),
     bugsinkDsn: String(get('bugsink-dsn', 'NOVA_BUGSINK_DSN') || '').trim(),
     updateManifestUrl: String(get('update-manifest-url', 'NOVA_UPDATE_MANIFEST_URL') || '').trim(),
+    shareUrl: String(get('share-url', 'NOVA_SHARE_URL') || '').trim().replace(/\/+$/, ''),
   };
 }
 
@@ -43,12 +44,14 @@ function packageVersion() {
   }
 }
 
-export function build({apiBase = '', disableDemo = false, secureTransport = false, bugsink = false, bugsinkDsn = '', updateManifestUrl = '', destDir} = {}) {
+export function build({apiBase = '', disableDemo = false, secureTransport = false, bugsink = false, bugsinkDsn = '', updateManifestUrl = '', shareUrl = '', destDir} = {}) {
   const dir = new URL('../src/', import.meta.url);
   const files = fs.readdirSync(dir).sort();
   const head = files.filter(f => f.endsWith('.html')).map(f => fs.readFileSync(new URL(f, dir), 'utf8')).join('');
   const appJs = files.filter(f => f.endsWith('.js')).map(f => `/* ===== ${f} ===== */\n` + fs.readFileSync(new URL(f, dir), 'utf8')).join('\n');
-  const js = vodozemacIife() + '\n' + appJs;
+  /* 2.0.1：注册邮箱白名单和服务器共用 server/email-domains.mjs（去掉 export 后原样内联） */
+  const emailDomains = fs.readFileSync(new URL('../server/email-domains.mjs', import.meta.url), 'utf8').replace(/^export /gm, '');
+  const js = vodozemacIife() + '\n' + '/* ===== server/email-domains.mjs ===== */\n' + emailDomains + '\n' + appJs;
   const cfg = [];
   cfg.push('/* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */');
   if (apiBase) cfg.push('window.NOVA_API_BASE = window.NOVA_API_BASE || ' + JSON.stringify(apiBase) + ';');
@@ -58,6 +61,9 @@ export function build({apiBase = '', disableDemo = false, secureTransport = fals
   if (bugsinkDsn) cfg.push('window.NOVA_BUGSINK_DSN = window.NOVA_BUGSINK_DSN || ' + JSON.stringify(bugsinkDsn) + ';');
   const appVer = packageVersion();
   if (appVer) cfg.push('window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || ' + JSON.stringify(appVer) + ';');
+  /* 分享链接（/p 项目、/x 技能交换、/e 活动 的公开页）：没单独指定时用 API 地址（同一台服务器） */
+  const share = shareUrl || (/^https:\/\//i.test(apiBase) ? apiBase : '');
+  if (share) cfg.push('window.NOVA_SHARE_URL = window.NOVA_SHARE_URL || ' + JSON.stringify(share) + ';');
   if (updateManifestUrl) cfg.push('window.NOVA_UPDATE_MANIFEST_URL = window.NOVA_UPDATE_MANIFEST_URL || ' + JSON.stringify(updateManifestUrl) + ';');
   const configScript = cfg.length > 1 ? '<script>\n' + cfg.join('\n') + '\n</script>\n' : '';
   const here = dirname(fileURLToPath(import.meta.url));

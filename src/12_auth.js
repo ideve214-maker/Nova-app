@@ -50,7 +50,7 @@ async function refreshAppStatus(){
       const on=!!(r.j.maintenance||(r.j.flags&&r.j.flags.maintenance));
       const message=(r.j.maintenanceMessage||(r.j.flags&&r.j.flags.maintenanceMessage)||'系统维护中，请稍后再试');
       S.maint={on,message};
-      S.appStatus={registrationOpen:r.j.registrationOpen!==false,maintenance:on,message};
+      S.appStatus={registrationOpen:r.j.registrationOpen!==false,maintenance:on,message,testEmails:!!r.j.testEmails};
       return S.maint;
     }
   }catch(e){}
@@ -73,7 +73,7 @@ function setMaint(on,message){const was=!!(S.maint&&S.maint.on);S.maint={on:!!on
 function maintOn(){return !!(S.maint&&S.maint.on)}
 function maintBar(){if(!maintOn())return '';return `<div class="maintbar" role="status" data-maint-bar="1"><b>系统维护中</b><span>${esc(S.maint.message||'系统维护中，请稍后再试')}</span><small>维护期间可以浏览，暂时不能发帖、发言、上传或修改资料</small></div>`}
 function maintretry(){return refreshAppStatus().then(st=>{if(MODE==='maint')return bootNet();if(typeof render==='function')render()})}
-function gateView(){const regClosed=S.appStatus&&S.appStatus.registrationOpen===false;const reg=S.auth.pane==='reg'&&!regClosed,busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}</div>`:'';
+function gateView(){const regClosed=S.appStatus&&S.appStatus.registrationOpen===false;const reg=S.auth.pane==='reg'&&!regClosed,busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}${S.auth.sug&&S.auth.err==='邮箱格式不正确'?`<button type="button" class="lk esug" data-a="emailsug">${esc(LANG==='en'?'Did you mean '+S.auth.sug+'?':'是不是想输入 '+S.auth.sug+'？')}</button>`:''}</div>`:'';
 const join=`<label class="lab">用户名</label><input class="fld" data-d="ru" autocomplete="username" placeholder="3–20 位文字、数字或下划线" data-af ${busy?'disabled':''}><label class="lab">邮箱</label><input class="fld" data-d="re" type="email" autocomplete="email" placeholder="name@example.com" ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="rpw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" ${busy?'disabled':''}><label class="lab">再输入一次</label><input class="fld" data-d="rpw2" type="password" autocomplete="new-password" placeholder="再输入一次密码" ${busy?'disabled':''}>${e}<p class="hint" style="margin:12px 0 4px"><button type="button" class="lk" data-a="agreetog" aria-pressed="${S.d.ragree==='1'?'true':'false'}">${S.d.ragree==='1'?'☑':'☐'} 我已阅读并同意</button> <a class="lk" href="/legal/terms" target="_blank" rel="noopener">《用户协议》</a> 和 <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">《隐私政策》</a></p><button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'注册中…':'注册并进入'}</button><p class="hint">已有账号？ <button class="lk" data-a="authpane" data-v="login" ${busy?'disabled':''}>去登录</button></p>`;
 const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">${regClosed?'暂不开放注册。':`还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button> · `}<a class="lk" href="/legal/privacy" target="_blank" rel="noopener">隐私政策</a> · <a class="lk" href="/legal/terms" target="_blank" rel="noopener">用户协议</a></p>`;
 const demoBtn=demoDisabled()?'':`<button class="pb s" style="width:100%" data-a="authdemo" ${busy?'disabled':''}>先用演示看看</button><p class="hint">演示内容只留在这台设备，和真实账号的内容分开存，不会互相覆盖。</p>`;
@@ -81,16 +81,18 @@ return `<div class="pg" id="gate"><div class="top"><h1 class="br">${typeof brand
 function modeChip(){return '';if(!NET||MODE==='boot'||MODE==='gate')return '';if(MODE==='account'&&SESSION&&SESSION.user)return `<div class="ban ok"><b>已登录 ${esc(SESSION.user.username)}</b>私聊已加密。换账号不会串数据。</div>`;return `<div class="ban"><b>演示模式</b>这些内容只在这台设备。 <button class="lk" data-a="toacct" style="color:var(--ac)">${SESSION&&SESSION.user?'回到账号':'登录'}</button></div>`}
 function authpane(v){S.auth.pane=v==='reg'?'reg':'login';S.auth.err=''}
 function agreetog(){S.d.ragree=S.d.ragree==='1'?'':'1';S.auth.err=''}
-async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.auth.err='';
+async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.auth.err='';S.auth.sug='';
   if(reg&&S.appStatus&&S.appStatus.registrationOpen===false){S.auth.pane='login';S.auth.err='暂不开放注册';return}
   if(!reg){const account=(S.d.ac||'').trim(),password=S.d.pw||'';if(!account||!password){S.auth.err='请输入账号和密码';return}S.auth.busy=1;render();const r=await api('POST','/api/auth/login',{account,password});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'登录失败');return}S.d.pw='';enterAccount(r.j.user,r.j.token);return}
   const username=(S.d.ru||'').trim(),email=(S.d.re||'').trim(),password=S.d.rpw||'',p2=S.d.rpw2||'';
   if(!/^[\p{L}\p{N}_]{3,20}$/u.test(username)){S.auth.err='用户名需 3–20 位，仅限文字、数字、下划线';return}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){S.auth.err='邮箱格式不正确';return}
+  /* 2.0.1 邮箱域名白名单（列表和服务器共用 server/email-domains.mjs）；打错常见域名时提示「是不是想输入…」 */
+  if(typeof emailDomainCheck==='function'){const dc=emailDomainCheck(email,{allowTest:!!(S.appStatus&&S.appStatus.testEmails)});if(!dc.ok){S.auth.sug=dc.suggest?email.split('@')[0]+'@'+dc.suggest:'';S.auth.err='邮箱格式不正确';return}}
   if(!(password.length>=8&&password.length<=128&&/[A-Za-z]/.test(password)&&/\d/.test(password))){S.auth.err='密码需 8–128 位，且同时包含字母和数字';return}
   if(password!==p2){S.auth.err='两次输入的密码不一致';return}
   if(S.d.ragree!=='1'){S.auth.err='请先阅读并同意《用户协议》和《隐私政策》';return}
-  S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password,agree:true});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'注册失败');return}
+  S.auth.busy=1;render();const r=await api('POST','/api/auth/register',{username,email,password,agree:true});S.auth.busy=0;if(r.s!==200){const sg=r.j&&r.j.error&&r.j.error.suggest;S.auth.sug=sg||'';S.auth.err=sg?'邮箱格式不正确':errMsg(r,'注册失败');return}
   S.d.rpw='';S.d.rpw2='';enterAccount(r.j.user,r.j.token)}
 function authdemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(S.auth.busy)return;localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;/* 演示提示条与该 toast 已按产品要求关闭 */}
 function logout(){
@@ -112,3 +114,6 @@ function todemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(
 async function toacct(){if(MODE!=='gate')save();const tok=readTok();localStorage.setItem('nova_mode','account');if(!tok){MODE='gate';S.auth={pane:'login',err:'',busy:0};S.st=[];S.sh=null;return}const me=await api('GET','/api/me',null,tok);if(me.s!==200){clearTok();MODE='gate';S.auth={pane:'login',err:'登录已过期，请重新登录',busy:0};S.st=[];return}enterAccount(me.j.user,tok)}
 async function bootNet(){if(bootNet._p)return bootNet._p;bootNet._p=(async()=>{MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch(apiUrl('/api/health'),{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){if(demoDisabled()){MODE='offline';render();return}MODE='demo';D=load();render();return}startStatusWatch();await refreshAppStatus();const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'&&!demoDisabled()){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()})().finally(()=>{bootNet._p=null});return bootNet._p}
 function boot(){if(location.protocol==='file:'&&!demoDisabled()&&!apiBase()){NET=false;MODE='demo';D=load();render();return}bootNet()}
+
+/* 2.0.1 点「是不是想输入 …？」直接改成建议的邮箱 */
+function emailsug(){if(!S.auth.sug)return;S.d.re=S.auth.sug;S.auth.sug='';S.auth.err=''}

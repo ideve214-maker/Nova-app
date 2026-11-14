@@ -126,12 +126,14 @@ export function createE2ee(db, {now, friends} = {}) {
       if (Number(existing.user_id) !== Number(user.id)) throw new ApiError(409, 'DEVICE_TAKEN', '该设备已属于其他账号');
       if (existing.revoked_at) throw new ApiError(409, 'DEVICE_REVOKED', '该设备已撤销，请使用新的设备 ID');
       if (existing.curve25519 !== curve || existing.ed25519 !== ed) {
-        throw new ApiError(409, 'IDENTITY_CHANGED', '同一设备不得更换身份密钥，请用新设备 ID 并请对方重新核对安全号码');
+        throw new ApiError(409, 'IDENTITY_CHANGED', '同一设备不得更换身份密钥，请用新设备 ID');
       }
     } else {
       const n = nActive.get(Number(user.id)).n;
       if (n >= MAX_DEVICES) throw new ApiError(400, 'TOO_MANY_DEVICES', '设备数量已达上限，请先撤销一台');
       insDev.run(deviceId, Number(user.id), curve, ed, null, null, t, t);
+      // 2.0.1：客户端会自动信任新密钥、不再提示用户；在服务器日志里留一条记录（只有用户 ID 和设备 ID，不含密钥）
+      if (n > 0) { try { console.info('[e2ee] 用户 ' + Number(user.id) + ' 新增设备身份密钥 ' + deviceId + '（已有 ' + n + ' 台）'); } catch {} }
     }
     let fbId = null, fbKey = null;
     const fb = body.fallbackKey;

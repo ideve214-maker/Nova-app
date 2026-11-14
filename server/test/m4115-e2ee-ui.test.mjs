@@ -18,12 +18,18 @@ test('审查文档：独立审查尚未通过；诚实说明已用 Olm 加密且
   assert.match(doc, /群聊/);
 });
 
-test('构建产物诚实标识：私聊已加密、有安全号码；不宣称已端到端加密；演示与群聊标明未加密', () => {
+test('构建产物诚实标识：私聊已加密；2.0.1 起不再显示安全号码 / 密钥变化提示；不宣称已端到端加密；演示与群聊标明未加密', () => {
   // 文案在 9b145ed（r6）起改为更口语的「已登录 · 私聊已加密」，测试跟上当前界面。
   assert.match(dist, /已登录 · 私聊已加密/);
   assert.match(dist, /一对一聊天会加密后发送/);
   assert.match(dist, /群聊暂时还没有加密|群聊暂不加密/);
-  assert.match(dist, /安全号码/);
+  // 2.0.1：自动信任新密钥，界面里不再有密钥变化横幅、安全号码弹层和「标记为已核对」
+  {
+    const ui = readdirSync(join(root, 'src')).filter(f => f.endsWith('.js') && f !== '11_i18n_dict.js').map(f => readFileSync(join(root, 'src', f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')).join('\n');
+    assert.doesNotMatch(ui, /对方密钥已变化/);
+    assert.doesNotMatch(ui, /标记为已核对/);
+    assert.doesNotMatch(ui, /data-a="safenum"/);
+  }
   assert.match(dist, /演示模式/);
   assert.match(dist, /不会发送真实消息/);
   assert.doesNotMatch(dist, /已端到端加密/);

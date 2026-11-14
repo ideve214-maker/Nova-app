@@ -34,7 +34,9 @@ export function createProjects(db, {now, authorOf, chats, notifications}) {
   const memOf = db.prepare('SELECT * FROM project_members WHERE project_id=? AND user_id=?');
   const insM = db.prepare('INSERT INTO project_members(project_id,user_id,role,status,message,created_at,updated_at) VALUES(?,?,?,?,?,?,?)');
   const updM = db.prepare('UPDATE project_members SET status=?, message=COALESCE(?,message), updated_at=? WHERE project_id=? AND user_id=?');
-  const members = db.prepare("SELECT * FROM project_members WHERE project_id=? AND status='active' ORDER BY role='owner' DESC, created_at");
+  const setPRole = db.prepare("UPDATE project_members SET role=?, updated_at=? WHERE project_id=? AND user_id=? AND role<>'owner'");
+  const byConv = db.prepare("SELECT * FROM projects WHERE conversation_id=? AND status<>'removed'");
+  const members = db.prepare("SELECT * FROM project_members WHERE project_id=? AND status='active' ORDER BY role='owner' DESC, role='lead' DESC, created_at");
   const requests = db.prepare("SELECT * FROM project_members WHERE project_id=? AND status='requested' ORDER BY created_at");
   const nActive = db.prepare("SELECT COUNT(*) AS n FROM project_members WHERE project_id=? AND status='active'");
   const insT = db.prepare('INSERT INTO project_tasks(id,project_id,title,assignee_id,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)');
@@ -53,6 +55,8 @@ export function createProjects(db, {now, authorOf, chats, notifications}) {
     WHERE p.status IN ('recruiting','active','completed') AND (? = '' OR p.status = ?)
       AND (? = '' OR p.title LIKE ? OR p.goal LIKE ? OR p.skills LIKE ? OR p.description LIKE ?)
       AND (? IS NULL OR p.updated_at < ?)
+      -- 2.0.1：满员的项目不出现在共创列表 / 搜索里（成员在「我的」里照常能看到；有人退出后自动回来）
+      AND (p.status = 'completed' OR (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id=p.id AND pm.status='active') < p.capacity)
     ORDER BY p.status='completed', p.updated_at DESC LIMIT ?`);
   const mineQ = db.prepare(`SELECT p.*, m.status AS my_status, m.role AS my_role FROM projects p JOIN project_members m ON m.project_id=p.id AND m.user_id=?
     WHERE m.status IN ('active','requested') AND p.status!='removed' ORDER BY p.updated_at DESC LIMIT 100`);
@@ -111,7 +115,7 @@ export function createProjects(db, {now, authorOf, chats, notifications}) {
     const isMember = !!(my && my.status === 'active');
     const out = {
       id: r.id, title: r.title, goal: r.goal, description: r.description || '', skills, category: r.category || null,
-      capacity: r.capacity, memberCount: nActive.get(r.id).n, status: r.status, owner: authorOf(r.owner_id),
+      capacity: r.capacity, memberCount: nActive.get(r.id).n, full: nActive.get(r.id).n >= r.capacity, status: r.status, owner: authorOf(r.owner_id),
       createdAt: r.created_at, updatedAt: r.updated_at, completedAt: r.completed_at || null, showcase,
       myStatus: my ? my.status : null, myRole: my ? my.role : null, isOwner: !!(me && Number(me.id) === Number(r.owner_id)),
       progress: progress(r.id),
@@ -201,19 +205,42 @@ export function createProjects(db, {now, authorOf, chats, notifications}) {
   function leave(user, id) {
     const r = need(id);
     const m = requireMember(r, user);
-    if (m.role === 'owner') throw new ApiError(400, 'OWNER_LEAVE', '负责人不能退出项目，可以结束或取消项目');
+    if (m.role === 'owner') throw new ApiError(400, 'OWNER_LEAVE', '发起人不能退出项目，可以结束或取消项目');
     updM.run('left', null, now(), id, Number(user.id));
+    setPRole.run('member', now(), id, Number(user.id));
     if (r.conversation_id) chats.systemRemove(r.conversation_id, user.id);
     return {left: true};
   }
   function removeMember(user, id, uid) {
     const r = need(id); requireOwner(r, user);
-    if (Number(uid) === Number(r.owner_id)) throw new ApiError(400, 'BAD_USER', '不能移出负责人');
+    if (Number(uid) === Number(r.owner_id)) throw new ApiError(400, 'BAD_USER', '不能移出发起人');
     const m = memOf.get(id, Number(uid));
     if (!m || m.status !== 'active') throw new ApiError(404, 'NOT_FOUND', '对方不是项目成员');
     updM.run('removed', null, now(), id, Number(uid));
+    setPRole.run('member', now(), id, Number(uid));
     if (r.conversation_id) chats.systemRemove(r.conversation_id, uid);
     return {project: pub(byId.get(id), user, {full: true})};
+  }
+  /* 2.0.1 负责人 = 项目群聊管理员（双向同步）：发起人在项目页设 / 取消负责人 → 同步群聊管理员；
+     群主在项目群聊里设 / 取消管理员 → 同步项目负责人（syncFromChat，由 chats 的回调调用） */
+  function setLead(user, id, uid, on) {
+    const r = need(id); requireOwner(r, user);
+    const n = Number(uid);
+    if (n === Number(r.owner_id)) throw new ApiError(400, 'BAD_USER', '发起人不需要设为负责人');
+    const m = memOf.get(id, n);
+    if (!m || m.status !== 'active') throw new ApiError(404, 'NOT_FOUND', '对方不是项目成员');
+    setPRole.run(on ? 'lead' : 'member', now(), id, n);
+    if (r.conversation_id) { try { chats.systemSetRole(r.conversation_id, n, on ? 'admin' : 'member'); } catch {} }
+    if (on) notify(n, 'project_lead', '你成为了项目负责人', '「' + r.title + '」的发起人把你设为负责人', id, user.id);
+    return {project: pub(byId.get(id), user, {full: true})};
+  }
+  function syncFromChat(cvId, uid, chatRole) {
+    const r = byConv.get(cvId);
+    if (!r) return false;
+    const m = memOf.get(r.id, Number(uid));
+    if (!m || m.status !== 'active' || m.role === 'owner') return false;
+    setPRole.run(chatRole === 'admin' ? 'lead' : 'member', now(), r.id, Number(uid));
+    return true;
   }
   function memberId(r, v) {
     if (v == null || v === '') return null;
@@ -330,6 +357,16 @@ export function createProjects(db, {now, authorOf, chats, notifications}) {
     setSt.run(r.completed_at ? 'completed' : 'active', now(), null, id);
     return {project: adminRow(byId.get(id))};
   }
-  return {norm, textOf, create, list, get, edit, apply, decide, leave, removeMember, addTask, updateTask, deleteTask, addPost, deletePost,
+  /* 2.0.1 公开落地页（/p/<id>）：只给标题、目标、介绍、技能、状态和人数；不含成员、任务、文件、群聊 */
+  function publicCard(id) {
+    const r = byId.get(String(id || ''));
+    if (!r || r.status === 'removed') return null;
+    let skills = []; try { skills = JSON.parse(r.skills || '[]'); } catch {}
+    let showcase = null; try { showcase = r.showcase ? JSON.parse(r.showcase) : null; } catch {}
+    return {id: r.id, title: r.title, goal: r.goal, description: String(r.description || '').slice(0, 600), skills: skills.slice(0, 8),
+      status: r.status, memberCount: nActive.get(r.id).n, capacity: r.capacity,
+      showcase: r.status === 'completed' && showcase ? String(showcase.summary || '').slice(0, 300) : ''};
+  }
+  return {setLead, syncFromChat, publicCard, norm, textOf, create, list, get, edit, apply, decide, leave, removeMember, addTask, updateTask, deleteTask, addPost, deletePost,
     complete, cancel, canAccessMedia, adminList, adminGet, adminRemove, adminRestore, linkInfo};
 }

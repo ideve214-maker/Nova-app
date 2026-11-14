@@ -14,6 +14,9 @@ import {createPosts} from './posts.mjs';
 import {createPolls} from './polls.mjs';
 import {createActivities} from './activities.mjs';
 import {createExchange} from './exchange.mjs';
+import {createAiAssist} from './ai-assist.mjs';
+import {emailDomainCheck} from './email-domains.mjs';
+import {renderProjectPage, renderExchangePage, renderActivityPage} from './share-page.mjs';
 import {createProjects} from './projects.mjs';
 import {createHashtags} from './hashtags.mjs';
 import {createSchedule} from './schedule.mjs';
@@ -88,6 +91,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   adminPassword = process.env.NOVA_ADMIN_PASSWORD,
   payEnv = process.env, payDir, scheduleAuto, scheduleInterval = 5000,
   trustProxy = process.env.NOVA_TRUST_PROXY === '1',
+  // 2.0.1 注册邮箱白名单：测试运行器（node --test）或 NOVA_ALLOW_TEST_EMAILS=1 时才放行 .test 等测试域名
+  allowTestEmails = !!process.env.NODE_TEST_CONTEXT || process.env.NOVA_ALLOW_TEST_EMAILS === '1',
   trustedProxies = process.env.NOVA_TRUSTED_PROXIES || '',
   cookieSession = process.env.NOVA_COOKIE_SESSION === '1',
   cookieSecure = process.env.NOVA_COOKIE_SECURE,
@@ -230,7 +235,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const activities = createActivities(db, {now, notifications: notifyProxy, authorOf: id => chats.authorOf(id)});
   posts.attach({activityOf: (id, me) => activities.ofPost(id, me)});
   const exchange = createExchange(db, {now, authorOf: id => chats.authorOf(id), friends, chats});
+  const aiAssist = createAiAssist(db, {now, env: aiEnv || process.env, fetchImpl: aiFetch, exchange, friends});
   const projects = createProjects(db, {now, authorOf: id => chats.authorOf(id), chats, notifications: notifyProxy});
+  chats.setRoleHook((cvId, uid, role) => projects.syncFromChat(cvId, uid, role));
   media.attachLook(id => communities.look.isLookMedia(id) || activities.isCoverMedia(id));
   media.attachExtraAccess((user, row) => projects.canAccessMedia(user, row.id));
   const setBadge = db.prepare('UPDATE users SET badge=?, badge_at=? WHERE id=?');
@@ -345,6 +352,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const username = String(b.username || '').trim(), email = String(b.email || '').trim().toLowerCase(), pw = b.password;
       if (!validate.username(username)) throw bad('BAD_USERNAME', '用户名需 3–20 位，仅限文字、数字、下划线');
       if (!validate.email(email)) throw bad('BAD_EMAIL', '邮箱格式不正确');
+      { const dc = emailDomainCheck(email, {allowTest: allowTestEmails});
+        if (!dc.ok) { const e = bad('BAD_EMAIL', dc.suggest ? '邮箱格式不正确，是不是想输入 ' + email.split('@')[0] + '@' + dc.suggest + '？' : '邮箱格式不正确'); e.extra = dc.suggest ? {suggest: email.split('@')[0] + '@' + dc.suggest} : {}; throw e; } }
       if (!validate.password(pw)) throw bad('WEAK_PASSWORD', PW_MSG);
       if (b.agree === false || b.agree === 0 || b.agree === '0' || b.agree === 'no' || b.agree === 'false') {
         throw bad('AGREE_REQUIRED', '请阅读并同意《用户协议》和《隐私政策》');
@@ -1549,6 +1558,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/activities/:id/cancel'(req) { const {user} = auth(req); return activities.cancel(user, req.params.id); },
     'GET /api/activities/:id/signups'(req) { const {user} = auth(req); return activities.signups(user, req.params.id); },
     // ---- VEXO 2.0 技能交换 ----
+    // ---- 2.0.1 AI：翻译、技能匹配、官方助手（智谱 glm-4-flash；失败时有兜底） ----
+    async 'POST /api/ai/translate'(req, b) { const {user} = auth(req); return aiAssist.translate(user, b || {}); },
+    async 'GET /api/exchange/match'(req) { const {user} = auth(req); return aiAssist.match(user); },
+    async 'POST /api/assistant/ask'(req, b) { const {user} = auth(req); return aiAssist.ask(user, b || {}); },
+    'GET /api/assistant/faq'(req) { auth(req); return {sections: aiAssist.faqSections()}; },
     'GET /api/exchange'(req) { const {user} = auth(req); return exchange.list(user, req.query || {}); },
     async 'POST /api/exchange'(req, b) {
       const {user} = auth(req);
@@ -1598,6 +1612,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/projects/:id/requests/:uid/approve'(req) { const {user} = auth(req); return projects.decide(user, req.params.id, req.params.uid, true); },
     'POST /api/projects/:id/requests/:uid/reject'(req) { const {user} = auth(req); return projects.decide(user, req.params.id, req.params.uid, false); },
     'POST /api/projects/:id/leave'(req) { const {user} = auth(req); return projects.leave(user, req.params.id); },
+    'POST /api/projects/:id/members/:uid/lead'(req, b) { const {user} = auth(req); return projects.setLead(user, req.params.id, req.params.uid, !(b && (b.on === false || b.on === 0 || b.on === '0'))); },
     'POST /api/projects/:id/members/:uid/remove'(req) { const {user} = auth(req); return projects.removeMember(user, req.params.id, req.params.uid); },
     'POST /api/projects/:id/tasks'(req, b) { const {user} = auth(req); assertV2Text(b && b.title); return projects.addTask(user, req.params.id, b || {}); },
     'POST /api/projects/:id/tasks/:tid'(req, b) { const {user} = auth(req); assertV2Text(b && b.title); return projects.updateTask(user, req.params.id, req.params.tid, b || {}); },
@@ -1713,7 +1728,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return {
         maintenance: f.maintenance,
         maintenanceMessage: f.maintenanceMessage,
-        registrationOpen: f.registrationOpen,
+        registrationOpen: f.registrationOpen, ...(allowTestEmails ? {testEmails: true} : {}),
         reviewRequired: f.reviewRequired,
         loginProtect: f.loginProtect,
         flags: f,
@@ -1893,6 +1908,19 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       res.writeHead(200, {...h, ...securityHeaders({hsts: !!hsts, html: true, connectSrc: process.env.NOVA_API_BASE || ''}), 'Content-Type': 'text/html; charset=utf-8'});
       return res.end(html);
     }
+    // 2.0.1 公开分享页（只读，不需要登录）：/p/<项目> /x/<技能交换> /e/<活动>；微信等只认链接的地方用
+    const shareP = /^\/([pxe])\/([A-Za-z0-9_-]{1,48})\/?$/.exec(path);
+    if (req.method === 'GET' && shareP) {
+      const kind = shareP[1], sid = shareP[2], dl = {downloadUrl: process.env.NOVA_DOWNLOAD_URL || '/download/vexo/'};
+      let out;
+      try {
+        out = kind === 'p' ? renderProjectPage(projects.publicCard(sid), dl)
+          : kind === 'x' ? renderExchangePage(exchange.publicCard(sid), dl)
+          : renderActivityPage(activities.publicCard(sid), dl);
+      } catch { out = renderProjectPage(null, dl); }
+      res.writeHead(out.status, {...h, ...securityHeaders({hsts: !!hsts, html: true}), 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60'});
+      return res.end(out.html);
+    }
     if (req.method === 'GET' && path.startsWith('/assets/')) {
       const name = decodeURIComponent(path.slice('/assets/'.length));
       if (!name || name.includes('..') || name.startsWith('/') || !/^(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/.test(name)) {
@@ -1920,22 +1948,37 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return res.end(html);
       } catch { return send(503, {error: {code: 'NO_BUILD', message: '前端还没构建'}}); }
     }
-    const mediaFile = /^\/api\/media\/([^/]+)\/(file|preview)$/.exec(path);
+    const mediaFile = /^\/api\/media\/([^/]+)\/(file|preview|cover)$/.exec(path);
+    const sendMediaFile = f => {
+        const data = readFileSync(f.path);
+        /* 2.0.1：媒体 id 对应的内容不会变，图片可以长缓存（私有缓存，仍要凭证）；其他类型保持短缓存 */
+        const longCache = /^image\//.test(f.mime || '');
+        sendRanged(req, res, data, {
+          ...corsHeaders(req),
+          'Content-Type': f.mime,
+          'Content-Disposition': "inline; filename=\"" + String(f.name || 'file').replace(/[^\x20-\x7e]|["\\]/g, '_') + "\"; filename*=UTF-8''" + encodeURIComponent(f.name || 'file'),
+          'Cache-Control': longCache ? 'private, max-age=2592000, immutable' : 'private, max-age=60',
+          'X-Content-Type-Options': 'nosniff',
+        });
+    };
+    if (req.method === 'GET' && mediaFile && mediaFile[2] === 'cover') {
+      /* 2.0.1：封面变体要异步生成，生成后回到下面同一段发送逻辑 */
+      let who0;
+      try { if (req.query.token || req.query.access_token || req.query.authorization) throw bad('TOKEN_IN_URL', '不要把访问令牌放在 URL 里', 400); who0 = req.query.ticket ? {ticket: req.query.ticket} : auth(req).user; }
+      catch (e) { if (e instanceof HttpError || e instanceof ApiError) return send(e.s, {error: {code: e.code, message: e.message}}); return send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
+      media.coverOf(who0, decodeURIComponent(mediaFile[1])).then(f => { try { sendMediaFile(f); } catch { send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); } }, e => {
+        if (e instanceof ApiError || e instanceof HttpError) send(e.s, {error: {code: e.code, message: e.message}});
+        else send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}});
+      });
+      return;
+    }
     if (req.method === 'GET' && mediaFile) {
       try {
         if (req.query.token || req.query.access_token || req.query.authorization) throw bad('TOKEN_IN_URL', '不要把访问令牌放在 URL 里', 400);
         const mid = decodeURIComponent(mediaFile[1]);
         const preview = mediaFile[2] === 'preview';
         const who = req.query.ticket ? {ticket: req.query.ticket} : auth(req).user;
-        const f = media.fileOf(who, mid, {preview});
-        const data = readFileSync(f.path);
-        return sendRanged(req, res, data, {
-          ...corsHeaders(req),
-          'Content-Type': f.mime,
-          'Content-Disposition': "inline; filename=\"" + String(f.name || 'file').replace(/[^\x20-\x7e]|["\\]/g, '_') + "\"; filename*=UTF-8''" + encodeURIComponent(f.name || 'file'),
-          'Cache-Control': 'private, max-age=60',
-          'X-Content-Type-Options': 'nosniff',
-        });
+        return sendMediaFile(media.fileOf(who, mid, {preview}));
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
         else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
@@ -2047,7 +2090,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

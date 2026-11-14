@@ -13,7 +13,14 @@ async function fakeFetch(url, opt) {
   if (mode === 'timeout') return new Promise((_, rej) => opt.signal.addEventListener('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; rej(e); }));
   if (mode === 'junk') return Response.json({choices: [{message: {content: 'not json'}}]});
   const text = body.messages[1].content;
-  const out = /加微信|赌博/.test(text) ? {verdict: 'block', category: '导流广告', reason: '含站外联系方式'} : {verdict: 'allow', category: '', reason: ''};
+  if (mode === 'strict') {
+    // 模拟线上 glm-4-flash 的旧习惯：联系方式、数字、脏话都拦（类别有时只给编号）
+    const strict = [[/@|vx|\d/, {verdict: 'block', category: '6', reason: '站外导流'}], [/傻逼|傻子|脑残/, {verdict: 'block', category: '5', reason: '辱骂、人身攻击'}]];
+    const hit = strict.find(([re]) => re.test(text));
+    return Response.json({choices: [{message: {content: JSON.stringify(hit ? hit[1] : {verdict: 'allow', category: '', reason: ''})}}]});
+  }
+  if (mode === 'allowall') return Response.json({choices: [{message: {content: '{"verdict":"allow","category":"","reason":""}'}}]});
+  const out = /加微信|赌博/.test(text) ? {verdict: 'block', category: '赌博诈骗', reason: '赌博引流'} : {verdict: 'allow', category: '', reason: ''};
   return Response.json({choices: [{message: {content: JSON.stringify(out)}}]});
 }
 test.before(async () => {
@@ -66,7 +73,7 @@ test('AI 审查：默认关闭；开启后拦截违规、放行正常；设置�
   // 测试接口
   const t = await call('POST', '/api/admin/ai-moderation/test', {text: '赌博'}, adm);
   assert.equal(t.j.result.verdict, 'block');
-  assert.equal(t.j.result.category, '导流广告');
+  assert.equal(t.j.result.category, '赌博诈骗');
 });
 
 test('AI 审查：仅标记模式不拦截；失败、超时、限速都退回关键词过滤并记录', async () => {
@@ -158,4 +165,41 @@ test('AI 审查：以前存过的 Groq 模型自动换回 glm-4-flash', async ()
   assert.equal(st.j.settings.model, 'glm-4-flash');
   assert.ok(!st.j.status.models.some(m => /gpt-oss|deepseek/.test(m)));
   sv.close();
+});
+
+test('2.0.1 审查新规则：联系方式和脏话放行；死亡 / 自杀 / 杀人词一定被抓住', async () => {
+  await call('POST', '/api/admin/ai-moderation', {enabled: true, mode: 'block', rules: ''}, adm);
+  const u = await acc('pol');
+  mode = 'strict';
+  for (const t of ['联系人2msic@gmail.com', 'vx282828', '3303919728', '2778', '傻逼', '傻子', '脑残']) {
+    const r = await call('POST', '/api/posts', {text: t}, u.tok);
+    assert.equal(r.s, 200, t + ' 应放行：' + JSON.stringify(r.j));
+  }
+  // AI 完全放行时，本地预检也要抓住
+  mode = 'allowall';
+  for (const t of ['去死吧', '杀了你']) {
+    const r = await call('POST', '/api/posts', {text: t}, u.tok);
+    assert.equal(r.s, 422, t + ' 应拦截');
+    assert.equal(r.j.error.code, 'AI_REJECTED');
+  }
+  const r = await call('POST', '/api/posts', {text: '我想死'}, u.tok);
+  assert.equal(r.s, 200, '表达想死：标记复核，不拦截');
+  const fl = (await call('GET', '/api/admin/ai-moderation?verdict=flag', null, adm)).j.logs;
+  assert.ok(fl.some(l => l.excerpt === '我想死' && /死/.test(l.reason)), '我想死 进入标记记录');
+  // 拦截类不调用 AI；纯联系方式也不调用 AI
+  const n1 = calls.length;
+  await call('POST', '/api/posts', {text: '杀了你'}, u.tok);
+  await call('POST', '/api/posts', {text: 'vx282828'}, u.tok);
+  assert.equal(calls.length, n1);
+  // AI 关闭时死亡词仍然本地处理
+  await call('POST', '/api/admin/ai-moderation', {enabled: false}, adm);
+  assert.equal((await call('POST', '/api/posts', {text: '去死吧'}, u.tok)).s, 422);
+  assert.equal((await call('POST', '/api/posts', {text: '傻逼'}, u.tok)).s, 200);
+  // 默认规则文本不再包含站外导流 / 隐私
+  const st = (await call('GET', '/api/admin/ai-moderation', null, adm)).j;
+  const rules = String((st.status && st.status.defaultRules) || st.defaultRules || '');
+  assert.ok(rules.length > 20, '状态里带默认规则');
+  assert.ok(!/\d\. [^\n]*(站外导流|泄露他人隐私|辱骂)/.test(rules), rules);
+  assert.match(rules, /自杀/);
+  mode = 'ok';
 });

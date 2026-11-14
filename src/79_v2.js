@@ -13,6 +13,7 @@ Object.assign(ICL,{
   file:'<path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5"/>',
   chat2:'<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4A8 8 0 1 1 20 12z"/>',
   check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  board:'<rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M9 4v16M9 9.5h11.5"/>',
   pin2:'<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
   globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5S9.5 6.1 12 3.5z"/>',
   users:'<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><path d="M15.5 5.6a3 3 0 0 1 0 5.8M17.6 14.6c1.6.6 2.6 2.2 2.9 4.4"/>'
@@ -30,14 +31,50 @@ function v2ms(v){if(!v)return null;const t=new Date(v).getTime();return Number.i
 const v2ago=ms=>typeof ago==='function'?ago(ms):'';
 const v2num=(n,zh,en)=>V2EN()?`${n} ${en}`:`${n} ${zh}`;
 
-/* ---- 分享：系统分享面板，不支持时复制到剪贴板 ---- */
-/* 服务器上还没有公开落地页：只有配置了 NOVA_SHARE_URL 才附链接，否则附一句在 App 里怎么找到 */
-const V2SHARE_URL=()=>{try{return (typeof window!=='undefined'&&window.NOVA_SHARE_URL)||''}catch(e){return ''}};
-async function v2share(title,text){
-  const url=V2SHARE_URL();const body=text+'\n'+(url||(V2EN()?'Find it in the VEXO app → Co-create':'打开 VEXO App →「共创」查看'));
-  try{if(navigator.share){await navigator.share({title,text:body});return}}catch(e){if(e&&e.name==='AbortError')return}
-  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(title+'\n'+body);T('已复制分享内容');return}}catch(e){}
-  try{const ta=document.createElement('textarea');ta.value=title+'\n'+body;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();T('已复制分享内容')}catch(e){T('无法分享')}
+/* ---- 分享（2.0.1 重做）：微信不接受只有文字的系统分享（会提示「不支持的分享类型」），所以一律分享链接。
+   链接指向服务器上的公开只读页：/p/<项目> /x/<技能交换> /e/<活动>（见 server/share-page.mjs）。
+   顺序：系统分享面板（标题 + 链接，不再塞长文字）→ 不支持或失败时复制链接。
+   withCard=true 时，如果系统支持分享图片文件（navigator.canShare({files})），先生成一张分享卡片图片和链接一起给面板；
+   失败（包括微信不收图片 + 链接的组合）就退回只分享链接。 */
+function v2shareBase(){const strip=u=>String(u||'').trim().replace(/[#?].*$/,'').replace(/\/+$/,'');
+  try{const u=window.NOVA_SHARE_URL||'';if(/^https?:\/\//i.test(u))return strip(u)}catch(e){}
+  try{const b=typeof apiBase==='function'?apiBase():'';if(/^https?:\/\//i.test(b))return strip(b)}catch(e){}
+  try{if(/^https?:$/.test(location.protocol))return strip(location.origin)}catch(e){}
+  return ''}
+function v2shareLink(kind,id){const b=v2shareBase();return b?b+'/'+kind+'/'+encodeURIComponent(id):''}
+async function v2copyLink(url,title){
+  const t=url||title||'';
+  const ok=typeof copyText==='function'?await copyText(t):await (async()=>{try{await navigator.clipboard.writeText(t);return true}catch(e){return false}})();
+  T(ok?(url?'已复制链接，可以粘贴到微信发给好友':'已复制'):'复制失败，请稍后再试')}
+async function v2cardFile(title,lines){
+  try{
+    if(typeof document==='undefined'||typeof File==='undefined')return null;
+    const W=1080,H=1080,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');if(!g)return null;
+    const gr=g.createLinearGradient(0,0,W,H);gr.addColorStop(0,'#4F6EF7');gr.addColorStop(1,'#8A5CF6');g.fillStyle=gr;g.fillRect(0,0,W,H);
+    g.fillStyle='rgba(255,255,255,.96)';const r=48,x=60,y=60,w=W-120,h=H-120;g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fill();
+    const F='"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif';
+    const wrap=(t,font,max,lh,yy,color,maxL)=>{g.font=font;g.fillStyle=color;let line='',n=0;for(const ch of [...String(t||'')]){if(g.measureText(line+ch).width>max){g.fillText(line,120,yy);yy+=lh;line=ch;if(++n>=maxL-1){line=line+'…';break}}else line+=ch}if(line){g.fillText(line,120,yy);yy+=lh}return yy};
+    g.font='bold 40px '+F;g.fillStyle='#4F6EF7';g.fillText('VEXO',120,170);
+    let yy=wrap(title,'bold 68px '+F,W-240,88,290,'#13151C',3)+20;
+    for(const l of lines.filter(Boolean).slice(0,4))yy=wrap(l,'40px '+F,W-240,56,yy,'#5C6478',3)+14;
+    g.font='34px '+F;g.fillStyle='#8A90A2';g.fillText(V2EN()?'Open the link to view · VEXO':'打开链接查看 · VEXO',120,H-140);
+    const blob=await new Promise(res=>c.toBlob(res,'image/png'));if(!blob)return null;
+    return new File([blob],'vexo-share.png',{type:'image/png'});
+  }catch(e){return null}
+}
+/* 分享入口：先弹一个小菜单——分享链接（推荐，微信可用）/ 分享图片卡片（系统支持图片分享时才显示）/ 复制链接。
+   不把图片和链接混在一次分享里：微信收到「图片 + 链接」或「纯文字」都会提示「不支持的分享类型」，而且这时 navigator.share 已经成功返回，没法再退回。 */
+function v2canFiles(){try{if(!navigator.share||!navigator.canShare||typeof File==='undefined')return false;return navigator.canShare({files:[new File([new Uint8Array(8)],'t.png',{type:'image/png'})]})}catch(e){return false}}
+async function v2share(title,text,url,opt){
+  S.v2shp={title,text,url,lines:(opt&&opt.lines)||[text]};
+  S.sh={t:'v2sh'};
+}
+async function v2shareGo(how){
+  const d=S.v2shp;S.sh=null;if(!d)return;
+  if(how==='copy'||!d.url)return v2copyLink(d.url,d.title);
+  if(how==='card'){const f=await v2cardFile(d.title,d.lines);if(f){try{await navigator.share({files:[f]});return}catch(e){if(e&&e.name==='AbortError')return}}return v2copyLink(d.url,d.title)}
+  if(typeof navigator!=='undefined'&&navigator.share){try{await navigator.share({title:d.title,url:d.url});return}catch(e){if(e&&e.name==='AbortError')return}}
+  return v2copyLink(d.url,d.title);
 }
 function v2open(url){if(!/^https?:\/\//i.test(String(url||'')))return T('链接无效');try{const w=window.open(url,'_blank','noopener');if(!w)location.href=url}catch(e){location.href=url}}
 const LINK_IC={github:'GH',gitee:'GE',feishu:'飞',['tencent-docs']:'腾',yuque:'语',notion:'N',figma:'F',link:''};
@@ -84,7 +121,7 @@ const coPj=()=>{const c=coS();
 const pjBar=pg=>`<div class="pjbar" role="progressbar" aria-valuenow="${pg.percent}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pg.percent}%"></i></div>`;
 const pjPill=st=>{const s=PJST[st]||PJST.active;return `<span class="pill ${s[1]}">${s[0]}</span>`};
 const pjCard=p=>{const u=P(p.oid),pg=p.progress||{total:0,done:0,percent:0};
-  return `<article class="pjcard" data-a="pj" data-v="${esc(p.id)}"><div class="pjtop">${pjPill(p.status)}${p.myStatus==='active'?'<span class="pill mine">已加入</span>':p.myStatus==='requested'?'<span class="pill">审核中</span>':''}</div><h3 data-ut>${esc(p.title)}</h3><p class="pjgoal" data-ut>${esc(p.goal)}</p>${(p.skills||[]).length?`<div class="skl">${p.skills.slice(0,4).map(s=>`<span data-ut>${esc(s)}</span>`).join('')}</div>`:''}${p.status!=='recruiting'&&pg.total?pjBar(pg):''}<div class="pjft"><span class="pjo">${av(p.oid,22)}<b class="nmb">${nmB(u)}</b></span><small class="pjn">${v2i('users')}<span>${p.memberCount}/${p.capacity}</span></small></div></article>`};
+  return `<article class="pjcard" data-a="pj" data-v="${esc(p.id)}"><div class="pjtop">${pjPill(p.status)}${p.myStatus==='active'?'<span class="pill mine">已加入</span>':p.myStatus==='requested'?'<span class="pill">审核中</span>':''}</div><h3 data-ut>${esc(p.title)}</h3><p class="pjgoal" data-ut>${esc(p.goal)}</p>${(p.skills||[]).length?`<div class="skl">${p.skills.slice(0,4).map(s=>`<span data-ut>${esc(s)}</span>`).join('')}</div>`:''}<div class="pjft"><span class="pjo">${av(p.oid,22)}<b class="nmb">${nmB(u)}</b></span><small class="pjn">${v2i('users')}<span>${p.memberCount}/${p.capacity}</span></small></div></article>`};
 
 /* ================= 技能交换：编辑页 ================= */
 const pExEdit=id=>{const isNew=!id||id==='new',cat=S.d.excat||'';
@@ -115,23 +152,34 @@ const pProject=id=>{const p=pjOf(id);
   if(member)acts.push(`<button class="pb" data-a="pjchat" data-v="${esc(id)}">${v2i('chat2')}<span>项目群聊</span></button>`);
   else if(p.myStatus==='requested')acts.push('<button class="pb off" disabled>已申请，等待审核</button>');
   else if(p.status==='recruiting'&&p.memberCount<p.capacity)acts.push(`<button class="pb" data-a="pjapply" data-v="${esc(id)}">申请加入</button>`);
-  else if(p.status==='recruiting')acts.push('<button class="pb off" disabled>人数已满</button>');
+  else if(p.status==='recruiting')acts.push('<button class="pb off" disabled>已满员</button>');
   acts.push(`<button class="pb s" data-a="pjshare" data-v="${esc(id)}">${v2i('share')}<span>分享</span></button>`);
   const more=p.isOwner&&open?`<button class="ib" data-a="pjmore" data-v="${esc(id)}" aria-label="更多">${ic('more')}</button>`:member&&!p.isOwner?`<button class="ib" data-a="pjmore" data-v="${esc(id)}" aria-label="更多">${ic('more')}</button>`:'';
-  const head=`<section class="pjhero">${pjPill(p.status)}<h2 data-ut>${esc(p.title)}</h2><p class="pjgoal" data-ut>${esc(p.goal)}</p><button type="button" class="pjown" data-a="user" data-v="${p.oid}">${av(p.oid,28)}<b class="nmb">${nmB(u)}</b><small>发起人</small></button><div class="pjstat"><span><b>${p.memberCount}/${p.capacity}</b><small>成员</small></span><span><b>${pg.percent}%</b><small>进度</small></span><span><b>${pg.done}/${pg.total}</b><small>任务</small></span></div>${pg.total?pjBar(pg):''}<div class="pjact">${acts.join('')}</div></section>`;
+  const head=`<section class="pjhero"><div class="pjpills">${pjPill(p.status)}${p.full&&p.status==='recruiting'?'<span class="pill pjfull">已满员</span>':''}</div><h2 data-ut>${esc(p.title)}</h2><p class="pjgoal" data-ut>${esc(p.goal)}</p><button type="button" class="pjown" data-a="user" data-v="${p.oid}">${av(p.oid,28)}<b class="nmb">${nmB(u)}</b><small>发起人</small></button><div class="pjstat two"><span><b>${p.memberCount}/${p.capacity}</b><small>成员</small></span><span><b>${pg.done}/${pg.total}</b><small>任务</small></span></div><div class="pjact">${acts.join('')}</div></section>`;
   const skills=(p.skills||[]).length?`<section class="pjsec"><h4>需要的技能</h4><div class="skl">${p.skills.map(s=>`<span data-ut>${esc(s)}</span>`).join('')}</div></section>`:'';
   const desc=p.description?`<section class="pjsec"><h4>项目介绍</h4><p class="pjdesc" data-ut>${esc(p.description)}</p></section>`:'';
   const show=p.status==='completed'&&p.showcase?`<section class="pjsec pjshow"><h4>🎉 成果展示</h4><p class="pjdesc" data-ut>${esc(p.showcase.summary||'')}</p>${(p.showcase.links||[]).map(l=>linkCard(l)).join('')}</section>`:'';
-  const mems=`<section class="pjsec"><h4>成员 <small>${p.memberCount}</small></h4><div class="pjmem">${(p.members||[]).map(m=>`<button type="button" class="pjm" data-a="user" data-v="${m.uid}">${av(m.uid,40)}<span class="nmb nbc">${nmB(P(m.uid))}</span>${m.role==='owner'?'<small>发起人</small>':''}</button>`).join('')}</div></section>`;
+  /* 2.0.1 成员：一行最多 5 个头像，其余显示叠放的「+N」，点它或「查看全部」打开完整名单；这一行高度固定，不会把下面的内容挤下去 */
+  const ML=p.members||[],MAXV=5,shown=ML.slice(0,MAXV),extra=Math.max(0,(Number(p.memberCount)||ML.length)-shown.length);
+  const stack=extra?`<button type="button" class="pjmore" data-a="pjmems" data-v="${esc(id)}" aria-label="查看全部成员">${ML.slice(MAXV,MAXV+1).map(m=>`<span class="pjst">${av(m.uid,34)}</span>`).join('')}<span class="pjst pjn">+${extra>99?'99+':extra}</span></button>`:'';
+  const mems=`<section class="pjsec pjmsec"><h4>成员 <small>${p.memberCount}</small>${ML.length>1||extra?`<button type="button" class="lk pjall" data-a="pjmems" data-v="${esc(id)}">查看全部</button>`:''}</h4><div class="pjmem">${shown.map(m=>`<button type="button" class="pjm" data-a="user" data-v="${m.uid}">${av(m.uid,40)}<span class="nmb nbc">${nmB(P(m.uid))}</span><small>${m.role==='owner'?'发起人':m.role==='lead'?'负责人':'&nbsp;'}</small></button>`).join('')}${stack}</div></section>`;
   const reqs=p.isOwner&&(p.requests||[]).length?`<section class="pjsec pjreq"><h4>加入申请 <small>${p.requests.length}</small></h4>${p.requests.map(q=>`<div class="row">${av(q.uid,40)}<div class="gr"><b class="nmb">${nmB(P(q.uid))}</b>${q.message?`<small data-ut>${esc(q.message)}</small>`:''}</div><div class="sw"><button class="pb sm" data-a="pjok" data-v="${esc(id)}|${esc(q.user.id)}">通过</button><button class="pb sm s" data-a="pjno" data-v="${esc(id)}|${esc(q.user.id)}">拒绝</button></div></div>`).join('')}</section>`:'';
-  const ws=member?pjWork(p,tab,open):(p.status!=='completed'?'<section class="pjsec"><p class="hint">加入项目后可以查看任务、公告和共享资料。</p></section>':'');
+  /* 2.0.1：项目工作台（任务 / 公告 / 资料）移到项目群聊里（标题栏的「工作台」按钮）；详情页只放公开信息 */
+  const ws=member?`<section class="pjsec"><p class="hint">任务、公告和共享资料在项目群聊里：打开「项目群聊」，点右上角的「工作台」。</p><button class="pb s pjwsgo" data-a="pjws" data-v="${esc(id)}">${v2i('board')}<span>打开项目工作台</span></button></section>`:(p.status!=='completed'?'<section class="pjsec"><p class="hint">加入项目后可以在项目群聊里查看任务、公告和共享资料。</p></section>':'');
   return `<div class="pg pj-pg">${sub('项目',more)}<div class="sc">${head}${show}${reqs}${skills}${desc}${mems}${ws}</div></div>`};
+/* 2.0.1 项目工作台页（从项目群聊标题栏进入）：只有项目成员能看和操作（服务器只把任务/公告/资料返回给成员） */
+const pPjWs=id=>{const p=pjOf(id);
+  if(!p)return `<div class="pg">${sub('项目工作台')}<div class="sc"><p class="em">正在加载…</p></div></div>`;
+  const member=p.myStatus==='active',open=['recruiting','active'].includes(p.status),pg=p.progress||{total:0,done:0,percent:0};
+  if(!member)return `<div class="pg">${sub('项目工作台')}<div class="sc"><p class="em">只有项目成员可以查看工作台</p></div></div>`;
+  const top=`<button type="button" class="pjwsh" data-a="pj" data-v="${esc(id)}"><span class="gr"><b data-ut>${esc(p.title)}</b><small>任务 ${pg.done}/${pg.total}</small></span><small>项目详情 ›</small></button>`;
+  return `<div class="pg pjws-pg">${sub('项目工作台')}<div class="sc">${top}${pjWork(p,S.pjtab||'task',open)}</div></div>`};
 const pjWork=(p,tab,open)=>{const id=p.id;
   const seg=`<div class="seg pjseg"><button data-a="pjtab" data-v="task" class="${tab=='task'?'on':''}">任务</button><button data-a="pjtab" data-v="notice" class="${tab=='notice'?'on':''}">公告</button><button data-a="pjtab" data-v="res" class="${tab=='res'?'on':''}">资料</button></div>`;
   let h='';
   if(tab==='task'){
     const rows=(p.tasks||[]).map(t=>{const done=t.status==='done',canDel=p.isOwner||(SESSION&&Number(t.createdBy)===Number(SESSION.user.id));return `<div class="pjtk${done?' done':''}"><button type="button" class="tkc" data-a="pjtk" data-v="${esc(id)}|${esc(t.id)}" aria-label="${done?'标记为未完成':'标记为完成'}" ${open?'':'disabled'}>${done?v2i('check'):''}</button><span class="gr"><b data-ut>${esc(t.title)}</b><small>${t.aid?`<span class="nmb">${nmB(P(t.aid))}</span>`:'<span>未分配</span>'}</small></span>${canDel&&open?`<button type="button" class="ib sm" data-a="pjtkdel" data-v="${esc(id)}|${esc(t.id)}" aria-label="删除">×</button>`:''}</div>`}).join('')||'<p class="em">还没有任务</p>';
-    const add=open?`<div class="pjadd"><input class="fld" data-d="pjtk" data-max="60" placeholder="新任务，例如：完成首页设计稿"><select class="fld" data-d="pjta" aria-label="负责人"><option value="">负责人（可选）</option>${(p.members||[]).map(m=>`<option value="${esc(m.id)}">${esc(P(m.uid).n)}</option>`).join('')}</select><button class="pb sm" data-a="pjtkadd" data-v="${esc(id)}">添加</button></div>`:'';
+    const add=open?`<div class="pjadd pjtadd"><input class="fld" data-d="pjtk" data-max="60" placeholder="新任务，例如：完成首页设计稿"><select class="fld" data-d="pjta" aria-label="负责人"><option value="">负责人（可选）</option>${(p.members||[]).map(m=>`<option value="${esc(m.id)}">${esc(P(m.uid).n)}</option>`).join('')}</select><button class="pb sm" data-a="pjtkadd" data-v="${esc(id)}">添加</button></div>`:'';
     h=add+`<div class="pjtks">${rows}</div>`;
   }else if(tab==='notice'){
     const add=p.isOwner&&open?`<div class="pjadd col"><textarea class="fld" data-d="pjnt" data-max="2000" rows="3" placeholder="发布公告，所有成员都会收到通知"></textarea><button class="pb sm" data-a="pjntadd" data-v="${esc(id)}">发布公告</button></div>`:'';
@@ -143,7 +191,7 @@ const pjWork=(p,tab,open)=>{const id=p.id;
     const files=(p.files||[]).map(f=>`<div class="pjfl"><button type="button" class="lkc" data-a="v2file" data-v="${esc(f.media&&f.media.id||'')}"><i class="lki">${v2i('file')}</i><span class="gr"><b data-ut>${esc((f.media&&f.media.name)||f.title||'文件')}</b><small><span class="nmb">${nmB(P(f.aid))}</span></small></span></button>${open&&canDel(f)?`<button type="button" class="ib sm" data-a="pjpdel" data-v="${esc(id)}|${esc(f.id)}" aria-label="删除">×</button>`:''}</div>`).join('');
     h=add+(links||files?links+files:'<p class="em">还没有共享资料</p>');
   }
-  return `<section class="pjsec pjws"><h4>项目工作台</h4>${seg}${h}</section>`};
+  return `<section class="pjsec pjws">${seg}${h}</section>`};
 
 /* ================= 投票卡片（微博风格，结果条） ================= */
 const pollCard=pl=>{const show=pl.options&&pl.options.some(o=>o.votes!=null),tot=Number(pl.totalVotes)||0,pick=(S.pollPick&&S.pollPick[pl.id])||[],can=!pl.closed&&!pl.voted;
@@ -186,12 +234,14 @@ function actSpec(a){return {title:a.title,startsAt:a.startsAt,endsAt:a.endsAt||n
 async function actPrep(a){const cov=S.comp&&S.comp.actCover;if(cov&&!cov.id&&cov.file){T('正在上传封面…');const m=await uploadMedia(cov.file);cov.id=m.id}if(cov&&cov.id)a.coverMediaId=cov.id;else a.coverMediaId=null}
 
 /* ================= 页面路由 ================= */
-const V2P={exedit:pExEdit,pjedit:pPjEdit,pj:pProject,pjdone:pPjDone,act:pAct,pollnew:pPollNew,actnew:pActNew};
+const V2P={exedit:pExEdit,pjedit:pPjEdit,pj:pProject,pjdone:pPjDone,act:pAct,pollnew:pPollNew,actnew:pActNew,pjws:pPjWs};
 
 /* ================= 弹层 ================= */
 function v2Sheet(s){
   if(s.t==='pjapply')return `<h3>申请加入项目</h3><p class="lab" style="margin-bottom:8px">简单介绍你自己和能做的事，发起人审核通过后你会加入项目群聊。</p><textarea class="fld" data-d="pjmsg" data-max="200" rows="3" placeholder="例如：我会前端开发，每周能投入 5 小时"></textarea><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pjapply2" data-v="${esc(s.id)}">提交申请</button></div>`;
   if(s.t==='pjmore'){const p=pjOf(s.id);if(!p)return '';return p.isOwner?`<button class="mi" data-a="pjedit" data-v="${esc(s.id)}">编辑项目</button><button class="mi" data-a="pjdone" data-v="${esc(s.id)}">完成项目并展示成果</button><button class="mi d" data-a="pjcxl" data-v="${esc(s.id)}">取消项目</button>`:`<button class="mi d" data-a="pjleave" data-v="${esc(s.id)}">退出项目</button>`}
+  if(s.t==='pjmems'){const p=pjOf(s.id);if(!p)return '';const RL={owner:'发起人',lead:'负责人',member:'成员'};const own=p.isOwner&&['recruiting','active'].includes(p.status);return `<h3>成员 <small style="color:var(--t2);font-weight:400">${p.memberCount}/${p.capacity}</small></h3><div class="pjml">${(p.members||[]).map(m=>`<button type="button" class="row" data-a="user" data-v="${m.uid}">${av(m.uid,40)}<div class="gr"><b class="nmb">${nmB(P(m.uid))}</b><small>${RL[m.role]||'成员'}</small></div>${own&&m.role!=='owner'?`<span class="pb sm s pjlead" role="button" data-a="pjlead" data-v="${esc(s.id)}|${esc(m.id)}|${m.role==='lead'?0:1}">${m.role==='lead'?'取消负责人':'设为负责人'}</span>`:''}</button>`).join('')}</div>${own?'<p class="hint" style="padding:8px 0 0">负责人同时是项目群聊的管理员。</p>':''}`}
+  if(s.t==='v2sh'){const d=S.v2shp||{};const sys=typeof navigator!=='undefined'&&!!navigator.share;return `<h3>分享</h3>${d.url?`<p class="v2shu" data-ut>${esc(d.url)}</p>`:''}${sys&&d.url?`<button class="mi" data-a="v2sh" data-v="link">${v2i('link')}<span>分享链接（可发到微信）</span></button>`:''}${d.url&&v2canFiles()?`<button class="mi" data-a="v2sh" data-v="card">${v2i('share')}<span>分享图片卡片</span></button>`:''}<button class="mi" data-a="v2sh" data-v="copy">${v2i('file')}<span>${d.url?'复制链接':'复制内容'}</span></button><button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
   if(s.t==='v2cf')return `<h3>${esc(s.title)}</h3>${s.body?`<p style="color:var(--t2);margin-bottom:8px">${esc(s.body)}</p>`:''}<div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="v2cf2">${esc(s.ok||'确定')}</button></div>`;
   return '';
 }
@@ -210,6 +260,7 @@ Object.assign(A,{
   coq:()=>{const c=coS();c.q=String(S.d.coq||'').trim().slice(0,40);return coReload()},
   coqx:()=>{const c=coS();c.q='';S.d.coq='';return coReload()},
   v2url:v=>{v2open(v)},
+  v2sh:v=>v2shareGo(v),
   v2file:v=>{if(!v)return T('文件已被删除');T('正在打开…');return mediaTicket(v).then(t=>{if(!t)return T('无法打开文件');v2open(mediaFileUrl(v,t,false))})},
   v2cf2:()=>{const f=S.v2cf;S.v2cf=null;S.sh=null;if(f)return f()},
   /* 技能交换 */
@@ -227,7 +278,7 @@ Object.assign(A,{
     const c=adoptCv(r.j.conversation);S.conversations=S.conversations||[];if(!S.conversations.some(x=>x.id===c.id))S.conversations.unshift(c);
     const x=r.j.post||exFind(v);if(x&&!(S.d.chin||'').trim()){S.d.chin=V2EN()?`Hi! I saw your skill exchange (${x.offers.slice(0,30)}) — can we talk?`:`你好，我对你的技能交换「${x.offers.slice(0,30)}」感兴趣，想聊聊～`}
     S.tab='chat';S.st=['chat:'+c.id];c.u=0;c.hid=0;if(typeof loadMessages==='function')await loadMessages(c.id)},
-  exshare:v=>{const x=exFind(v);if(!x)return;return v2share(V2EN()?'VEXO Skill Exchange':'VEXO 技能交换',(V2EN()?'I can: ':'我会：')+x.offers+'\n'+(V2EN()?'I want: ':'我想要：')+x.wants)},
+  exshare:v=>{const x=exFind(v);if(!x)return;const t=(V2EN()?'Skill exchange: ':'技能交换：')+[...x.offers].slice(0,18).join('')+' ⇄ '+[...x.wants].slice(0,18).join('');return v2share(t,'',v2shareLink('x',x.id),{card:1,lines:[(V2EN()?'I can: ':'我会：')+x.offers,(V2EN()?'I want: ':'我想学：')+x.wants]})},
   /* 共创项目 */
   pj:async v=>{S.pjtab=S.pjtab||'task';A.go('pj:'+v);v2rr();await pjFetch(v)},
   pjnew:()=>{if(!v2on())return T('请先登录');Object.assign(S.d,{pjt:'',pjg:'',pjsk:'',pjcap:'5',pjd:''});A.go('pjedit:new')},
@@ -249,8 +300,11 @@ Object.assign(A,{
   pjdone:v=>{S.sh=null;S.d.pjsum='';S.d.pjsl='';A.go('pjdone:'+v)},
   pjdone2:async v=>{const links=String(S.d.pjsl||'').split(/\s+/).map(s=>s.trim()).filter(Boolean).slice(0,6);const summary=String(S.d.pjsum||'').trim();if(!summary)return T('请填写成果介绍');
     const r=await pjDo(v,'/complete',{summary,links},'项目已完成 🎉');if(r){S.st.pop();coLoad()}},
+  pjmems:v=>{S.sh={t:'pjmems',id:v}},
+  pjlead:async v=>{const[id,uid,on]=v.split('|');const r=await api('POST','/api/projects/'+encodeURIComponent(id)+'/members/'+encodeURIComponent(uid)+'/lead',{on:on==='1'});if(r.s!==200)return T(v2e(r,'操作失败'));T(on==='1'?'已设为负责人':'已取消负责人');await pjFetch(id);S.sh={t:'pjmems',id}},
+  pjws:async v=>{S.sh=null;S.pjtab=S.pjtab||'task';S.st.push('pjws:'+v);await pjFetch(v)},
   pjchat:async v=>{const p=pjOf(v);if(!p||!p.conversationId)return T('项目群聊暂不可用');if(typeof loadConversations==='function')await loadConversations();const cid=p.conversationId;S.tab='chat';S.st=['chat:'+cid];if(typeof loadMessages==='function')await loadMessages(cid)},
-  pjshare:v=>{const p=pjOf(v);if(!p)return;return v2share((V2EN()?'VEXO Sparks · ':'VEXO 共创 · ')+p.title,p.goal+((p.skills||[]).length?'\n'+(V2EN()?'Looking for: ':'招募：')+p.skills.join(' / '):''))},
+  pjshare:v=>{const p=pjOf(v);if(!p)return;return v2share((V2EN()?'VEXO Sparks · ':'VEXO 共创 · ')+p.title,p.goal,v2shareLink('p',p.id),{card:1,lines:[p.goal,(p.skills||[]).length?(V2EN()?'Looking for: ':'招募：')+p.skills.join(' / '):'']})},
   pjtk:v=>{const[id,tid]=v.split('|'),p=pjOf(id),t=p&&(p.tasks||[]).find(x=>x.id==tid);if(!t)return;return pjDo(id,'/tasks/'+encodeURIComponent(tid),{status:t.status==='done'?'todo':'done'})},
   pjtkdel:v=>{const[id,tid]=v.split('|');return pjDo(id,'/tasks/'+encodeURIComponent(tid)+'/delete',{},'已删除')},
   pjtkadd:async v=>{const title=String(S.d.pjtk||'').trim();if(!title)return T('请填写任务');const body={title};if(S.d.pjta)body.assigneeId=Number(S.d.pjta);const r=await pjDo(v,'/tasks',body,'已添加任务');if(r){S.d.pjtk='';S.d.pjta=''}},
@@ -283,7 +337,7 @@ Object.assign(A,{
   act:async v=>{A.go('act:'+v);v2rr();const a=await actFetch(v);if(a&&a.mine){const r=await api('GET','/api/activities/'+encodeURIComponent(v)+'/signups');S.actSign=S.actSign||{};S.actSign[v]=r.s===200?(r.j.signups||[]):[]}},
   actjoin:async v=>{const r=await api('POST','/api/activities/'+encodeURIComponent(v)+'/signup',{});if(r.s!==200)return T(v2e(r,'报名失败'));actSync(r.j.activity);T('报名成功')},
   actcancel:v=>{v2confirm('取消报名？','','取消报名',async()=>{const r=await api('POST','/api/activities/'+encodeURIComponent(v)+'/cancel',{});if(r.s!==200)return T(v2e(r,'操作失败'));actSync(r.j.activity);T('已取消报名')})},
-  actshare:v=>{const a=S.acts&&S.acts[v];if(!a)return;return v2share((V2EN()?'VEXO Event · ':'VEXO 活动 · ')+a.title,v2when(a.startsAt)+' · '+(a.online?(V2EN()?'Online':'线上'):a.place))},
+  actshare:v=>{const a=S.acts&&S.acts[v];if(!a)return;return v2share((V2EN()?'VEXO Event · ':'VEXO 活动 · ')+a.title,v2when(a.startsAt),v2shareLink('e',a.id),{card:1,lines:[v2when(a.startsAt),a.online?(V2EN()?'Online':'线上'):(a.place||'')]})},
 });
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&!e.isComposing&&t&&t.dataset&&t.dataset.d==='coq'){e.preventDefault();Promise.resolve(A.coq()).then(v2rr)}});
 /* 2.0：表态后关掉面板，并把那条消息滚到可见处，让新的表态小标签露出来 */

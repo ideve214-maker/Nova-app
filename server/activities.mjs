@@ -153,5 +153,15 @@ export function createActivities(db, {now, notifications, authorOf}) {
     setDel.run(null, null, id);
     return {activity: adminRow(byId.get(id))};
   }
-  return {assertCanCreate, validateSpec, textOf, createForPost, ofPost, get, signup, cancel, signups, isCoverMedia, pub, adminList, adminGet, adminRemove, adminRestore};
+  /* 2.0.1 公开分享页 /e/<id>：标题、时间、地点、人数、介绍；不含线上会议链接和报名名单 */
+  let postAlive = null; try { postAlive = db.prepare('SELECT deleted_at FROM posts WHERE id=?'); } catch {}
+  function publicCard(id) {
+    const r = byId.get(String(id || ''));
+    if (!r || r.deleted_at) return null;
+    if (r.post_id && postAlive) { const p = postAlive.get(r.post_id); if (!p || p.deleted_at) return null; }
+    const n = count.get(r.id).n;
+    return {id: r.id, title: r.title, startsAt: r.starts_at, endsAt: r.ends_at || null, place: r.place || '', online: !!r.online,
+      description: String(r.description || '').slice(0, 600), cap: r.cap || null, count: n, state: state(r)};
+  }
+  return {publicCard, assertCanCreate, validateSpec, textOf, createForPost, ofPost, get, signup, cancel, signups, isCoverMedia, pub, adminList, adminGet, adminRemove, adminRestore};
 }

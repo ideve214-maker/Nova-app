@@ -12,16 +12,17 @@ function bgCss(src){const s=cssUrl(src);if(!s)return 'background:#1a1c20';if(s.s
 /* r10：头像只有两种——官方默认头像，或者从相册导入的图片（存服务器，别人也能看到）。去掉了「颜色 + 文字」头像。 */
 const DEF_AV='assets/av-default.svg';
 const avSrcOf=id=>{if(id==='me')return (D.pf&&D.pf.me&&D.pf.me.ph)||'';return (D.uph&&D.uph[id])||''};
-const lookImg=(src,s)=>isMediaId(src)?`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${DEF_AV}" data-avm="${esc(src)}" alt=""></span>`:phImg(src,s);
+const lookImg=(src,s)=>isMediaId(src)?`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${(typeof imcSync==='function'&&imcSync(src,'f'))||DEF_AV}" data-avm="${esc(src)}" alt=""></span>`:phImg(src,s);
 const av=(id,s,opt)=>{const src=avSrcOf(id);
   let h=src?lookImg(src,s):(MODE!=='account'&&PH[id])?phImg(PH[id],s):phImg(DEF_AV,s);
   const deco=opt&&Object.prototype.hasOwnProperty.call(opt,'dec')?!!opt.dec:(id==='me'&&typeof vipDecoOn==='function'&&vipDecoOn());
   if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');return h};
-const gface=(c,s)=>{const src=c&&c.gp||'';if(isMediaId(src))return lookImg(src,s).replace(DEF_AV,PH.group);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('assets/'))?src:PH.group,s)};
+const gface=(c,s)=>{const src=c&&c.gp||'';if(isMediaId(src))return lookImg(src,s).replace(DEF_AV,PH.group);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('blob:')||String(src).startsWith('assets/'))?src:PH.group,s)};
 const isMediaId=src=>/^md_[A-Za-z0-9_-]{8,80}$/.test(String(src||''));
-function lookCss(src,fallback){const s=String(src||'');return bgCss(isMediaId(s)?(fallback||''):(s||fallback||''))}
+/* 2.0.1：上传的背景（媒体 id）绝不先显示默认背景——有缓存直接显示，没有就用主色占位再淡入 */
+function lookCss(src,fallback){const s=String(src||'');if(isMediaId(s))return typeof imcBgCss==='function'?imcBgCss(s):'background:#1a1c20';return bgCss(s||fallback||'')}
 function lookMbg(src){return isMediaId(src)?` data-mbg="${esc(src)}"`:''}
-const cmface=(c,s)=>{const src=c&&c.cp||'';if(isMediaId(src))return lookImg(src,s);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('assets/'))?src:cove(c&&c.id||''),s)};
+const cmface=(c,s)=>{const src=c&&c.cp||'';if(isMediaId(src))return lookImg(src,s);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('blob:')||String(src).startsWith('assets/'))?src:cove(c&&c.id||''),s)};
 const meCover=()=>{const f=D.pf&&D.pf.me||{};return f.bg||BG[(+f.cv||0)%BG.length]};
 const userCover=id=>(D.ubg&&D.ubg[id])||'';
 const cove=(key)=>BG[[...String(key)].reduce((a,c)=>a+c.charCodeAt(0),0)%BG.length];
@@ -38,7 +39,7 @@ const media=Array.isArray(p.media)?p.media:[];
 const mediaH=typeof mediaHTML==='function'?mediaHTML(media,det,p.id):'';
 const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:'';
 const chips=[p.boost?(p.boost.label==='推流中'?`🚀 推流中 · 已曝光 ${Number(p.boost.delivered)||0}/${Number(p.boost.impressions)||0}`:'🔥 曝光中'):'',S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
-return `<article class="fcard" data-pid="${p.id}"><div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>`:''}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
+return `<article class="fcard" data-pid="${p.id}"><div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['co','共创','spark'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
 function riskNoticeText(id){
   const u=S.userView&&String(S.userView.id)===String(id)&&S.userView.user;
@@ -47,7 +48,7 @@ function riskNoticeText(id){
 }
 /* 聊天列表：登录后只留一行浅灰小字，不再用大红横幅 */
 const banList=()=>MODE==='account'?'<div class="e2line">私聊已加密</div>':ban();
-const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊已加密</b>一对一聊天会加密后发送。请核对手友的安全号码。</div>':'<div class="ban"><b>演示模式</b>这里只是演示，不会发送真实消息。</div>';
+const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊已加密</b>一对一聊天会加密后发送。</div>':'<div class="ban"><b>演示模式</b>这里只是演示，不会发送真实消息。</div>';
 
 function hasSafeArea(){
   if(hasSafeArea._v!=null)return hasSafeArea._v;

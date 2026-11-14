@@ -118,5 +118,12 @@ export function createExchange(db, {now, authorOf, friends, chats}) {
     setSt.run('closed', now(), null, id);
     return {post: adminRow(byId.get(id))};
   }
-  return {norm, textOf, create, list, get, edit, setOpen, consult, adminList, adminRemove, adminRestore, CATEGORIES: EXCHANGE_CATEGORIES};
+  /* 2.0.1 公开分享页 /x/<id>：只给分类、会什么、想学什么、备注、状态；不含作者账号 */
+  function publicCard(id) {
+    const r = byId.get(String(id || ''));
+    if (!r || r.status === 'removed') return null;
+    const cat = EXCHANGE_CATEGORIES.find(c => c.key === r.category);
+    return {id: r.id, categoryLabel: cat ? cat.label : '', offers: r.offers, wants: r.wants, note: String(r.note || '').slice(0, 300), open: r.status === 'open'};
+  }
+  return {publicCard, norm, textOf, pub, create, list, get, edit, setOpen, consult, adminList, adminRemove, adminRestore, CATEGORIES: EXCHANGE_CATEGORIES};
 }

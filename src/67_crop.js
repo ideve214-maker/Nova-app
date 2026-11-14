@@ -55,6 +55,15 @@ function openCropFromFile(kind,id,file){
   probe.src=url;
 }
 function safePhoto(src,allow){return allow.includes(src)}
+/* 2.0.1：上传期间的本地预览；返回撤销函数（上传失败时恢复原图） */
+function lookOptimistic(kind,id,u){
+  let undo=null;
+  if(kind==='bg'||kind==='av'){const f=D.pf.me,k=kind==='bg'?'bg':'ph',o=f[k];f[k]=u;undo=()=>{if(o===undefined)delete f[k];else f[k]=o}}
+  else if(kind==='cmbg'||kind==='cmav'){const c=typeof cmp==='function'?cmp(id):null;if(c){const k=kind==='cmbg'?'bg':'cp',o=c[k];c[k]=u;undo=()=>{c[k]=o}}}
+  else if(kind==='gav'){const c=typeof cvf==='function'?cvf(id):null;if(c){const o=c.gp;c.gp=u;undo=()=>{c.gp=o}}}
+  if(typeof render==='function')render();
+  return ()=>{if(undo)undo();if(typeof render==='function')render()};
+}
 function applyLook(kind,id,url){
   if(kind==='av'){D.pf.me.ph=url;return true}
   if(kind==='bg'){D.pf.me.bg=url;return true}
@@ -123,10 +132,18 @@ function applyCrop(){
   if(['cmbg','cmav','av','bg','gav'].includes(c.kind)&&typeof usingNet==='function'&&usingNet()&&SESSION){
     if(S.lookBusy)return;S.lookBusy=1;T('正在上传…');
     const nm={cmbg:'cm-cover.jpg',cmav:'cm-avatar.jpg',av:'avatar.jpg',bg:'cover.jpg',gav:'group-avatar.jpg'}[c.kind];
-    return canvasToJpegBlob(canvas,0.82).then(b=>uploadJpegBlob(b,nm)).then(mid=>{
-      S.lookBusy=0;finish(mid);
+    /* 2.0.1：先用裁剪结果做本地预览（立刻显示新图），上传成功后把同一张图放进图片缓存，换成媒体 id 时不闪旧图 / 默认图 */
+    let blob0=null,undo=null;
+    return canvasToJpegBlob(canvas,0.82).then(b=>{
+      blob0=b;
+      try{undo=lookOptimistic(c.kind,c.id,URL.createObjectURL(b))}catch(e){}
+      return uploadJpegBlob(b,nm);
+    }).then(mid=>{
+      S.lookBusy=0;
+      if(blob0&&typeof imcSeed==='function'){imcSeed(mid,(c.kind==='cmbg'||c.kind==='bg')?'c':'f',blob0)}
+      finish(mid);
     }).catch(e=>{
-      S.lookBusy=0;T((e&&e.message)==='too large'?'裁剪结果太大，请缩小一点或换一张':((e&&e.message)||'上传失败，请稍后再试'));
+      S.lookBusy=0;if(undo)try{undo()}catch(x){}T((e&&e.message)==='too large'?'裁剪结果太大，请缩小一点或换一张':((e&&e.message)||'上传失败，请稍后再试'));
     });
   }
   let q=0.82, url=canvas.toDataURL('image/jpeg',q);

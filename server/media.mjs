@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {ApiError} from './errors.mjs';
 import {assertMagic} from './security.mjs';
-import {processUploadImage} from './image-pipeline.mjs';
+import {processUploadImage, makeCoverVariant} from './image-pipeline.mjs';
 
 const nid = () => 'md_' + randomBytes(18).toString('base64url');
 const TICKET_MS = 5 * 60 * 1000;
@@ -249,6 +249,19 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     return {ticket: signTicket(id, user.id, exp), expiresAt: exp};
   }
 
+  /** 2.0.1：背景 / 封面用的 1080 宽 WebP，第一次请求时生成并存盘（id_c.webp）。权限检查和 fileOf 相同。 */
+  async function coverOf(userOrTicket, id) {
+    const f = fileOf(userOrTicket, id);
+    const row = byId.get(id);
+    if (!row || row.kind !== 'image' || !/^image\/(jpeg|png|webp)$/.test(row.mime || '')) return f;
+    const cp = diskPath(id + '_c.webp');
+    if (!existsSync(cp)) {
+      try { writeFileSync(cp, await makeCoverVariant(readFileSync(f.path))); }
+      catch { return f; }
+    }
+    return {...f, path: cp, mime: 'image/webp', size: statSync(cp).size};
+  }
+
   function fileOf(userOrTicket, id, {preview} = {}) {
     let user = userOrTicket, via = 'auth';
     if (userOrTicket && userOrTicket.ticket) {
@@ -285,6 +298,7 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     for (const r of rows) {
       try { if (r.path) unlinkSync(diskPath(r.path)); } catch {}
       try { if (r.preview_path) unlinkSync(diskPath(r.preview_path)); } catch {}
+      try { unlinkSync(diskPath(r.id + '_c.webp')); } catch {}
       db.prepare('DELETE FROM media WHERE id=?').run(r.id);
       n++;
     }
@@ -319,7 +333,7 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
   }
 
   return {
-    upload, get, ticket, fileOf, remove, purgeDeleted, attachToMessage, usage, attachChannelAccess, attachToChannel, assertOwnFree, pubById,
+    upload, get, ticket, fileOf, coverOf, remove, purgeDeleted, attachToMessage, usage, attachChannelAccess, attachToChannel, assertOwnFree, pubById,
     canAccess, attachLook, attachExtraAccess, pub, verifyTicket, signTicket, quotaOf, usageOf,
     root, MEDIA_LIMITS, MEDIA_QUOTA, TICKET_MS, defaultScan,
     _byId: byId,

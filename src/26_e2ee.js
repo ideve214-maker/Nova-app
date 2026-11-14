@@ -179,9 +179,9 @@ function rememberIdentity(peerId, their){
   _store.knownIdentities=_store.knownIdentities||{};
   const prev=_store.knownIdentities[peerId];
   const ed=their.identityKey&&their.identityKey.ed25519;
+  /* 2.0.1：对方换了设备或重新生成密钥时自动信任新密钥，不再弹「对方密钥已变化」、不拦发送；只在控制台留记录。加密不变。 */
   if(prev&&prev.ed25519&&ed&&prev.ed25519!==ed){
-    S.e2eeKeyChange=S.e2eeKeyChange||{};
-    S.e2eeKeyChange[peerId]={previous:prev, current:their};
+    try{console.info('[e2ee] 对方身份密钥已更新，已自动信任', {peer:peerId, device:their.deviceId})}catch(e){}
   }
   _store.knownIdentities[peerId]={
     deviceId:their.deviceId,
@@ -335,41 +335,15 @@ async function e2eeOnLogin(){
 }
 
 
-function e2eeChatBar(c){
-  const peer=typeof e2eePeerOf==='function'?e2eePeerOf(c):(c&&c.peerId);
-  const info=S.e2eeSafety&&S.e2eeSafety[peer];
-  if(S.e2eeKeyChange&&peer&&S.e2eeKeyChange[peer]){
-    return `<div class="ban" data-e2ee-warn="1"><b>对方密钥已变化</b>请重新核对安全号码，确认后再发送。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
-  }
-  if(!info)return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">此私聊已加密。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
-  if(!info.ready)return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">正在准备加密，或对方还没开启加密。就绪前消息不会发出。<button class="lk" data-a="safenum" data-v="${c.id}">查看安全号码</button></div>`;
-  return `<div class="hint" style="padding:8px 16px" data-e2ee-bar="1">此私聊已加密。${info.verified?'已核对安全号码。':'请核对安全号码。'} <button class="lk" data-a="safenum" data-v="${c.id}">安全号码</button></div>`;
+/* 2.0.1：私聊不再显示密钥 / 安全号码相关的提示条和弹层（保留函数名，旧调用返回空）。 */
+function e2eeChatBar(c){return '';
 }
-async function safenum(cid){
-  const c=(typeof cvSrc==='function'?cvSrc():[]).find(x=>x.id==cid);
-  const peer=c&&(typeof e2eePeerOf==='function'?e2eePeerOf(c):c.peerId);
-  if(!peer){T('无法确定对方');return}
-  try{
-    const info=await e2eeSafetyOf(peer);
-    S.e2eeSafety=S.e2eeSafety||{};S.e2eeSafety[peer]=info;
-    S.sh={t:'safety',id:cid,peer,info};
-  }catch(e){T((e&&e.message)||'无法获取安全号码')}
+async function safenum(cid){return;
 }
-function safeok(peer){
-  const info=S.sh&&S.sh.info;
-  if(!info||!info.theirEd){S.sh=null;return}
-  e2eeMarkVerified(peer, info.theirEd);
-  info.verified=true;info.changed=false;
-  T('已标记为已核对');
-  S.sh=null;
+function safeok(peer){S.sh=null;return;
 }
-function safetySheet(s){
-  const info=s&&s.info;
-  if(!info||!info.ready)return `<h3>安全号码</h3><p class="hint">对方还没开启加密，或本机还没准备好。双方都就绪之前，消息不会发出。</p><div class="fr"><button class="pb" data-a="x">关闭</button></div>`;
-  const grid=(info.number||'').split(' ').map(g=>`<span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em;display:inline-block;width:7ch;margin:6px 2px">${esc(g)}</span>`).join('');
-  return `<h3>安全号码</h3><p class="hint" style="margin-bottom:8px">请与对方当面或通过其他可信渠道核对这些数字。数字相同表示正在和同一把身份密钥通话。密钥变化时会再次提示。独立安全审查尚未完成。</p><div style="padding:8px;text-align:center;font-size:15px;line-height:1.9" data-safety-number="${esc(info.number)}">${grid}</div>${info.verified?'<p class="hint">你已将此号码标记为已核对。</p>':''}<div class="fr"><button class="pb s" data-a="x">关闭</button><button class="pb" data-a="safeok" data-v="${s.peer}">${info.verified?'重新确认':'标记为已核对'}</button></div>`;
+function safetySheet(s){return '';
 }
-
 async function e2eeDecryptExport(data){
   if(!data||!Array.isArray(data.conversations))return data;
   for(const cv of data.conversations){

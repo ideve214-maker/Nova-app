@@ -99,12 +99,14 @@ function hydrateLook(root){
     el.setAttribute('data-mh','1');
     const id=el.getAttribute('data-avm');
     if(!id||typeof mediaTicket!=='function')return;
+    if(typeof imcHydrateImg==='function')return imcHydrateImg(el,id,'f');
     mediaTicket(id).then(ticket=>{if(el.isConnected&&ticket)el.src=mediaFileUrl(id,ticket,false)}).catch(()=>{});
   });
   (root||document).querySelectorAll('[data-mbg]:not([data-mh])').forEach(el=>{
     el.setAttribute('data-mh','1');
     const id=el.getAttribute('data-mbg');
     if(!id||typeof mediaTicket!=='function')return;
+    if(typeof imcHydrateBg==='function')return imcHydrateBg(el);
     mediaTicket(id).then(ticket=>{
       if(!el.isConnected||!ticket)return;
       const url=mediaFileUrl(id,ticket,false);
@@ -115,11 +117,13 @@ function hydrateLook(root){
   });
 }
 function hydrateMedia(root){
+  if(typeof imcBoot==='function'&&typeof SESSION!=='undefined'&&SESSION)imcBoot();
   if(typeof hydrateLook==='function')hydrateLook(root);
   if(typeof SESSION==='undefined'||!SESSION)return;
   (root||document).querySelectorAll('img[data-mid]:not([data-mh]),video[data-mid]:not([data-mh]),audio[data-mid]:not([data-mh]),source[data-mid]:not([data-mh])').forEach(el=>{
     el.setAttribute('data-mh','1');
     const id=el.getAttribute('data-mid');
+    if(el.tagName==='IMG'&&typeof imcHydrateImg==='function')return imcHydrateImg(el,id,'f',()=>{const f=document.createElement('div');f.className='mfail';f.textContent='暂时无法显示';if(el.isConnected)el.replaceWith(f)});
     mediaTicket(id).then(t=>{
       if(!el.isConnected)return;
       if(!t){const f=document.createElement('div');f.className='mfail';f.textContent='暂时无法显示';el.replaceWith(f);return}
@@ -429,7 +433,7 @@ Object.assign(A,{
   xshare:v=>{S.sh={t:'xshare',id:v}},
   xcopylink:async v=>{S.sh=null;const ok=await copyText(postLink(v));T(ok?'已复制帖子链接':'复制失败，请长按手动复制')},
   xcopytext:async v=>{S.sh=null;const p=findPost(v);const ok=await copyText(p&&p.x||'');T(ok?'已复制正文':'复制失败')},
-  xsys:async v=>{S.sh=null;const p=findPost(v);try{await navigator.share({title:'VEXO',text:p&&p.x?[...p.x].slice(0,60).join(''):'',url:postLink(v)})}catch(e){}},
+  xsys:async v=>{S.sh=null;const u=postLink(v);if(!/^https?:/i.test(u)){const ok=await copyText(u);T(ok?'已复制帖子链接':'复制失败');return}try{await navigator.share({title:'VEXO',url:u})}catch(e){if(e&&e.name==='AbortError')return;const ok=await copyText(u);T(ok?'已复制帖子链接':'复制失败')}},/* 2.0.1：只分享链接（微信不接受文字 + 链接混合） */
   xrt:v=>{S.sh={t:'xrt',id:v};repostVerify(v)},
   xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(repostMap()[v])return T('已经转过了');const text=repostText(p);
     let nid=null;

@@ -18,6 +18,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
   const insCv = db.prepare(`INSERT INTO conversations(id,kind,name,owner_id,created_at,dm_lo,dm_hi) VALUES(?,?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM conversations WHERE id=?');
+  /* 2.0.1：共创项目的群聊在列表和标题栏显示「项目」，并能打开项目工作台 */
+  let projOf = null; try { projOf = db.prepare("SELECT id, status, capacity FROM projects WHERE conversation_id=? AND status <> 'removed'"); } catch {}
   const byPair = db.prepare(`SELECT * FROM conversations WHERE kind='dm' AND dm_lo=? AND dm_hi=?`);
   const delCv = db.prepare('UPDATE conversations SET deleted_at=? WHERE id=?');
   const setOwner = db.prepare('UPDATE conversations SET owner_id=? WHERE id=?');
@@ -149,6 +151,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       myNickname: my ? (my.nickname || null) : null,
       createdAt: row.created_at,
     };
+    if (row.kind === 'group' && projOf) { const pj = projOf.get(row.id); if (pj) out.projectId = pj.id; }
     if (listMsg) {
       const last = listMsg.last(row.id);
       if (last) out.lastMessage = last;
@@ -251,12 +254,23 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     insMem.run(id, Number(ownerId), 'owner', t);
     return id;
   }
+  /* 2.0.1：项目那边设 / 取消负责人时，同步项目群聊里的管理员（不触发回调，避免来回同步） */
+  let onRoleChange = null;
+  function setRoleHook(fn) { onRoleChange = fn; }
+  function systemSetRole(cvId, uid, role) {
+    if (!['admin', 'member'].includes(role)) return false;
+    const t = activeMem(cvId, Number(uid));
+    if (!t || t.role === 'owner') return false;
+    setRole.run(role, cvId, Number(uid));
+    return true;
+  }
   function systemAdd(cvId, uid) {
     const row = byId.get(cvId);
     if (!row || row.deleted_at) return false;
     const oid = Number(uid);
     if (activeMem(cvId, oid)) return true;
     if (nMem.get(cvId).n >= MAX_GROUP) throw new ApiError(400, 'TOO_MANY', '群成员最多 50 人');
+    { const pj = projOf && projOf.get(cvId); if (pj && nMem.get(cvId).n >= Number(pj.capacity)) throw new ApiError(409, 'FULL', '项目群聊人数已达招募人数'); }
     const t = now();
     if (mem.get(cvId, oid)) clearLeft.run(t, cvId, oid); else insMem.run(cvId, oid, 'member', t);
     setRole.run('member', cvId, oid);
@@ -285,6 +299,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   }
 
   function addMember(user, id, body) {
+    // 2.0.1：项目群聊不能拉人 / 邀请，只能在共创页申请、由发起人通过后自动加入
+    if (projOf && projOf.get(id)) throw new ApiError(403, 'PROJECT_CHAT', '项目群聊只能通过共创页申请加入');
     const row = requireConv(id);
     if (row.kind !== 'group') throw new ApiError(400, 'NOT_GROUP', '只有群聊能添加成员');
     const m = requireMem(row, user);
@@ -317,6 +333,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     if (!t) throw new ApiError(404, 'NOT_FOUND', '对方不在这个群');
     if (Number(oid) === Number(user.id)) throw new ApiError(400, 'SELF_ROLE', '不能更改自己的角色');
     if (t.role === 'owner') throw new ApiError(403, 'FORBIDDEN', '不能更改群主的角色');
+    if (want === 'owner' && projOf && projOf.get(id)) throw new ApiError(400, 'PROJECT_OWNER', '项目群聊的群主是项目发起人，不能转让');
     if (want === 'owner') {
       // 转让群主：仅现任群主
       if (m.role !== 'owner') throw new ApiError(403, 'FORBIDDEN', '只有群主能转让群主');
@@ -333,6 +350,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       throw new ApiError(400, 'BAD_ROLE', '角色不正确');
     }
     setRole.run(want, id, oid);
+    // 2.0.1：项目群聊的管理员就是项目负责人，改了这里同步回项目
+    if (onRoleChange && projOf && projOf.get(id)) { try { onRoleChange(id, oid, want); } catch {} }
     return {member: {...authorOf(oid), role: ROLE_CN[want], roleKey: want}};
   }
 
@@ -911,7 +930,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
     requireConv, requireMem, memberIds, activeMem, authorOf, checkDmGate, pub, openDm,
-    grantDm, systemGroup, systemAdd, systemRemove,
+    grantDm, systemGroup, systemAdd, systemRemove, systemSetRole, setRoleHook,
     ROLE_CN, ROLES, NEED, MAX_GROUP,
     // 供测试与后续步骤使用
     _byId: byId, _mems: mems,

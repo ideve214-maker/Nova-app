@@ -7,7 +7,7 @@ let browser;
 test.before(async () => { browser = await launch(); });
 test.after(async () => { await browser.close(); });
 
-test('登录后横幅说明私聊已加密并提示核对安全号码，绝不是已端到端加密', async () => {
+test('登录后横幅说明私聊已加密（2.0.1 起不提示核对安全号码），绝不是已端到端加密', async () => {
   const S = await startServer();
   const p = await openPage(browser, S.base);
   try {
@@ -19,7 +19,7 @@ test('登录后横幅说明私聊已加密并提示核对安全号码，绝不�
     await p.waitForSelector('.ban');
     const chatText = await p.locator('body').innerText();
     assert.match(chatText, /已登录 · 私聊已加密/);
-    assert.match(chatText, /安全号码/);
+    assert.doesNotMatch(chatText, /安全号码|密钥已变化/);
     assert.doesNotMatch(chatText, /已端到端加密/);
     const bans = await p.locator('.ban').allInnerTexts();
     assert.ok(bans.some(t => /私聊已加密/.test(t)), '聊天页应有私聊已加密说明: ' + JSON.stringify(bans));

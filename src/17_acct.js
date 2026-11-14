@@ -63,7 +63,7 @@ function pSec(){
 <div style="padding:0 16px"><input class="fld" data-d="delpw" type="password" autocomplete="current-password" placeholder="当前密码"></div>
 <p class="hint" style="padding:8px 16px"><button type="button" class="lk" data-a="deltog">${S.d.delok==='1'?'☑':'☐'} 我了解上述后果，确认要注销</button></p>
 ${S.delerr?`<div class="err" role="alert" style="margin:0 16px">${esc(S.delerr)}</div>`:''}
-<div style="padding:16px"><button class="pb d" style="width:100%" data-a="delacctq">注销并删除我的账号</button></div>`:''}<p class="hint" style="padding:16px">密码经过保护，别人看不到原文。一对一聊天会加密，密钥只留在这台设备。请核对手友的安全号码。退出登录不会同时撤销加密身份。</p></div></div>`}
+<div style="padding:16px"><button class="pb d" style="width:100%" data-a="delacctq">注销并删除我的账号</button></div>`:''}<p class="hint" style="padding:16px">密码经过保护，别人看不到原文。一对一聊天会加密，密钥只留在这台设备。退出登录不会同时撤销加密身份。</p></div></div>`}
 async function loadE2eeDevices(){
   if(MODE!=='account'||!SESSION)return;
   const r=await api('GET','/api/e2ee/keys');

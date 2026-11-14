@@ -12,7 +12,7 @@ async function boot(opts) {
   const call = async (m, p, body, tok) => { const r = await fetch(base + p, {method: m, headers: {'Content-Type': 'application/json', ...(tok ? {Authorization: 'Bearer ' + tok} : {})}, body: body ? JSON.stringify(body) : undefined}); return {s: r.status, j: await r.json()}; };
   let n = 0;
   let last = '';
-  const mk = async () => { const u = last = 'tg_' + (++n); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.com', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token}; };
+  const mk = async () => { const u = last = 'tg_' + (++n); const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.test', password: 'Passw0rd123'}); return {id: r.j.user.id, tok: r.j.token}; };
   const relogin = async () => ({tok: (await call('POST', '/api/auth/login', {account: last, password: 'Passw0rd123'})).j.token});
   return {srv, call, mk, relogin, tick: ms => { T += ms; }, close: () => srv.close(), row: id => srv.db.prepare('SELECT vip_until,vip_since,vip_source FROM users WHERE id=?').get(id)};
 }

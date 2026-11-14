@@ -21,6 +21,7 @@ async function loadCommunities(){
   if(mine.s===200)(mine.j.communities||[]).forEach(c=>{const x=adoptCm(c);if(x&&!x.pending&&x.joinStatus!=='pending'){x.j=1;x.r=x.r||'成员'}map.set(c.id,x)});
   if(disc.s===200)(disc.j.communities||[]).forEach(c=>{if(!map.has(c.id))map.set(c.id,adoptCm(c))});
   S.communities=[...map.values()];
+  if(typeof imcRememberCm==='function')imcRememberCm(S.communities);
 }
 async function loadCommunity(id){
   if(!usingNet()||!SESSION)return;

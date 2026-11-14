@@ -82,28 +82,30 @@ async function dropFailedBundle(U, bundle){
   }catch(e){}
 }
 
+/* 2.0.1：同一次运行里可能先后下载多个版本（下拉刷新 / 回到前台会重新检查），总是把最新下载好的那个标记为下次启动使用。 */
 function scheduleBundleApply(U, bundle){
-  if(!U||!bundle||!bundle.id||scheduleBundleApply.done)return;
+  if(!U||!bundle||!bundle.id)return;
+  const st=scheduleBundleApply;
+  if(st.cur&&st.cur.id===bundle.id&&st.doneId===bundle.id)return;
+  st.cur=bundle;st.U=U;
   const apply=async()=>{
-    if(scheduleBundleApply.done)return;
-    scheduleBundleApply.done=1;
+    const b=st.cur;if(!b||st.doneId===b.id)return;
+    st.doneId=b.id;
     try{
       /* next() 只标记下次启动使用，不会在当前会话中途重载。 */
-      if(typeof U.next==='function')await U.next({id:bundle.id});
+      if(typeof st.U.next==='function')await st.U.next({id:b.id});
     }catch(e){
       try{console.warn('nova updater: 标记新版本失败', e&&e.message?e.message:e)}catch(e2){}
-      await dropFailedBundle(U, bundle);
+      await dropFailedBundle(st.U, b);
     }
   };
+  st.apply=apply;
   apply();
-  const onHide=()=>{
-    try{
-      if(document.visibilityState==='hidden')apply();
-    }catch(e){}
-  };
+  if(st.bound)return;
+  st.bound=1;
   try{
-    document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('pagehide', apply);
+    document.addEventListener('visibilitychange', ()=>{try{if(document.visibilityState==='hidden'&&st.apply)st.apply()}catch(e){}});
+    window.addEventListener('pagehide', ()=>{if(st.apply)st.apply()});
   }catch(e){}
 }
 
@@ -197,7 +199,7 @@ async function runUpdateDownload(U){
   }
 }
 
-async function checkAndDownloadUpdate(U){
+async function checkAndDownloadUpdate(U, manual){
   const url=updateManifestUrl();
   if(!url)return;
   let manifest;
@@ -224,8 +226,9 @@ async function checkAndDownloadUpdate(U){
   UPD.ver=ver;UPD.opts=opts;
   /* 已经下载好的同版本包：直接显示「已完成」，不重复下载。 */
   const have=await existingBundle(U, ver);
-  if(have){UPD.bundle=have;scheduleBundleApply(U, have);UPD.phase='done';updShow();return}
-  if(UPD.later[ver])return;
+  /* 已下载好的同版本：启动 / 下拉刷新时显示「已完成」；回到前台的自动检查不重复弹出 */
+  if(have){UPD.bundle=have;scheduleBundleApply(U, have);if(!manual&&UPD.doneShown===ver)return;UPD.doneShown=ver;UPD.phase='done';updShow();return}
+  if(UPD.later[ver]&&!manual)return;
   UPD.phase='ask';updShow();
 }
 
@@ -240,9 +243,25 @@ async function bootUpdater(){
     try{console.warn('nova updater: notifyAppReady', e&&e.message?e.message:e)}catch(e2){}
   }
   await syncRunningVersion(U);
+  updRecheck.at=Date.now();
   try{await checkAndDownloadUpdate(U)}catch(e){}
+}
+
+/* 2.0.1 不重启也能发现新版本：
+   - 首页下拉刷新时 manual=true：间隔 3 秒（只挡住连续下拉），会再次询问之前点过「稍后」的版本；
+   - App 回到前台时 manual=false：最多 5 分钟检查一次，尊重「稍后」。
+   正在下载、或对话框正开着时不打扰。 */
+async function updRecheck(manual){
+  const U=updaterPlugin();
+  if(!U||!bootUpdater.done||UPD.busy||UPD.phase==='dl'||UPD.phase==='ask')return;
+  const gap=manual?3000:5*60*1000, t=Date.now();
+  if(updRecheck.at&&t-updRecheck.at<gap)return;
+  if(updRecheck.running)return;
+  updRecheck.at=t;updRecheck.running=1;
+  try{await checkAndDownloadUpdate(U, !!manual)}catch(e){}finally{updRecheck.running=0}
 }
 
 if(typeof window!=='undefined'){
   bootUpdater();
+  try{document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')updRecheck(false)})}catch(e){}
 }

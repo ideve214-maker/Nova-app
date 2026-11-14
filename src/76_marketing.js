@@ -7,13 +7,26 @@ function adMediaHTML(ad){const m=(ad.media||[]).filter(x=>adUrl(x.url));if(!m.le
   if(m[0].kind==='video')return `<div class="admedia"><video src="${esc(adUrl(m[0].url))}" controls playsinline muted preload="metadata"></video></div>`;
   if(m.length===1)return `<div class="admedia"><img src="${esc(adUrl(m[0].url))}" alt="" loading="lazy"></div>`;
   return `<div class="admedia grid">${m.slice(0,4).map(x=>`<img src="${esc(adUrl(x.url))}" alt="" loading="lazy">`).join('')}</div>`}
+/* 2.0.1 新营销帖卡片（和管理端发布表单的预览一致）：
+   顶部：广告主头像 + 名称，名称下方灰色小字「推广」（保持「推广」，不用「广告/Sponsored」）；⋯ 菜单
+   正文（最多约 125 字，超出省略）→ 大图 → 底部卡片：左边 域名（大写灰色小字）/ 粗体标题 / 灰色副标题，右边按钮（例如「立即下载」）。
+   整张卡片可点（有链接时）；SDK 位（revive iframe）保持原样。 */
+const AD_TEXT_MAX=125;
+function adText(t){const a=[...String(t||'')];return a.length>AD_TEXT_MAX?a.slice(0,AD_TEXT_MAX).join('')+'…':a.join('')}
+function adHost(ad){const d=String(ad.domain||'').trim();if(d)return d;try{return ad.linkUrl?new URL(ad.linkUrl).hostname.replace(/^www\./,''):''}catch(e){return ''}}
+function adAvatar(ad){const u=adUrl(ad.avatar),nm=String(ad.advertiser||'VEXO');
+  return u?`<img class="adav" src="${esc(u)}" alt="" loading="lazy">`:`<span class="adav adavl" aria-hidden="true">${esc([...nm][0]||'V')}</span>`}
 function adCard(ad,slot){
   const id=esc(ad.id),link=ad.linkUrl&&/^https?:\/\//i.test(ad.linkUrl)?ad.linkUrl:'';
-  let body='';
-  if(ad.kind==='sdk'&&ad.sdk&&ad.sdk.provider==='revive'&&/^https?:\/\//i.test(ad.sdk.slot||''))body=`<iframe class="adframe" src="${esc(ad.sdk.slot)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" loading="lazy" title="推广"></iframe>`;
-  else body=`${ad.title?`<b class="adtt">${esc(ad.title)}</b>`:''}${ad.text?`<div class="adtx">${esc(ad.text)}</div>`:''}${adMediaHTML(ad)}`;
-  const cta=link?`<button class="adcta" data-a="adgo" data-v="${id}">${esc(ad.cta||'了解详情')}<span aria-hidden="true">›</span></button>`:'';
-  return `<article class="fcard adcard" data-adid="${id}" data-slot="${slot}"><div class="adhd"><span class="adbadge">推广</span><button class="ib" data-a="admore" data-v="${id}" aria-label="更多">${ic('more')}</button></div><div class="adbd"${link?` data-a="adgo" data-v="${id}"`:''}>${body}</div>${cta}</article>`}
+  const go=link?` data-a="adgo" data-v="${id}"`:'';
+  const hd=`<div class="adhd"><div class="adwho"${go}>${adAvatar(ad)}<span class="gr"><b class="adnm" data-ut>${esc(ad.advertiser||'VEXO')}</b><small class="adbadge" data-ut>推广</small></span></div><button class="ib" data-a="admore" data-v="${id}" aria-label="更多">${ic('more')}</button></div>`;
+  if(ad.kind==='sdk'&&ad.sdk&&ad.sdk.provider==='revive'&&/^https?:\/\//i.test(ad.sdk.slot||''))
+    return `<article class="fcard adcard adv2" data-adid="${id}" data-slot="${slot}">${hd}<div class="adbd"><iframe class="adframe" src="${esc(ad.sdk.slot)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" loading="lazy" title="推广"></iframe></div></article>`;
+  const text=ad.text?`<div class="adtx" data-ut${go}>${esc(adText(ad.text))}</div>`:'';
+  const media=adMediaHTML(ad);
+  const host=adHost(ad),hasFoot=!!(link||ad.title||ad.subtitle||host);
+  const foot=hasFoot?`<div class="adft"${go}><div class="gr">${host?`<small class="addom" data-ut>${esc(host)}</small>`:''}${ad.title?`<b class="adtt" data-ut>${esc(ad.title)}</b>`:''}${ad.subtitle?`<small class="adsub" data-ut>${esc(ad.subtitle)}</small>`:''}</div>${link?`<button class="adcta" type="button" data-a="adgo" data-v="${id}">${esc(ad.cta||'了解详情')}</button>`:''}</div>`:'';
+  return `<article class="fcard adcard adv2" data-adid="${id}" data-slot="${slot}">${hd}${text}${media?`<div class="admw"${go}>${media}</div>`:''}${foot}</article>`}
 function adsOn(){return typeof usingNet==='function'&&usingNet()&&S.feed!=='topic'&&Array.isArray(S.ads)&&S.ads.length>0}
 /* 每 adEvery 条普通帖后插一条；帖子不够一轮但有帖子时，在末尾放一条 */
 function withAds(list,render1){

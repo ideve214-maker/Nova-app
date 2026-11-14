@@ -65,6 +65,8 @@ async function refreshFeedSafe(){
   let ok=false;
   try{ok=await loadFeed()}catch(e){ok=false}finally{S.feedRefreshing=0}
   if(S.feed!==feed)return;
+  /* 2.0.1 下拉刷新：等手指松开、iOS 顶部回弹结束再重绘，避免 r8.3 时的抖动 */
+  if(typeof ptrSettle==='function')await ptrSettle();
   if(!ok){if(prev&&prev.length){S.posts=keep.posts;S.postsCursor=keep.cursor;S.hotMode=keep.hot;S.postsErr=keep.err||''}else if(typeof render==='function')render();return}
   const sc=homeSc();
   if(!sc||!prev||(sc.scrollTop||0)<=4){S.feedPending=null;if(sc&&typeof render==='function')render();return}

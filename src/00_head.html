@@ -641,5 +641,156 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 @keyframes vxsPulse{0%,100%{filter:drop-shadow(0 0 14px rgba(70,150,255,.6)) drop-shadow(0 0 34px rgba(40,110,255,.35))}50%{filter:drop-shadow(0 0 22px rgba(90,170,255,.95)) drop-shadow(0 0 56px rgba(40,110,255,.55))}}
 @keyframes vxsOrb{from{stroke-dashoffset:0}to{stroke-dashoffset:-970}}
 @media (prefers-reduced-motion:reduce){#vxsplash *{animation:none!important}}
+
+/* ===== 2.0.1 ===== */
+/* 共创按钮在 iOS 上居中：明确水平/垂直居中，去掉系统按钮外观和基线偏移 */
+.pjact,.pjadd,.pjws,.aimb,.vxbar,.v2form{--pbfix:1}
+.pjact .pb,.pjadd .pb,.pjws .pb,.pjwsgo,.aimb .pb,.vxbar .pb{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;text-align:center;line-height:1;gap:6px;white-space:nowrap;margin:0}
+.pjact .pb>span,.pjadd .pb>span,.pjws .pb>span,.pjwsgo>span,.aimb .pb>span{display:block;line-height:1.2}
+.pjact .pb svg,.pjadd .pb svg,.pjwsgo svg,.aimb .pb svg{flex:none;display:block}
+/* 操作行：两列等宽网格，所有状态同高同圆角；只有一个按钮时占满 */
+.pjact{display:grid!important;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.pjact .pb{width:100%;min-width:0;height:44px;min-height:44px;border-radius:12px;padding:0 10px;font-size:15px;flex:none}
+.pjact .pb:only-child{grid-column:1/-1}
+.pjact .pb.off{opacity:1;background:var(--s2);color:var(--t2);box-shadow:none}
+/* 输入框占位文字不被截断/错位：固定高度 + normal 行高；16px 避免 iOS 聚焦放大 */
+.pjadd input.fld,.pjadd select.fld,.vxbar .fld{height:44px;padding:0 12px;line-height:normal;font-size:16px;-webkit-appearance:none;appearance:none}
+.pjadd input.fld::placeholder,.vxbar .fld::placeholder{line-height:normal;color:var(--t3)}
+.pjadd textarea.fld{font-size:16px}
+.pjtadd input.fld{flex:1 1 100%}
+.pjtadd select.fld{flex:1 1 0}
+.pjtadd .pb{height:44px;min-width:76px}
+.pjadd .fr .pb{height:40px;min-width:110px}
+/* 需要的技能：字更大 */
+.skl{gap:8px}
+.skl span{font-size:14px;padding:5px 12px;border-radius:14px;line-height:1.3}
+/* 成员：标题和头像之间留空；一行最多 5 个，+N 叠放；不换行、不撑高 */
+.pjmsec h4{display:flex;align-items:center;margin-bottom:14px}
+.pjmsec h4 .pjall{margin-left:auto;font-size:13px;font-weight:500}
+.pjmem{display:flex;flex-wrap:nowrap;gap:6px;overflow:hidden;height:86px;align-items:flex-start;padding:0}
+.pjm{width:56px}
+.pjm .nmb{max-width:56px;font-size:12px;display:block!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.pjm small{height:14px;line-height:14px}
+.pjmore{flex:none;display:flex;align-items:center;height:40px;padding:0 0 0 4px;background:none;color:inherit}
+.pjst{display:inline-flex;width:40px;height:40px;border-radius:50%;border:2px solid var(--sf,var(--bg));overflow:hidden;margin-left:-14px;background:var(--s2)}
+.pjst:first-child{margin-left:0}
+.pjst .av,.pjst img{width:100%!important;height:100%!important}
+.pjn{align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--tx);background:var(--s2)}
+.pjml{max-height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:0 -16px}
+.pjml .row{width:100%;text-align:left}
+/* 项目群聊：「项目」标签；工作台 */
+.tag.pjtag{background:color-mix(in srgb,var(--ac) 16%,transparent);color:var(--ac)}
+.pjwsgo{width:100%;height:44px;border-radius:12px;margin-top:10px}
+.pjwsh{display:flex;align-items:center;gap:10px;width:calc(100% - 32px);margin:12px 16px 6px;padding:12px 14px;border-radius:14px;background:var(--s2);color:inherit;text-align:left}
+.pjwsh small{color:var(--t2)}
+.pjws-pg .pjws{border-top:0}
+.v2shu{font-size:12px;color:var(--t2);word-break:break-all;margin:-4px 0 8px}
+/* AI 翻译 */
+.trb{margin:6px var(--pad,16px) 4px;padding:8px 12px;border-left:3px solid var(--ac);border-radius:4px 10px 10px 4px;background:var(--s2);white-space:pre-wrap;word-break:break-word;font-size:15px;line-height:1.5}
+.trb small{display:flex;align-items:center;gap:10px;margin-top:4px;color:var(--t3);font-size:12px}
+.trb small .lk{font-size:12px}
+.trb.busy{color:var(--t2);font-size:13px}
+.mw .trb{margin:4px 0 0;max-width:100%}
+/* 技能交换 AI 匹配 */
+.aimb{margin:6px 16px 10px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--ac) 14%,var(--sf,transparent)),var(--sf,transparent));border:1px solid color-mix(in srgb,var(--ac) 30%,transparent)}
+.aimh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.aimh b{display:inline-flex;align-items:center;gap:6px;font-size:15px}
+.aimh b svg{width:18px;height:18px;color:var(--ac);fill:currentColor}
+.aimh .sw{display:flex;gap:14px}
+.aimb .hint{display:block;margin-top:4px}
+.aiml{display:flex;gap:10px;overflow-x:auto;margin:10px -14px 0;padding:0 14px 2px;scroll-snap-type:x mandatory}
+.aiml>.em,.aiml>.hint{flex:1}
+.aimc{flex:none;width:236px;scroll-snap-align:start;display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:14px;background:var(--sf,var(--bg));border:1px solid var(--ln)}
+.aimc .exu{display:flex;align-items:center;gap:8px;background:none;color:inherit;padding:0;text-align:left}
+.aimu{display:inline-block;font-size:11px;color:#1D9A55;background:color-mix(in srgb,#1D9A55 14%,transparent);padding:1px 6px;border-radius:6px;margin-top:2px}
+.aimx{font-size:13px;margin:0;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.aimx span{color:var(--t2);margin-right:6px}
+.aimr{font-size:13px;color:var(--t2);margin:2px 0 4px;min-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.aimc .pb{height:34px;width:100%}
+/* VEXO 助手 */
+.vxav{display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:50%;background:linear-gradient(135deg,#4F6EF7,#8A5CF6);color:#fff}
+.vxav svg{width:55%;height:55%;fill:currentColor}
+.vxarow{width:100%;text-align:left}
+.tag.vxtag{background:color-mix(in srgb,var(--ac) 16%,transparent);color:var(--ac);font-size:11px}
+.vxpg .sc{padding-bottom:12px}
+.vxm .bub{background:var(--s2);color:var(--tx)}
+.vxsrc{display:block;font-size:11px;color:var(--t3);margin-top:3px}
+.vxq{display:flex;flex-wrap:wrap;gap:8px;padding:8px 16px 4px 52px}
+.vxq .chipb{height:auto;min-height:32px;white-space:normal;text-align:left;padding:6px 12px;line-height:1.35}
+.vxnote{font-size:11px;color:var(--t3);text-align:center;padding:10px 24px 4px}
+.vxbar{display:flex;gap:8px;align-items:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--ln);background:var(--bg)}
+.vxbar .fld{flex:1;margin:0}
+.vxbar .pb{flex:none;height:44px;min-width:64px;border-radius:12px}
+.vxdots{display:inline-flex;gap:4px;padding:12px 14px}
+.vxdots i{width:6px;height:6px;border-radius:50%;background:var(--t3);animation:vxd 1s infinite ease-in-out}
+.vxdots i:nth-child(2){animation-delay:.15s}.vxdots i:nth-child(3){animation-delay:.3s}
+@keyframes vxd{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+/* 下拉刷新提示（固定定位，不占布局） */
+#ptri{position:fixed;left:50%;top:calc(var(--top-h,44px) + env(safe-area-inset-top,0px) + 10px);z-index:40;display:none;align-items:center;gap:8px;padding:7px 14px;border-radius:18px;background:var(--sf,#fff);color:var(--tx);box-shadow:0 4px 16px rgba(0,0,0,.18);font-size:13px;font-weight:600;pointer-events:none;transition:opacity .15s}
+#ptri.on{display:flex}
+#ptri .ptrs{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;font-style:normal;transition:transform .12s;color:var(--ac)}
+#ptri .ptrs.spin{border:2px solid color-mix(in srgb,var(--ac) 30%,transparent);border-top-color:var(--ac);border-radius:50%;animation:ptrspin .7s linear infinite}
+@keyframes ptrspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#ptri .ptrs.spin,.vxdots i{animation:none}}
+/* 新营销帖卡片 */
+.adv2{padding:12px 0 12px}
+.adv2 .adhd{padding:0 var(--pad,16px) 8px}
+.adwho{display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer}
+.adwho .gr{display:flex;flex-direction:column;min-width:0}
+.adav{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:none;background:var(--s2)}
+.adavl{display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#fff;background:linear-gradient(135deg,#4F6EF7,#8A5CF6)}
+.adnm{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adv2 .adbadge{all:unset;font-size:12px;color:var(--t2);line-height:1.3}
+.adv2 .adtx{padding:0 var(--pad,16px);margin-bottom:10px;cursor:pointer}
+.adv2 .admw{cursor:pointer}
+.adv2 .admedia{border-radius:0;margin:0}
+.adv2 .admedia img,.adv2 .admedia video{max-height:520px;min-height:180px}
+.adft{display:flex;align-items:center;gap:12px;margin:0;padding:10px var(--pad,16px);background:var(--s2);cursor:pointer}
+.adft .gr{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
+.addom{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adft .adtt{font-size:15px;font-weight:700;margin:0;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adsub{font-size:13px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adv2 .adcta{all:unset;box-sizing:border-box;flex:none;display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 14px;border-radius:10px;background:var(--s3,color-mix(in srgb,var(--tx) 12%,transparent));color:var(--tx);font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer}
+.adv2 .adbd{padding:0 var(--pad,16px)}
+/* 邮箱建议 */
+.err .esug{display:block;margin-top:6px;font-weight:600;color:var(--ac);text-decoration:underline}
+
+.pjstat.two{display:grid!important;grid-template-columns:1fr 1fr;gap:10px}
+.pill.pjfull{margin-left:6px;background:color-mix(in srgb,#E8870E 16%,transparent);color:#B86400}
+.pjml .row{align-items:center}
+.pjlead{flex:none;margin-left:auto;height:30px;min-width:0;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+
+/* 2.0.1 标签栏液态玻璃指示块 */
+.fnav{touch-action:pan-y;-webkit-user-select:none;user-select:none}
+.fnav>button{position:relative;z-index:1}
+.fnav>button svg{transition:transform .28s cubic-bezier(.3,1.4,.5,1)}
+.fnav>button.on svg{transform:scale(1.15)}
+.tgpill{position:absolute;left:0;top:4px;bottom:4px;z-index:0;border-radius:999px;pointer-events:none;will-change:transform;transform-origin:center;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--tx) 14%,transparent),color-mix(in srgb,var(--tx) 6%,transparent));
+  border:.5px solid color-mix(in srgb,#fff 34%,transparent);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 0 rgba(255,255,255,.08),inset 0 0 12px rgba(255,255,255,.08),0 4px 14px rgba(0,0,0,.18);
+  -webkit-backdrop-filter:blur(10px) saturate(190%);backdrop-filter:blur(10px) saturate(190%)}
+:root[data-theme=light] .tgpill{background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.45));border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 4px 14px rgba(20,30,60,.14),0 0 0 .5px rgba(20,30,60,.06)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.tgpill{background:color-mix(in srgb,var(--tx) 16%,var(--sf))}}
+.fnav.tgdrag>button svg{transition-duration:.15s}
+@media (prefers-reduced-motion:reduce){.fnav>button svg{transition:none}}
+
+/* 2.0.1：上传的背景淡入（::before 层在子元素下面，不挡按钮和文字） */
+.mbgf{isolation:isolate}
+.mbgf:not(.cvr):not(.acov):not(.cover){position:relative}
+.mbgf::before{content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--mbg) center/cover no-repeat;opacity:0;transition:opacity .28s ease}
+.mbgf.in::before{opacity:1}
+@media (prefers-reduced-motion:reduce){.mbgf::before{transition:none}}
+
+/* 2.0.1：成员一行固定 6 格（5 个头像 + 叠放的 +N），390 宽也不溢出 */
+.pjmem{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr)) 60px;gap:6px;overflow:hidden;height:86px}
+.pjm{width:auto!important;min-width:0}
+.pjm .nmb{max-width:100%!important}
+.pjmore{min-width:0;justify-content:center;padding:0!important}
+.pjmore .pjst{width:36px;height:36px;margin-left:-12px}
+.pjmore .pjst:first-child{margin-left:0}
+/* 状态标签和「已满员」并排 */
+.pjfull{margin-left:6px;display:inline-block}
+.pjpills{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.pjpills .pjfull{margin-left:0}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
