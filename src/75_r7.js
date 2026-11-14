@@ -16,7 +16,7 @@
   document.addEventListener('touchmove',e=>{if((e.touches&&e.touches.length>1)||(typeof e.scale==='number'&&e.scale!==1))stop(e)},{passive:false,capture:true});
   document.addEventListener('dblclick',e=>{if(!(e.target&&e.target.closest&&e.target.closest('input,textarea,[contenteditable]')))e.preventDefault()},{passive:false});
   const meta=document.querySelector('meta[name=viewport]');
-  const BASE='width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+  const BASE='width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, shrink-to-fit=no';
   let t=null;
   function reset(){
     const vv=window.visualViewport;
@@ -26,12 +26,28 @@
     requestAnimationFrame(()=>meta.setAttribute('content',BASE));
     return true;
   }
-  const later=()=>{clearTimeout(t);t=setTimeout(reset,150)};
-  if(window.visualViewport)window.visualViewport.addEventListener('resize',later);
+  /* r8：不再在每次视口变化时改 meta——iOS 改 meta 会重新排版、再次触发视口变化，
+     和首页收起动画叠在一起就变成一边滚动一边整页放大缩小、上下抽搐。只在失焦/转屏后复位一次，且 1.5 秒内最多一次。 */
+  let last=0;
+  const later=()=>{clearTimeout(t);t=setTimeout(()=>{const n=Date.now();if(n-last<1500)return;if(reset())last=n},250)};
   document.addEventListener('focusout',later,true);
   window.addEventListener('orientationchange',later);
   window.__novaZoomReset=reset;
 })();
+
+/* r8：外层容器（html、body、#v、.pg）本来就不该滚动。iOS 聚焦输入框或系统自动滚动时会把它们滚开，
+   画面就整体上下左右偏一截，看起来像在缩放、抽搐。只要被滚开就立刻归零。 */
+function pinRoots(){
+  const fix=el=>{if(el&&(el.scrollTop||el.scrollLeft)){el.scrollTop=0;el.scrollLeft=0}};
+  fix(document.documentElement);fix(document.body);fix(document.getElementById('v'));
+  document.querySelectorAll('#v > .pg, #v .pg').forEach(fix);
+  if(window.scrollX||window.scrollY)window.scrollTo(0,0);
+}
+if(typeof document!=='undefined'){
+  document.addEventListener('scroll',e=>{const t=e.target;if(t===document||t===document.documentElement||t===document.body||(t&&t.id==='v')||(t&&t.classList&&t.classList.contains('pg')))pinRoots()},true);
+  window.addEventListener('scroll',pinRoots,{passive:true});
+  document.addEventListener('focusout',()=>setTimeout(pinRoots,60),true);
+}
 
 /* ---- 2. 键盘：输入框获得焦点后滚到可见处；群名输入按"完成"收起键盘 ---- */
 document.addEventListener('focusin',e=>{
@@ -39,7 +55,11 @@ document.addEventListener('focusin',e=>{
   if(!el||!el.matches||!el.matches('input:not([type=checkbox]):not([type=file]),textarea'))return;
   setTimeout(()=>{
     if(document.activeElement!==el||!el.isConnected)return;
-    if(el.closest('.pn,.sc,.pnl'))try{el.scrollIntoView({block:'nearest'})}catch(_){}
+    /* r8：不用 scrollIntoView，它会把 overflow:hidden 的外层（body、#v、.pg）也一起滚开，页面就整体偏移、像在缩放 */
+    const sc=el.closest('.pn,.sc,.pnl');
+    if(sc){const r=el.getBoundingClientRect(),b=sc.getBoundingClientRect();const kb=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--kb'))||0;const bottom=Math.min(b.bottom,window.innerHeight-kb)-12;
+      if(r.bottom>bottom)sc.scrollTop+=r.bottom-bottom;else if(r.top<b.top+12)sc.scrollTop-=b.top+12-r.top}
+    pinRoots();
   },320);
 });
 document.addEventListener('keydown',e=>{
@@ -398,12 +418,16 @@ function homeApply(h,y,instant){
   if(!h||!h.sc)return;
   const room=h.sc.scrollHeight-h.sc.clientHeight,colH=h.col?h.col.scrollHeight:0;
   let hc=!!S._hc,tt=!!S._tt;
-  if(!hc&&y>48&&room>colH+120)hc=true;
-  else if(hc&&y<=1)hc=false;
+  /* r8：收起/展开后 450ms 内不再反向切换（动画 300ms），iOS 回弹时 scrollTop 会来回过 0，否则会连着切、上下抽搐 */
+  const now=Date.now(),lock=now-(homeApply.at||0)<450;
+  if(!lock){
+    if(!hc&&y>48&&room>colH+120)hc=true;
+    else if(hc&&y<=1)hc=false;
+  }
   const th=Math.max(800,h.sc.clientHeight*1.3);
   if(!tt&&y>th)tt=true;else if(tt&&y<240)tt=false;
   if(instant)h.pg.classList.add('hnoanim');
-  if(hc!==!!S._hc||h.pg.classList.contains('hc')!==hc){S._hc=hc;h.pg.classList.toggle('hc',hc)}
+  if(hc!==!!S._hc||h.pg.classList.contains('hc')!==hc){if(hc!==!!S._hc&&!instant)homeApply.at=now;S._hc=hc;h.pg.classList.toggle('hc',hc)}
   if(tt!==!!S._tt||(h.tt&&h.tt.classList.contains('on')!==tt)){S._tt=tt;if(h.tt){h.tt.classList.toggle('on',tt);h.tt.tabIndex=tt?0:-1;h.tt.setAttribute('aria-hidden',tt?'false':'true')}}
   if(instant)requestAnimationFrame(()=>requestAnimationFrame(()=>h.pg.classList.remove('hnoanim')));
 }
