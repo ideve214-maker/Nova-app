@@ -45,7 +45,7 @@ r7 只改了用户端网页部分（`src/`、`dist/`），可以热更新。本�
   - `POST /api/posts/:id/view`（同一用户/设备去重，例如每人每帖 24 小时算一次），`pub()` 里返回 `viewCount`。
   - 转帖：`posts.repost_of` 字段或 `post_reposts(post_id,user_id)` 表，`POST /api/posts/:id/repost`、`POST /api/posts/:id/unrepost`，`pub()` 返回 `repostCount`、`myRepost`。
   - `pub()` 返回 `bookmarkCount`（`saved_items` 里 kind=post、target=id 的数量）和 `myBookmark`。
-  - 网页版要能打开 `/#/post/<id>`（需要确定对外的网页域名；现在 App 里复制出来的是 `nova://post/<id>`，App 还没注册这个链接协议，需要原生端配置 URL scheme，这一步要发版，热更新做不了）。
+  - 网页版要能打开 `/#/post/<id>`（需要确定对外的网页域名；现在 App 里复制出来的是 `vexo://post/<id>`，App 还没注册这个链接协议，需要原生端配置 URL scheme，这一步要发版，热更新做不了）。
 
 ## 4. 不需要服务端的项
 

@@ -39,7 +39,7 @@ export function interpolate(text, cfg = legalConfig()) {
 export function legalDoc(kind, env = process.env) {
   const cfg = legalConfig(env);
   const isTerms = kind === 'terms' || kind === 'agreement';
-  const title = isTerms ? 'NOVA 用户协议' : 'NOVA 隐私政策';
+  const title = isTerms ? 'VEXO 用户协议' : 'VEXO 隐私政策';
   const name = isTerms ? '04_user-agreement.md' : '04_privacy-policy.md';
   let raw = '';
   try { raw = readFileSync(join(DIR, name), 'utf8'); }

@@ -356,7 +356,7 @@ function postLinkBase(){
   }catch(e){}
   return '';
 }
-function postLink(id){const base=postLinkBase();return base?base+'/#/post/'+encodeURIComponent(id):'nova://post/'+encodeURIComponent(id)}
+function postLink(id){const base=postLinkBase();return base?base+'/#/post/'+encodeURIComponent(id):'vexo://post/'+encodeURIComponent(id)}
 async function copyText(t){
   try{if(navigator.clipboard&&window.isSecureContext!==false){await navigator.clipboard.writeText(t);return true}}catch(e){}
   try{const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:-1000px;opacity:0;font-size:16px';document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,t.length);const ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}
