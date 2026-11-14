@@ -27,16 +27,29 @@ export type UpdateCheck = {
   kind?: string;
 };
 
-/** Options for CapacitorUpdater.download(), or null when there is nothing to fetch. */
+const SHA256_HEX = /^[0-9a-f]{64}$/i;
+
+/**
+ * Options for CapacitorUpdater.download(), or null when there is nothing to fetch.
+ * A sha256 checksum (64 hex chars, from `checksum` or `sha256`) is required: the
+ * update URL may be plain http, so a bundle without a valid checksum is skipped
+ * (no download, no next()) and a warning is logged.
+ */
 export function toDownloadOptions(latest: UpdateCheck | null | undefined) {
   if (!latest || latest.error || latest.kind === "up_to_date") return null;
   const url = String(latest.url ?? "").trim();
   const version = String(latest.version ?? "").trim();
   if (!url || !version) return null;
-  const checksum = String(latest.checksum || latest.sha256 || "").trim();
+  const rawChecksum = String(latest.checksum || latest.sha256 || "").trim();
+  if (!SHA256_HEX.test(rawChecksum)) {
+    console.warn(
+      `[vexo-admin] live update ${version} skipped: manifest checksum is ${rawChecksum ? "not a 64-char sha256 hex" : "missing"}`,
+    );
+    return null;
+  }
+  const checksum = rawChecksum.toLowerCase();
   const sessionKey = String(latest.sessionKey ?? latest.session_key ?? "").trim();
-  const options: { url: string; version: string; checksum?: string; sessionKey?: string } = { url, version };
-  if (checksum) options.checksum = checksum;
+  const options: { url: string; version: string; checksum: string; sessionKey?: string } = { url, version, checksum };
   if (sessionKey) options.sessionKey = sessionKey;
   return options;
 }
