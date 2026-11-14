@@ -52,7 +52,7 @@ env:
   USER_VERSION_NAME: '1.0.0'
   USER_VERSION_CODE_BASE: '100'
   USER_DISPLAY_NAME: 'VEXO'
-  ADMIN_VERSION_NAME: '1.1.0'
+  ADMIN_VERSION_NAME: '1.1.2'
   ADMIN_VERSION_CODE_BASE: '110'
   ADMIN_DISPLAY_NAME: 'VEXO 管理端'
   # ---- endpoints (user values are public; admin URL is secret-only) ----------
@@ -338,6 +338,17 @@ jobs:
       # them from there only when include_admin is ticked.
       # Not deployed (deploy_admin=false or admin_sha not on the branch): keep the
       # admin hot-update candidate as an artifact instead (user allowed admin publicly).
+      # ci/admin-1.1.2：管理端 2580148 不在 admin-vexo-1.1.0 上，服务器部署步骤不会跑；
+      # 临时把管理端安装包作为 Actions 产物上传（只保留 1 天），由人工下载后放到隐藏下载入口。
+      - name: Upload admin package artifact (ci/admin-1.1.2, 1 day)
+        if: matrix.app == 'admin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG_FILE }}
+          path: out/${{ env.PKG_FILE }}
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload admin hot-update candidate (no server deploy)
         if: >-
           matrix.app == 'admin' && matrix.platform == 'android' &&
