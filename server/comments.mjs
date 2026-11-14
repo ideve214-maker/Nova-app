@@ -34,7 +34,7 @@ export function createComments(db, {profile, vip, posts, now}) {
     const u = userBy.get(id);
     if (!u) return {id, username: 'unknown', displayName: 'unknown', avatar: null, vip: false};
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null};
   }
   const adjLikes = db.prepare('SELECT adj_likes FROM posts WHERE id=?');
   function reactOf(postId, me) {

@@ -18,6 +18,8 @@ const call = async (m, p, body, tok) => {
 async function acc(n) {
   const u = n + (++seq);
   const r = await call('POST', '/api/auth/register', {agree:true, username: u, email: u + '@x.test', password: 'Passw0rd123'});
+  // 2.0：发起投票需要官方/官方授权标识；这里的老用例只测投票规则，统一给标识
+  srv.db.prepare("UPDATE users SET badge='authorized' WHERE id=?").run(r.j.user.id);
   return {tok: r.j.token, id: r.j.user.id};
 }
 

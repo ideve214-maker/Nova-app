@@ -196,6 +196,7 @@ export function createProfile(db, {now}) {
       bio: p.bio || '',
       avatar: p.avatar,
       cover: p.cover || null,
+      badge: target.badge || null,
       isFriend,
       isSelf: !!self,
       risky: false,

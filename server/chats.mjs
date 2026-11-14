@@ -102,7 +102,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     const u = userBy.get(Number(id));
     if (!u) return {id: Number(id), username: 'unknown', displayName: 'unknown'};
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active)};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active), badge: u.badge || null};
   }
   function pair(a, b) {
     a = Number(a); b = Number(b);
@@ -183,6 +183,11 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       const ba = db.prepare('SELECT 1 FROM follows WHERE follower_id=? AND followee_id=?').get(Number(b), Number(a));
       if (ab && ba) return;
     } catch {}
+    // 2.0：技能交换「咨询」等场景授予的私聊许可（拉黑已在上面优先拦截）
+    try {
+      const [lo, hi] = pair(a, b);
+      if (db.prepare('SELECT 1 FROM dm_grants WHERE lo=? AND hi=? LIMIT 1').get(lo, hi)) return;
+    } catch {}
     if (friends.enforce) {
       throw new ApiError(403, 'NOT_FRIENDS', '只有双向好友才能直接私聊，请先发送消息请求');
     }
@@ -232,6 +237,34 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     insMem.run(id, Number(user.id), 'owner', t);
     for (const oid of ids) insMem.run(id, oid, 'member', t);
     return {conversation: pub(byId.get(id), user)};
+  }
+
+  // 2.0 共创项目群：由项目模块调用，不走群角色权限（项目负责人审批即入群）
+  function grantDm(a, b, source, refId) {
+    const [lo, hi] = pair(a, b);
+    db.prepare('INSERT OR IGNORE INTO dm_grants(lo,hi,source,ref_id,created_at) VALUES(?,?,?,?,?)').run(lo, hi, String(source), refId || null, now());
+  }
+  function systemGroup(ownerId, name) {
+    const t = now(), id = nid('cv');
+    const nm = [...String(name || '共创项目').trim()].slice(0, NAME_MAX).join('') || '共创项目';
+    insCv.run(id, 'group', nm, Number(ownerId), t, null, null);
+    insMem.run(id, Number(ownerId), 'owner', t);
+    return id;
+  }
+  function systemAdd(cvId, uid) {
+    const row = byId.get(cvId);
+    if (!row || row.deleted_at) return false;
+    const oid = Number(uid);
+    if (activeMem(cvId, oid)) return true;
+    if (nMem.get(cvId).n >= MAX_GROUP) throw new ApiError(400, 'TOO_MANY', '群成员最多 50 人');
+    const t = now();
+    if (mem.get(cvId, oid)) clearLeft.run(t, cvId, oid); else insMem.run(cvId, oid, 'member', t);
+    setRole.run('member', cvId, oid);
+    emit([oid, ...mems.all(cvId).map(x => x.user_id)], 'conversation.member', {conversationId: cvId, member: {...authorOf(oid), role: '成员', roleKey: 'member'}});
+    return true;
+  }
+  function systemRemove(cvId, uid) {
+    if (activeMem(cvId, Number(uid))) setLeft.run(now(), cvId, Number(uid));
   }
 
   function create(user, body) {
@@ -877,7 +910,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     send, listMessages, pubMsg, quoteOf, forward, react, messageOf, getMessageDraft, listMessageDrafts, putMessageDraft, clearMessageDraft, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
-    requireConv, requireMem, memberIds, activeMem, authorOf, checkDmGate, pub,
+    requireConv, requireMem, memberIds, activeMem, authorOf, checkDmGate, pub, openDm,
+    grantDm, systemGroup, systemAdd, systemRemove,
     ROLE_CN, ROLES, NEED, MAX_GROUP,
     // 供测试与后续步骤使用
     _byId: byId, _mems: mems,

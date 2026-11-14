@@ -95,7 +95,7 @@ export function createPosts(db, {vip, profile, now}) {
     if (!u) return {id, username: 'unknown', displayName: 'unknown', avatar: null, vip: false};
     const p = profile.publicOf(u);
     const v = vip.status(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!v.active};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!v.active, badge: u.badge || null};
   }
   let extras = null;
   function attach(ex) { extras = Object.assign(extras || {}, ex); }
@@ -154,6 +154,7 @@ export function createPosts(db, {vip, profile, now}) {
       out.myReaction = rx.myReaction;
       out.commentCount = extras.commentCount(row.id);
       if (extras.pollOf) out.poll = extras.pollOf(row.id, me);
+      if (extras.activityOf) { const ac = extras.activityOf(row.id, me); if (ac) out.activity = ac; }
       if (extras.hashtagsOf) out.hashtags = extras.hashtagsOf(row.id);
       if (extras.boostOf && out.mine) { const bb = extras.boostOf(row.id, me); if (bb) out.boost = bb; }
       if (extras.personalFilter && me) {

@@ -1,0 +1,288 @@
+// VEXO 2.0：官方/官方授权标识、投票与活动（仅官方）、技能交换（咨询直达私聊）、共创项目（申请→审批→任务→群聊）、管理端移除
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createApp} from '../index.mjs';
+
+let srv, base, seq = 0, adm;
+test.before(async () => {
+  srv = createApp({adminUsername: 'ops_v2', adminPassword: 'OpsV2Pass1!', mediaDir: join(mkdtempSync(join(tmpdir(), 'v2-')), 'media')});
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  base = 'http://127.0.0.1:' + srv.address().port;
+  adm = (await call('POST', '/api/admin/auth/login', {username: 'ops_v2', password: 'OpsV2Pass1!'})).j.token;
+});
+test.after(() => srv.close());
+const call = async (m, p, body, tok) => {
+  const r = await fetch(base + p, {method: m, headers: {'Content-Type': 'application/json', ...(tok ? {Authorization: 'Bearer ' + tok} : {})}, body: body ? JSON.stringify(body) : undefined});
+  let j = null; try { j = await r.json(); } catch {}
+  return {s: r.status, j};
+};
+async function acc(n) {
+  const u = n + (++seq);
+  const r = await call('POST', '/api/auth/register', {agree: true, username: u, email: u + '@x.test', password: 'Passw0rd123'});
+  assert.equal(r.s, 200, JSON.stringify(r.j));
+  return {tok: r.j.token, id: r.j.user.id, u};
+}
+async function upload(tok, type, name, buf) {
+  const r = await fetch(base + '/api/media', {method: 'POST', headers: {Authorization: 'Bearer ' + tok, 'Content-Type': type, 'X-File-Name': encodeURIComponent(name)}, body: buf});
+  return {s: r.status, j: await r.json()};
+}
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const future = (h = 24) => Date.now() + h * 3600e3;
+
+test('官方标识：管理员设置/取消，帖子、评论、资料、聊天、搜索里都带 badge；普通用户不能设置', async () => {
+  const a = await acc('bga'), b = await acc('bgb');
+  const no = await call('POST', '/api/admin/users/' + a.id + '/badge', {badge: 'official'}, a.tok);
+  assert.ok(no.s === 401 || no.s === 403);
+  const bad = await call('POST', '/api/admin/users/' + a.id + '/badge', {badge: 'vip'}, adm);
+  assert.equal(bad.s, 400);
+  const set = await call('POST', '/api/admin/users/' + a.id + '/badge', {badge: 'official'}, adm);
+  assert.equal(set.s, 200, JSON.stringify(set.j));
+  assert.equal(set.j.user.badge, 'official');
+  const post = await call('POST', '/api/posts', {text: '官方公告'}, a.tok);
+  assert.equal(post.j.post.author.badge, 'official');
+  const cm = await call('POST', '/api/posts/' + post.j.post.id + '/comments', {text: '官方回复'}, a.tok);
+  assert.equal(cm.s, 200, JSON.stringify(cm.j));
+  const list = await call('GET', '/api/posts/' + post.j.post.id + '/comments', null, b.tok);
+  assert.equal(list.j.comments[0].author.badge, 'official');
+  const prof = await call('GET', '/api/users/' + a.id, null, b.tok);
+  assert.equal(prof.j.user.badge, 'official');
+  const me = await call('GET', '/api/me', null, a.tok);
+  assert.equal(me.j.user.badge, 'official');
+  await call('POST', '/api/admin/users/' + b.id + '/badge', {badge: 'authorized'}, adm);
+  const feed = await call('GET', '/api/posts', null, b.tok);
+  assert.ok(feed.j.posts.some(p => p.author.id === a.id && p.author.badge === 'official'));
+  const adminUser = await call('GET', '/api/admin/users/' + b.id, null, adm);
+  assert.equal((adminUser.j.user || adminUser.j).badge, 'authorized');
+  const clr = await call('POST', '/api/admin/users/' + b.id + '/badge', {badge: null}, adm);
+  assert.equal(clr.j.user.badge, null);
+  const logs = srv.db.prepare("SELECT * FROM audit_log WHERE action='admin.user_badge'").all();
+  assert.ok(logs.length >= 3);
+});
+
+test('投票：只有官方/授权账号能发起；一人一票；管理端能看到并移除', async () => {
+  const a = await acc('pva'), b = await acc('pvb');
+  const deny = await call('POST', '/api/posts', {text: '你选哪个', poll: {question: 'A 还是 B', options: ['A', 'B']}}, a.tok);
+  assert.equal(deny.s, 403);
+  assert.equal(deny.j.error.code, 'NOT_OFFICIAL');
+  assert.equal(srv.db.prepare('SELECT COUNT(*) AS n FROM posts WHERE author_id=?').get(a.id).n, 0, '被拒绝时不应留下动态');
+  await call('POST', '/api/admin/users/' + a.id + '/badge', {badge: 'authorized'}, adm);
+  const ok = await call('POST', '/api/posts', {text: '你选哪个', poll: {question: 'A 还是 B', options: ['A', 'B', 'C'], allowMultiple: true, closesAt: future()}}, a.tok);
+  assert.equal(ok.s, 200, JSON.stringify(ok.j));
+  const poll = ok.j.post.poll;
+  const v1 = await call('POST', '/api/polls/' + poll.id + '/vote', {optionIds: [poll.options[0].id, poll.options[2].id]}, b.tok);
+  assert.equal(v1.s, 200);
+  assert.equal(v1.j.poll.totalVotes, 2);
+  const v2 = await call('POST', '/api/polls/' + poll.id + '/vote', {optionIds: [poll.options[1].id]}, b.tok);
+  assert.equal(v2.s, 409);
+  const al = await call('GET', '/api/admin/v2/polls?q=' + encodeURIComponent('A 还是'), null, adm);
+  const row = al.j.polls.find(p => p.id === poll.id);
+  assert.ok(row && row.voters === 1 && row.options[0].votes === 1);
+  const rm = await call('POST', '/api/admin/v2/polls/' + poll.id + '/remove', {reason: '测试移除'}, adm);
+  assert.equal(rm.j.poll.removed, true);
+  const g = await call('GET', '/api/polls/' + poll.id, null, b.tok);
+  assert.equal(g.s, 404);
+  const p2 = await call('GET', '/api/posts/' + ok.j.post.id, null, b.tok);
+  assert.ok(!p2.j.post.poll, '移除后动态不再显示投票');
+  const removed = await call('GET', '/api/admin/v2/polls?status=removed', null, adm);
+  assert.ok(removed.j.polls.some(p => p.id === poll.id));
+});
+
+test('活动：官方发起（封面、时间、地点、上限）；报名一次、满员、取消；发起人看名单；管理端移除', async () => {
+  const o = await acc('aco'), u1 = await acc('acu'), u2 = await acc('acv');
+  const deny = await call('POST', '/api/posts', {activity: {title: '城市夜跑', startsAt: future(), place: '滨江'}}, u1.tok);
+  assert.equal(deny.s, 403);
+  await call('POST', '/api/admin/users/' + o.id + '/badge', {badge: 'official'}, adm);
+  const badT = await call('POST', '/api/posts', {activity: {title: '过去的活动', startsAt: Date.now() - 1000, place: 'x'}}, o.tok);
+  assert.equal(badT.s, 400);
+  const noPlace = await call('POST', '/api/posts', {activity: {title: '没地点', startsAt: future()}}, o.tok);
+  assert.equal(noPlace.s, 400);
+  const cover = await upload(o.tok, 'image/png', 'c.png', PNG);
+  assert.equal(cover.s, 200, JSON.stringify(cover.j));
+  const made = await call('POST', '/api/posts', {activity: {title: '城市夜跑', coverMediaId: cover.j.media.id, startsAt: future(), endsAt: future(26), place: '滨江步道', description: '5 公里慢跑', cap: 1}}, o.tok);
+  assert.equal(made.s, 200, JSON.stringify(made.j));
+  const ac = made.j.post.activity;
+  assert.equal(made.j.post.text, '城市夜跑', '没写正文时用活动标题');
+  assert.equal(ac.cap, 1); assert.equal(ac.count, 0); assert.equal(ac.state, 'upcoming');
+  const coverSeen = await call('GET', '/api/media/' + cover.j.media.id, null, u1.tok);
+  assert.equal(coverSeen.s, 200, '活动封面所有人可见');
+  const s1 = await call('POST', '/api/activities/' + ac.id + '/signup', null, u1.tok);
+  assert.equal(s1.s, 200); assert.equal(s1.j.activity.joined, true); assert.equal(s1.j.activity.count, 1);
+  const again = await call('POST', '/api/activities/' + ac.id + '/signup', null, u1.tok);
+  assert.equal(again.j.already, true); assert.equal(again.j.activity.count, 1);
+  const full = await call('POST', '/api/activities/' + ac.id + '/signup', null, u2.tok);
+  assert.equal(full.s, 409); assert.equal(full.j.error.code, 'FULL');
+  const notOwner = await call('GET', '/api/activities/' + ac.id + '/signups', null, u1.tok);
+  assert.equal(notOwner.s, 403);
+  const names = await call('GET', '/api/activities/' + ac.id + '/signups', null, o.tok);
+  assert.deepEqual(names.j.signups.map(s => s.user.id), [u1.id]);
+  const notes = await call('GET', '/api/notifications', null, o.tok);
+  assert.ok(notes.j.notifications.some(n => n.kind === 'activity_signup'));
+  const c = await call('POST', '/api/activities/' + ac.id + '/cancel', null, u1.tok);
+  assert.equal(c.j.activity.joined, false); assert.equal(c.j.activity.count, 0);
+  const s2 = await call('POST', '/api/activities/' + ac.id + '/signup', null, u2.tok);
+  assert.equal(s2.s, 200);
+  const feedPost = await call('GET', '/api/posts/' + made.j.post.id, null, u2.tok);
+  assert.equal(feedPost.j.post.activity.joined, true);
+  const al = await call('GET', '/api/admin/v2/activities?q=' + encodeURIComponent('夜跑'), null, adm);
+  assert.ok(al.j.activities.some(a => a.id === ac.id && a.count === 1));
+  const det = await call('GET', '/api/admin/v2/activities/' + ac.id, null, adm);
+  assert.equal(det.j.signups.length, 1);
+  await call('POST', '/api/admin/v2/activities/' + ac.id + '/remove', {reason: 'x'}, adm);
+  assert.equal((await call('GET', '/api/activities/' + ac.id, null, u2.tok)).s, 404);
+  assert.equal((await call('POST', '/api/activities/' + ac.id + '/signup', null, u1.tok)).s, 404);
+});
+
+test('技能交换：分类/搜索、编辑/关闭；「咨询」不是好友也能直接打开加密私聊；拉黑后不行；屏蔽词拦截；管理端移除', async () => {
+  const a = await acc('exa'), b = await acc('exb'), c = await acc('exc');
+  const badCat = await call('POST', '/api/exchange', {category: 'cooking', offers: '做饭', wants: '英语'}, a.tok);
+  assert.equal(badCat.s, 400);
+  const made = await call('POST', '/api/exchange', {category: 'lang', offers: '日语 N2 口语陪练', wants: '学 Python 入门', note: '每周两次线上'}, a.tok);
+  assert.equal(made.s, 200, JSON.stringify(made.j));
+  const id = made.j.post.id;
+  assert.equal(made.j.post.categoryLabel, '语言');
+  await call('POST', '/api/exchange', {category: 'music', offers: '吉他', wants: '摄影'}, c.tok);
+  const byCat = await call('GET', '/api/exchange?category=lang', null, b.tok);
+  assert.ok(byCat.j.posts.every(p => p.category === 'lang') && byCat.j.posts.some(p => p.id === id));
+  assert.equal(byCat.j.categories.length, 11);
+  const bySearch = await call('GET', '/api/exchange?q=Python', null, b.tok);
+  assert.deepEqual(bySearch.j.posts.map(p => p.id), [id]);
+  const ed = await call('POST', '/api/exchange/' + id, {wants: '学 Python 和 SQL'}, a.tok);
+  assert.equal(ed.j.post.wants, '学 Python 和 SQL');
+  const edOther = await call('POST', '/api/exchange/' + id, {wants: 'x'}, b.tok);
+  assert.equal(edOther.s, 403);
+  // 不是好友：普通私聊被拦
+  const dmBefore = await call('POST', '/api/conversations', {kind: 'dm', userId: a.id}, b.tok);
+  assert.equal(dmBefore.s, 403);
+  const cs = await call('POST', '/api/exchange/' + id + '/consult', null, b.tok);
+  assert.equal(cs.s, 200, JSON.stringify(cs.j));
+  assert.equal(cs.j.conversation.kind, 'dm');
+  const sent = await call('POST', '/api/conversations/' + cs.j.conversation.id + '/messages', {text: '你好，想咨询日语陪练', clientId: 'c1'}, b.tok);
+  assert.equal(sent.s, 200, JSON.stringify(sent.j));
+  const reply = await call('POST', '/api/conversations/' + cs.j.conversation.id + '/messages', {text: '可以呀', clientId: 'c2'}, a.tok);
+  assert.equal(reply.s, 200, '发布者也能回复');
+  const self = await call('POST', '/api/exchange/' + id + '/consult', null, a.tok);
+  assert.equal(self.s, 400);
+  await call('POST', '/api/blocks', {userId: c.id}, a.tok);
+  const blocked = await call('POST', '/api/exchange/' + id + '/consult', null, c.tok);
+  assert.ok(blocked.s === 403 || blocked.s === 404);
+  const hidden = await call('GET', '/api/exchange?category=lang', null, c.tok);
+  assert.ok(!hidden.j.posts.some(p => p.id === id), '拉黑双方互相看不到');
+  await call('POST', '/api/exchange/' + id + '/close', null, a.tok);
+  const closed = await call('GET', '/api/exchange?category=lang', null, b.tok);
+  assert.ok(!closed.j.posts.some(p => p.id === id));
+  const mine = await call('GET', '/api/exchange?mine=1', null, a.tok);
+  assert.equal(mine.j.posts.find(p => p.id === id).status, 'closed');
+  await call('POST', '/api/exchange/' + id + '/reopen', null, a.tok);
+  await call('POST', '/api/admin/blockwords', {word: '代写论文'}, adm);
+  const bw = await call('POST', '/api/exchange', {category: 'study', offers: '代写论文', wants: '钱'}, a.tok);
+  assert.equal(bw.s, 400); assert.equal(bw.j.error.code, 'BLOCKED_WORD');
+  const al = await call('GET', '/api/admin/v2/exchange?q=' + encodeURIComponent('日语'), null, adm);
+  assert.ok(al.j.posts.some(p => p.id === id));
+  await call('POST', '/api/admin/v2/exchange/' + id + '/remove', {reason: '测试'}, adm);
+  assert.equal((await call('GET', '/api/exchange/' + id, null, b.tok)).s, 404);
+  assert.equal((await call('POST', '/api/exchange/' + id + '/consult', null, b.tok)).s, 404);
+});
+
+test('共创项目：发起→申请→审批入群→任务指派/完成/进度→公告/链接卡片/文件→完成展示；管理端搜索移除', async () => {
+  const o = await acc('pjo'), m = await acc('pjm'), x = await acc('pjx');
+  const made = await call('POST', '/api/projects', {title: '校园二手小程序', goal: '一个月做出可用的二手交易小程序', description: '前端 + 后端 + 设计', skills: ['前端', '后端', 'UI 设计'], capacity: 3}, o.tok);
+  assert.equal(made.s, 200, JSON.stringify(made.j));
+  const p = made.j.project, id = p.id;
+  assert.equal(p.status, 'recruiting'); assert.deepEqual(p.skills, ['前端', '后端', 'UI 设计']); assert.equal(p.memberCount, 1);
+  assert.ok(p.conversationId, '负责人自动有项目群');
+  const pub = await call('GET', '/api/projects/' + id, null, x.tok);
+  assert.ok(!pub.j.project.tasks && !pub.j.project.conversationId, '非成员看不到工作区');
+  const list = await call('GET', '/api/projects?q=' + encodeURIComponent('二手'), null, x.tok);
+  assert.ok(list.j.projects.some(q => q.id === id));
+  const ap = await call('POST', '/api/projects/' + id + '/apply', {message: '我会 Vue，想参与前端'}, m.tok);
+  assert.equal(ap.s, 200); assert.equal(ap.j.project.myStatus, 'requested');
+  const ownerView = await call('GET', '/api/projects/' + id, null, o.tok);
+  assert.equal(ownerView.j.project.requests[0].user.id, m.id);
+  assert.equal(ownerView.j.project.requests[0].message, '我会 Vue，想参与前端');
+  const notOwner = await call('POST', '/api/projects/' + id + '/requests/' + m.id + '/approve', null, x.tok);
+  assert.equal(notOwner.s, 403);
+  const ok = await call('POST', '/api/projects/' + id + '/requests/' + m.id + '/approve', null, o.tok);
+  assert.equal(ok.s, 200); assert.equal(ok.j.project.memberCount, 2);
+  const mv = await call('GET', '/api/projects/' + id, null, m.tok);
+  assert.equal(mv.j.project.myStatus, 'active');
+  const cv = await call('GET', '/api/conversations/' + mv.j.project.conversationId, null, m.tok);
+  assert.equal(cv.s, 200, '审批后进入项目群');
+  const gm = await call('POST', '/api/conversations/' + mv.j.project.conversationId + '/messages', {text: '大家好', clientId: 'g1'}, m.tok);
+  assert.equal(gm.s, 200);
+  const mn = await call('GET', '/api/notifications', null, m.tok);
+  assert.ok(mn.j.notifications.some(n => n.kind === 'project_decision'));
+  // 任务
+  const badAssign = await call('POST', '/api/projects/' + id + '/tasks', {title: '画原型', assigneeId: x.id}, o.tok);
+  assert.equal(badAssign.s, 400);
+  const t1 = await call('POST', '/api/projects/' + id + '/tasks', {title: '画原型', assigneeId: m.id}, o.tok);
+  const t2 = await call('POST', '/api/projects/' + id + '/tasks', {title: '搭后端'}, m.tok);
+  assert.equal(t1.j.task.assignee.id, m.id); assert.equal(t2.j.progress.total, 2);
+  const outsider = await call('POST', '/api/projects/' + id + '/tasks', {title: 'x'}, x.tok);
+  assert.equal(outsider.s, 403);
+  const done = await call('POST', '/api/projects/' + id + '/tasks/' + t1.j.task.id, {status: 'done'}, m.tok);
+  assert.deepEqual(done.j.progress, {total: 2, done: 1, percent: 50});
+  const taskNote = await call('GET', '/api/notifications', null, m.tok);
+  assert.ok(taskNote.j.notifications.some(n => n.kind === 'project_task'));
+  // 公告 / 链接 / 文件
+  const memberNotice = await call('POST', '/api/projects/' + id + '/posts', {kind: 'notice', body: '周五开会'}, m.tok);
+  assert.equal(memberNotice.s, 403, '公告只有负责人能发');
+  await call('POST', '/api/projects/' + id + '/posts', {kind: 'notice', title: '周会', body: '周五晚 8 点线上周会'}, o.tok);
+  const gh = await call('POST', '/api/projects/' + id + '/posts', {kind: 'link', url: 'https://github.com/vexo/market'}, m.tok);
+  assert.equal(gh.j.post.link.provider, 'github'); assert.equal(gh.j.post.title, 'GitHub');
+  const fs = await call('POST', '/api/projects/' + id + '/posts', {kind: 'link', url: 'https://abc.feishu.cn/docx/123', title: '需求文档'}, o.tok);
+  assert.equal(fs.j.post.link.label, '飞书');
+  const tq = await call('POST', '/api/projects/' + id + '/posts', {kind: 'link', url: 'https://docs.qq.com/doc/xyz'}, o.tok);
+  assert.equal(tq.j.post.link.label, '腾讯文档');
+  const js = await call('POST', '/api/projects/' + id + '/posts', {kind: 'link', url: 'javascript:alert(1)'}, o.tok);
+  assert.equal(js.s, 400);
+  const f = await upload(m.tok, 'image/png', '原型.png', PNG);
+  const fp = await call('POST', '/api/projects/' + id + '/posts', {kind: 'file', mediaId: f.j.media.id, title: '原型图'}, m.tok);
+  assert.equal(fp.s, 200, JSON.stringify(fp.j));
+  assert.equal((await call('GET', '/api/media/' + f.j.media.id, null, o.tok)).s, 200, '成员能取共享文件');
+  assert.equal((await call('GET', '/api/media/' + f.j.media.id, null, x.tok)).s >= 400, true, '非成员不能取');
+  const ws = await call('GET', '/api/projects/' + id, null, m.tok);
+  assert.equal(ws.j.project.notices.length, 1); assert.equal(ws.j.project.links.length, 3); assert.equal(ws.j.project.files.length, 1);
+  // 人数上限：capacity 3，再收一人后满员
+  await call('POST', '/api/projects/' + id + '/apply', {}, x.tok);
+  await call('POST', '/api/projects/' + id + '/requests/' + x.id + '/approve', null, o.tok);
+  const y = await acc('pjy');
+  const full = await call('POST', '/api/projects/' + id + '/apply', {}, y.tok);
+  assert.equal(full.s, 409);
+  const lv = await call('POST', '/api/projects/' + id + '/leave', null, x.tok);
+  assert.equal(lv.j.left, true);
+  assert.equal((await call('GET', '/api/conversations/' + mv.j.project.conversationId, null, x.tok)).s, 404, '退出项目也退出项目群');
+  // 完成与展示
+  const comp = await call('POST', '/api/projects/' + id + '/complete', {summary: '上线了第一版，已有 200 名同学使用', links: [{url: 'https://github.com/vexo/market', title: '源码'}]}, o.tok);
+  assert.equal(comp.s, 200, JSON.stringify(comp.j));
+  assert.equal(comp.j.project.status, 'completed');
+  assert.equal(comp.j.project.showcase.links[0].link.provider, 'github');
+  const viewDone = await call('GET', '/api/projects/' + id, null, y.tok);
+  assert.match(viewDone.j.project.showcase.summary, /200 名同学/);
+  assert.equal((await call('POST', '/api/projects/' + id + '/tasks', {title: 'x'}, o.tok)).s, 403, '完成后不能再加任务');
+  // 管理端
+  const al = await call('GET', '/api/admin/v2/projects?q=' + encodeURIComponent('二手'), null, adm);
+  assert.ok(al.j.projects.some(q => q.id === id && q.memberCount === 2));
+  const det = await call('GET', '/api/admin/v2/projects/' + id, null, adm);
+  assert.equal(det.j.project.tasks.length, 2);
+  await call('POST', '/api/admin/v2/projects/' + id + '/remove', {reason: '测试'}, adm);
+  assert.equal((await call('GET', '/api/projects/' + id, null, m.tok)).s, 404);
+  const gone = await call('GET', '/api/projects', null, m.tok);
+  assert.ok(!gone.j.projects.some(q => q.id === id));
+  const back = await call('POST', '/api/admin/v2/projects/' + id + '/restore', null, adm);
+  assert.equal(back.j.project.status, 'completed');
+});
+
+test('共创项目：屏蔽词拦截；人数和技能校验；负责人不能退出', async () => {
+  const o = await acc('pzo');
+  await call('POST', '/api/admin/blockwords', {word: '刷单兼职'}, adm);
+  const bw = await call('POST', '/api/projects', {title: '刷单兼职团队', goal: '赚钱'}, o.tok);
+  assert.equal(bw.s, 400); assert.equal(bw.j.error.code, 'BLOCKED_WORD');
+  assert.equal((await call('POST', '/api/projects', {title: 'a', goal: 'b', capacity: 99}, o.tok)).s, 400);
+  assert.equal((await call('POST', '/api/projects', {title: 'a', goal: 'b', skills: Array.from({length: 9}, (_, i) => 's' + i)}, o.tok)).s, 400);
+  const p = await call('POST', '/api/projects', {title: '读书会', goal: '每月读一本书', skills: '阅读，主持'}, o.tok);
+  assert.deepEqual(p.j.project.skills, ['阅读', '主持']);
+  assert.equal((await call('POST', '/api/projects/' + p.j.project.id + '/leave', null, o.tok)).s, 400);
+});

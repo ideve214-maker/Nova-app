@@ -34,7 +34,7 @@ export function createSearch(db, {profile, vip, now} = {}) {
     const u = userBy.get(Number(id));
     if (!u) return {id: Number(id), username: 'unknown', displayName: 'unknown'};
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active)};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active), badge: u.badge || null};
   }
   function like(q) {
     const s = String(q).replace(/([\\%_])/g, '\\$1');

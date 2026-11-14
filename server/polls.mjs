@@ -72,7 +72,7 @@ export function createPolls(db, {now, posts, follows, communities}) {
   }
 
   function pub(row, me) {
-    if (!row) return null;
+    if (!row || row.deleted_at) return null;
     const options = opts.all(row.id);
     const counts = Object.fromEntries(votesOf.all(row.id).map(r => [r.option_id, r.n]));
     const mine = me ? mineV.all(row.id, Number(me.id)).map(r => r.option_id) : [];
@@ -102,7 +102,13 @@ export function createPolls(db, {now, posts, follows, communities}) {
     };
   }
 
+  // 2.0：只有官方账号 / 官方授权账号能发起投票
+  function assertCanCreate(user) {
+    const u = user && userBy.get(Number(user.id));
+    if (!u || !u.badge) throw new ApiError(403, 'NOT_OFFICIAL', '只有官方账号或官方授权账号可以发起投票');
+  }
   function insert(user, {postId, communityId, spec}) {
+    assertCanCreate(user);
     const v = validateSpec(spec);
     if (v.votePerm === 'community' && !communityId) {
       throw new ApiError(400, 'BAD_PERM', '社区投票需要指定社区');
@@ -127,22 +133,23 @@ export function createPolls(db, {now, posts, follows, communities}) {
   }
   function ofPost(postId, me) {
     const row = byPost.get(postId);
+    if (row && row.deleted_at) return null;
     return row ? pub(row, me) : null;
   }
   function get(user, id) {
     const row = byId.get(id);
-    if (!row) throw new ApiError(404, 'NOT_FOUND', '投票不存在');
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '投票不存在');
     if (!canSee(row, user)) throw new ApiError(403, 'FORBIDDEN', '无权查看此投票');
     return {poll: pub(row, user)};
   }
   function listCommunity(user, communityId) {
     if (!isMember(communityId, user.id)) throw new ApiError(403, 'FORBIDDEN', '只有社区成员才能查看投票');
-    return {polls: byCm.all(communityId).map(r => pub(r, user))};
+    return {polls: byCm.all(communityId).map(r => pub(r, user)).filter(Boolean)};
   }
 
   function vote(user, id, body = {}) {
     const row = byId.get(id);
-    if (!row) throw new ApiError(404, 'NOT_FOUND', '投票不存在');
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '投票不存在');
     canVote(row, user);
     const raw = body.optionIds != null ? body.optionIds : (body.optionId != null ? [body.optionId] : []);
     const ids = [...new Set((Array.isArray(raw) ? raw : [raw]).map(String))];
@@ -162,5 +169,39 @@ export function createPolls(db, {now, posts, follows, communities}) {
     return {poll: pub(byId.get(row.id), user), already: false};
   }
 
-  return {validateSpec, createForPost, createForCommunity, ofPost, get, listCommunity, vote, pub};
+  // ---- 2.0 管理端：查看 / 移除投票 ----
+  const admList = db.prepare(`SELECT p.*, u.username, (SELECT COUNT(DISTINCT user_id) FROM poll_votes v WHERE v.poll_id=p.id) AS voters
+    FROM polls p LEFT JOIN users u ON u.id=p.author_id
+    WHERE (? = '' OR p.question LIKE ? OR u.username LIKE ?) AND (? = 'all' OR (? = 'removed') = (p.deleted_at IS NOT NULL))
+    ORDER BY p.created_at DESC LIMIT ? OFFSET ?`);
+  const setDel = db.prepare('UPDATE polls SET deleted_at=?, removed_reason=? WHERE id=?');
+  function adminRow(r) {
+    const options = opts.all(r.id);
+    const counts = Object.fromEntries(votesOf.all(r.id).map(x => [x.option_id, x.n]));
+    return {id: r.id, postId: r.post_id || null, communityId: r.community_id || null, authorId: r.author_id, author: r.username || null,
+      question: r.question, allowMultiple: !!r.allow_multiple, closesAt: r.closes_at || null, closed: isClosed(r), createdAt: r.created_at,
+      voters: r.voters != null ? r.voters : 0, removed: !!r.deleted_at, removedAt: r.deleted_at || null, removedReason: r.removed_reason || null,
+      options: options.map(o => ({id: o.id, text: o.text, votes: counts[o.id] || 0}))};
+  }
+  function adminList(q = {}) {
+    const term = String(q.q || '').trim().slice(0, 80);
+    const st = ['all', 'removed'].includes(q.status) ? q.status : 'active';
+    const limit = Math.min(Math.max(Number(q.limit) || 50, 1), 200), offset = Math.max(Number(q.offset) || 0, 0);
+    const like = '%' + term + '%';
+    return {polls: admList.all(term, like, like, st, st, limit, offset).map(adminRow)};
+  }
+  function adminRemove(id, reason) {
+    const row = byId.get(id);
+    if (!row) throw new ApiError(404, 'NOT_FOUND', '投票不存在');
+    if (!row.deleted_at) setDel.run(now(), String(reason || '').slice(0, 200) || null, id);
+    return {poll: adminRow({...byId.get(id), voters: null})};
+  }
+  function adminRestore(id) {
+    const row = byId.get(id);
+    if (!row) throw new ApiError(404, 'NOT_FOUND', '投票不存在');
+    setDel.run(null, null, id);
+    return {poll: adminRow({...byId.get(id), voters: null})};
+  }
+
+  return {assertCanCreate, adminList, adminRemove, adminRestore, validateSpec, createForPost, createForCommunity, ofPost, get, listCommunity, vote, pub};
 }

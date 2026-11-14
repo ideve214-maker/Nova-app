@@ -104,6 +104,7 @@ test('屏蔽词拦截发帖、频道发言和定时发布，并忽略零宽与�
   const msg = await call('POST', '/api/channels/' + ch.id + '/messages', {text: '频道里写违禁词乙'}, a.tok);
   assert.equal(msg.s, 400);
   assert.equal(msg.j.error.code, 'BLOCKED_WORD');
+  srv.db.prepare("UPDATE users SET badge='official' WHERE id=?").run(a.id); // 2.0：只有官方账号能发起投票
   const poll = await call('POST', '/api/posts', {text: '正常问题', poll: {question: '选一个', options: ['好', '违禁词乙']}}, a.tok);
   assert.equal(poll.s, 400);
   assert.equal(poll.j.error.code, 'BLOCKED_WORD');

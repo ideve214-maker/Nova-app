@@ -12,6 +12,9 @@ import {createProfile, newSessionId, maskIp, deviceOf} from './profile.mjs';
 import {ApiError} from './errors.mjs';
 import {createPosts} from './posts.mjs';
 import {createPolls} from './polls.mjs';
+import {createActivities} from './activities.mjs';
+import {createExchange} from './exchange.mjs';
+import {createProjects} from './projects.mjs';
 import {createHashtags} from './hashtags.mjs';
 import {createSchedule} from './schedule.mjs';
 import {createBlockwords} from './blockwords.mjs';
@@ -183,7 +186,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const reports = createReports(db, {now, notifications, profile, moderation: () => adminOps});
 
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
-  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, legalVersion: u.legal_version || null, legalAgreedAt: u.legal_agreed_at || null, skin: u.ui_skin || null, profile: profile.publicOf(u)}; };
+  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, badge: u.badge || null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, legalVersion: u.legal_version || null, legalAgreedAt: u.legal_agreed_at || null, skin: u.ui_skin || null, profile: profile.publicOf(u)}; };
   const q = {
     userBy: db.prepare('SELECT * FROM users WHERE id=?'),
     userByLogin: db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE OR email = ?'),
@@ -222,6 +225,16 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   media.attachChannelAccess((user, chId) => communities.canReadChannel(user, chId));
   schedule.attach({blockwords});
   posts.attach({assertPlatform: (text) => blockwords.assertPlatform(text)});
+  // ---- VEXO 2.0：活动、技能交换、共创项目 ----
+  const notifyProxy = {push: (...a) => notifications.push(...a)};
+  const activities = createActivities(db, {now, notifications: notifyProxy, authorOf: id => chats.authorOf(id)});
+  posts.attach({activityOf: (id, me) => activities.ofPost(id, me)});
+  const exchange = createExchange(db, {now, authorOf: id => chats.authorOf(id), friends, chats});
+  const projects = createProjects(db, {now, authorOf: id => chats.authorOf(id), chats, notifications: notifyProxy});
+  media.attachLook(id => communities.look.isLookMedia(id) || activities.isCoverMedia(id));
+  media.attachExtraAccess((user, row) => projects.canAccessMedia(user, row.id));
+  const setBadge = db.prepare('UPDATE users SET badge=?, badge_at=? WHERE id=?');
+  function assertV2Text(text) { if (text && String(text).trim()) blockwords.assertPlatform(String(text)); }
 
   function assertPollText(spec) {
     if (!spec) return;
@@ -502,18 +515,23 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     async 'POST /api/posts'(req, b) {
       const {user} = auth(req);
       const body = b || {};
-      if (body.poll) polls.validateSpec(body.poll);
+      if (body.poll) { polls.assertCanCreate(user); polls.validateSpec(body.poll); }
+      if (body.activity) {
+        activities.assertCanCreate(user); activities.validateSpec(body.activity, user); assertV2Text(activities.textOf(body.activity));
+        if (!String(body.text || '').trim()) body.text = String(body.activity.title || '').trim();
+      }
       if (body.text) blockwords.assertPlatform(body.text);
       if (body.poll) assertPollText(body.poll);
       // r10 AI 审查：关键词过滤之后再交给 AI；AI 不可用时已由上面的关键词过滤兜底。
-      const aiText = [body.text, body.poll && body.poll.question, ...((body.poll && body.poll.options) || []).map(o => (o && o.text) || o)].filter(x => typeof x === 'string' && x.trim()).join('\n');
+      const aiText = [body.text, body.poll && body.poll.question, ...((body.poll && body.poll.options) || []).map(o => (o && o.text) || o), body.activity && activities.textOf(body.activity)].filter(x => typeof x === 'string' && x.trim()).join('\n');
       const ai = await aiMod.enforce(aiText, {user, kind: 'post'});
       const r = posts.create(user, body);
       aiMod.linkPost(ai, r.post.id);
-      if (body.poll) {
+      if (body.poll && !r.idempotent) {
         const pr = polls.createForPost(user, r.post.id, body.poll);
         r.post.poll = pr.poll;
       }
+      if (body.activity && !r.idempotent) r.post.activity = activities.createForPost(user, r.post.id, body.activity).activity;
       r.post.hashtags = hashtags.syncPost(user, r.post);
       audit(user.id, 'post.create', 'post:' + r.post.id, ip(req));
       return r;
@@ -1524,6 +1542,104 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       return hashtags.get(req.params.name, user);
     },
+    // ---- VEXO 2.0 活动 ----
+    'GET /api/activities/:id'(req) { const {user} = auth(req); return activities.get(user, req.params.id); },
+    'POST /api/activities/:id/signup'(req) { const {user} = auth(req); return activities.signup(user, req.params.id); },
+    'POST /api/activities/:id/cancel'(req) { const {user} = auth(req); return activities.cancel(user, req.params.id); },
+    'GET /api/activities/:id/signups'(req) { const {user} = auth(req); return activities.signups(user, req.params.id); },
+    // ---- VEXO 2.0 技能交换 ----
+    'GET /api/exchange'(req) { const {user} = auth(req); return exchange.list(user, req.query || {}); },
+    async 'POST /api/exchange'(req, b) {
+      const {user} = auth(req);
+      exchange.norm(b || {}); assertV2Text(exchange.textOf(b));
+      await aiMod.enforce(exchange.textOf(b), {user, kind: 'exchange'});
+      const r = exchange.create(user, b || {});
+      audit(user.id, 'exchange.create', 'exchange:' + r.post.id, ip(req));
+      return r;
+    },
+    'GET /api/exchange/:id'(req) { const {user} = auth(req); return exchange.get(user, req.params.id); },
+    async 'POST /api/exchange/:id'(req, b) {
+      const {user} = auth(req);
+      assertV2Text(exchange.textOf(b));
+      await aiMod.enforce(exchange.textOf(b), {user, kind: 'exchange'});
+      return exchange.edit(user, req.params.id, b || {});
+    },
+    'POST /api/exchange/:id/close'(req) { const {user} = auth(req); return exchange.setOpen(user, req.params.id, false); },
+    'POST /api/exchange/:id/reopen'(req) { const {user} = auth(req); return exchange.setOpen(user, req.params.id, true); },
+    'POST /api/exchange/:id/consult'(req) {
+      const {user} = auth(req);
+      const r = exchange.consult(user, req.params.id);
+      audit(user.id, 'exchange.consult', 'exchange:' + req.params.id, ip(req));
+      return r;
+    },
+    // ---- VEXO 2.0 共创项目 ----
+    'GET /api/projects'(req) { const {user} = auth(req); return projects.list(user, req.query || {}); },
+    async 'POST /api/projects'(req, b) {
+      const {user} = auth(req);
+      projects.norm(b || {}); assertV2Text(projects.textOf(b));
+      await aiMod.enforce(projects.textOf(b), {user, kind: 'project'});
+      const r = projects.create(user, b || {});
+      audit(user.id, 'project.create', 'project:' + r.project.id, ip(req));
+      return r;
+    },
+    'GET /api/projects/:id'(req) { const {user} = auth(req); return projects.get(user, req.params.id); },
+    async 'POST /api/projects/:id'(req, b) {
+      const {user} = auth(req);
+      const t = projects.textOf(b || {});
+      assertV2Text(t); if (t) await aiMod.enforce(t, {user, kind: 'project'});
+      return projects.edit(user, req.params.id, b || {});
+    },
+    async 'POST /api/projects/:id/apply'(req, b) {
+      const {user} = auth(req);
+      const msg = b && b.message; assertV2Text(msg);
+      return projects.apply(user, req.params.id, b || {});
+    },
+    'POST /api/projects/:id/requests/:uid/approve'(req) { const {user} = auth(req); return projects.decide(user, req.params.id, req.params.uid, true); },
+    'POST /api/projects/:id/requests/:uid/reject'(req) { const {user} = auth(req); return projects.decide(user, req.params.id, req.params.uid, false); },
+    'POST /api/projects/:id/leave'(req) { const {user} = auth(req); return projects.leave(user, req.params.id); },
+    'POST /api/projects/:id/members/:uid/remove'(req) { const {user} = auth(req); return projects.removeMember(user, req.params.id, req.params.uid); },
+    'POST /api/projects/:id/tasks'(req, b) { const {user} = auth(req); assertV2Text(b && b.title); return projects.addTask(user, req.params.id, b || {}); },
+    'POST /api/projects/:id/tasks/:tid'(req, b) { const {user} = auth(req); assertV2Text(b && b.title); return projects.updateTask(user, req.params.id, req.params.tid, b || {}); },
+    'POST /api/projects/:id/tasks/:tid/delete'(req) { const {user} = auth(req); return projects.deleteTask(user, req.params.id, req.params.tid); },
+    async 'POST /api/projects/:id/posts'(req, b) {
+      const {user} = auth(req);
+      const t = [b && b.title, b && b.body].filter(x => typeof x === 'string' && x.trim()).join('\n');
+      assertV2Text(t); if (t) await aiMod.enforce(t, {user, kind: 'project'});
+      return projects.addPost(user, req.params.id, b || {});
+    },
+    'POST /api/projects/:id/posts/:pid/delete'(req) { const {user} = auth(req); return projects.deletePost(user, req.params.id, req.params.pid); },
+    async 'POST /api/projects/:id/complete'(req, b) {
+      const {user} = auth(req);
+      const t = b && b.summary; assertV2Text(t); if (t) await aiMod.enforce(String(t), {user, kind: 'project'});
+      return projects.complete(user, req.params.id, b || {});
+    },
+    'POST /api/projects/:id/cancel'(req) { const {user} = auth(req); return projects.cancel(user, req.params.id); },
+    // ---- VEXO 2.0 管理端：官方标识、投票、活动、技能交换、共创项目 ----
+    'POST /api/admin/users/:id/badge'(req, b) {
+      const {admin} = adminAuth(req);
+      const id = Number(req.params.id);
+      const u = Number.isInteger(id) ? q.userBy.get(id) : null;
+      if (!u || u.deleted_at) throw bad('NOT_FOUND', '用户不存在', 404);
+      const v = b && b.badge ? String(b.badge) : null;
+      if (v && !['official', 'authorized'].includes(v)) throw bad('BAD_BADGE', '标识只能是官方账号（official）或官方授权账号（authorized）', 400);
+      setBadge.run(v, v ? now() : null, id);
+      audit(admin.id, 'admin.user_badge', 'user:' + id, ip(req), {badge: v, before: u.badge || null});
+      return adminOps.oneUser(id);
+    },
+    'GET /api/admin/v2/polls'(req) { adminAuth(req); return polls.adminList(req.query || {}); },
+    'POST /api/admin/v2/polls/:id/remove'(req, b) { const {admin} = adminAuth(req); const r = polls.adminRemove(req.params.id, b && b.reason); audit(admin.id, 'admin.poll_remove', 'poll:' + req.params.id, ip(req), {reason: (b && b.reason) || null}); return r; },
+    'POST /api/admin/v2/polls/:id/restore'(req) { const {admin} = adminAuth(req); const r = polls.adminRestore(req.params.id); audit(admin.id, 'admin.poll_restore', 'poll:' + req.params.id, ip(req)); return r; },
+    'GET /api/admin/v2/activities'(req) { adminAuth(req); return activities.adminList(req.query || {}); },
+    'GET /api/admin/v2/activities/:id'(req) { adminAuth(req); return activities.adminGet(req.params.id); },
+    'POST /api/admin/v2/activities/:id/remove'(req, b) { const {admin} = adminAuth(req); const r = activities.adminRemove(req.params.id, b && b.reason); audit(admin.id, 'admin.activity_remove', 'activity:' + req.params.id, ip(req), {reason: (b && b.reason) || null}); return r; },
+    'POST /api/admin/v2/activities/:id/restore'(req) { const {admin} = adminAuth(req); const r = activities.adminRestore(req.params.id); audit(admin.id, 'admin.activity_restore', 'activity:' + req.params.id, ip(req)); return r; },
+    'GET /api/admin/v2/exchange'(req) { adminAuth(req); return exchange.adminList(req.query || {}); },
+    'POST /api/admin/v2/exchange/:id/remove'(req, b) { const {admin} = adminAuth(req); const r = exchange.adminRemove(req.params.id, b && b.reason); audit(admin.id, 'admin.exchange_remove', 'exchange:' + req.params.id, ip(req), {reason: (b && b.reason) || null}); return r; },
+    'POST /api/admin/v2/exchange/:id/restore'(req) { const {admin} = adminAuth(req); const r = exchange.adminRestore(req.params.id); audit(admin.id, 'admin.exchange_restore', 'exchange:' + req.params.id, ip(req)); return r; },
+    'GET /api/admin/v2/projects'(req) { adminAuth(req); return projects.adminList(req.query || {}); },
+    'GET /api/admin/v2/projects/:id'(req) { adminAuth(req); return projects.adminGet(req.params.id); },
+    'POST /api/admin/v2/projects/:id/remove'(req, b) { const {admin} = adminAuth(req); const r = projects.adminRemove(req.params.id, b && b.reason); audit(admin.id, 'admin.project_remove', 'project:' + req.params.id, ip(req), {reason: (b && b.reason) || null}); return r; },
+    'POST /api/admin/v2/projects/:id/restore'(req) { const {admin} = adminAuth(req); const r = projects.adminRestore(req.params.id); audit(admin.id, 'admin.project_restore', 'project:' + req.params.id, ip(req)); return r; },
     'GET /api/polls/:id'(req) {
       const {user} = auth(req);
       return polls.get(user, req.params.id);
@@ -1930,7 +2046,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

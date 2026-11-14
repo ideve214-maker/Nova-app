@@ -78,7 +78,7 @@ export function createFriends(db, {now, profile} = {}) {
     const u = userBy.get(Number(id));
     if (!u) return {id: Number(id), username: 'unknown', displayName: 'unknown'};
     const p = profile ? profile.publicOf(u) : {};
-    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar};
+    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar, badge: u.badge || null};
   }
   function pub(row, me) {
     if (!row) return null;

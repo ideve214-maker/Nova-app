@@ -15,7 +15,7 @@ export function createFollows(db, {profile, vip, now}) {
     const u = userBy.get(id);
     if (!u) return null;
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null};
   }
   function uid(v) {
     const n = Number(v);

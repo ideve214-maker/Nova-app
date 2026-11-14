@@ -120,8 +120,12 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
   // r10：频道消息里的媒体，能看这个频道的人都能看。
   const chHook = {fn: null};
   function attachChannelAccess(fn) { chHook.fn = typeof fn === 'function' ? fn : null; }
+  // 2.0：项目共享文件等按用户判断的额外访问规则
+  const extraHooks = [];
+  function attachExtraAccess(fn) { if (typeof fn === 'function') extraHooks.push(fn); }
   function canAccess(user, row) {
     if (!row || row.deleted_at) return false;
+    for (const fn of extraHooks) { try { if (fn(user, row)) return true; } catch {} }
     if (Number(row.owner_id) === Number(user.id)) return true;
     // r10：用作头像/封面/群头像的图片，所有登录用户都能看。
     if (row.kind === 'image' && lookHook.fn && lookHook.fn(row.id)) return true;
@@ -316,7 +320,7 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
 
   return {
     upload, get, ticket, fileOf, remove, purgeDeleted, attachToMessage, usage, attachChannelAccess, attachToChannel, assertOwnFree, pubById,
-    canAccess, attachLook, pub, verifyTicket, signTicket, quotaOf, usageOf,
+    canAccess, attachLook, attachExtraAccess, pub, verifyTicket, signTicket, quotaOf, usageOf,
     root, MEDIA_LIMITS, MEDIA_QUOTA, TICKET_MS, defaultScan,
     _byId: byId,
   };

@@ -28,6 +28,8 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
       status: u.status || 'active',
       banned: u.status === 'banned',
       vip: !!st.active,
+      badge: u.badge || null,
+      badgeAt: u.badge_at || null,
       isVip: !!st.active,
       vipUntil: st.active ? st.until : (u.vip_until || null),
       vip_until: st.active ? st.until : (u.vip_until || null),
