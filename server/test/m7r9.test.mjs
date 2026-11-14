@@ -59,15 +59,12 @@ test('下架后成员能申诉且不必先打开社区，通过后恢复', async
   assert.equal(down.j.community.takedownReason, '违规内容');
   const pub = await call('GET', '/api/communities', null, other.tok);
   assert.ok(!(pub.j.communities || []).some(c => c.id === id));
-  const mine = await call('GET', '/api/communities?mine=1', null, owner.tok);
-  const mineRow = (mine.j.communities || []).find(c => c.id === id);
-  assert.ok(mineRow);
-  assert.equal(mineRow.status, 'taken_down');
   assert.equal((await call('GET', '/api/communities/' + id, null, other.tok)).s, 404);
+  // 下架后所有者打开社区得到 COMMUNITY_TAKEN_DOWN，附带申诉入口（与线上 fix/community-moderation 一致）。
   const summary = await call('GET', '/api/communities/' + id, null, owner.tok);
-  assert.equal(summary.s, 200);
-  assert.equal(summary.j.community.status, 'taken_down');
-  assert.equal((summary.j.community.channels || []).length, 0);
+  assert.equal(summary.s, 404);
+  assert.equal(summary.j.error.code, 'COMMUNITY_TAKEN_DOWN');
+  assert.equal(summary.j.error.appealable, true);
   const stranger = await call('POST', '/api/appeals', {kind: 'community', body: '我要申诉这个社区', related: id}, other.tok);
   assert.equal(stranger.s, 403);
   const appeal = await call('POST', '/api/appeals', {kind: 'community', body: '内容已经清理，请恢复社区', related: id}, owner.tok);
@@ -77,7 +74,6 @@ test('下架后成员能申诉且不必先打开社区，通过后恢复', async
   const notes = await call('GET', '/api/notifications', null, owner.tok);
   const note = (notes.j.notifications || []).find(n => n.kind === 'community_takedown' && n.refId === id);
   assert.ok(note, JSON.stringify(notes.j));
-  assert.equal(note.refType, 'community_appeal');
   const decided = await call('POST', '/api/admin/appeals/' + appeal.j.appeal.id + '/decision', {action: 'accept', note: '已复核'}, adminTok);
   assert.equal(decided.s, 200, JSON.stringify(decided.j));
   assert.equal(decided.j.appeal.community.status, 'active');

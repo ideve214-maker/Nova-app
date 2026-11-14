@@ -8,7 +8,7 @@ function asInt(v) {
   return Number.isInteger(n) ? n : NaN;
 }
 
-export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
+export function createAdminOps(db, {now, vip, profile, pay, audit, notifications} = {}) {
   const nowFn = now || Date.now;
 
   function userRow(u) {
@@ -439,27 +439,29 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     return {announcement: pubAnn(db.prepare('SELECT * FROM announcements WHERE id=?').get(row.id)), already: false};
   }
 
+  function cmStatus(r) { return r.deleted_at ? 'deleted' : r.taken_down_at ? 'taken_down' : 'active'; }
+  function cmModFields(r) {
+    return {status: cmStatus(r), takenDownAt: r.taken_down_at || null, takedownReason: r.takedown_reason || null};
+  }
   function listCommunities(q = {}) {
     const limit = Math.min(Math.max(Number(q.limit) || 50, 1), 100);
     const rows = db.prepare(`SELECT * FROM communities WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`).all(limit);
     const nMem = db.prepare("SELECT COUNT(*) AS n FROM community_members WHERE community_id=? AND status='active'");
     return {communities: rows.map(r => ({
       id: r.id, name: r.name, description: r.description, visibility: r.visibility,
-      ownerId: r.owner_id, memberCount: nMem.get(r.id).n, createdAt: r.created_at,
-      cover: r.cover || null,
-      status: r.status || 'active',
-      takedownReason: r.takedown_reason || '',
-      takenDownAt: r.taken_down_at || null,
+      ownerId: r.owner_id, memberCount: nMem.get(r.id).n, createdAt: r.created_at, ...cmModFields(r), cover: r.cover || null,
     }))};
   }
   function getCommunity(id) {
     const row = db.prepare('SELECT * FROM communities WHERE id=?').get(id);
     if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
     const nMem = db.prepare("SELECT COUNT(*) AS n FROM community_members WHERE community_id=? AND status='active'").get(row.id).n;
+    const t = nowFn();
     const members = db.prepare("SELECT * FROM community_members WHERE community_id=? AND status='active' ORDER BY joined_at").all(row.id).map(m => {
       const u = db.prepare('SELECT * FROM users WHERE id=?').get(m.user_id);
-      const until = m.muted_until || null;
-      return {userId: m.user_id, username: u && u.username, role: m.role, status: m.status, joinedAt: m.joined_at, muted: !!(until && until > nowFn()), mutedUntil: until};
+      const muted = !!(m.muted_until && m.muted_until > t);
+      return {userId: m.user_id, username: u && u.username, role: m.role, status: m.status, joinedAt: m.joined_at,
+        muted, mutedUntil: muted ? m.muted_until : null};
     });
     const chs = db.prepare("SELECT * FROM community_channels WHERE community_id=? AND deleted_at IS NULL ORDER BY created_at").all(row.id);
     const nMsg = db.prepare("SELECT COUNT(*) AS n FROM community_messages WHERE channel_id=?");
@@ -467,7 +469,107 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
       id: ch.id, name: ch.name, kind: ch.kind, isDefault: !!ch.is_default,
       messageCount: nMsg.get(ch.id).n,
     }));
-    return {community: {id: row.id, name: row.name, description: row.description, visibility: row.visibility, ownerId: row.owner_id, memberCount: nMem, createdAt: row.created_at, cover: row.cover || null, status: row.status || 'active', takedownReason: row.takedown_reason || '', takenDownAt: row.taken_down_at || null, members, channels}};
+    return {community: {id: row.id, name: row.name, description: row.description, visibility: row.visibility, ownerId: row.owner_id, memberCount: nMem, createdAt: row.created_at, ...cmModFields(row), cover: row.cover || null, members, channels}};
+  }
+
+  // ---- 社区管理（管理端）：下架/恢复/警告/删除、移除成员、禁言 ----
+  function needReason(body) {
+    const reason = String((body && (body.reason || body.note)) || '').trim().slice(0, 200);
+    if (!reason) throw new ApiError(400, 'REASON_REQUIRED', '请填写原因');
+    return reason;
+  }
+  function cmRow(id) {
+    const row = db.prepare('SELECT * FROM communities WHERE id=?').get(String(id));
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+    return row;
+  }
+  function notifyUser(uid, title, body, cmId, key, {kind = 'community_moderation', data = null} = {}) {
+    if (!notifications || typeof notifications.push !== 'function' || uid == null) return false;
+    notifications.push(Number(uid), {kind, title, body, refType: 'community', refId: cmId, actorId: null, dedupeKey: key, data});
+    return true;
+  }
+  function takedownCommunity(admin, id, body = {}, ip = null) {
+    const row = cmRow(id);
+    const reason = needReason(body);
+    if (row.taken_down_at) return {community: getCommunity(row.id).community, already: true, notified: false};
+    const at = nowFn();
+    db.prepare('UPDATE communities SET taken_down_at=?, takedown_reason=?, taken_down_by=? WHERE id=?').run(at, reason, admin.id, row.id);
+    if (audit) audit(admin.id, 'admin.community.takedown', 'community:' + row.id, ip, {reason, adminUsername: admin.username, name: row.name});
+    const notified = body.notify === false ? false : notifyUser(row.owner_id, '社区已被下架',
+      `你的社区「${row.name}」因存在问题已被下架（原因：${reason}），如有疑问请联系管理员或提交申诉。`, row.id, 'community:' + row.id + ':takedown:' + at,
+      {kind: 'community_takedown', data: {type: 'community_takedown', communityId: row.id, communityName: row.name, reason, takenDownAt: at,
+        appealable: true, appeal: {method: 'POST', path: '/api/appeals', kind: 'community', related: row.id}}});
+    return {community: getCommunity(row.id).community, already: false, notified};
+  }
+  function restoreCommunity(admin, id, body = {}, ip = null) {
+    const row = cmRow(id);
+    const reason = String((body && (body.reason || body.note)) || '').trim().slice(0, 200);
+    if (!row.taken_down_at) return {community: getCommunity(row.id).community, already: true, notified: false};
+    const at = nowFn();
+    db.prepare('UPDATE communities SET taken_down_at=NULL, takedown_reason=NULL, taken_down_by=NULL WHERE id=?').run(row.id);
+    if (audit) audit(admin.id, 'admin.community.restore', 'community:' + row.id, ip, {reason, adminUsername: admin.username, name: row.name});
+    const notified = body.notify === false ? false : notifyUser(row.owner_id, '社区已恢复',
+      `你的社区「${row.name}」已恢复上架` + (reason ? `（${reason}）` : '') + '。', row.id, 'community:' + row.id + ':restore:' + at,
+      {kind: 'community_restored', data: {type: 'community_restored', communityId: row.id, communityName: row.name}});
+    return {community: getCommunity(row.id).community, already: false, notified};
+  }
+  function warnCommunity(admin, id, body = {}, ip = null) {
+    const row = cmRow(id);
+    const reason = needReason(body);
+    const at = nowFn();
+    if (audit) audit(admin.id, 'admin.community.warn', 'community:' + row.id, ip, {reason, adminUsername: admin.username, name: row.name});
+    const notified = notifyUser(row.owner_id, '社区警告',
+      `你的社区「${row.name}」收到管理员警告：${reason}。请整改并遵守社区规范，否则社区可能被下架。`, row.id, 'community:' + row.id + ':warn:' + at,
+      {kind: 'community_warning', data: {type: 'community_warning', communityId: row.id, communityName: row.name, reason}});
+    return {community: getCommunity(row.id).community, warned: true, notified};
+  }
+  function deleteCommunity(admin, id, body = {}, ip = null) {
+    const row = cmRow(id);
+    const reason = needReason(body);
+    if (body.confirm !== true && body.confirm !== row.id) throw new ApiError(400, 'CONFIRM_REQUIRED', '删除社区需要二次确认');
+    const at = nowFn();
+    db.prepare('UPDATE communities SET deleted_at=?, takedown_reason=COALESCE(takedown_reason, ?), taken_down_by=COALESCE(taken_down_by, ?) WHERE id=?').run(at, reason, admin.id, row.id);
+    if (audit) audit(admin.id, 'admin.community.delete', 'community:' + row.id, ip, {reason, adminUsername: admin.username, name: row.name});
+    const notified = notifyUser(row.owner_id, '社区已被删除',
+      `你的社区「${row.name}」因「${reason}」已被管理员删除。如有疑问请联系管理员。`, row.id, 'community:' + row.id + ':delete',
+      {kind: 'community_deleted', data: {type: 'community_deleted', communityId: row.id, communityName: row.name, reason}});
+    return {deleted: row.id, notified};
+  }
+  function memberRow(cmId, userId) {
+    const m = db.prepare("SELECT * FROM community_members WHERE community_id=? AND user_id=? AND status='active'").get(cmId, Number(userId));
+    if (!m) throw new ApiError(404, 'NOT_FOUND', '成员不存在');
+    return m;
+  }
+  function removeMember(admin, id, userId, body = {}, ip = null) {
+    const row = cmRow(id);
+    const reason = needReason(body);
+    const m = memberRow(row.id, userId);
+    if (m.role === 'owner') throw new ApiError(400, 'OWNER', '不能移除社区所有者，请改为下架或删除社区');
+    const ban = !!body.ban;
+    db.prepare('UPDATE community_members SET status=? WHERE community_id=? AND user_id=?').run(ban ? 'banned' : 'left', row.id, m.user_id);
+    if (audit) audit(admin.id, 'admin.community.member_remove', 'community:' + row.id, ip, {userId: m.user_id, ban, reason, adminUsername: admin.username});
+    const at = nowFn();
+    notifyUser(m.user_id, '你已被移出社区', `你已被管理员移出社区「${row.name}」` + (ban ? '，且不能再加入' : '') + `。原因：${reason}。`, row.id, 'community:' + row.id + ':rm:' + m.user_id + ':' + at);
+    notifyUser(row.owner_id, '社区成员被移除', `管理员已将一名成员移出你的社区「${row.name}」。原因：${reason}。`, row.id, 'community:' + row.id + ':rmo:' + m.user_id + ':' + at);
+    return {community: getCommunity(row.id).community, removed: m.user_id, banned: ban};
+  }
+  function muteMember(admin, id, userId, body = {}, ip = null) {
+    const row = cmRow(id);
+    const reason = needReason(body);
+    const m = memberRow(row.id, userId);
+    const hours = Math.min(Math.max(Number(body.hours) || 24, 1), 24 * 365);
+    const until = nowFn() + hours * 3600e3;
+    db.prepare('UPDATE community_members SET muted_until=?, muted_reason=? WHERE community_id=? AND user_id=?').run(until, reason, row.id, m.user_id);
+    if (audit) audit(admin.id, 'admin.community.member_mute', 'community:' + row.id, ip, {userId: m.user_id, hours, reason, adminUsername: admin.username});
+    notifyUser(m.user_id, '你在社区被禁言', `你在社区「${row.name}」被管理员禁言 ${hours} 小时。原因：${reason}。`, row.id, 'community:' + row.id + ':mute:' + m.user_id + ':' + until);
+    return {community: getCommunity(row.id).community, muted: m.user_id, mutedUntil: until};
+  }
+  function unmuteMember(admin, id, userId, body = {}, ip = null) {
+    const row = cmRow(id);
+    const m = memberRow(row.id, userId);
+    db.prepare('UPDATE community_members SET muted_until=NULL, muted_reason=NULL WHERE community_id=? AND user_id=?').run(row.id, m.user_id);
+    if (audit) audit(admin.id, 'admin.community.member_unmute', 'community:' + row.id, ip, {userId: m.user_id, adminUsername: admin.username});
+    return {community: getCommunity(row.id).community, unmuted: m.user_id};
   }
   function listChannelMessages(chId, q = {}) {
     const ch = db.prepare('SELECT * FROM community_channels WHERE id=?').get(chId);
@@ -491,5 +593,6 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     stats, listAnnouncements, addAnnouncement, removeAnnouncement, editAnnouncement, withdrawAnnouncement,
     publishAnnouncement, currentAnnouncement, pubPost,
     listCommunities, getCommunity, listChannelMessages, userRow,
+    takedownCommunity, restoreCommunity, warnCommunity, deleteCommunity, removeMember, muteMember, unmuteMember,
   };
 }
