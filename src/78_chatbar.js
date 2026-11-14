@@ -31,13 +31,13 @@ function cbBar(k,ph,btn,v,tools){
   const target=tools.target||'';
   const rec=cbRecFor(target);
   if(rec){
-    return `<div class="inrow cbrow cbrec" data-k="${k}"><div class="cbrecb"><span class="cbdot"></span><span id="cbrect">${cbFmtDur(Date.now()-rec.t0)}</span><span class="cbrecl">正在录音…</span></div><button type="button" class="pb s sm" data-a="voicecancel">取消</button><button type="button" class="pb" data-a="voice" data-v="${esc(target)}">发送</button></div>`;
+    return `<div class="cbdock"><div class="inrow cbrow cbrec" data-k="${k}"><div class="cbrecb"><span class="cbdot"></span><span id="cbrect">${cbFmtDur(Date.now()-rec.t0)}</span><span class="cbrecl">正在录音…</span></div><button type="button" class="pb s sm" data-a="voicecancel">取消</button><button class="pb" data-a="voice" data-v="${esc(target)}">发送</button></div></div>`;
   }
   const open=S.cbp===target;
   const max=k=='chin'?textLimit('chat'):k=='cmin'?textLimit('channel'):textLimit('post');
   const row=`<div class="inrow cbrow${open?' cbopen':''}" data-k="${k}"><textarea class="inta" rows="1" data-grow="5" enterkeyhint="enter" data-d="${k}" data-max="${max}" placeholder="${ph}" autocomplete="off"></textarea><button type="button" class="ib cbplus${open?' on':''}" data-a="cbplus" data-v="${esc(target)}" aria-label="更多功能" aria-expanded="${open?'true':'false'}">${ic('plus')}</button><button class="pb cbsend" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`;
-  if(!open)return row;
-  return row+`<div class="cbpanel" role="menu">${tools.map(t=>`<button type="button" class="cbtile" role="menuitem" data-a="${t.a}" data-v="${esc(t.v)}"><span class="cbico">${t.i}</span><span class="cbl">${t.l}</span></button>`).join('')}</div>`;
+  const panel=open?`<div class="cbpanel" role="menu">${tools.map(t=>`<button type="button" class="cbtile" role="menuitem" data-a="${t.a}" data-v="${esc(t.v)}"><span class="cbico">${t.i}</span><span class="cbl">${t.l}</span></button>`).join('')}</div>`:'';
+  return `<div class="cbdock">${row}${panel}</div>`;
 }
 /* 消息气泡里的媒体 */
 function cbRest(tx){const s=String(tx||'').replace(/\s*\[(图片|视频|语音|文件)\]\s*$/,'');return s?`<div class="cbtx">${fmt(s)}</div>`:''}
@@ -179,44 +179,89 @@ Object.assign(A,{
 });
 /* 点输入框时收起功能面板（不整页重绘，免得键盘闪一下） */
 document.addEventListener('focusin',e=>{
-  const t=e.target;if(!t||!t.classList||!t.classList.contains('inta')||!S.cbp)return;
-  S.cbp=null;const row=t.closest('.inrow');if(row){row.classList.remove('cbopen');const p=row.nextElementSibling;if(p&&p.classList.contains('cbpanel'))p.remove();const b=row.querySelector('.cbplus');if(b){b.classList.remove('on');b.setAttribute('aria-expanded','false')}}
+  const t=e.target;if(!t||!t.classList||!t.classList.contains('inta'))return;
+  cbRememberNear();
+  if(S.cbp){
+    S.cbp=null;const row=t.closest('.inrow');if(row){row.classList.remove('cbopen');const p=row.nextElementSibling;if(p&&p.classList.contains('cbpanel'))p.remove();const b=row.querySelector('.cbplus');if(b){b.classList.remove('on');b.setAttribute('aria-expanded','false')}}
+  }
+  cbStickIfNear();
 });
 /* ---- 自动滚到底部 ---- */
-let CB_TOUCH=0;
+let CB_TOUCH=0,CB_NEAR=false;
+const CB_NEAR_PX=200;
 ['touchstart','wheel'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target&&e.target.closest&&e.target.closest('.sc'))CB_TOUCH=Date.now()},{passive:true,capture:true}));
+function cbNearOf(sc){return !!(sc&&sc.scrollHeight-sc.scrollTop-sc.clientHeight<CB_NEAR_PX)}
 function cbChatSc(){
   const ta=document.querySelector('#v .inrow[data-k="chin"],#v .inrow[data-k="cmin"]');
   if(!ta)return null;
   const pg=ta.closest('.pg');if(!pg)return null;
   const sc=pg.querySelector(':scope > .sc');if(!sc)return null;
   const cur=S.st&&S.st[S.st.length-1];
-  return {sc,key:String(cur||'')+'|'+ta.dataset.k+'|'+(S.cbp||''),n:sc.querySelectorAll('.mr,.cm').length,near:sc.scrollHeight-sc.scrollTop-sc.clientHeight<140};
+  const near=cbNearOf(sc);
+  return {sc,key:String(cur||'')+'|'+ta.dataset.k,n:sc.querySelectorAll('.mr,.cm').length,near,panel:!!pg.querySelector(':scope > .cbdock .cbpanel, :scope > .cbpanel')};
 }
+function cbRememberNear(){const c=cbChatSc();if(c)CB_NEAR=c.near;return !!(c&&c.near||CB_NEAR)}
 function cbStick(sc){
   const t0=Date.now();
   /* 重绘会换掉整个列表，旧的滚动容器失效后改用当前页面上的那个 */
-  const go=()=>{if(CB_TOUCH>t0)return;if(!sc.isConnected){const c=cbChatSc();if(!c)return;sc=c.sc}sc.scrollTop=sc.scrollHeight};
-  go();[60,200,450,900].forEach(ms=>setTimeout(go,ms));
-  sc.querySelectorAll('img,video').forEach(el=>{if(!(el.complete||el.readyState>0)){el.addEventListener('load',go,{once:true});el.addEventListener('loadedmetadata',go,{once:true})}});
+  const go=()=>{
+    if(CB_TOUCH>t0)return;
+    if(!sc||!sc.isConnected){const c=cbChatSc();if(!c)return;sc=c.sc}
+    if(sc._virt&&typeof sc._virt.getTotalSize==='function'&&typeof sc._virt.scrollToOffset==='function'){
+      try{sc._virt.scrollToOffset(sc._virt.getTotalSize(),{align:'start'})}catch(e){}
+    }
+    sc.scrollTop=sc.scrollHeight;
+  };
+  go();[16,60,200,450,900].forEach(ms=>setTimeout(go,ms));
+  try{requestAnimationFrame(()=>{go();requestAnimationFrame(go)})}catch(e){}
+  if(sc)sc.querySelectorAll('img,video').forEach(el=>{if(!(el.complete||el.readyState>0)){el.addEventListener('load',go,{once:true});el.addEventListener('loadedmetadata',go,{once:true})}});
+}
+function cbStickIfNear(){if(CB_NEAR||(S.forceBottom&&Date.now()-S.forceBottom<8000)){const c=cbChatSc();if(c)cbStick(c.sc)}}
+function cbBindChrome(){
+  if(cbBindChrome.done)return;
+  cbBindChrome.done=1;
+  const kick=()=>cbStickIfNear();
+  try{
+    const N=window.NovaNative;
+    if(N&&N.Keyboard&&typeof N.Keyboard.addListener==='function'){
+      const rememberThen=()=>{cbRememberNear();kick();[60,200,450].forEach(ms=>setTimeout(kick,ms))};
+      N.Keyboard.addListener('keyboardWillShow',rememberThen).catch(()=>{});
+      N.Keyboard.addListener('keyboardDidShow',kick).catch(()=>{});
+      N.Keyboard.addListener('keyboardWillHide',rememberThen).catch(()=>{});
+      N.Keyboard.addListener('keyboardDidHide',kick).catch(()=>{});
+    }
+  }catch(e){}
+  if(window.visualViewport){
+    visualViewport.addEventListener('resize',()=>{kick();[60,200,450].forEach(ms=>setTimeout(kick,ms))});
+  }
+  document.addEventListener('scroll',e=>{
+    const sc=e.target;if(!sc||!sc.classList||!sc.classList.contains('sc'))return;
+    if(sc.closest&&sc.closest('.pg')&&sc.closest('.pg').querySelector('.inrow[data-k="chin"],.inrow[data-k="cmin"]'))CB_NEAR=cbNearOf(sc);
+  },true);
 }
 (function(){
   if(typeof render!=='function')return;
   const base=render;
   render=function(){
-    let before=null;try{before=cbChatSc()}catch(e){}
+    let before=null;try{before=cbChatSc();if(before)CB_NEAR=before.near}catch(e){}
+    /* S.cbp 在 render 之前已经改好了，不能靠 key 对比来判断面板有没有开关。
+       若用户原本就在底部附近，先告诉 applyScroll 这次要滚到底，免得它按旧的 scrollTop 还原，把最新消息挡在面板后面。 */
+    try{
+      const willPanel=!!S.cbp;
+      if(before&&before.near&&before.panel!==willPanel)S.bot=1;
+    }catch(e){}
     const out=base.apply(this,arguments);
-    try{cbPrefetch(document.getElementById('v'));if(CB_AU.mid)cbMark()}catch(e){}
+    try{cbBindChrome();cbPrefetch(document.getElementById('v'));if(CB_AU.mid)cbMark()}catch(e){}
     try{
       const after=cbChatSc();
       if(after){
-        const k1=before&&before.key.split('|').slice(0,2).join('|'),k2=after.key.split('|').slice(0,2).join('|');
-        const same=before&&k1===k2;
-        const panelToggled=same&&before.key!==after.key;
+        const same=before&&before.key===after.key;
+        const panelToggled=same&&before.panel!==after.panel;
         /* 自己发的消息：这一轮重绘可能被推迟或消息还没回来，标记保留到消息出现在列表里（最多 8 秒） */
         const fb=S.forceBottom&&Date.now()-S.forceBottom<8000;
-        if(fb||(same&&after.n>before.n&&before.near)||(panelToggled&&before.near))cbStick(after.sc);
+        if(fb||(same&&after.n>before.n&&before.near)||(panelToggled&&(before.near||CB_NEAR)))cbStick(after.sc);
         if(fb&&before&&after.n>before.n)S.forceBottom=0;
+        CB_NEAR=after.near||(panelToggled&&(before.near||CB_NEAR));
       }
       if(S.forceBottom&&Date.now()-S.forceBottom>=8000)S.forceBottom=0;
     }catch(e){}
