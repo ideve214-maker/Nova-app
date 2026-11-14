@@ -1,204 +1,288 @@
-name: Nova v2 packages
+name: VEXO packages (build only)
 
-# Only this branch. Does not run ios-unsigned.yml (that is release-build only).
-# Trigger the first v2 package build on this branch.
+# Push to build/v2 = build + verify + upload artifacts. NEVER publishes a Release.
+# Publishing is a separate, manual workflow: release-draft.yml (creates a DRAFT).
+#
+# Which source commits are built:
+#   push              -> USER_SHA / ADMIN_SHA below (the ONE place to pin them)
+#   workflow_dispatch -> the user_sha / admin_sha inputs (empty = the pins below)
 on:
   push:
     branches: [build/v2]
   workflow_dispatch:
+    inputs:
+      user_sha:
+        description: 'User app (VEXO) commit, full 40-char SHA. Empty = USER_SHA pin in this file.'
+        type: string
+        default: ''
+      admin_sha:
+        description: 'Admin app commit, full 40-char SHA. Empty = ADMIN_SHA pin in this file.'
+        type: string
+        default: ''
+      apps:
+        description: 'Which apps to build'
+        type: choice
+        options: [both, user, admin]
+        default: both
+      deploy_admin:
+        description: 'Upload admin APK/IPA to the hidden server download dir'
+        type: boolean
+        default: true
 
 concurrency:
-  group: nova-v2-build-${{ github.ref }}
-  cancel-in-progress: true
+  group: vexo-packages-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 env:
-  USER_SHA: 1323df8bc01edf21134e107e20b5ca2caf8c7290
-  ADMIN_SHA: c50a68aa6f8bea9edff0cc7b035e32848d31f6d3
+  # ---- source pins (full SHAs; never branch names) -------------------------
+  USER_SHA: 9b5bdb2154a5fac3675c0abc6959e558f4bbded0   # v7-m7.r8-vexo (Bob)
+  ADMIN_SHA: 4ac5fbeecc6c52a18441116553ab1d7da2437406  # admin-vexo-1.1.0 (Agent); will move after the VEXO_Admin.html rename
+  # ---- versions --------------------------------------------------------------
+  # Android versionCode = BASE + github.run_number of THIS workflow (monotonic).
+  USER_VERSION_NAME: '1.0.0'
+  USER_VERSION_CODE_BASE: '100'
+  USER_DISPLAY_NAME: 'VEXO'
+  ADMIN_VERSION_NAME: '1.1.0'
+  ADMIN_VERSION_CODE_BASE: '110'
+  ADMIN_DISPLAY_NAME: 'VEXO 管理端'
+  # ---- endpoints (user values are public; admin URL is secret-only) ----------
   USER_API_BASE: http://47.239.0.90
   USER_UPDATE_URL: http://47.239.0.90/updates/user/manifest.json
-  # Prefer repo secret NOVA_ADMIN_UPDATE_URL when present. Fallback is the
-  # already-provisioned self-hosted manifest (also embedded in the public admin binary).
-  ADMIN_UPDATE_URL: ${{ secrets.NOVA_ADMIN_UPDATE_URL || 'http://47.239.0.90/2RyksI0DhLRiueN4DUwMzSZZN9imEp3P7xT06guH/updates/manifest.json' }}
 
 jobs:
-  ipa:
-    name: IPA (${{ matrix.ipa }})
-    runs-on: macos-15
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - app: user
-            ipa: Nova.ipa
-            src_path: user
-          - app: admin
-            ipa: NovaAdmin.ipa
-            src_path: admin-src/admin
-    steps:
-      - name: Mask admin URL
-        if: matrix.app == 'admin'
-        run: echo "::add-mask::${ADMIN_UPDATE_URL}"
-
-      - name: Checkout pack scripts
-        uses: actions/checkout@v4
-
-      - name: Checkout user ${{ env.USER_SHA }}
-        if: matrix.app == 'user'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.USER_SHA }}
-          path: user
-
-      - name: Checkout admin ${{ env.ADMIN_SHA }}
-        if: matrix.app == 'admin'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.ADMIN_SHA }}
-          path: admin-src
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Prepare web assets
-        run: |
-          chmod +x scripts/prepare-v2-web.sh scripts/build-unsigned-ipa.sh scripts/verify-v2-package.sh
-          ./scripts/prepare-v2-web.sh "${{ matrix.app }}" "${{ matrix.src_path }}"
-
-      - name: Build unsigned IPA
-        env:
-          IPA_BUILD_VERSION: '2'
-        run: |
-          mkdir -p dist
-          ./scripts/build-unsigned-ipa.sh "${{ matrix.src_path }}" "dist/${{ matrix.ipa }}"
-          ls -lh "dist/${{ matrix.ipa }}"
-
-      - name: Verify IPA
-        run: |
-          URL="${USER_UPDATE_URL}"
-          if [ "${{ matrix.app }}" = "admin" ]; then URL="${ADMIN_UPDATE_URL}"; fi
-          ./scripts/verify-v2-package.sh ipa "dist/${{ matrix.ipa }}" "${{ matrix.app }}" "$URL"
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.ipa }}
-          path: dist/${{ matrix.ipa }}
-          if-no-files-found: error
-          retention-days: 14
-
-  apk:
-    name: APK (${{ matrix.apk }})
+  plan:
+    name: Resolve commits and versions
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    outputs:
+      user_sha: ${{ steps.p.outputs.user_sha }}
+      admin_sha: ${{ steps.p.outputs.admin_sha }}
+      user_sha7: ${{ steps.p.outputs.user_sha7 }}
+      admin_sha7: ${{ steps.p.outputs.admin_sha7 }}
+      user_code: ${{ steps.p.outputs.user_code }}
+      admin_code: ${{ steps.p.outputs.admin_code }}
+      matrix: ${{ steps.p.outputs.matrix }}
+    steps:
+      - id: p
+        env:
+          IN_USER: ${{ inputs.user_sha }}
+          IN_ADMIN: ${{ inputs.admin_sha }}
+          IN_APPS: ${{ inputs.apps }}
+        run: |
+          set -euo pipefail
+          U="${IN_USER:-$USER_SHA}"; A="${IN_ADMIN:-$ADMIN_SHA}"; APPS="${IN_APPS:-both}"
+          for s in "$U" "$A"; do
+            [[ "$s" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::'$s' is not a full 40-char commit SHA"; exit 1; }
+          done
+          N="${GITHUB_RUN_NUMBER}"
+          UC=$((USER_VERSION_CODE_BASE + N)); AC=$((ADMIN_VERSION_CODE_BASE + N))
+          case "$APPS" in
+            both)  M='["user","admin"]';;
+            user)  M='["user"]';;
+            admin) M='["admin"]';;
+          esac
+          {
+            echo "user_sha=$U"; echo "admin_sha=$A"
+            echo "user_sha7=${U:0:7}"; echo "admin_sha7=${A:0:7}"
+            echo "user_code=$UC"; echo "admin_code=$AC"
+            echo "matrix=$M"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### VEXO packages, run #$N"
+            echo "| app | commit | versionName | versionCode |"
+            echo "|---|---|---|---|"
+            echo "| user | \`$U\` | $USER_VERSION_NAME | $UC |"
+            echo "| admin | \`$A\` | $ADMIN_VERSION_NAME | $AC |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: ${{ matrix.app }} ${{ matrix.platform }}
+    needs: plan
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-15' || 'ubuntu-latest' }}
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - app: user
-            apk: Nova.apk
-            src_path: user
-          - app: admin
-            apk: NovaAdmin.apk
-            src_path: admin-src/admin
+        app: ${{ fromJSON(needs.plan.outputs.matrix) }}
+        platform: [android, ios]
+    env:
+      APP: ${{ matrix.app }}
+      PLATFORM: ${{ matrix.platform }}
+      SRC_SHA: ${{ matrix.app == 'user' && needs.plan.outputs.user_sha || needs.plan.outputs.admin_sha }}
+      SRC_SHA7: ${{ matrix.app == 'user' && needs.plan.outputs.user_sha7 || needs.plan.outputs.admin_sha7 }}
+      NOVA_ADMIN_UPDATE_URL: ${{ matrix.app == 'admin' && secrets.NOVA_ADMIN_UPDATE_URL || '' }}
     steps:
-      - name: Mask admin URL
-        if: matrix.app == 'admin'
-        run: echo "::add-mask::${ADMIN_UPDATE_URL}"
+      - name: Resolve names and versions
+        run: |
+          set -euo pipefail
+          if [ "$APP" = user ]; then
+            NAME_PREFIX=VEXO; VN="$USER_VERSION_NAME"; VC="${{ needs.plan.outputs.user_code }}"
+            DISP="$USER_DISPLAY_NAME"; URL="$USER_UPDATE_URL"; PROJ="$GITHUB_WORKSPACE/src"
+          else
+            NAME_PREFIX=VEXO-Admin; VN="$ADMIN_VERSION_NAME"; VC="${{ needs.plan.outputs.admin_code }}"
+            DISP="$ADMIN_DISPLAY_NAME"; PROJ="$GITHUB_WORKSPACE/src/admin"
+            if [ -z "${NOVA_ADMIN_UPDATE_URL}" ]; then
+              echo "::error::repo secret NOVA_ADMIN_UPDATE_URL is not set (there is no fallback)"; exit 1
+            fi
+            URL="$NOVA_ADMIN_UPDATE_URL"
+          fi
+          if [ "$PLATFORM" = android ]; then EXT=apk; KIND=debug; else EXT=ipa; KIND=unsigned; fi
+          FILE="${NAME_PREFIX}-${VN}-${VC}-${SRC_SHA7}-${KIND}.${EXT}"
+          {
+            echo "PKG_FILE=$FILE"; echo "PKG_KIND=$EXT"; echo "PROJ=$PROJ"
+            echo "APP_VERSION_NAME=$VN"; echo "APP_VERSION_CODE=$VC"
+            echo "VEXO_VERSION_CODE=$VC"; echo "IPA_BUILD_VERSION=$VC"
+            echo "EXPECT_NAME=$DISP"; echo "EXPECT_URL=$URL"
+          } >> "$GITHUB_ENV"
+          echo "will build $FILE from $SRC_SHA"
 
-      - name: Checkout pack scripts
-        uses: actions/checkout@v4
-
-      - name: Checkout user ${{ env.USER_SHA }}
-        if: matrix.app == 'user'
+      - name: Checkout pack scripts (this branch)
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.USER_SHA }}
-          path: user
+          path: pack
 
-      - name: Checkout admin ${{ env.ADMIN_SHA }}
-        if: matrix.app == 'admin'
+      - name: Checkout ${{ matrix.app }} source @ pinned SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.ADMIN_SHA }}
-          path: admin-src
+          ref: ${{ env.SRC_SHA }}
+          path: src
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Confirm checked-out commit
+        run: |
+          test "$(git -C src rev-parse HEAD)" = "$SRC_SHA" || { echo "::error::checkout is not $SRC_SHA"; exit 1; }
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Prepare web assets
+      - name: Fixed debug keystore
+        env:
+          KS_B64: ${{ secrets.NOVA_DEBUG_KEYSTORE_BASE64 }}
+          NOVA_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.NOVA_DEBUG_KEYSTORE_PASSWORD }}
+          NOVA_DEBUG_KEY_ALIAS: ${{ secrets.NOVA_DEBUG_KEY_ALIAS }}
         run: |
-          chmod +x scripts/prepare-v2-web.sh scripts/build-debug-apk.sh scripts/verify-v2-package.sh
-          ./scripts/prepare-v2-web.sh "${{ matrix.app }}" "${{ matrix.src_path }}"
+          set -euo pipefail
+          for v in KS_B64 NOVA_DEBUG_KEYSTORE_PASSWORD NOVA_DEBUG_KEY_ALIAS; do
+            [ -n "${!v}" ] || { echo "::error::debug keystore secret for $v is missing"; exit 1; }
+          done
+          KS="$RUNNER_TEMP/nova-debug.keystore"
+          printf '%s' "$KS_B64" | base64 --decode > "$KS"
+          echo "NOVA_DEBUG_KEYSTORE_FILE=$KS" >> "$GITHUB_ENV"
+          CERT=$(keytool -list -v -keystore "$KS" -storepass "$NOVA_DEBUG_KEYSTORE_PASSWORD" -alias "$NOVA_DEBUG_KEY_ALIAS" \
+                 | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')
+          [ -n "$CERT" ] || { echo "::error::could not read the debug certificate"; exit 1; }
+          echo "EXPECT_CERT=$CERT" >> "$GITHUB_ENV"
 
-      - name: Build debug APK
+      # ---------------- user app: the pinned user commit's own scripts ----------
+      - name: User app - check packaging scripts exist at this commit
+        if: matrix.app == 'user'
         run: |
-          mkdir -p dist
-          bash scripts/build-debug-apk.sh "${{ matrix.src_path }}" "dist/${{ matrix.apk }}"
-          ls -lh "dist/${{ matrix.apk }}"
+          for f in prepare-v2-web.sh build-debug-apk.sh build-unsigned-ipa.sh stamp-native.mjs; do
+            test -f "src/scripts/$f" || { echo "::error::src/scripts/$f missing: pick a commit from v7-m7.r8-vexo or later"; exit 1; }
+          done
+          # stamp-native.mjs owns the user versionCode. Until it reads
+          # VEXO_VERSION_CODE / APP_VERSION_CODE from env it writes its own constant.
+          if ! grep -Eq 'process\.env\.(VEXO_VERSION_CODE|APP_VERSION_CODE)' src/scripts/stamp-native.mjs; then
+            C=$(sed -n 's/^export const VERSION_CODE = \([0-9]*\);.*/\1/p' src/scripts/stamp-native.mjs)
+            echo "::warning::user stamp-native.mjs ignores the CI versionCode; expecting its constant $C"
+            echo "APP_VERSION_CODE=$C" >> "$GITHUB_ENV"
+          fi
 
-      - name: Verify APK
+      - name: User app - build (rebuilds web JS from source)
+        if: matrix.app == 'user'
+        env:
+          NOVA_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.NOVA_DEBUG_KEYSTORE_PASSWORD }}
+          NOVA_DEBUG_KEY_ALIAS: ${{ secrets.NOVA_DEBUG_KEY_ALIAS }}
+          NOVA_DEBUG_KEY_PASSWORD: ${{ secrets.NOVA_DEBUG_KEY_PASSWORD }}
         run: |
-          URL="${USER_UPDATE_URL}"
-          if [ "${{ matrix.app }}" = "admin" ]; then URL="${ADMIN_UPDATE_URL}"; fi
-          ./scripts/verify-v2-package.sh apk "dist/${{ matrix.apk }}" "${{ matrix.app }}" "$URL"
+          set -euo pipefail
+          mkdir -p out
+          bash src/scripts/prepare-v2-web.sh user .
+          if [ "$PLATFORM" = android ]; then
+            bash src/scripts/build-debug-apk.sh . "$GITHUB_WORKSPACE/out/$PKG_FILE"
+          else
+            bash src/scripts/build-unsigned-ipa.sh . "$GITHUB_WORKSPACE/out/$PKG_FILE"
+          fi
 
-      - name: Upload APK
+      # ---------------- admin app: this branch's scripts ------------------------
+      - name: Admin app - build (rebuilds dist-spa from source)
+        if: matrix.app == 'admin'
+        env:
+          NOVA_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.NOVA_DEBUG_KEYSTORE_PASSWORD }}
+          NOVA_DEBUG_KEY_ALIAS: ${{ secrets.NOVA_DEBUG_KEY_ALIAS }}
+          NOVA_DEBUG_KEY_PASSWORD: ${{ secrets.NOVA_DEBUG_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          bash pack/scripts/prepare-v2-web.sh admin "$PROJ"
+          if [ "$PLATFORM" = android ]; then
+            bash pack/scripts/build-debug-apk.sh "$PROJ" "$GITHUB_WORKSPACE/out/$PKG_FILE"
+          else
+            bash pack/scripts/build-unsigned-ipa.sh "$PROJ" "$GITHUB_WORKSPACE/out/$PKG_FILE"
+          fi
+
+      # ---------------- verification (fails the job) -----------------------------
+      - name: Verify package (name, version, signer, update URL, icon)
+        run: |
+          set -euo pipefail
+          CERT_ARG=()
+          [ "$PKG_KIND" = apk ] && CERT_ARG=(--cert-sha256 "$EXPECT_CERT")
+          node pack/scripts/verify-package.mjs --kind "$PKG_KIND" --file "out/$PKG_FILE" --project "$PROJ" \
+            --name "$EXPECT_NAME" --version-name "$APP_VERSION_NAME" --version-code "$APP_VERSION_CODE" \
+            --url "$EXPECT_URL" "${CERT_ARG[@]}" --meta-out "out/$PKG_FILE.verify.json"
+          node -e '
+            const fs=require("fs"); const f=process.argv[1];
+            const m=JSON.parse(fs.readFileSync(f+".verify.json"));
+            Object.assign(m,{app:process.env.APP, platform:process.env.PLATFORM, sourceSha:process.env.SRC_SHA,
+              packScriptsSha:process.env.GITHUB_SHA, runId:process.env.GITHUB_RUN_ID, runNumber:process.env.GITHUB_RUN_NUMBER});
+            fs.writeFileSync(f+".json", JSON.stringify(m,null,2)+"\n"); fs.unlinkSync(f+".verify.json");
+          ' "out/$PKG_FILE"
+          cat "out/$PKG_FILE.json"
+
+      - name: Upload metadata
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.apk }}
-          path: dist/${{ matrix.apk }}
+          name: meta-${{ env.PKG_FILE }}
+          path: out/${{ env.PKG_FILE }}.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
-  release:
-    name: GitHub Release
-    needs: [ipa, apk]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    steps:
-      - name: Download packages
-        uses: actions/download-artifact@v4
+      - name: Upload user package artifact
+        if: matrix.app == 'user'
+        uses: actions/upload-artifact@v4
         with:
-          path: artifacts
-          merge-multiple: true
+          name: ${{ env.PKG_FILE }}
+          path: out/${{ env.PKG_FILE }}
+          if-no-files-found: error
+          retention-days: 30
 
-      - name: Check all four packages
+      # Admin packages are not uploaded as (publicly downloadable) Actions
+      # artifacts. They go to the hidden server dir; release-draft.yml fetches
+      # them from there only when include_admin is ticked.
+      - name: Deploy admin package to server (hidden dir)
+        if: matrix.app == 'admin' && (github.event_name == 'push' || inputs.deploy_admin)
+        env:
+          HOST: ${{ secrets.NOVA_ADMIN_DEPLOY_HOST }}
+          DUSER: ${{ secrets.NOVA_ADMIN_DEPLOY_USER }}
+          DPATH: ${{ secrets.NOVA_ADMIN_DEPLOY_PATH }}
+          KEY: ${{ secrets.NOVA_ADMIN_DEPLOY_SSH_KEY }}
+          KNOWN: ${{ secrets.NOVA_ADMIN_DEPLOY_KNOWN_HOSTS }}
         run: |
-          ls -lh artifacts
-          for f in Nova.ipa Nova.apk NovaAdmin.ipa NovaAdmin.apk; do
-            test -f "artifacts/$f" || { echo "ERROR: missing $f"; exit 1; }
-            sha256sum "artifacts/$f"
+          set -euo pipefail
+          for v in HOST DUSER DPATH KEY KNOWN; do
+            [ -n "${!v}" ] || { echo "::error::deploy secret for $v is missing"; exit 1; }
           done
-
-      - name: Create Release Nova 第2版
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.7.0-m7.r6-build1
-          name: Nova 第2版
-          target_commitish: ${{ github.sha }}
-          files: |
-            artifacts/Nova.ipa
-            artifacts/Nova.apk
-            artifacts/NovaAdmin.ipa
-            artifacts/NovaAdmin.apk
-          body: |
-            用户端 commit 1323df8（分支 v7-m7.r6），管理端 commit c50a68a（分支 admin-v10）。
-            安装包为未签名 iOS IPA 与 debug Android APK。
-            热更新清单尚未发布新包，本 Release 仅为完整安装包。
-          fail_on_unmatched_files: true
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/deploy_key"
+          printf '%s\n' "$KNOWN" > "$RUNNER_TEMP/known_hosts"
+          SSH_OPTS=(-i "$RUNNER_TEMP/deploy_key" -o IdentitiesOnly=yes -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o StrictHostKeyChecking=yes -o BatchMode=yes)
+          scp -q "${SSH_OPTS[@]}" "out/$PKG_FILE" "out/$PKG_FILE.json" "$DUSER@$HOST:$DPATH/"
+          rm -f "$RUNNER_TEMP/deploy_key"
+          echo "deployed $PKG_FILE (+ .json) to the hidden admin download dir" >> "$GITHUB_STEP_SUMMARY"
