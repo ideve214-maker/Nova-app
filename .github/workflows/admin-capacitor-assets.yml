@@ -8,6 +8,11 @@ on:
     paths:
       - "admin/resources/**"
       - "admin/scripts/generate-capacitor-assets.sh"
+      - "admin/scripts/apply-native-version.mjs"
+      - "admin/scripts/strip-fine-location.mjs"
+      - "admin/capacitor.config.ts"
+      - "admin/package.json"
+      - "admin/package-lock.json"
       - ".github/workflows/admin-capacitor-assets.yml"
 
 jobs:
