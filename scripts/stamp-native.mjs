@@ -1,11 +1,14 @@
-// After `cap add`, write VEXO 1.0.0 into the generated Android/iOS projects
+// After `cap add`, write the package.json version into the generated Android/iOS projects
 // and keep location at coarse accuracy only.
 //   node scripts/stamp-native.mjs <project-dir>
 import {readFileSync, writeFileSync, existsSync, readdirSync, statSync} from 'node:fs';
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
-export const VERSION_NAME = '1.0.0';
-export const VERSION_CODE = 100;
+const _pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
+export const VERSION_NAME = String(_pkg.version || '0.0.0');
+const _vp = VERSION_NAME.split('.').map(n => parseInt(n, 10) || 0);
+export const VERSION_CODE = _vp[0] * 10000 + _vp[1] * 100 + _vp[2];
 
 function walk(dir, acc = []) {
   if (!existsSync(dir)) return acc;

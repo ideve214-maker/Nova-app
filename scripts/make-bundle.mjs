@@ -29,6 +29,18 @@ cpSync(dist, stage, {
   filter: (src) => !src.split(/[/\\]/).some(p => p.startsWith('.') || p === 'node_modules'),
 });
 copyFileSync(join(stage, 'nova_v5.html'), join(stage, 'index.html'));
+function requireDeployConfig(html) {
+  const missing = [];
+  if (!/window\.NOVA_API_BASE\s*=/.test(html)) missing.push('NOVA_API_BASE');
+  if (!/window\.NOVA_DISABLE_DEMO\s*=/.test(html)) missing.push('NOVA_DISABLE_DEMO');
+  if (!/window\.NOVA_UPDATE_MANIFEST_URL\s*=/.test(html)) missing.push('NOVA_UPDATE_MANIFEST_URL');
+  if (missing.length) {
+    console.error('热更新包缺少部署配置：' + missing.join(', ') + '。请先运行：node scripts/build.mjs --api-base=https://47.239.0.90 --disable-demo --update-manifest-url=https://47.239.0.90/updates/user/manifest.json');
+    process.exit(1);
+  }
+}
+requireDeployConfig(readFileSync(join(stage, 'index.html'), 'utf8'));
+
 // 1.0.7 精简包（--lean 或 --games-base=...）：iOS 更新插件整段下载只有约 25 秒（responseTimeout 20 秒 + 5 秒），
 // 7.6MB 的包在手机网络下下不完。去掉重复入口、未启用的 sentry、小游戏（改从服务器加载），皮肤里与品牌图相同的 logo 改为引用品牌图，
 // 再压缩大图。原始 assets/ 不改动。
