@@ -40,6 +40,32 @@ if ! grep -q 'usesCleartextTraffic' "$MANIFEST"; then
 fi
 grep -o 'android:usesCleartextTraffic="[^"]*"' "$MANIFEST"
 
+# Fixed debug keystore (so later builds install over earlier ones).
+# Set NOVA_DEBUG_KEYSTORE_FILE (+ _PASSWORD, _KEY_ALIAS, _KEY_PASSWORD) to use it.
+if [ -n "${NOVA_DEBUG_KEYSTORE_FILE:-}" ]; then
+  : "${NOVA_DEBUG_KEYSTORE_PASSWORD:?NOVA_DEBUG_KEYSTORE_PASSWORD required}"
+  : "${NOVA_DEBUG_KEY_ALIAS:?NOVA_DEBUG_KEY_ALIAS required}"
+  : "${NOVA_DEBUG_KEY_PASSWORD:?NOVA_DEBUG_KEY_PASSWORD required}"
+  [ -s "$NOVA_DEBUG_KEYSTORE_FILE" ] || { echo "ERROR: keystore $NOVA_DEBUG_KEYSTORE_FILE missing"; exit 1; }
+  if ! grep -q 'NOVA_DEBUG_KEYSTORE_FILE' android/app/build.gradle; then
+    cat >> android/app/build.gradle <<'GRADLE'
+
+android {
+    signingConfigs {
+        debug {
+            storeFile file(System.getenv("NOVA_DEBUG_KEYSTORE_FILE"))
+            storePassword System.getenv("NOVA_DEBUG_KEYSTORE_PASSWORD")
+            keyAlias System.getenv("NOVA_DEBUG_KEY_ALIAS")
+            keyPassword System.getenv("NOVA_DEBUG_KEY_PASSWORD")
+        }
+    }
+    buildTypes { debug { signingConfig signingConfigs.debug } }
+}
+GRADLE
+  fi
+  echo "==> signing with fixed debug keystore"
+fi
+
 echo "==> gradle assembleDebug"
 (cd android && chmod +x gradlew && ./gradlew --no-daemon assembleDebug)
 
