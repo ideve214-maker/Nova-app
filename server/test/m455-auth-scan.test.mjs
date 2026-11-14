@@ -40,8 +40,9 @@ test('未登录或乱猜 id 拿不到文件；会话令牌不能放 URL；短期
     assert.ok(!tk.j.ticket.includes(a.tok), 'ticket 不是登录令牌');
     const ok = await fetch(base + '/api/media/' + id + '/file?ticket=' + encodeURIComponent(tk.j.ticket));
     assert.equal(ok.status, 200);
-    // 默认扫描状态是 pending，不是假装的 clean
-    assert.equal(up.j.media.scanStatus, 'pending');
+    // 默认没开 NSFW 扫描：状态如实写 skipped（或尚未扫描的 pending），绝不能是假装的 clean
+    assert.ok(['skipped', 'pending'].includes(up.j.media.scanStatus), up.j.media.scanStatus);
+    assert.notEqual(up.j.media.scanStatus, 'clean');
   } finally { srv.close(); }
 });
 

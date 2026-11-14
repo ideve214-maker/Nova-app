@@ -63,7 +63,8 @@ test('src/ 里所有 fetch 到 /api/ 都经过 apiUrl，不直接写死路径', 
 test('默认构建注入 NOVA_APP_VERSION，不注入热更新清单地址', () => {
   const dir = mkdtempSync(join(tmpdir(), 'nova-build-'));
   const b = build({destDir: dir});
-  assert.match(b.html, /window\.NOVA_APP_VERSION = window\.NOVA_APP_VERSION \|\| "1\.0\.0"/);
+  const ver = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
+  assert.ok(b.html.includes(`window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || ${JSON.stringify(ver)}`), '注入的版本号应等于 package.json 的 ' + ver);
   assert.doesNotMatch(b.html, /window\.NOVA_UPDATE_MANIFEST_URL = window\.NOVA_UPDATE_MANIFEST_URL/);
   assert.ok(readdirSync(dir).includes('index.html'));
 });

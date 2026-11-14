@@ -81,7 +81,7 @@ test('GET /api/version 与 /api/health 含版本和提交', async () => {
   const v = await call('GET', '/api/version');
   assert.equal(v.s, 200, v.text);
   assert.equal(v.j.version, appVersion().version);
-  assert.match(v.j.version, /^1\.0\.0/);
+  assert.match(v.j.version, /^\d+\.\d+\.\d+/);
   if (v.j.commit) assert.match(v.j.commit, /^[0-9a-f]{7,40}$/);
   const h = await call('GET', '/api/health');
   assert.equal(h.s, 200);
