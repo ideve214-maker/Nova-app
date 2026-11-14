@@ -13,6 +13,9 @@ on:
 jobs:
   assets:
     runs-on: ubuntu-latest
+    env:
+      # Assets only: no install package is built here, so no hot-update URL is needed.
+      NOVA_REQUIRE_UPDATE_URL: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,6 +24,9 @@ jobs:
       - name: Install admin dependencies
         working-directory: admin
         run: npm ci
+      - name: Install Capacitor CLI and native platforms (not saved to package.json)
+        working-directory: admin
+        run: npm i --no-save --no-audit --no-fund @capacitor/cli@^7 @capacitor/android@^7 @capacitor/ios@^7
       - name: Generate launcher assets from resources
         working-directory: admin
         run: bash scripts/generate-capacitor-assets.sh
