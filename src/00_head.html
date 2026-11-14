@@ -325,7 +325,7 @@ html.has-safe-area .ios-sb{display:none}@media (max-width:599px),(hover:none),(p
 .gtile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;background:var(--sf);color:var(--tx);border-radius:16px;padding:12px;min-height:132px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
 .gtile b{font-size:16px}.gtile small{color:var(--t2);font-size:12px;line-height:1.35}.gtile em{margin-top:auto;font-style:normal;color:var(--ac);font-size:12px;font-weight:700}
 .gico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--ac);color:var(--onac);overflow:hidden;flex:none}.gico svg,.gico-svg{width:22px;height:22px;display:block}
-.maintbar{flex:none;display:flex;flex-direction:column;gap:2px;padding:8px 14px;background:#5a3b00;color:#ffe6a8;font-size:13px;line-height:1.35;border-top:1px solid rgba(255,214,120,.35);z-index:6}
+.maintbar{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:2px;padding:8px 14px;background:#5a3b00;color:#ffe6a8;font-size:13px;line-height:1.35;border:1px solid rgba(255,214,120,.35);border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:15}.maintbar:has(+nav){bottom:calc(20px + var(--nav-h,56px) + env(safe-area-inset-bottom,0px))}
 .maintbar b{font-size:14px;color:#ffd27a}.maintbar small{color:#f3d9a0;font-size:12px}
 #v>.maintbar:last-child{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
 .game-frame{padding:0!important;background:var(--bg);overflow:hidden}
@@ -537,6 +537,12 @@ html.kb-open .pn{padding-bottom:12px}
 .geom{font-size:13px;line-height:1.45;color:var(--t2);margin:-4px 0 10px}
 .geom.err{color:var(--wa,#f5a524)}
 
+/* 英文界面：标签更长，行内按钮换到下一行，不挤、不截断 */
+html[data-lang=en] .top .ib.tx{width:auto!important;min-width:44px;padding:0 8px;font-size:15px;white-space:nowrap}html[data-lang=en] .compose-pg .top h1{left:88px;right:88px}html[data-lang=en] .row{flex-wrap:wrap;row-gap:8px}
+html[data-lang=en] .row>.gr{flex:1 1 160px;min-width:0}
+html[data-lang=en] .row>.gr b,html[data-lang=en] .row>.gr small{overflow-wrap:anywhere}
+html[data-lang=en] .sw{flex-wrap:wrap;justify-content:flex-end}
+html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 /* 启动页 */
 #vxsplash{position:fixed;inset:0;z-index:2147483000;overflow:hidden;background:#02040b;color:#e8f0ff;font-family:Inter,-apple-system,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;transition:opacity .45s ease,visibility .45s;-webkit-user-select:none;user-select:none}
 #vxsplash.out{opacity:0;visibility:hidden;pointer-events:none}

@@ -260,7 +260,7 @@ const stBg=id=>ST_BG[[...String(id)].reduce((a,c)=>a+c.charCodeAt(0),0)%ST_BG.le
 let STV={key:'',timer:null};
 function pStory(a,idx){
   const g=storyGroups().find(x=>x.a===String(a));
-  if(!g||!g.items.length)return `<div class="pg"><div class="stv"><div class="hd"><span class="gr"></span><button data-a="stclose" aria-label="关闭">✕</button></div><div class="bd"><div class="tx" style="font-size:17px;font-weight:500">这条日常已经消失了</div></div></div></div>`;
+  if(!g||!g.items.length)return `<div class="pg"><div class="stv"><div class="hd"><span class="gr"></span><button data-a="stclose" aria-label="关闭">✕</button></div><div class="bd"><div class="tx" style="font-size:17px;font-weight:500">${tr('这条日常已经消失了')}</div></div></div></div>`;
   const i=Math.max(0,Math.min(g.items.length-1,+idx||0)),p=g.items[i],m=(p.media||[]).map(mItem)[0];
   markStorySeen(p.id);
   const tm=typeof fmtTime==='function'&&postAt(p)?fmtTime(postAt(p)):(p.t||'');
@@ -288,7 +288,7 @@ function storyCur(){const c=S.st[S.st.length-1]||'';const[t,a,i]=String(c).split
 function pStoryNew(){
   const c=S.stc||(S.stc={media:null});
   const m=c.media;
-  const prev=m?(m.kind==='video'?`<video src="${esc(m.url)}" muted playsinline autoplay loop></video>`:`<img src="${esc(m.url)}" alt="">`)+`<button class="x" data-a="stcrm" aria-label="移除">✕</button>`:`<div class="tx">${esc((S.d.stx||'').trim()||'写一句话，或选一张照片/一段视频')}</div>`;
+  const prev=m?(m.kind==='video'?`<video src="${esc(m.url)}" muted playsinline autoplay loop></video>`:`<img src="${esc(m.url)}" alt="">`)+`<button class="x" data-a="stcrm" aria-label="移除">✕</button>`:`<div class="tx">${esc((S.d.stx||'').trim()||tr('写一句话，或选一张照片/一段视频'))}</div>`;
   return `<div class="pg stc-pg"><div class="top sub"><button class="ib tx" data-a="stcx">取消</button><h1>发日常</h1><button class="pb" data-a="stpub">发布</button></div><div class="sc"><div class="stc-prev" style="background:${m?'#000':ST_BG[0]}">${prev}</div><textarea class="fld cta" data-d="stx" data-max="200" rows="2" placeholder="${m?'加一句说明（可不填）':'写点什么…'}"></textarea><div class="stc-tools"><button class="pb s" data-a="stcpick">${typeof icLine==='function'?icLine('photo'):''} 选照片 / 视频</button></div><p class="stc-hint">🌐 公开，所有人可见。日常只出现在首页顶部那一排，24 小时后自动消失；不会出现在帖子列表里，也不计入帖子数。</p></div></div>`;
 }
 async function publishStory(){
