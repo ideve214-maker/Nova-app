@@ -3,6 +3,7 @@
   "name": "星澜",
   "version": "1.0.0",
   "preview": "preview/buttons.png",
+  "tile": "preview/tile.svg",
   "css": "skin.css",
   "tokensCss": "tokens.css",
   "logo": "logo/vexo-lockup.png",

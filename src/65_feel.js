@@ -60,7 +60,24 @@ function run(el,frames,opt,done){
   a.onfinish=end;setTimeout(end,(opt.duration||300)+250);return a;
 }
 const T3=x=>`translate3d(${x},0,0)`;
+/* r8.3：滚动中不整页重绘。服务器推送（私信、通知、好友事件）、后台刷新等异步触发的 render() 如果正赶上手指在拖或惯性滚动，
+   会用 innerHTML 换掉整个列表、打断惯性、再把 scrollTop 设回去——这就是"滑着滑着一跳"。
+   这类重绘推迟到滚动停下约 160ms 后合并成一次；用户自己点按触发的重绘照常立即执行。 */
+let RD_SCROLL=0,RD_DRAG=0,RD_CLICK=0,RD_T=null,RD_IN=-1e9;
+/* 只把"用户手势带来的滚动"算作正在滚动：3 秒内有过触摸/滚轮（覆盖 iOS 惯性），程序自己设置 scrollTop 不算 */
+['touchstart','touchmove','wheel'].forEach(t=>document.addEventListener(t,()=>{RD_IN=performance.now()},{capture:true,passive:true}));
+document.addEventListener('scroll',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('sc')&&performance.now()-RD_IN<3000)RD_SCROLL=performance.now()},{capture:true,passive:true});
+document.addEventListener('touchmove',e=>{if(e.target&&e.target.closest&&e.target.closest('.sc'))RD_DRAG=1},{capture:true,passive:true});
+document.addEventListener('touchend',e=>{if(!e.touches||!e.touches.length)RD_DRAG=0},{capture:true,passive:true});
+document.addEventListener('touchcancel',()=>{RD_DRAG=0},{capture:true,passive:true});
+['click','keydown','submit','change'].forEach(t=>document.addEventListener(t,()=>{RD_CLICK++;setTimeout(()=>{RD_CLICK=Math.max(0,RD_CLICK-1)},0)},{capture:true,passive:true}));
+function scrollBusy(){return RD_DRAG||performance.now()-RD_SCROLL<160}
 function render(){
+  if(!RD_CLICK&&MODE!=='boot'&&MODE!=='gate'&&scrollBusy()){
+    if(!RD_T)RD_T=setTimeout(function wait(){if(scrollBusy()){RD_T=setTimeout(wait,120);return}RD_T=null;render()},120);
+    return;
+  }
+  if(RD_T){clearTimeout(RD_T);RD_T=null}
   const cur=S.st[S.st.length-1],key=cur||S.tab,pv=VIEW,oldPg=$('#v .pg'),oldSh=$('#v .pn'),oldOv=$('#v .ov'),oldShKey=S.shk||null;
   const anim=!RM()&&!S.noAnim&&pv;
   let gp=null,gs=null,go=null;

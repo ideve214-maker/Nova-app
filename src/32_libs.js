@@ -133,7 +133,9 @@ function planScroll(prevKey,key,prevDepth,newDepth,cur){
   else{mode=isChat?'bottom':'top';y=0}
   S._restore={mode,y};
 }
-let SY_GEN=0,SY_T=[];
+let SY_GEN=0,SY_T=[],SY_USER=0;
+/* 用户一碰屏幕/滚轮就不再替他恢复滚动位置，避免刚开始滑就被拉回去 */
+['touchstart','wheel','pointerdown'].forEach(t=>document.addEventListener(t,()=>{SY_USER=Date.now()},{capture:true,passive:true}));
 function applyScroll(sc,pending){
   const plan=pending||S._restore;
   if(!sc||!plan)return;
@@ -142,6 +144,7 @@ function applyScroll(sc,pending){
   SY_T.forEach(id=>clearTimeout(id));SY_T=[];
   const go=()=>{
     if(gen!==SY_GEN||!sc.isConnected)return;
+    if(SY_USER>t0){if(gen===SY_GEN)S._restore=null;return}
     if(plan.mode==='bottom'){
       if(sc._virt&&typeof sc._virt.getTotalSize==='function'&&typeof sc._virt.scrollToOffset==='function'){
         try{sc._virt.scrollToOffset(sc._virt.getTotalSize(),{align:'start'})}catch(e){}
@@ -182,36 +185,12 @@ document.addEventListener('scroll',e=>{
 },true);
 function peekScroll(key){return key!=null&&SY[key]!=null?SY[key]:0}
 
+/* r8.3：去掉下拉刷新。pulltorefreshjs 在 iOS 上和系统自带的顶部回弹抢同一个手势（回弹时 scrollTop 为负），
+   松手瞬间又整页重绘，滑到顶部附近时就会抖、卡、误触发。现在刷新改为：点「首页」标签、App 回到前台自动拉取，
+   滚动中拉到的新内容不打断滚动，只在顶部出现「有新动态」提示，点了才换上（见 19_feed.js）。 */
 function bindPull(){
   if(typeof PullToRefresh==='undefined')return;
   try{if(PullToRefresh.destroyAll)PullToRefresh.destroyAll()}catch(e){}
-  const sc=document.querySelector('#v .sc');
-  if(!sc||sc.classList.contains('game-frame'))return;
-  try{
-    PullToRefresh.init({
-      mainElement:'#v .sc',
-      triggerElement:'#v .sc',
-      distThreshold:64,
-      distMax:90,
-      distReload:50,
-      instructionsPullToRefresh:'下拉刷新',
-      instructionsReleaseToRefresh:'松开刷新',
-      instructionsRefreshing:'刷新中',
-      shouldPullToRefresh(){
-        const el=document.querySelector('#v .sc');
-        const kb=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--kb'))||0;
-        return !!(el&&el.scrollTop<=0&&!document.querySelector('#v .pn')&&kb<40&&window.__novaAxis!=='x');
-      },
-      onRefresh(){
-        const done=p=>Promise.resolve(p).then(()=>{S.ptr=1;if(typeof render==='function')render()});
-        const cur=S.st&&S.st[S.st.length-1];
-        if(!cur&&S.tab==='home'&&typeof loadFeed==='function')return done(loadFeed());
-        if(cur&&String(cur).startsWith('post:')&&typeof loadComments==='function')return done(loadComments(String(cur).slice(5)));
-        if(cur&&String(cur).startsWith('chat:')&&typeof loadMessages==='function')return done(loadMessages(String(cur).slice(5)));
-        if(!cur&&S.tab==='chat'&&typeof loadConversations==='function')return done(loadConversations());
-      },
-    });
-  }catch(e){}
 }
 
 function virtualize(sc, nodes, estimate){
@@ -253,8 +232,8 @@ function afterRender(){
   if(bootKeyboard.applyBar)bootKeyboard.applyBar();
   const sc=document.querySelector('#v .sc');
   if(sc&&!sc.classList.contains('game-frame')){
-    const cards=[...sc.querySelectorAll(':scope > .fcard')];
-    if(cards.length>=8)virtualize(sc, cards, 280);
+    /* r8.3：帖子卡片不再虚拟化。虚拟列表每滚过一屏就用 innerHTML 重建可见卡片（图片重新解码、高度重新测量、
+       再回头改 scrollTop），在 iOS 惯性滚动中就是一顿一跳。几十到一两百张卡片直接放在原生滚动容器里更顺。 */
     const msgs=[...sc.querySelectorAll(':scope > .mr')];
     if(msgs.length>=8)virtualize(sc, msgs, 72);
     const box=sc.querySelector('#cbox');

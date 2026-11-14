@@ -62,6 +62,34 @@ function applyLook(kind,id,url){
   if(kind==='cmbg'||kind==='cmav'){const c=cmp(id);if(!c||(c.r!=='所有者'&&c.r!=='管理员')){T('没有权限');return false}if(kind==='cmbg')c.bg=url;else c.cp=url;return true}
   return false;
 }
+function canvasToJpegBlob(canvas,qStart){
+  return new Promise((resolve,reject)=>{
+    const tryQ=q=>{
+      if(typeof canvas.toBlob!=='function'){
+        let url=canvas.toDataURL('image/jpeg',q);
+        while(url.length>280000&&q>0.5){q-=0.08;url=canvas.toDataURL('image/jpeg',q)}
+        if(url.length>420000){reject(new Error('too large'));return}
+        const bin=atob(url.split(',')[1]||''),u=new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+        resolve(new Blob([u],{type:'image/jpeg'}));
+        return;
+      }
+      canvas.toBlob(b=>{
+        if(!b){reject(new Error('toBlob failed'));return}
+        if(b.size>280000&&q>0.5){tryQ(Math.max(0.5,q-0.08));return}
+        if(b.size>420000){reject(new Error('too large'));return}
+        resolve(b);
+      },'image/jpeg',q);
+    };
+    tryQ(qStart||0.82);
+  });
+}
+async function uploadJpegBlob(blob,name){
+  const r=await fetch(apiUrl('/api/media'),{method:'POST',headers:{Authorization:'Bearer '+SESSION.token,'Content-Type':blob.type||'image/jpeg','X-File-Name':encodeURIComponent(name||'cover.jpg')},body:blob});
+  const j=await r.json().catch(()=>({}));
+  if(r.status!==200||!j.media||!j.media.id)throw new Error((j.error&&j.error.message)||'上传失败');
+  return j.media.id;
+}
 function applyCrop(){
   const c=S.crop; if(!c)return;
   const img=$('#cropimg'); if(!img||!img.naturalWidth){T('图片还没准备好');return}
@@ -71,21 +99,26 @@ function applyCrop(){
   const canvas=document.createElement('canvas'); canvas.width=outW; canvas.height=outH;
   const g=canvas.getContext('2d');
   g.drawImage(img,box.sx,box.sy,box.sw,box.sh,0,0,outW,outH);
+  const finish=url=>{
+    if(!applyLook(c.kind,c.id,url))return;
+    const kind=c.kind,id=c.id;
+    closeCrop();
+    if((kind==='cmbg'||kind==='cmav')&&typeof saveCmLook==='function')
+      return saveCmLook(id,kind==='cmbg'?{cover:url}:{avatar:url},'已保存');
+    T('已保存');
+  };
+  if((c.kind==='cmbg'||c.kind==='cmav')&&typeof usingNet==='function'&&usingNet()&&SESSION){
+    if(S.lookBusy)return;S.lookBusy=1;T('正在上传…');
+    return canvasToJpegBlob(canvas,0.82).then(b=>uploadJpegBlob(b,c.kind==='cmbg'?'cm-cover.jpg':'cm-avatar.jpg')).then(mid=>{
+      S.lookBusy=0;finish(mid);
+    }).catch(e=>{
+      S.lookBusy=0;T((e&&e.message)==='too large'?'裁剪结果太大，请缩小一点或换一张':((e&&e.message)||'上传失败，请稍后再试'));
+    });
+  }
   let q=0.82, url=canvas.toDataURL('image/jpeg',q);
   while(url.length>280000&&q>0.5){q-=0.08;url=canvas.toDataURL('image/jpeg',q)}
   if(url.length>420000){T('裁剪结果太大，请缩小一点或换一张');return}
-  if(!applyLook(c.kind,c.id,url))return;
-  const kind=c.kind,id=c.id;
-  closeCrop();
-  if(kind==='cmbg'&&MODE==='account'&&NET&&SESSION){
-    return api('POST','/api/communities/'+id+'/edit',{cover:url}).then(r=>{
-      if(r.s!==200){T(errMsg(r,'封面没有保存到服务器'));return}
-      const x=r.j&&r.j.community&&typeof adoptCm==='function'?adoptCm(r.j.community):null;
-      if(x){const k=(S.communities||[]).findIndex(z=>z.id==id);if(k>=0)S.communities[k]=Object.assign(S.communities[k],x,{bg:x.bg||url})}
-      T('已保存');if(typeof render==='function')render();
-    });
-  }
-  T('已保存');
+  finish(url);
 }
 document.addEventListener('change',e=>{
   const t=e.target; if(!t.dataset||!t.dataset.pick)return;

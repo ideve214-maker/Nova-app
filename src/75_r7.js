@@ -92,9 +92,25 @@ function mediaTicket(id){
 function mediaFileUrl(id,ticket,preview){
   return apiUrl('/api/media/'+encodeURIComponent(id)+'/'+(preview?'preview':'file')+'?ticket='+encodeURIComponent(ticket));
 }
-function hydrateMedia(root){
+function hydrateLook(root){
   if(typeof SESSION==='undefined'||!SESSION)return;
-  (root||document).querySelectorAll('[data-mid]:not([data-mh])').forEach(el=>{
+  (root||document).querySelectorAll('[data-mbg]:not([data-mh])').forEach(el=>{
+    el.setAttribute('data-mh','1');
+    const id=el.getAttribute('data-mbg');
+    if(!id||typeof mediaTicket!=='function')return;
+    mediaTicket(id).then(ticket=>{
+      if(!el.isConnected||!ticket)return;
+      const url=mediaFileUrl(id,ticket,false);
+      el.style.backgroundImage="url('"+cssUrl(url)+"')";
+      el.style.backgroundSize='cover';
+      el.style.backgroundPosition='center';
+    });
+  });
+}
+function hydrateMedia(root){
+  if(typeof hydrateLook==='function')hydrateLook(root);
+  if(typeof SESSION==='undefined'||!SESSION)return;
+  (root||document).querySelectorAll('img[data-mid]:not([data-mh]),video[data-mid]:not([data-mh]),source[data-mid]:not([data-mh])').forEach(el=>{
     el.setAttribute('data-mh','1');
     const id=el.getAttribute('data-mid');
     mediaTicket(id).then(t=>{
@@ -343,13 +359,23 @@ function fmtN(n){n=Number(n)||0;if(n<=0)return '';if(n<1000)return String(n);if(
 function lsSet(k){try{return new Set(JSON.parse(localStorage.getItem(k)||'[]'))}catch(e){return new Set()}}
 function lsSave(k,set,cap){try{let a=[...set];if(cap&&a.length>cap)a=a.slice(a.length-cap);localStorage.setItem(k,JSON.stringify(a))}catch(e){}}
 /* 阅读量：服务器还没有阅读量接口；这台设备看过就记 1 次（见 docs/r7-server-notes.md）*/
-const VIEWED=lsSet('nova_post_viewed');
-function postViews(p){const s=Number(p.viewCount!=null?p.viewCount:p.views);return Number.isFinite(s)&&s>0?s:(VIEWED.has(String(p.id))?1:0)}
+/* 本机记录必须按账号分开：同一台手机切换账号时，别人的转帖/阅读记录不能算到新账号头上 */
+function acctKey(base){let u='';try{if(typeof SESSION!=='undefined'&&SESSION&&SESSION.user&&SESSION.user.id!=null)u=String(SESSION.user.id);else if(typeof MODE!=='undefined'&&MODE==='demo')u='demo'}catch(e){}return u?base+':'+u:''}
+try{localStorage.removeItem('nova_reposted');localStorage.removeItem('nova_post_viewed')}catch(e){}/* 旧版不分账号的记录，无法判断属于谁，直接丢弃 */
+let _viewedK=null,_viewed=new Set();
+function viewedSet(){const k=acctKey('nova_post_viewed');if(k!==_viewedK){_viewedK=k;_viewed=k?lsSet(k):new Set()}return _viewed}
+function viewedAdd(id){const v=viewedSet();v.add(id);if(_viewedK)lsSave(_viewedK,v,3000)}
+function postViews(p){const s=Number(p.viewCount!=null?p.viewCount:p.views);return Number.isFinite(s)&&s>0?s:(viewedSet().has(String(p.id))?1:0)}
 /* 转帖：服务器还没有转帖接口；先发一条带原帖链接的新帖子，本机记住转过哪些 */
-function repostMap(){try{return JSON.parse(localStorage.getItem('nova_reposted')||'{}')||{}}catch(e){return {}}}
+function repostMap(){const k=acctKey('nova_reposted');if(!k)return {};try{return JSON.parse(localStorage.getItem(k)||'{}')||{}}catch(e){return {}}}
+function repostSave(m){const k=acctKey('nova_reposted');if(!k)return;try{localStorage.setItem(k,JSON.stringify(m))}catch(e){}}
+/* 删除帖子时：删的是转帖本身，或者删的是原帖，都把转帖记录清掉 */
+function repostForget(id){id=String(id);const m=repostMap();let ch=0;for(const k of Object.keys(m))if(k===id||String(m[k])===id){delete m[k];ch=1}if(ch)repostSave(m);return ch}
+/* 打开转帖面板时向服务器确认那条转帖还在（在别的设备上删掉的也能清掉） */
+async function repostVerify(id){const m=repostMap(),nid=m[id];if(!nid||!(typeof usingNet==='function'&&usingNet())||typeof api!=='function')return;try{const r=await api('GET','/api/posts/'+encodeURIComponent(nid));if(r&&(r.s===404||r.s===410)){repostForget(nid);if(typeof render==='function')render()}}catch(e){}}
 function postReposts(p){return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
 function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Number.isFinite(s)&&s>0?s:(mine?1:0)}
-function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[]);return a.find(x=>String(x.id)===String(id))}
+function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[],S.postCache?Object.values(S.postCache):[]);return a.find(x=>String(x.id)===String(id))}
 function xbar(p,nLike,nC){
   const id=esc(String(p.id)),liked=p.m>=0,rt=!!repostMap()[p.id],bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
   const likeIc=liked&&p.m!==0&&typeof E!=='undefined'&&E[p.m]?`<span class="xemo">${E[p.m]}</span>`:xic('lk',liked);
@@ -359,7 +385,7 @@ function xbar(p,nLike,nC){
 if(typeof IntersectionObserver!=='undefined'){
   const timers=new Map();
   const io=new IntersectionObserver(es=>{es.forEach(en=>{const id=en.target.getAttribute('data-pid');if(!id)return;
-    if(en.isIntersecting&&en.intersectionRatio>=.5){if(VIEWED.has(id)||timers.has(id))return;timers.set(id,setTimeout(()=>{timers.delete(id);VIEWED.add(id);lsSave('nova_post_viewed',VIEWED,3000);const sp=en.target.querySelector('.xv span');if(sp&&!sp.textContent)sp.textContent='1'},800))}
+    if(en.isIntersecting&&en.intersectionRatio>=.5){if(viewedSet().has(id)||timers.has(id))return;timers.set(id,setTimeout(()=>{timers.delete(id);viewedAdd(id);const sp=en.target.querySelector('.xv span');if(sp&&!sp.textContent)sp.textContent='1'},800))}
     else if(timers.has(id)){clearTimeout(timers.get(id));timers.delete(id)}})},{threshold:[0,.5]});
   const seen=new WeakSet();
   const scan=()=>document.querySelectorAll('.fcard[data-pid]').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el)}});
@@ -397,12 +423,12 @@ Object.assign(A,{
   xcopylink:async v=>{S.sh=null;const ok=await copyText(postLink(v));T(ok?'已复制帖子链接':'复制失败，请长按手动复制')},
   xcopytext:async v=>{S.sh=null;const p=findPost(v);const ok=await copyText(p&&p.x||'');T(ok?'已复制正文':'复制失败')},
   xsys:async v=>{S.sh=null;const p=findPost(v);try{await navigator.share({title:'VEXO',text:p&&p.x?[...p.x].slice(0,60).join(''):'',url:postLink(v)})}catch(e){}},
-  xrt:v=>{S.sh={t:'xrt',id:v}},
+  xrt:v=>{S.sh={t:'xrt',id:v};repostVerify(v)},
   xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(repostMap()[v])return T('已经转过了');const text=repostText(p);
     let nid=null;
     if(typeof usingNet==='function'&&usingNet()){if(S.rtBusy)return;S.rtBusy=1;try{const np=await publishPost(text,{audience:'public'});nid=np&&np.id}finally{S.rtBusy=0}if(!nid)return}
     else{nid='rt'+Date.now();D.p.unshift({id:nid,a:'me',t:'刚刚',at:Date.now(),x:text,r:[0,0,0,0,0,0],m:-1,aud:'public'})}
-    const m=repostMap();m[v]=nid;try{localStorage.setItem('nova_reposted',JSON.stringify(m))}catch(e){}T('已转帖')},
+    const m=repostMap();m[v]=nid;repostSave(m);T('已转帖')},
   xquote:v=>{const p=findPost(v);S.sh=null;if(!p)return;S.d.pin=repostText(p,'');S.d.pin='\n\n'+S.d.pin;if(typeof compState==='function')compState();S.st.push('compose')}
 });
 /* 帖子链接打开：#/post/<id> */
@@ -412,32 +438,20 @@ function openHashPost(){const m=/^#\/post\/([^/?#]+)/.exec(location.hash||'');if
 window.addEventListener('hashchange',openHashPost);
 setTimeout(openHashPost,600);
 
-/* ---- 8 & 9. 首页：往下滑收起「日常 + 分享新鲜事」，回到最顶部再展开；回到顶部按钮 ---- */
-function homeEls(){const pg=document.querySelector('#v .pg.home');if(!pg)return null;return {pg,sc:pg.querySelector(':scope > .sc'),col:pg.querySelector('.hcol'),tt:pg.querySelector('.totop')}}
-function homeApply(h,y,instant){
-  if(!h||!h.sc)return;
-  const room=h.sc.scrollHeight-h.sc.clientHeight,colH=h.col?h.col.scrollHeight:0;
-  let hc=!!S._hc,tt=!!S._tt;
-  /* r8：收起/展开后 450ms 内不再反向切换（动画 300ms），iOS 回弹时 scrollTop 会来回过 0，否则会连着切、上下抽搐 */
-  const now=Date.now(),lock=now-(homeApply.at||0)<450;
-  if(!lock){
-    if(!hc&&y>48&&room>colH+120)hc=true;
-    else if(hc&&y<=1)hc=false;
-  }
-  const th=Math.max(800,h.sc.clientHeight*1.3);
-  if(!tt&&y>th)tt=true;else if(tt&&y<240)tt=false;
-  if(instant)h.pg.classList.add('hnoanim');
-  if(hc!==!!S._hc||h.pg.classList.contains('hc')!==hc){if(hc!==!!S._hc&&!instant)homeApply.at=now;S._hc=hc;h.pg.classList.toggle('hc',hc)}
-  if(tt!==!!S._tt||(h.tt&&h.tt.classList.contains('on')!==tt)){S._tt=tt;if(h.tt){h.tt.classList.toggle('on',tt);h.tt.tabIndex=tt?0:-1;h.tt.setAttribute('aria-hidden',tt?'false':'true')}}
-  if(instant)requestAnimationFrame(()=>requestAnimationFrame(()=>h.pg.classList.remove('hnoanim')));
+/* ---- 8 & 9. 首页：「日常 + 分享新鲜事」在滚动区里跟内容一起滚走（r8.3 起不再收起/展开、不改滚动区高度）；回到顶部按钮 ----
+   滚动时只做一件事：每帧最多读一次 scrollTop，按阈值切换回到顶部按钮的 class。不读 scrollHeight、不写样式变量、不改 .pg 的 class。 */
+function homeEls(){const pg=document.querySelector('#v .pg.home');if(!pg)return null;return {pg,sc:pg.querySelector(':scope > .sc'),tt:pg.querySelector('.totop')}}
+function homeTT(h,y){
+  if(!h||!h.tt)return;
+  const th=homeTT.th||(homeTT.th=Math.max(800,(window.innerHeight||800)*1.1));
+  let tt=!!S._tt;if(!tt&&y>th)tt=true;else if(tt&&y<240)tt=false;
+  if(tt!==!!S._tt||h.tt.classList.contains('on')!==tt){S._tt=tt;h.tt.classList.toggle('on',tt);h.tt.tabIndex=tt?0:-1;h.tt.setAttribute('aria-hidden',tt?'false':'true')}
 }
-function homeSync(){const h=homeEls();if(!h)return;
-  if(h.col&&!S._hc){const inner=h.col.firstElementChild;if(inner)h.col.style.setProperty('--hch',inner.scrollHeight+'px')}
-  homeApply(h,h.sc?h.sc.scrollTop:0,true)}
-document.addEventListener('scroll',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('sc'))return;const pg=t.parentElement;if(!pg||!pg.classList.contains('home'))return;
-  const h={pg,sc:t,col:pg.querySelector('.hcol'),tt:pg.querySelector('.totop')};
-  if(h.col&&!S._hc){const inner=h.col.firstElementChild;if(inner)h.col.style.setProperty('--hch',inner.scrollHeight+'px')}
-  homeApply(h,t.scrollTop,false)},true);
+function homeApply(h,y){homeTT(h,y)}
+function homeSync(){const h=homeEls();if(h&&h.sc)homeTT(h,h.sc.scrollTop)}
+let homeRaf=0;
+document.addEventListener('scroll',e=>{const t=e.target;if(homeRaf||!t||!t.classList||!t.classList.contains('sc'))return;const pg=t.parentElement;if(!pg||!pg.classList.contains('home'))return;
+  homeRaf=requestAnimationFrame(()=>{homeRaf=0;if(!t.isConnected)return;homeTT({pg,sc:t,tt:pg.querySelector('.totop')},t.scrollTop);if(typeof feedAtTop==='function')feedAtTop(t)})},{capture:true,passive:true});
 function smoothTop(sc){
   if('scrollBehavior' in document.documentElement.style){try{sc.scrollTo({top:0,behavior:'smooth'});return}catch(e){}}
   const y0=sc.scrollTop,t0=performance.now(),d=Math.min(600,250+y0/8);

@@ -33,18 +33,67 @@ function adoptPost(p){
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
   const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;return o;
 }
+/* 帖子已被删除（作者删帖或管理员处理举报）：从内存列表和离线缓存里去掉，避免继续显示旧帖子 */
+function dropPost(id,toast){
+  if(!id)return false;let hit=false;
+  if(Array.isArray(S.posts)){const n=S.posts.length;S.posts=S.posts.filter(p=>String(p.id)!==String(id));hit=S.posts.length!==n;if(hit&&typeof cacheWriteFeed==='function')cacheWriteFeed(S.posts)}
+  if(toast&&typeof T==='function')T('该帖子已被删除');
+  return hit;
+}
+function isGone(r){return r&&r.s===404}
+let feedHiddenAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){feedHiddenAt=Date.now();return}
+  if(!feedHiddenAt||Date.now()-feedHiddenAt<15000)return;feedHiddenAt=0;
+  const cur=S.st&&S.st[S.st.length-1];
+  if(!cur&&S.tab==='home'&&typeof usingNet==='function'&&usingNet())refreshFeedSafe();
+});
+/* r8.3 不打断滚动的首页刷新（点首页标签 / 回到前台 / 切回首页时用）：
+   - 拉取失败（断网、被拦）：什么都不显示，保留当前列表；
+   - 用户在顶部：直接换上新列表；
+   - 用户已经往下滑了：不动当前列表，新列表先放着，顶部出现「有 N 条新动态」，点了才换上并回到顶部；
+     如果只是有帖子被删、没有新帖，回到顶部时再悄悄换上。 */
+function homeSc(){const cur=S.st&&S.st[S.st.length-1];if(cur||S.tab!=='home')return null;return document.querySelector('#v .pg.home > .sc')}
+async function refreshFeedSafe(){
+  if(typeof usingNet!=='function'||!usingNet()||S.feedRefreshing)return;
+  S.feedRefreshing=1;
+  const prev=Array.isArray(S.posts)?S.posts:null,keep={posts:prev,cursor:S.postsCursor,hot:S.hotMode,err:S.postsErr},feed=S.feed;
+  let ok=false;
+  try{ok=await loadFeed()}catch(e){ok=false}finally{S.feedRefreshing=0}
+  if(S.feed!==feed)return;
+  if(!ok){if(prev&&prev.length){S.posts=keep.posts;S.postsCursor=keep.cursor;S.hotMode=keep.hot;S.postsErr=keep.err||''}else if(typeof render==='function')render();return}
+  const sc=homeSc();
+  if(!sc||!prev||(sc.scrollTop||0)<=4){S.feedPending=null;if(sc&&typeof render==='function')render();return}
+  const fresh={posts:S.posts,cursor:S.postsCursor,hot:S.hotMode};
+  S.posts=keep.posts;S.postsCursor=keep.cursor;S.hotMode=keep.hot;S.postsErr=keep.err||'';
+  const had=new Set(prev.map(p=>String(p.id)));
+  const n=(fresh.posts||[]).filter(p=>!had.has(String(p.id))&&!(typeof isStory==='function'&&isStory(p))).length;
+  S.feedPending={...fresh,n,feed};
+  showNewPill();
+}
+function applyFeedPending(){const f=S.feedPending;if(!f)return false;S.feedPending=null;if(f.feed!==S.feed)return false;S.posts=f.posts;S.postsCursor=f.cursor;S.hotMode=f.hot;S.postsErr='';return true}
+function newPill(){const f=S.feedPending;return f&&f.n>0&&f.feed===S.feed?`<button class="newpill" type="button" data-a="newposts">有 ${f.n>99?'99+':f.n} 条新动态</button>`:''}
+/* 只插入/更新提示按钮，不重绘列表 */
+function showNewPill(){const pg=document.querySelector('#v .pg.home');if(!pg)return;const old=pg.querySelector('.newpill');const html=newPill();
+  if(!html){if(old)old.remove();return}
+  if(old){old.outerHTML=html;return}
+  const tt=pg.querySelector('.totop');const tmp=document.createElement('div');tmp.innerHTML=html;pg.insertBefore(tmp.firstElementChild,tt||null)}
+/* 回到顶部且停下时，把放着的新列表换上（scroll 监听在 75_r7.js，每帧最多一次） */
+function feedAtTop(sc){if(!S.feedPending||(sc.scrollTop||0)>4)return;setTimeout(()=>{const s=homeSc();if(!S.feedPending||!s||(s.scrollTop||0)>4)return;if(applyFeedPending()&&typeof render==='function')render()},200)}
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
   if(MODE!=='account'||!SESSION)return;
   /* r7 热门话题：先取管理员挑选的帖子（按管理员顺序）；一条都没挑或服务器还没有这个接口时，退回原来按话题标签的结果 */
-  S.hotMode=0;
-  if(S.feed==='topic'){const h=await api('GET','/api/hot-posts?limit=20');if(h.s===200&&h.j&&Array.isArray(h.j.posts)&&h.j.posts.length){S.posts=h.j.posts.map(adoptPost);S.postsErr='';S.postsCursor=null;S.hotMode=1;return}}
+  S.hotMode=0;S.feedPending=null;
+  if(S.feed==='topic'){const h=await api('GET','/api/hot-posts?limit=20');if(h.s===200&&h.j&&Array.isArray(h.j.posts)&&h.j.posts.length){S.posts=h.j.posts.map(adoptPost);S.postsErr='';S.postsCursor=null;S.hotMode=1;return true}}
   const r=await api('GET','/api/posts?limit=50&feed='+(S.feed==='follow'?'follow':S.feed==='topic'?'topic':'rec'));
   if(r.s!==200){
-    if(typeof cacheReadFeed==='function'){const cached=await cacheReadFeed();if(cached&&cached.length){S.posts=cached;S.postsErr='';return}}
-    S.postsErr=errMsg(r,'动态加载失败');return}
+    if(S.feedRefreshing&&Array.isArray(S.posts)&&S.posts.length)return false;
+    if(typeof cacheReadFeed==='function'){const cached=await cacheReadFeed();if(cached&&cached.length){S.posts=cached;S.postsErr='';return false}}
+    S.postsErr=errMsg(r,'动态加载失败');return false}
   S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';S.postsCursor=r.j.nextCursor||null;
   if(typeof cacheWriteFeed==='function')cacheWriteFeed(S.posts);
+  return true;
 }
 async function publishPost(text,meta){
   const body={text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)};
@@ -70,6 +119,7 @@ async function loadComments(postId){
   if(!usingNet()||!SESSION)return;
   S.commentPost=postId;S.comments=S.comments&&S.commentPost===postId?S.comments:undefined;
   const r=await api('GET','/api/posts/'+postId+'/comments');
+  if(isGone(r)){S.comments=[];S.commentErr='该帖子已被删除';dropPost(postId,true);return}
   if(r.s!==200){S.comments=[];S.commentErr=errMsg(r,'评论加载失败');return}
   S.comments=(r.j.comments||[]).map(adoptComment);S.commentErr='';S.commentPost=postId;
   const p=feedSrc().find(x=>x.id==postId);if(p)p.commentCount=r.j.commentCount;

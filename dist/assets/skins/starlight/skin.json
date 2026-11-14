@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "defaultMode": "dark",
   "preview": "preview/icon.png",
+  "tile": "preview/icon.png",
   "css": "skin.css",
   "tokensCss": "tokens.css",
   "logo": "logo/vexo-lockup.png",
