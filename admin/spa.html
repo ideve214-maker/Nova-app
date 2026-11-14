@@ -30,6 +30,7 @@
         window.__NOVA_SHOW_ERROR__ = show;
         window.addEventListener("error", function (e) {
           var t = e && e.target;
+          if (t && t !== window && t.getAttribute && t.getAttribute("data-nova-soft-fail")) return;
           if (t && t !== window && (t.src || t.href)) { show("资源加载失败: " + (t.src || t.href)); return; }
           show(String((e && e.message) || "error") + "\n" + ((e && e.error && e.error.stack) || "") + "\n" + ((e && e.filename) || "") + ":" + ((e && e.lineno) || ""));
         }, true);

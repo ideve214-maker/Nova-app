@@ -1,0 +1,111 @@
+/**
+ * 统一的头像判断逻辑（管理端所有头像都走这里）。
+ *
+ * 用户端/后端返回的头像字段可能是：
+ *   - 图片地址字符串："https://…"、"/media/a.jpg"、"data:image/png;base64,…"
+ *   - 颜色文字对象：{ kind: "color", color: "#RRGGBB", letter: "字" }（当前服务器 admin-ops 返回的就是这种）
+ *   - 图片对象：{ kind: "image", url: "…" }
+ *   - 空值 / 空字符串 / 旧缓存里被 String() 过的 "[object Object]"
+ *
+ * 只有“像图片地址”的字符串才交给 <img> 加载，其余一律显示颜色 + 文字的默认头像，
+ * 避免出现 capacitor://localhost/[object%20Object] 这种请求。
+ */
+
+export type ResolvedAvatar = { url: string; color: string; letter: string };
+
+const HEX_COLOR = /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/** 字面或编码后的 "[object Object]"（例如 %5Bobject%20Object%5D）。 */
+function looksLikeObjectString(s: string): boolean {
+  return /\[object/i.test(s) || /%5Bobject/i.test(s) || /\[object/i.test(safeDecode(s));
+}
+
+const RELATIVE_IMAGE = /^[^\s/:?#.][^\s:?#]*\.(?:jpe?g|png|gif|webp|heic|avif)(?:\?[^\s#]*)?$/i;
+
+/** 字符串是否像一个可加载的图片地址。 */
+export function isImageUrl(v: unknown): v is string {
+  if (typeof v !== "string") return false;
+  const s = v.trim();
+  if (!s || s.length > 1_000_000) return false;
+  if (looksLikeObjectString(s)) return false;
+  if (/^https?:\/\/[^\s]+$/i.test(s)) return true;
+  if (/^data:image\/[a-z0-9.+-]+[;,]/i.test(s)) return true;
+  if (/^(?:blob|capacitor|file):/i.test(s)) return true;
+  // 站内路径：/media/a.jpg、./media/a.jpg、../a.png；排除协议相对的 "//"
+  if (/^\.{0,2}\/(?!\/)\S*$/.test(s)) return true;
+  // 不带 / 的相对路径：media/a.jpg、uploads/x.png?v=2（需以常见图片扩展名结尾、不含空格和冒号）
+  if (RELATIVE_IMAGE.test(s)) return true;
+  return false;
+}
+
+/** 不带 / 的相对图片路径补成站内路径（media/a.jpg → /media/a.jpg），其余原样返回。 */
+export function normalizeImagePath(url: string): string {
+  const s = url.trim();
+  return RELATIVE_IMAGE.test(s) ? `/${s}` : s;
+}
+
+/** 本次打开应用期间加载失败过的头像地址：不再重试，直接显示默认头像。 */
+const failedAvatarUrls = new Set<string>();
+
+export function markAvatarFailed(url: string): void {
+  if (url) failedAvatarUrls.add(url);
+}
+
+export function hasAvatarFailed(url: string): boolean {
+  return !!url && failedAvatarUrls.has(url);
+}
+
+export function isHexColor(v: unknown): v is string {
+  return typeof v === "string" && HEX_COLOR.test(v.trim());
+}
+
+function firstChar(v: unknown): string {
+  if (typeof v !== "string") return "";
+  return [...v.trim()][0] || "";
+}
+
+function firstString(obj: Record<string, unknown>, keys: string[]): unknown {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v;
+  }
+  return undefined;
+}
+
+/**
+ * 把任意形态的头像字段规范成 { url, color, letter }。
+ * url 只会是 isImageUrl 通过的字符串，否则为空。
+ */
+export function resolveAvatar(v: unknown): ResolvedAvatar {
+  const out: ResolvedAvatar = { url: "", color: "", letter: "" };
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (isImageUrl(s)) out.url = s;
+    else if (isHexColor(s)) out.color = s;
+    return out;
+  }
+  if (!isRecord(v)) return out;
+  const url = firstString(v, ["url", "src", "uri", "imageUrl", "image_url", "path"]);
+  if (isImageUrl(url)) out.url = url.trim();
+  const color = firstString(v, ["color", "bg", "background"]);
+  if (isHexColor(color)) out.color = color.trim();
+  out.letter = firstChar(firstString(v, ["letter", "text", "char"]));
+  return out;
+}
+
+/** 默认头像上显示的字：优先头像自带文字，否则昵称首字。 */
+export function avatarLetter(letter: unknown, name: unknown): string {
+  return firstChar(letter) || firstChar(name) || "?";
+}

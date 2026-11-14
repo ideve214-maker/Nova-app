@@ -4,6 +4,8 @@ import { GROK_PROVIDERS, authEnabled, signIn, signOut } from "./client";
 import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
+import { hasAvatarFailed, isImageUrl, markAvatarFailed, normalizeImagePath } from "../admin/avatar";
+import { mediaUrl } from "../admin/media";
 
 const subscribeToNothing = () => () => {};
 const noGateSessionOnServer = () => false;
@@ -101,17 +103,7 @@ export function UserButton() {
   const label = user.displayName ?? user.primaryEmail ?? "Account";
   return (
     <div className="flex items-center gap-2">
-      {user.profileImageUrl ? (
-        <img
-          src={user.profileImageUrl}
-          alt=""
-          className="h-8 w-8 rounded-full object-cover"
-        />
-      ) : (
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/20">
-          {label.charAt(0).toUpperCase()}
-        </span>
-      )}
+      <AccountAvatar src={user.profileImageUrl} label={label} />
       <span className="text-sm font-medium">{label}</span>
       {authEnabled && !gateSession && (
         <button
@@ -128,5 +120,31 @@ export function UserButton() {
         </button>
       )}
     </div>
+  );
+}
+
+/** 账号头像：只有图片地址才加载；加载失败（或本次已失败过）回退到首字头像。 */
+function AccountAvatar({ src, label }: { src: unknown; label: string }) {
+  const path = isImageUrl(src) ? normalizeImagePath(src) : "";
+  const url = path ? mediaUrl(path) || path : "";
+  const [brokenUrl, setBrokenUrl] = useState("");
+  if (url && brokenUrl !== url && !hasAvatarFailed(url)) {
+    return (
+      <img
+        src={url}
+        alt=""
+        data-nova-soft-fail="avatar"
+        onError={() => {
+          markAvatarFailed(url);
+          setBrokenUrl(url);
+        }}
+        className="h-8 w-8 rounded-full object-cover"
+      />
+    );
+  }
+  return (
+    <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/20">
+      {label.charAt(0).toUpperCase()}
+    </span>
   );
 }
