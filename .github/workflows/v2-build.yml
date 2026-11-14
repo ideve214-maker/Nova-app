@@ -56,8 +56,8 @@ env:
   ADMIN_VERSION_CODE_BASE: '110'
   ADMIN_DISPLAY_NAME: 'VEXO 管理端'
   # ---- endpoints (user values are public; admin URL is secret-only) ----------
-  USER_API_BASE: http://47.239.0.90
-  USER_UPDATE_URL: http://47.239.0.90/updates/user/manifest.json
+  USER_API_BASE: https://47.239.0.90
+  USER_UPDATE_URL: https://47.239.0.90/updates/user/manifest.json
 
 jobs:
   plan:
