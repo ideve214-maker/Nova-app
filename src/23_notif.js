@@ -46,6 +46,8 @@ function notifRoute(n){
   if(t==='user'&&id)return {label:'查看主页',go:()=>{S.sh=null;return A.user(id)}};
   if(t==='conversation')return {label:'打开会话',go:()=>{S.sh=null;return A.conv(id)}};
   if(t==='community'&&!notifAppeal(n))return {label:'打开社区',go:()=>{S.sh=null;return A.cm(id)}};
+  if(t==='project'&&typeof A.pj==='function')return {label:'查看项目',go:()=>{S.sh=null;S.tab='co';S.st=[];return A.pj(id)}};
+  if(t==='activity'&&typeof A.act==='function')return {label:'查看活动',go:()=>{S.sh=null;return A.act(id)}};
   if(t==='message_request')return {label:'查看消息请求',go:()=>{S.sh=null;S.tab='chat';S.st=[];S.cseg='rq';return typeof loadMsgRequests==='function'?loadMsgRequests():undefined}};
   return null;
 }

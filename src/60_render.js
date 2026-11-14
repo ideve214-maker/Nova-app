@@ -1,4 +1,4 @@
-const chk=t=>{const k=t.dataset.d,mx=+t.dataset.max||0,raw=len(t.value),b=$(`[data-for=${k}]`),c=$(`[data-cnt=${k}]`);if(b){const media=k==='pin'&&S.comp&&S.comp.media&&S.comp.media.length&&raw<=(mx||1e9);b.disabled=!ok(t.value,mx||1e9)&&!media;b.classList.toggle('off',b.disabled&&b.classList.contains('pb')&&k==='pin')}if(c){c.textContent=raw>mx?`已超出 ${raw-mx} 字`:`${raw}/${mx}`;c.style.color=raw>mx?'var(--dg)':''}};
+const chk=t=>{const k=t.dataset.d,mx=+t.dataset.max||0,raw=len(t.value),b=$(`[data-for=${k}]`),c=$(`[data-cnt=${k}]`);if(b){const media=k==='pin'&&S.comp&&((S.comp.media&&S.comp.media.length)||S.comp.poll||S.comp.act)&&raw<=(mx||1e9);b.disabled=!ok(t.value,mx||1e9)&&!media;b.classList.toggle('off',b.disabled&&b.classList.contains('pb')&&k==='pin')}if(c){c.textContent=raw>mx?`已超出 ${raw-mx} 字`:`${raw}/${mx}`;c.style.color=raw>mx?'var(--dg)':''}};
 /* r10：输入框随内容自动变高，最多 data-grow 行（默认 5 行），超过后在框内滚动。回车键换行，点「发送」发送。 */
 function growTa(t){if(!t||t.tagName!=='TEXTAREA')return;const max=+(t.dataset.grow||5)||5;const cs=getComputedStyle(t);const lh=parseFloat(cs.lineHeight)||20;const pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);t.style.height='auto';const want=Math.min(t.scrollHeight,lh*max+pad);t.style.height=Math.max(want,lh+pad)+'px';t.style.overflowY=t.scrollHeight>lh*max+pad+1?'auto':'hidden'}
 function renderCore(){
@@ -8,7 +8,7 @@ document.documentElement.dataset.theme=typeof resolvedTheme==='function'?resolve
 const hideNav=!!cur;
 try{$('#v').classList.toggle('has-nav',!hideNav)}catch(e){}
 const shKey=S.sh?String(S.sh.t)+':'+(S.sh.id||''):'',prevShKey=S._shk||'';S._shk=shKey;
-$('#v').innerHTML=(typeof iosStatus==='function'?iosStatus():'')+(cur?page(cur):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='chat'?tChat():tMe())+(typeof maintBar==='function'?maintBar():'')+(hideNav?'':nav())+sheet();
+$('#v').innerHTML=(typeof iosStatus==='function'?iosStatus():'')+(cur?page(cur):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='co'&&typeof tCo==='function'?tCo():S.tab=='chat'?tChat():tMe())+(typeof maintBar==='function'?maintBar():'')+(hideNav?'':nav())+sheet();
 document.querySelectorAll('#v [data-d]').forEach(el=>{el.value=S.d[el.dataset.d]||'';chk(el);if(el.dataset.grow)growTa(el)});
 const sc=$('#v .sc');if(typeof applyScroll==='function')applyScroll(sc,S._restore);else if(sc)sc.scrollTop=(cur&&cur.startsWith('chat:'))||S.bot?1e9:(prevKey==key?(S.sy&&S.sy[key]||0):0);S.bot=0;if(S.jump&&sc){const el=sc.querySelector('[data-mid="'+S.jump+'"]');if(el){sc.scrollTop=el.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-70;el.classList.add('flash')}S.jump=null}
 /* r7：只在刚打开页面/面板时自动聚焦一次。以前每次点按都会整页重绘并重新聚焦输入框，键盘反复弹出收起，页面跟着上下跳、看起来忽大忽小；

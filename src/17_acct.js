@@ -12,6 +12,7 @@ function applyUser(user){
   if(p.avatar&&p.avatar.color)u[3]=p.avatar.color;
   if(p.bio!=null)u[4]=p.bio;
   u[5]=user.vip?1:0;
+  u[6]=user.badge||'';
   D.acct=user.id;
   D.pf=D.pf||{};D.pf.me=D.pf.me||{g:'',b:'',gp:1,bp:1,ap:1,cv:0};
   /* r10：图片头像 / 背景以服务器为准，换设备、重新登录都在；本机旧版只存在这台设备上的图片，第一次登录时补传到服务器。 */

@@ -197,6 +197,7 @@ export function createProfile(db, {now}) {
       avatar: p.avatar,
       cover: p.cover || null,
       badge: target.badge || null,
+      vip: !!(target.vip_until && target.vip_until > now()),
       isFriend,
       isSelf: !!self,
       risky: false,

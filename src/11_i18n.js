@@ -76,7 +76,7 @@ function trText(s){
 }
 const tr=trText;
 /* 同一个中文在不同位置意思不同时，按所在元素选译法 */
-const I18N_CTX=[['.sts','关注','Following'],['.sts','粉丝','Followers'],['.sts','帖子','Posts'],['.tag,.role,.rtag,.mrole','成员','Member'],['.top h1','帖子','Post'],['.top h1','动态','Post']];
+const I18N_CTX=[['.sts','关注','Following'],['.sts','粉丝','Followers'],['.sts','帖子','Posts'],['.tag,.role,.rtag,.mrole','成员','Member'],['.top h1','帖子','Post'],['.top h1','动态','Post'],['.pill','已关闭','Closed'],['.top h1','共创','Co-create'],['.top h1','项目','Project'],['.top h1','活动','Event']];
 function i18nCtx(t){const p=t.parentElement;if(!p)return null;const core=t.nodeValue.trim();for(const [sel,zh,en] of I18N_CTX){if(core===zh&&p.closest(sel))return t.nodeValue.replace(zh,en)}return null}
 const I18N_ATTRS=['placeholder','aria-label','title','alt','data-ph'];
 function trNode(root){

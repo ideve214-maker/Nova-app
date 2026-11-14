@@ -516,6 +516,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {user} = auth(req);
       const body = b || {};
       if (body.poll) { polls.assertCanCreate(user); polls.validateSpec(body.poll); }
+      if (body.poll && !body.activity && !String(body.text || '').trim()) body.text = String(body.poll.question || '').trim();
       if (body.activity) {
         activities.assertCanCreate(user); activities.validateSpec(body.activity, user); assertV2Text(activities.textOf(body.activity));
         if (!String(body.text || '').trim()) body.text = String(body.activity.title || '').trim();

@@ -4,6 +4,12 @@
 const VIP={cat:null,me:null,busy:0,err:''};
 /* 会员标识：只表示订阅状态，不是实名认证。 */
 const vipBadge=()=>'<i class="vip" role="img" aria-label="VEXO VIP 会员">VIP</i>';
+/* 2.0 官方账号 / 官方授权账号标识：蓝色认证章，和金色 VIP 区分；同时有时总在 VIP 前面。 */
+const OBG={official:['官方','官方账号','Official','Official account'],authorized:['官方授权','官方授权账号','Authorized','Authorized account']};const obgEn=()=>typeof LANG!=='undefined'&&LANG==='en';
+const obadge=k=>OBG[k]?`<i class="obg obg-${k}" role="img" aria-label="${OBG[k][obgEn()?3:1]}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .9l1.9 1.3 2.3-.1.8 2.2 1.8 1.4-.7 2.2.7 2.2-1.8 1.4-.8 2.2-2.3-.1L8 15.1l-1.9-1.3-2.3.1-.8-2.2-1.8-1.4.7-2.2-.7-2.2 1.8-1.4.8-2.2 2.3.1z" fill="currentColor"/><path d="M5.2 8.1l1.9 1.9 3.8-3.9" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${OBG[k][obgEn()?2:0]}</span></i>`:'';
+const nameBadges=u=>(u&&u.g?obadge(u.g):'')+(u&&u.v?vipBadge():'');
+/* 名字 + 标识：名字过长时只截名字，标识一直可见（外层元素加 class="nb"） */
+const nmB=(u,label)=>`<span class="nmt">${esc(label!=null?label:u.n)}</span>${nameBadges(u)}`;
 const pad2=n=>String(n).padStart(2,'0');
 const vipDate=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())};
 /* 把「权益在某套餐下的取值」写成人能读的文字；数字都来自服务端目录。 */
