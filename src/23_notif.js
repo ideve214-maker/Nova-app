@@ -111,7 +111,7 @@ async function notifAppealSend(id){
   const text=String(S.d.aptxt||'').trim();
   if(text.length<4){T('请填写至少 4 个字的申诉理由');return}
   if(S.apBusy)return;S.apBusy=1;
-  let r;try{r=await api('POST','/api/appeals',{kind:ap.targetType,body:text,related:ap.targetType+':'+ap.targetId,target_type:ap.targetType,target_id:ap.targetId,targetType:ap.targetType,targetId:ap.targetId,notificationId:String(n.id)})}finally{S.apBusy=0}
+  let r;try{r=await api('POST','/api/appeals',{kind:ap.targetType,body:text,related:ap.targetId,communityId:ap.targetType==='community'?ap.targetId:undefined,target_type:ap.targetType,target_id:ap.targetId,targetType:ap.targetType,targetId:ap.targetId,notificationId:String(n.id)})}finally{S.apBusy=0}
   if(!r||r.s!==200){T(errMsg(r,'申诉提交失败，请稍后再试'));return}
   notifAppealMark(n);S.d.aptxt='';S.sh={t:'ndetail',id:n.id};T('申诉已提交，管理员会尽快处理');
 }
