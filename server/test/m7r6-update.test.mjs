@@ -5,6 +5,7 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
+import {fakeDocument, tick} from './upd-fake-dom.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const src = (name) => readFileSync(join(root, 'src', name), 'utf8');
@@ -81,23 +82,27 @@ test('清单为空时即使在原生壳也不检查更新，但仍调用 notifyA
   assert.ok(!calls.includes('download'));
 });
 
-test('有新版本时下载并 next，不在当前会话 set；校验失败则删除包', async () => {
+test('有新版本时先弹窗询问；点「更新」才下载并 next，不在当前会话 set；校验失败显示重试并删除包', async () => {
   const calls = [];
+  let onDl = null;
   const U = {
     async notifyAppReady(){ calls.push('ready'); return {bundle:{id:'builtin', version:'0.7.0-m7.r6'}}; },
     async current(){ return {bundle:{id:'builtin', version:'0.7.0-m7.r6'}, native:'0.7.0-m7.r6'}; },
-    async download(opts){ calls.push('download:'+opts.version+':'+(opts.checksum||'')); return {id:'b1', version:opts.version}; },
+    async list(){ return {bundles: []}; },
+    async addListener(ev, fn){ if (ev === 'download') onDl = fn; return {remove(){ calls.push('unlisten'); }}; },
+    async download(opts){ calls.push('download:'+opts.version+':'+(opts.checksum||'')); if (onDl) onDl({percent: 70, bundle:{version: opts.version}}); return {id:'b1', version:opts.version}; },
     async next(opts){ calls.push('next:'+opts.id); },
-    async set(){ calls.push('set'); },
+    async set(opts){ calls.push('set:'+opts.id); },
     async delete(opts){ calls.push('delete:'+opts.id); },
   };
+  const doc = fakeDocument();
   const ctx = {
     window: {
       NOVA_APP_VERSION: '0.7.0-m7.r6',
       NOVA_UPDATE_MANIFEST_URL: 'https://example.com/updates.json',
       NovaNative: {Capacitor:{isNativePlatform:()=>true}, CapacitorUpdater:U},
     },
-    document: {addEventListener(){}, visibilityState:'visible'},
+    document: doc,
     console, setTimeout, clearTimeout, Promise,
     fetch: async (url) => {
       calls.push('fetch:'+url);
@@ -106,34 +111,110 @@ test('有新版本时下载并 next，不在当前会话 set；校验失败则�
   };
   vm.createContext(ctx);
   vm.runInContext(src('33_update.js'), ctx);
-  await new Promise(r => setTimeout(r, 40));
+  await tick(40);
   assert.ok(calls.includes('ready'));
   assert.ok(calls.includes('fetch:https://example.com/updates.json'));
+  assert.ok(!calls.some(c => c.startsWith('download')), '用户确认前不下载');
+  assert.match(doc.dialogHtml(), /发现新版本 0\.7\.0-m7\.r6\.1，是否更新？/);
+  assert.match(doc.dialogHtml(), /data-upd="go"[^>]*>更新</);
+  assert.match(doc.dialogHtml(), /data-upd="later"[^>]*>稍后</);
+  doc.tap('go');
+  await tick(40);
   assert.ok(calls.includes('download:0.7.0-m7.r6.1:abc'));
   assert.ok(calls.includes('next:b1'));
-  assert.ok(!calls.includes('set'));
+  assert.ok(calls.includes('unlisten'));
+  assert.ok(!calls.some(c => c.startsWith('set')), '不自动 set');
+  assert.match(doc.dialogHtml(), /已完成/);
+  assert.match(doc.dialogHtml(), /重启生效/);
+  doc.tap('restart');
+  await tick(20);
+  assert.ok(calls.includes('set:b1'), '点「重启生效」才 set');
 
+  const c2 = [];
   const U2 = {
     async notifyAppReady(){ return {bundle:{id:'builtin', version:'0.7.0-m7.r6'}}; },
     async current(){ return {bundle:{id:'builtin', version:'0.7.0-m7.r6'}, native:'0.7.0-m7.r6'}; },
-    async download(){ const err=new Error('checksum mismatch'); throw err; },
-    async next(){ calls.push('next-bad'); },
-    async delete(opts){ calls.push('delete:'+opts.id); },
+    async download(){ c2.push('download'); throw new Error('checksum mismatch'); },
+    async next(){ c2.push('next-bad'); },
+    async delete(opts){ c2.push('delete:'+opts.id); },
   };
+  const doc2 = fakeDocument();
   const ctx2 = {
     window: {
       NOVA_APP_VERSION: '0.7.0-m7.r6',
       NOVA_UPDATE_MANIFEST_URL: 'https://example.com/updates.json',
       NovaNative: {Capacitor:{isNativePlatform:()=>true}, CapacitorUpdater:U2},
     },
-    document: {addEventListener(){}, visibilityState:'visible'},
+    document: doc2,
     console, setTimeout, clearTimeout, Promise,
     fetch: async () => ({ok:true, json:async()=>({version:'0.8.0', url:'https://example.com/n.zip', checksum:'nope'})}),
   };
   vm.createContext(ctx2);
   vm.runInContext(src('33_update.js'), ctx2);
-  await new Promise(r => setTimeout(r, 40));
-  assert.ok(!calls.includes('next-bad'));
+  await tick(40);
+  doc2.tap('go');
+  await tick(40);
+  assert.ok(!c2.includes('next-bad'));
+  assert.match(doc2.dialogHtml(), /下载失败/);
+  assert.match(doc2.dialogHtml(), /data-upd="retry"/);
+  doc2.tap('retry');
+  await tick(40);
+  assert.equal(c2.filter(x => x === 'download').length, 2, '重试会再下载一次');
+});
+
+test('1.0.7 更新对话框：进度显示「正在下载 n%」；「稍后」本次不再弹；已下载的同版本直接显示已完成；英文界面', async () => {
+  let release, onDl;
+  const U = {
+    async notifyAppReady(){}, async current(){ return {bundle:{id:'builtin'}}; },
+    async list(){ return {bundles: []}; },
+    async addListener(ev, fn){ onDl = fn; return {remove(){}}; },
+    download(){ return new Promise(r => { release = r; }); },
+    async next(){}, async delete(){},
+  };
+  const doc = fakeDocument();
+  const ctx = {
+    window: {NOVA_APP_VERSION:'1.0.6', NOVA_UPDATE_MANIFEST_URL:'https://x/m.json', NovaNative:{Capacitor:{isNativePlatform:()=>true}, CapacitorUpdater:U}},
+    document: doc, console, setTimeout, clearTimeout, Promise,
+    fetch: async () => ({ok:true, json:async()=>({version:'1.0.8', url:'https://x/b.zip'})}),
+  };
+  vm.createContext(ctx);
+  vm.runInContext(src('33_update.js'), ctx);
+  await tick(40);
+  doc.tap('go');
+  await tick(20);
+  assert.match(doc.dialogHtml(), /正在下载 0%/);
+  onDl({percent: 42, bundle: {version: '1.0.8'}});
+  assert.match(doc.dialogHtml(), /正在下载 42%/);
+  assert.match(doc.dialogHtml(), /width:42%/);
+  assert.match(doc.dialogHtml(), /aria-valuenow="42"/);
+  release({id: 'b8', version: '1.0.8'});
+  await tick(20);
+  assert.match(doc.dialogHtml(), /已完成/);
+  doc.tap('close');
+  assert.equal(doc.dialogHtml(), '', '关闭后对话框消失（下次启动生效）');
+
+  // 稍后：同一会话里不再弹
+  const doc2 = fakeDocument();
+  const U2 = {...U, download: async () => { throw new Error('should not download'); }};
+  const ctx2 = {...ctx, document: doc2, window: {...ctx.window, NovaNative:{Capacitor:{isNativePlatform:()=>true}, CapacitorUpdater:U2}}};
+  vm.createContext(ctx2);
+  vm.runInContext(src('33_update.js'), ctx2);
+  await tick(40);
+  doc2.tap('later');
+  assert.equal(doc2.dialogHtml(), '');
+  await vm.runInContext('checkAndDownloadUpdate(updaterPlugin())', ctx2);
+  assert.equal(doc2.dialogHtml(), '', '点过稍后，本次不再弹');
+
+  // 已下载好的同版本：直接已完成；英文
+  const doc3 = fakeDocument();
+  const U3 = {...U, list: async () => ({bundles: [{id: 'b8', version: '1.0.8', status: 'pending'}]}), download: async () => { throw new Error('no re-download'); }};
+  const ctx3 = {...ctx, LANG: 'en', document: doc3, window: {...ctx.window, NovaNative:{Capacitor:{isNativePlatform:()=>true}, CapacitorUpdater:U3}}};
+  vm.createContext(ctx3);
+  vm.runInContext('var LANG="en";' + src('33_update.js'), ctx3);
+  await tick(40);
+  assert.match(doc3.dialogHtml(), /Done/);
+  assert.match(doc3.dialogHtml(), /Restart now/);
+  assert.match(doc3.dialogHtml(), />Close</);
 });
 
 test('capacitor.config 为自托管手动模式且不指向 Capgo 云', () => {

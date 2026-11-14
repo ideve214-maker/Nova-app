@@ -47,11 +47,13 @@ function pGames(){
   }).join('');
   return `<div class="pg">${sub('小游戏')}<div class="sc"><p class="hint" style="padding:12px 16px 0">成绩只存在这台设备。</p><div class="gtiles">${tiles}</div></div></div>`;
 }
+/* 1.0.7：热更新包不再带小游戏（体积太大，手机网络下载会超时），改从服务器加载；完整安装包仍用本地文件。 */
+function gameBase(){const b=typeof window!=='undefined'&&window.NOVA_GAMES_BASE;return b?String(b).replace(/\/?$/,'/'):'assets/games/'}
 function pGame(id){
   const g=GAMES.find(x=>x.id===id);
   if(!g)return `<div class="pg">${sub('小游戏')}<div class="sc"><p class="em">没有这个游戏</p></div></div>`;
   S.gameId=id;
-  return `<div class="pg game-pg">${sub(esc(g.name))}<div class="sc game-frame"><iframe title="${esc(g.name)}" src="assets/games/${esc(g.id)}/index.html" data-game="${esc(g.id)}"></iframe></div></div>`;
+  return `<div class="pg game-pg">${sub(esc(g.name))}<div class="sc game-frame"><iframe title="${esc(g.name)}" src="${esc(gameBase())}${esc(g.id)}/index.html" data-game="${esc(g.id)}"></iframe></div></div>`;
 }
 if(typeof window!=='undefined' && !window.__novaGameScore){
   window.__novaGameScore=1;

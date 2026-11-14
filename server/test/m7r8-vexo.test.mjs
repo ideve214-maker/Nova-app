@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
+import {fakeDocument} from './upd-fake-dom.mjs';
 import {createApp} from '../index.mjs';
 import {patchManifest, patchGradle, VERSION_CODE, VERSION_NAME} from '../../scripts/stamp-native.mjs';
 
@@ -50,18 +51,21 @@ test('热更新把清单里的 session_key 传给 download', async () => {
     async next(){},
     async delete(){},
   };
+  const doc = fakeDocument();
   const ctx = {
     window: {
       NOVA_APP_VERSION: '1.0.0',
       NOVA_UPDATE_MANIFEST_URL: 'https://example.com/updates.json',
       NovaNative: {Capacitor:{isNativePlatform:()=>true}, CapacitorUpdater:U},
     },
-    document: {addEventListener(){}, visibilityState:'visible'},
+    document: doc,
     console, setTimeout, clearTimeout, Promise,
     fetch: async () => ({ok:true, json:async()=>({version:'1.0.1', url:'https://example.com/n.zip', checksum:'abc', session_key:'sek_test'})}),
   };
   vm.createContext(ctx);
   vm.runInContext(src('33_update.js'), ctx);
+  await new Promise(r => setTimeout(r, 40));
+  doc.tap('go'); // 1.0.7 起先弹窗，点「更新」才下载
   await new Promise(r => setTimeout(r, 40));
   assert.equal(calls.length, 1);
   assert.equal(calls[0].sessionKey, 'sek_test');
