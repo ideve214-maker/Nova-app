@@ -10,6 +10,13 @@ export function createFollows(db, {profile, vip, now}) {
   const followers = db.prepare('SELECT follower_id AS id, created_at FROM follows WHERE followee_id=? ORDER BY created_at DESC, follower_id DESC');
   const nFollowing = db.prepare('SELECT COUNT(*) AS n FROM follows WHERE follower_id=?');
   const nFollowers = db.prepare('SELECT COUNT(*) AS n FROM follows WHERE followee_id=?');
+  function bonusOf(id) {
+    try {
+      const u = userBy.get(id);
+      return Math.max(0, Number(u && u.follower_bonus) || 0);
+    } catch { return 0; }
+  }
+  function shownFollowers(id) { return nFollowers.get(id).n + bonusOf(id); }
 
   function authorOf(id) {
     const u = userBy.get(id);
@@ -48,12 +55,14 @@ export function createFollows(db, {profile, vip, now}) {
     return {
       kind, userId: target,
       followingCount: nFollowing.get(target).n,
-      followerCount: nFollowers.get(target).n,
+      followerCount: shownFollowers(target),
+      followerCountReal: nFollowers.get(target).n,
+      followerBonus: bonusOf(target),
       users: items,
     };
   }
   function counts(userId) {
-    return {followingCount: nFollowing.get(userId).n, followerCount: nFollowers.get(userId).n};
+    return {followingCount: nFollowing.get(userId).n, followerCount: shownFollowers(userId), followerCountReal: nFollowers.get(userId).n, followerBonus: bonusOf(userId)};
   }
   function isFollowing(a, b) { return !!has.get(a, b); }
   function followingIds(userId) { return following.all(userId).map(r => r.id); }

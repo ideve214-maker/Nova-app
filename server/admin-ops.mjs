@@ -17,6 +17,10 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
     const st = vip ? vip.status(u) : {active: !!(u.vip_until && u.vip_until > nowFn()), until: u.vip_until};
     const posts = db.prepare('SELECT COUNT(*) n FROM posts WHERE author_id=? AND deleted_at IS NULL').get(u.id).n;
     const name = (p && p.displayName) || u.username;
+    let followerCountReal = 0, tags = [];
+    try { followerCountReal = db.prepare('SELECT COUNT(*) AS n FROM follows WHERE followee_id=?').get(u.id).n; } catch {}
+    try { tags = db.prepare('SELECT tag FROM user_tags WHERE user_id=? ORDER BY tag').all(u.id).map(r => r.tag); } catch {}
+    const followerBonus = Number(u.follower_bonus) || 0;
     return {
       id: u.id,
       userId: u.id,
@@ -45,6 +49,12 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
       posts,
       canPost: u.status === 'active',
       canComment: u.status === 'active',
+      followerBonus,
+      follower_bonus: followerBonus,
+      followerCountReal,
+      followerCount: followerCountReal + followerBonus,
+      tags,
+      deletedAt: u.deleted_at || null,
     };
   }
 
@@ -59,13 +69,22 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
     const cursor = q.cursor != null && q.cursor !== '' ? asInt(q.cursor) : null;
     const status = String(q.status || '').trim();
     const search = String(q.q || q.query || q.search || '').trim();
+    const tag = String(q.tag || '').trim();
     const where = [], args = [];
-    if (status === 'banned' || status === 'active') { where.push('u.status=?'); args.push(status); }
-    else if (status === 'vip') { where.push('u.vip_until IS NOT NULL AND u.vip_until>?'); args.push(nowFn()); }
+    if (status === 'deleted') { where.push("(u.status='deleted' OR u.deleted_at IS NOT NULL)"); }
+    else if (status === 'banned' || status === 'active') { where.push('u.status=?'); args.push(status); where.push('u.deleted_at IS NULL'); }
+    else if (status === 'vip') { where.push('u.vip_until IS NOT NULL AND u.vip_until>? AND u.status!=\'deleted\' AND u.deleted_at IS NULL'); args.push(nowFn()); }
+    else if (q.includeDeleted !== '1' && q.includeDeleted !== 1 && q.includeDeleted !== true) {
+      where.push("u.status!='deleted' AND u.deleted_at IS NULL");
+    }
     if (search) {
       where.push('(u.username LIKE ? OR u.email LIKE ? OR IFNULL(p.display_name,"") LIKE ?)');
       const like = '%' + search.replace(/%/g, '') + '%';
       args.push(like, like, like);
+    }
+    if (tag) {
+      where.push('EXISTS (SELECT 1 FROM user_tags ut WHERE ut.user_id=u.id AND ut.tag=?)');
+      args.push(tag);
     }
     if (cursor != null && Number.isFinite(cursor)) { where.push('u.id<?'); args.push(cursor); }
     const sql = `SELECT u.* FROM users u LEFT JOIN profiles p ON p.user_id=u.id

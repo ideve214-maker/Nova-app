@@ -39,6 +39,7 @@ import {createReports} from './reports.mjs';
 import {createE2ee, safetyNumber} from './e2ee.mjs';
 import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
+import {createAdminV2} from './admin-v2.mjs';
 import {createFeatured} from './featured.mjs';
 import {
   clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
@@ -218,6 +219,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   postStats.onView((row, user) => boost.onView(row, user));
   posts.attach({boostOf: (id, me) => boost.badgeFor(id, me)});
   const adminOps = createAdminOps(db, {now, vip, profile, pay, audit, notifications});
+  const adminV2 = createAdminV2(db, {now, profile, audit, notifications, adminOps, env: aiEnv || process.env, fetchImpl: aiFetch});
   const featured = createFeatured(db, {now, posts, pubPost: adminOps.pubPost, audit});
   const secEvents = createSecurityEvents(db, {now});
   const alerts = createAlerts({webhook: alertWebhook, now, dataDir: dbPath && dbPath !== ':memory:' ? dbPath : '.'});
@@ -1642,6 +1644,56 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(admin.id, 'admin.user_badge', 'user:' + id, ip(req), {badge: v, before: u.badge || null});
       return adminOps.oneUser(id);
     },
+    'POST /api/admin/users/:id/profile'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.editProfile(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/users/:id/follower-bonus'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.setFollowerBonus(admin, req.params.id, b || {}, ip(req));
+    },
+    'GET /api/admin/users/:id/tags'(req) {
+      adminAuth(req);
+      const u = adminOps.oneUser(req.params.id);
+      return {user: u.user, tags: (u.user && u.user.tags) || []};
+    },
+    'POST /api/admin/users/:id/tags'(req, b) {
+      const {admin} = adminAuth(req);
+      const body = b || {};
+      if (Array.isArray(body.tags)) return adminV2.setTags(admin, req.params.id, body, ip(req));
+      if (body.remove || body.op === 'remove') return adminV2.removeTag(admin, req.params.id, body, ip(req));
+      return adminV2.addTag(admin, req.params.id, body, ip(req));
+    },
+    'POST /api/admin/users/:id/tags/delete'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.removeTag(admin, req.params.id, b || {}, ip(req));
+    },
+    'GET /api/admin/tags'(req) { adminAuth(req); return adminV2.listTags(); },
+    'POST /api/admin/tags/bulk-delete'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.bulkDeleteTag(admin, b || {}, ip(req));
+    },
+    'POST /api/admin/users/:id/notify'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.notifyOne(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/notifications'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.notifyMany(admin, b || {}, ip(req));
+    },
+    'POST /api/admin/users/:id/delete'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.deleteUser(admin, req.params.id, b || {}, ip(req));
+    },
+    'GET /api/admin/ai-assistant/report'(req) {
+      const {admin} = adminAuth(req);
+      const stats = adminV2.collectStats((req.query || {}).date);
+      return {stats, report: null, model: 'glm-4-flash', provider: 'zhipu', providerLabel: '智谱'};
+    },
+    async 'POST /api/admin/ai-assistant/report'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminV2.generateReport(admin, {...(b || {}), date: (b && b.date) || (req.query || {}).date}, ip(req));
+    },
     'GET /api/admin/v2/polls'(req) { adminAuth(req); return polls.adminList(req.query || {}); },
     'POST /api/admin/v2/polls/:id/remove'(req, b) { const {admin} = adminAuth(req); const r = polls.adminRemove(req.params.id, b && b.reason); audit(admin.id, 'admin.poll_remove', 'poll:' + req.params.id, ip(req), {reason: (b && b.reason) || null}); return r; },
     'POST /api/admin/v2/polls/:id/restore'(req) { const {admin} = adminAuth(req); const r = polls.adminRestore(req.params.id); audit(admin.id, 'admin.poll_restore', 'poll:' + req.params.id, ip(req)); return r; },
@@ -2090,7 +2142,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
