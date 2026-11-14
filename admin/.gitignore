@@ -8,3 +8,6 @@ dist/
 # .env.production is committed (public API URL, no secret)
 .env.local
 .env.*.local
+
+# 打包时由 build:spa 写入的热更新地址（含真实地址，不要提交）
+.nova-live-update.json
