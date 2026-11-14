@@ -1,4 +1,10 @@
-# 星澜 Xinglan 主题提案 · 许可与来源
+# 资源许可与来源
+
+## 0. VEXO 星光版图标与启动屏（1.1.0 起）
+
+`resources/icon.png`、`icon-masked.png`、`splash.png`、`splash-dark.png` 以及 `public/` 下的 favicon / apple-touch-icon / icon-192 由项目方提供的 VEXO 星光版设计稿（`/workspace/vexo-assets/starlight-1.jpg`）裁切生成；`icon.svg`、`public/favicon.svg` 为据此手绘的矢量近似稿。启动屏文字使用 Inter（SIL OFL 1.1，经 `@fontsource-variable/inter`）。以下第 1–4 节为旧「星澜」主题的历史说明，星澜图标与启动屏已不再使用。
+
+# 星澜 Xinglan 主题提案 · 许可与来源（历史）
 
 本目录内新增的主题、图标、启动屏和预览，只用可商用许可的字体与图形（OFL / MIT / Apache 2.0 或为本提案原创）。未使用未授权的字体、图标库或图片。
 
