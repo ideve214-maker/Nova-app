@@ -5,7 +5,7 @@
    reverseGeocodeUrl  把坐标换成地名的服务地址（GET ?lat=..&lng=..，返回 {name:"上海市 黄浦区"}）。
                       留空 = 不换地名，只填坐标，用户可以自己改。服务器端实现见 docs/r7-server-notes.md。 */
 const NOVA_CFG={
-  postLinkBase:'http://47.239.0.90',
+  postLinkBase:'https://47.239.0.90',
   reverseGeocodeUrl:''
 };
 try{

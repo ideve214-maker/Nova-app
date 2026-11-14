@@ -14,7 +14,7 @@ echo "==> node $(node -v)  npm $(npm -v)"
 
 if [ "$APP" = "user" ]; then
   : "${USER_UPDATE_URL:?USER_UPDATE_URL is required}"
-  : "${USER_API_BASE:=http://47.239.0.90}"
+  : "${USER_API_BASE:=https://47.239.0.90}"
 elif [ "$APP" = "admin" ]; then
   : "${ADMIN_UPDATE_URL:?ADMIN_UPDATE_URL is required}"
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
