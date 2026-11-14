@@ -43,7 +43,7 @@ permissions:
 env:
   # ---- source pins (full SHAs; never branch names) -------------------------
   USER_SHA: 9b5bdb2154a5fac3675c0abc6959e558f4bbded0   # v7-m7.r8-vexo (Bob)
-  ADMIN_SHA: c67a21cecca1b3aeae106df13492d4d9ab606dfd  # admin-vexo-1.1.0 (Agent), entry dist-spa/VEXO_Admin.html
+  ADMIN_SHA: 8f927e430d3afde6892a6619a646d9660820ca96  # admin-vexo-1.1.0 (Agent): VEXO_Admin.html, sha256 checksum required
   # ---- versions --------------------------------------------------------------
   # Android versionCode = BASE + github.run_number of THIS workflow.
   # run_number restarts if the workflow is renamed/replaced, so it can be
@@ -266,6 +266,35 @@ jobs:
           ' "out/$PKG_FILE"
           cat "out/$PKG_FILE.json"
 
+      # Hot-update CANDIDATE (Android leg only, one per app). Builds the web
+      # bundle zip and a manifest with lowercase 64-hex sha256 in `checksum` and
+      # `sha256`, no session_key. url is left empty on purpose: nothing here
+      # touches /opt/nova/updates, so going live stays a manual step.
+      - name: Hot-update bundle + manifest candidate
+        if: matrix.platform == 'android'
+        run: |
+          set -euo pipefail
+          B="$([ "$APP" = user ] && echo VEXO || echo VEXO-Admin)-hotupdate-${APP_VERSION_NAME}-${SRC_SHA7}"
+          if [ "$APP" = user ]; then WEB="$PROJ/dist"; [ -f "$WEB/index.html" ] || cp "$WEB/nova_v5.html" "$WEB/index.html"
+          else WEB="$PROJ/dist-spa"; fi
+          [ -f "$WEB/index.html" ] || { echo "::error::$WEB/index.html missing; cannot build a hot-update bundle"; exit 1; }
+          (cd "$WEB" && zip -qr -X -9 "$GITHUB_WORKSPACE/out/$B.zip" . -x '.*' -x '*/.*' -x 'node_modules/*')
+          node pack/scripts/make-update-manifest.mjs --zip "out/$B.zip" --version "$APP_VERSION_NAME" --out "out/$B.manifest.json"
+          node pack/scripts/make-update-manifest.mjs --check "out/$B.manifest.json"
+          echo "HOTUPDATE_BASE=$B" >> "$GITHUB_ENV"
+          echo "hot-update candidate: \`$B.zip\` sha256 \`$(jq -r .checksum "out/$B.manifest.json")\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload user hot-update candidate
+        if: matrix.app == 'user' && matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.HOTUPDATE_BASE }}
+          path: |
+            out/${{ env.HOTUPDATE_BASE }}.zip
+            out/${{ env.HOTUPDATE_BASE }}.manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload metadata
         uses: actions/upload-artifact@v4
         with:
@@ -304,6 +333,10 @@ jobs:
           printf '%s\n' "$KNOWN" > "$RUNNER_TEMP/known_hosts"
           SSH_OPTS=(-i "$RUNNER_TEMP/deploy_key" -o IdentitiesOnly=yes -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o StrictHostKeyChecking=yes -o BatchMode=yes)
           scp -q "${SSH_OPTS[@]}" "out/$PKG_FILE" "out/$PKG_FILE.json" "$DUSER@$HOST:$DPATH/"
+          # Admin hot-update candidate goes to the hidden DOWNLOAD dir only (not live).
+          if [ -n "${HOTUPDATE_BASE:-}" ]; then
+            scp -q "${SSH_OPTS[@]}" "out/$HOTUPDATE_BASE.zip" "out/$HOTUPDATE_BASE.manifest.json" "$DUSER@$HOST:$DPATH/"
+          fi
           # Stable URL for fast downloads from China: <dir>/VEXO-Admin-latest-debug.apk
           # and VEXO-Admin-latest-unsigned.ipa always point at the newest verified build.
           if [ "$PKG_KIND" = apk ]; then LATEST=VEXO-Admin-latest-debug.apk; else LATEST=VEXO-Admin-latest-unsigned.ipa; fi
