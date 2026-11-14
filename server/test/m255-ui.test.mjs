@@ -3,6 +3,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {startServer, openPage, register, launch} from './ui-helpers.mjs';
 import {Account} from './vodo.mjs';
+// r10：表情入口移到输入栏「+」面板里
+async function openStickers(p) {
+  if (await p.locator('[data-a=stkp]').count()) return p.click('[data-a=stkp]');
+  if (!(await p.locator('.cbtile[data-a=cbstk]').count())) await p.click('.cbplus');
+  await p.click('.cbtile[data-a=cbstk]');
+}
 
 let browser;
 const SHOT = new URL('../../screenshots/', import.meta.url).pathname;
@@ -40,7 +46,7 @@ const openChat = async (p, S) => {
   await p.waitForSelector('[data-a=conv], .row[data-a=conv], [data-a="conv"]', {timeout: 10000});
   const conv = p.locator('[data-a=conv]').first();
   await conv.click();
-  await p.waitForSelector('#stkp, [data-a=stkp]');
+  await p.waitForSelector('#stkp, [data-a=stkp], .cbplus');
 };
 
 test('M2.5.5 Basic：面板能看到香槟金系列但不可用；常用表情可发送；所有人能看见贴纸', async () => {
@@ -48,7 +54,7 @@ test('M2.5.5 Basic：面板能看到香槟金系列但不可用；常用表情�
   try {
     await register(p, 'stk_ui1');
     await openChat(p, S);
-    await p.click('[data-a=stkp]');
+    await openStickers(p);
     await p.waitForSelector('.pn .stkgrid');
     assert.ok(await p.locator('.pn [data-pack=nova_gold]').count() >= 1, '免费用户看得到专属包');
     assert.equal(await p.locator('.pn [data-stk-lock=nova_gold]').count(), 1, '有锁定说明');
@@ -72,7 +78,7 @@ test('M2.5.5 开通 VIP 后可发送香槟金贴纸；切回后不能再选用�
     await p.waitForSelector('#vipc .vp[data-vs=active]');
     await p.click('[data-a=back]');
     await openChat(p, S);
-    await p.click('[data-a=stkp]');
+    await openStickers(p);
     await p.waitForSelector('.pn [data-v="nova_gold|gold_star"]');
     assert.equal(await p.locator('.pn [data-stk-lock=nova_gold]').count(), 0);
     await p.click('.pn [data-v="nova_gold|gold_cheers"]');
@@ -87,7 +93,7 @@ test('M2.5.5 开通 VIP 后可发送香槟金贴纸；切回后不能再选用�
     await p.click('[data-a=back]');
     await openChat(p, S);
     assert.equal(await p.locator('.stk[data-stk="nova_gold:gold_cheers"]').count(), 1, '已发出的专属贴纸仍可见');
-    await p.click('[data-a=stkp]');
+    await openStickers(p);
     await p.waitForSelector('.pn [data-stk-lock=nova_gold]');
     assert.equal(await p.locator('.pn [data-v="nova_gold|gold_star"]').count(), 0, '不能再选用');
     assert.deepEqual(p.errors, []);
