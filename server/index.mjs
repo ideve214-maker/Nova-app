@@ -43,6 +43,7 @@ import {createAccount} from './account.mjs';
 import {createFlags} from './flags.mjs';
 import {createMarketing} from './marketing.mjs';
 import {createPostStats} from './post-stats.mjs';
+import {createBoost} from './boost.mjs';
 import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
@@ -183,6 +184,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const audit = (actor, action, target, ip, detail) => q.audit.run(now(), actor || null, action, target || null, ip || null, detail ? JSON.stringify(detail) : null);
   const payRoot = payDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/pay');
   const pay = createPay(db, {now, vip, audit, dataDir: payRoot, env: payEnv || process.env});
+  const boost = createBoost(db, {now, pay, posts, audit});
+  postStats.onView((row, user) => boost.onView(row, user));
+  posts.attach({boostOf: (id, me) => boost.badgeFor(id, me)});
   const adminOps = createAdminOps(db, {now, vip, profile, pay, audit, notifications});
   const featured = createFeatured(db, {now, posts, pubPost: adminOps.pubPost, audit});
   const secEvents = createSecurityEvents(db, {now});
@@ -501,6 +505,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       if (!q.cursor && q.feed !== 'topic' && !q.author) {
         const m = marketing.pickFor(user);
         r.ads = m.ads; r.adEvery = m.every;
+        if (q.feed !== 'follow') { const bz = boost.pickFor(user); r.boosts = bz.posts; r.boostSlots = bz.slots; }
       }
       return r;
     },
@@ -1514,6 +1519,16 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return r;
     },
 
+    // ---- r10 推流 / 加热 ----
+    'GET /api/boost/catalog'(req) { const {user} = auth(req); return boost.catalog(user); },
+    'GET /api/boost/orders'(req) { const {user} = auth(req); return boost.listMine(user, req.query || {}); },
+    'POST /api/boost/orders'(req, b) { const {user} = auth(req); return boost.create(user, b || {}); },
+    'POST /api/boost/orders/:id/paid'(req) { const {user} = auth(req); return boost.markPaid(user, req.params.id); },
+    'GET /api/admin/boost/orders'(req) { adminAuth(req); return boost.adminList(req.query || {}); },
+    'POST /api/admin/boost/orders/:id/confirm'(req) { const {admin} = adminAuth(req); const r = boost.confirm(admin, req.params.id); audit(admin.id, 'admin.boost.confirm', 'boost:' + req.params.id, ip(req)); return r; },
+    'POST /api/admin/boost/orders/:id/reject'(req, b) { const {admin} = adminAuth(req); const r = boost.reject(admin, req.params.id, b || {}); audit(admin.id, 'admin.boost.reject', 'boost:' + req.params.id, ip(req)); return r; },
+    'POST /api/admin/boost/orders/:id/stop'(req, b) { const {admin} = adminAuth(req); const r = boost.stop(admin, req.params.id, b || {}); audit(admin.id, 'admin.boost.stop', 'boost:' + req.params.id, ip(req), {refund: !!(b && b.refund)}); return r; },
+    'POST /api/admin/boost/settings'(req, b) { const {admin} = adminAuth(req); const r = boost.saveSettings(b || {}); audit(admin.id, 'admin.boost.settings', 'boost', ip(req)); return r; },
     // ---- r10 数据调整 ----
     'POST /api/posts/:id/view'(req) { const {user} = auth(req); return postStats.view(user, req.params.id); },
     'GET /api/admin/marketing/posts'(req) { adminAuth(req); return postStats.search(req.query || {}); },
@@ -1875,7 +1890,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

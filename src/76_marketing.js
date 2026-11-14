@@ -17,8 +17,9 @@ function adCard(ad,slot){
 function adsOn(){return typeof usingNet==='function'&&usingNet()&&S.feed!=='topic'&&Array.isArray(S.ads)&&S.ads.length>0}
 /* 每 adEvery 条普通帖后插一条；帖子不够一轮但有帖子时，在末尾放一条 */
 function withAds(list,render1){
+  list=typeof withBoosts==='function'?withBoosts(list):list;
   const out=[];const ads=adsOn()?S.ads.filter(a=>!(S.adHidden&&S.adHidden[a.id])):[];const every=Math.max(1,Number(S.adEvery)||5);let k=0;
-  list.forEach((p,i)=>{out.push(render1(p));if(k<ads.length&&(i+1)%every===0){out.push(adCard(ads[k],k));k++}});
+  let nn=0;list.forEach(p=>{out.push(render1(p));if(p._bz)return;nn++;if(k<ads.length&&nn%every===0){out.push(adCard(ads[k],k));k++}});
   if(k===0&&ads.length&&list.length&&list.length<every)out.push(adCard(ads[0],0));
   return out.join('')}
 function adFind(id){return (S.ads||[]).find(a=>a.id===id)}

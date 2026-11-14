@@ -97,6 +97,7 @@ async function loadFeed(){
     S.postsErr=errMsg(r,'动态加载失败');return false}
   S.posts=(r.j.posts||[]).map(adoptPost);S.postsErr='';S.postsCursor=r.j.nextCursor||null;
   if(Array.isArray(r.j.ads)){S.ads=r.j.ads;S.adEvery=r.j.adEvery||5;S.adLoad=(S.adLoad||0)+1}
+  S.boosts=Array.isArray(r.j.boosts)?r.j.boosts.map(adoptPost):[];S.boostSlots=Array.isArray(r.j.boostSlots)?r.j.boostSlots:[2,7];
   if(typeof cacheWriteFeed==='function')cacheWriteFeed(S.posts);
   return true;
 }

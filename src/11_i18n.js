@@ -45,6 +45,7 @@ const I18N_PAT=[
   [/^评论最多\s*(\d+)\s*字$/,(m,n)=>'Comments can be up to '+n+' characters'],
   [/^(?:动态|正文|内容|消息)最多\s*(\d+)\s*字$/,(m,n)=>'Up to '+n+' characters'],
   [/^(\S+)\s+(关注了你|评论了你的帖子|对你的帖子表态|有一条新公告|赞了你的帖子|通过了你的好友申请)$/,(m,n,a)=>n+' '+(i18nDict()[a]||a)],
+  [/^🚀 推流中 · 已曝光 (\d+)\/(\d+)$/,(m,a,b)=>'🚀 Boosting · '+a+'/'+b+' seen'],
   [/^周([一二三四五六日天])$/,(m,w)=>({一:'Mon',二:'Tue',三:'Wed',四:'Thu',五:'Fri',六:'Sat',日:'Sun',天:'Sun'})[w]],
 ];
 function trText(s){
