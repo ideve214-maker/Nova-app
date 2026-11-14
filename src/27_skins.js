@@ -52,7 +52,8 @@ function brandTitle(){
     const light=typeof resolvedTheme==='function'&&resolvedTheme()==='light';
     rel=(light&&meta.logoLight)?meta.logoLight:(meta.logo||'');
   }
-  const src=rel?skinBase(meta.id)+'/'+rel:(SKINS.logo||'');
+  const light2=typeof resolvedTheme==='function'&&resolvedTheme()==='light';
+  const src=rel?skinBase(meta.id)+'/'+rel:(SKINS.logo||('assets/brand/vexo-lockup'+(light2?'-light':'')+'.png'));
   if(src)return '<img class="br-logo" src="'+esc(src)+'" alt="VEXO">';
   return 'VEXO';
 }

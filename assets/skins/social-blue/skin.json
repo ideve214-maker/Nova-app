@@ -6,8 +6,8 @@
   "preview": "preview/buttons.png",
   "css": "skin.css",
   "tokensCss": "tokens.css",
-  "logo": "logo/nova-lockup.svg",
-  "logoLight": "logo/nova-lockup-light.svg",
+  "logo": "logo/vexo-lockup.png",
+  "logoLight": "logo/vexo-lockup-light.png",
   "logoMark": "logo/nova-mark.svg",
   "icons": {
     "home": "icons/home.svg",
