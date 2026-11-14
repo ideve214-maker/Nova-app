@@ -75,7 +75,17 @@ function applyCrop(){
   while(url.length>280000&&q>0.5){q-=0.08;url=canvas.toDataURL('image/jpeg',q)}
   if(url.length>420000){T('裁剪结果太大，请缩小一点或换一张');return}
   if(!applyLook(c.kind,c.id,url))return;
-  closeCrop(); T('已保存');
+  const kind=c.kind,id=c.id;
+  closeCrop();
+  if(kind==='cmbg'&&MODE==='account'&&NET&&SESSION){
+    return api('POST','/api/communities/'+id+'/edit',{cover:url}).then(r=>{
+      if(r.s!==200){T(errMsg(r,'封面没有保存到服务器'));return}
+      const x=r.j&&r.j.community&&typeof adoptCm==='function'?adoptCm(r.j.community):null;
+      if(x){const k=(S.communities||[]).findIndex(z=>z.id==id);if(k>=0)S.communities[k]=Object.assign(S.communities[k],x,{bg:x.bg||url})}
+      T('已保存');if(typeof render==='function')render();
+    });
+  }
+  T('已保存');
 }
 document.addEventListener('change',e=>{
   const t=e.target; if(!t.dataset||!t.dataset.pick)return;

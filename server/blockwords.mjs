@@ -5,8 +5,12 @@ const MAX_WORD = 40;
 const MAX_PERSONAL = 100;
 const HIDDEN = '【已按你的屏蔽词隐藏】';
 
+const ZW = /[\u200B-\u200D\uFEFF\u2060]/g;
+export function foldText(s) {
+  return String(s || '').normalize('NFKC').replace(ZW, '').toLowerCase();
+}
 export function normalizeWord(s) {
-  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return foldText(s).trim().replace(/\s+/g, ' ');
 }
 export function validWord(w) {
   const n = normalizeWord(w);
@@ -30,9 +34,9 @@ export function createBlockwords(db, {now} = {}) {
     return {id: r.id, word: r.word, note: r.note || '', createdAt: r.created_at, createdBy: r.created_by || null, scope: 'platform'};
   }
   function hits(text, words) {
-    const t = String(text || '').toLowerCase();
+    const t = foldText(text);
     if (!t) return [];
-    return (words || []).filter(w => w && t.includes(w));
+    return (words || []).filter(w => w && t.includes(foldText(w)));
   }
   function platformList() {
     return platAll.all().map(r => r.word);

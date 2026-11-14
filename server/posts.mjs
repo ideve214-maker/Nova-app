@@ -170,6 +170,7 @@ export function createPosts(db, {vip, profile, now}) {
   function create(user, body) {
     const text = String((body && body.text) != null ? body.text : '').trim();
     const f0 = fields(body);
+    if (len(text) && extras && typeof extras.assertPlatform === 'function') extras.assertPlatform(text);
     if (!len(text) && !f0.media) throw new ApiError(400, 'BAD_TEXT', '请写下你想发布的内容');
     if (len(text)) vip.requireTextLength(user, 'post', text);
     let clientId = body && body.clientId != null ? String(body.clientId).trim() : '';
@@ -204,6 +205,7 @@ export function createPosts(db, {vip, profile, now}) {
     if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '动态不存在');
     if (Number(row.author_id) !== Number(user.id)) throw new ApiError(403, 'FORBIDDEN', '只能编辑自己的动态');
     const text = String((body && body.text) != null ? body.text : row.text).trim();
+    if (len(text) && extras && typeof extras.assertPlatform === 'function') extras.assertPlatform(text);
     if (!len(text)) throw new ApiError(400, 'BAD_TEXT', '请写下你想发布的内容');
     vip.requireTextLength(user, 'post', text);
     const f = fields(body || {});

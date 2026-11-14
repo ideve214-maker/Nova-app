@@ -41,16 +41,42 @@ function errMsg(r,fallback){
 }
 function bootView(){return '<div class="pg"><div class="top"><h1 class="br">'+(typeof brandTitle==='function'?brandTitle():'VEXO')+'</h1></div><div class="sc"><p class="em">正在连接…</p></div></div>'}
 function offlineView(){return `<div class="pg" id="offline"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1></div><div class="sc auth"><h2>无法连接服务器</h2><p class="err" role="alert" data-offline="1">连不上服务器，请检查网络后重试。</p><p class="hint">当前版本未开放本机演示，不会在离线时进入演示数据。</p><button class="pb" style="width:100%;margin-top:8px" data-a="retryconnect">重试</button></div></div>`}
+function maintView(){const msg=(S.maint&&S.maint.message)||'系统维护中，请稍后再试';return `<div class="pg" id="maint"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1></div><div class="sc auth"><h2>系统维护中</h2><p class="err" role="alert" data-maint="1">${esc(msg)}</p><p class="hint">维护结束前不能发帖、发言或修改资料。请稍后再试。</p><button class="pb" style="width:100%;margin-top:8px" data-a="maintretry">重试</button></div></div>`}
 function retryconnect(){return bootNet()}
-function gateView(){const reg=S.auth.pane==='reg',busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}</div>`:'';
-const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button> · <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">隐私政策</a> · <a class="lk" href="/legal/terms" target="_blank" rel="noopener">用户协议</a></p>`;
+async function refreshAppStatus(){
+  try{
+    const r=await api('GET','/api/app/status');
+    if(r.s===200&&r.j){
+      const on=!!(r.j.maintenance||(r.j.flags&&r.j.flags.maintenance));
+      const message=(r.j.maintenanceMessage||(r.j.flags&&r.j.flags.maintenanceMessage)||'系统维护中，请稍后再试');
+      S.maint={on,message};
+      S.appStatus={registrationOpen:r.j.registrationOpen!==false,maintenance:on,message};
+      return S.maint;
+    }
+  }catch(e){}
+  return S.maint||{on:false};
+}
+function startStatusWatch(){
+  if(startStatusWatch.on)return;
+  startStatusWatch.on=1;
+  setInterval(async()=>{
+    if(!NET||MODE==='boot')return;
+    const st=await refreshAppStatus();
+    if(st&&st.on){if(MODE!=='maint'){MODE='maint';if(typeof render==='function')render()}}
+    else if(MODE==='maint'){MODE='boot';bootNet()}
+  },15000);
+}
+function maintretry(){return refreshAppStatus().then(st=>{if(st&&st.on){MODE='maint';return}return bootNet()})}
+function gateView(){const regClosed=S.appStatus&&S.appStatus.registrationOpen===false;const reg=S.auth.pane==='reg'&&!regClosed,busy=!!S.auth.busy,e=S.auth.err?`<div class="err" role="alert">${esc(S.auth.err)}</div>`:'';
 const join=`<label class="lab">用户名</label><input class="fld" data-d="ru" autocomplete="username" placeholder="3–20 位文字、数字或下划线" data-af ${busy?'disabled':''}><label class="lab">邮箱</label><input class="fld" data-d="re" type="email" autocomplete="email" placeholder="name@example.com" ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="rpw" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" ${busy?'disabled':''}><label class="lab">再输入一次</label><input class="fld" data-d="rpw2" type="password" autocomplete="new-password" placeholder="再输入一次密码" ${busy?'disabled':''}>${e}<p class="hint" style="margin:12px 0 4px"><button type="button" class="lk" data-a="agreetog" aria-pressed="${S.d.ragree==='1'?'true':'false'}">${S.d.ragree==='1'?'☑':'☐'} 我已阅读并同意</button> <a class="lk" href="/legal/terms" target="_blank" rel="noopener">《用户协议》</a> 和 <a class="lk" href="/legal/privacy" target="_blank" rel="noopener">《隐私政策》</a></p><button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'注册中…':'注册并进入'}</button><p class="hint">已有账号？ <button class="lk" data-a="authpane" data-v="login" ${busy?'disabled':''}>去登录</button></p>`;
+const login=`<label class="lab">用户名或邮箱</label><input class="fld" data-d="ac" autocomplete="username" placeholder="用户名或邮箱" data-af ${busy?'disabled':''}><label class="lab">密码</label><input class="fld" data-d="pw" type="password" autocomplete="current-password" placeholder="密码" ${busy?'disabled':''}>${e}<button class="pb" style="width:100%;margin-top:4px" data-a="authgo" ${busy?'disabled':''}>${busy?'登录中…':'登录'}</button><p class="hint">${regClosed?'暂不开放注册。':`还没有账号？ <button class="lk" data-a="authpane" data-v="reg" ${busy?'disabled':''}>去注册</button> · `}<a class="lk" href="/legal/privacy" target="_blank" rel="noopener">隐私政策</a> · <a class="lk" href="/legal/terms" target="_blank" rel="noopener">用户协议</a></p>`;
 const demoBtn=demoDisabled()?'':`<button class="pb s" style="width:100%" data-a="authdemo" ${busy?'disabled':''}>先用演示看看</button><p class="hint">演示内容只留在这台设备，和真实账号的内容分开存，不会互相覆盖。</p>`;
 return `<div class="pg" id="gate"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1></div><div class="sc auth"><h2>${reg?'注册':'登录'}</h2><p class="hint">${reg?'注册一个只给你和朋友用的账号。密码会安全保存。':'登录后，刷新页面也会保持登录。'}</p>${reg?join:login}${demoBtn}</div></div>`}
 function modeChip(){return '';if(!NET||MODE==='boot'||MODE==='gate')return '';if(MODE==='account'&&SESSION&&SESSION.user)return `<div class="ban ok"><b>已登录 ${esc(SESSION.user.username)}</b>私聊已加密。换账号不会串数据。</div>`;return `<div class="ban"><b>演示模式</b>这些内容只在这台设备。 <button class="lk" data-a="toacct" style="color:var(--ac)">${SESSION&&SESSION.user?'回到账号':'登录'}</button></div>`}
 function authpane(v){S.auth.pane=v==='reg'?'reg':'login';S.auth.err=''}
 function agreetog(){S.d.ragree=S.d.ragree==='1'?'':'1';S.auth.err=''}
 async function authgo(){if(S.auth.busy)return;const reg=S.auth.pane==='reg';S.auth.err='';
+  if(reg&&S.appStatus&&S.appStatus.registrationOpen===false){S.auth.pane='login';S.auth.err='暂不开放注册';return}
   if(!reg){const account=(S.d.ac||'').trim(),password=S.d.pw||'';if(!account||!password){S.auth.err='请输入账号和密码';return}S.auth.busy=1;render();const r=await api('POST','/api/auth/login',{account,password});S.auth.busy=0;if(r.s!==200){S.auth.err=errMsg(r,'登录失败');return}S.d.pw='';enterAccount(r.j.user,r.j.token);return}
   const username=(S.d.ru||'').trim(),email=(S.d.re||'').trim(),password=S.d.rpw||'',p2=S.d.rpw2||'';
   if(!/^[\p{L}\p{N}_]{3,20}$/u.test(username)){S.auth.err='用户名需 3–20 位，仅限文字、数字、下划线';return}
@@ -78,5 +104,5 @@ function logout(){
 }
 function todemo(){if(demoDisabled()){T('当前版本未开放演示');return}if(MODE==='account')save();localStorage.setItem('nova_mode','demo');MODE='demo';D=load();S.st=[];S.tab='home';S.sh=null;T('已切换到本机演示数据')}
 async function toacct(){if(MODE!=='gate')save();const tok=readTok();localStorage.setItem('nova_mode','account');if(!tok){MODE='gate';S.auth={pane:'login',err:'',busy:0};S.st=[];S.sh=null;return}const me=await api('GET','/api/me',null,tok);if(me.s!==200){clearTok();MODE='gate';S.auth={pane:'login',err:'登录已过期，请重新登录',busy:0};S.st=[];return}enterAccount(me.j.user,tok)}
-async function bootNet(){MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch(apiUrl('/api/health'),{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){if(demoDisabled()){MODE='offline';render();return}MODE='demo';D=load();render();return}const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'&&!demoDisabled()){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()}
+async function bootNet(){if(bootNet._p)return bootNet._p;bootNet._p=(async()=>{MODE='boot';render();let online=false;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),2000);const r=await fetch(apiUrl('/api/health'),{cache:'no-store',signal:c.signal});clearTimeout(tm);online=r.ok}catch(e){}NET=online;if(!online){if(demoDisabled()){MODE='offline';render();return}MODE='demo';D=load();render();return}startStatusWatch();const st=await refreshAppStatus();if(st&&st.on){MODE='maint';render();return}const tok=readTok(),pref=localStorage.getItem('nova_mode')||'';if(tok){const me=await api('GET','/api/me',null,tok);if(me.s===200){SESSION={token:tok,user:me.j.user};if(pref==='demo'&&!demoDisabled()){MODE='demo';D=load();render();return}enterAccount(me.j.user,tok);return}clearTok()}MODE='gate';S.auth={pane:'login',err:'',busy:0};render()})().finally(()=>{bootNet._p=null});return bootNet._p}
 function boot(){if(location.protocol==='file:'&&!demoDisabled()&&!apiBase()){NET=false;MODE='demo';D=load();render();return}bootNet()}

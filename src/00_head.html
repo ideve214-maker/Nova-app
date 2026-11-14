@@ -323,8 +323,9 @@ html.has-safe-area .ios-sb{display:none}@media (max-width:599px),(hover:none),(p
 .gtile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;background:var(--sf);color:var(--tx);border-radius:16px;padding:12px;min-height:132px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
 .gtile b{font-size:16px}.gtile small{color:var(--t2);font-size:12px;line-height:1.35}.gtile em{margin-top:auto;font-style:normal;color:var(--ac);font-size:12px;font-weight:700}
 .gico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--ac);color:var(--onac);overflow:hidden;flex:none}.gico svg,.gico-svg{width:22px;height:22px;display:block}
-.game-frame{padding:0!important;background:var(--bg)}
-.game-frame iframe{width:100%;height:100%;border:0;background:var(--bg);overscroll-behavior:contain}
+.game-frame{padding:0!important;background:var(--bg);overflow:hidden}
+.pg.game-pg > .sc.game-frame{padding-bottom:0!important;overflow:hidden;display:flex;flex-direction:column}
+.game-frame iframe{flex:1;width:100%;height:100%;min-height:0;border:0;background:var(--bg);overscroll-behavior:contain;display:block}
 .vhost{position:relative;width:100%}
 .pswp{z-index:80}
 /* 发现页邀请码卡片：输入与「加入」同一行，按钮在卡片内垂直居中并靠右 */

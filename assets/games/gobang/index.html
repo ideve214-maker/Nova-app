@@ -1,7 +1,20 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>五子棋</title>
-<link rel="stylesheet" href="static/style/index.css"><style>html,body{margin:0;background:#f6f1e7;overflow:hidden}#canvas{width:100%;height:auto;display:block}</style><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style></head>
+<link rel="stylesheet" href="static/style/index.css"><style>html,body{margin:0;height:100%;background:#f6f1e7;overflow:hidden}#canvas{display:block;margin:0 auto;background:transparent}</style><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style></head>
 <body data-game="gobang"><canvas id="canvas" width="960" height="640">不支持画布</canvas><script src="gobang.min.js"></script><script>
 (function(){
+  function fit(){
+    var c=document.getElementById('canvas');
+    if(!c||!c.width||!c.height)return;
+    var vw=document.documentElement.clientWidth||window.innerWidth;
+    var vh=document.documentElement.clientHeight||window.innerHeight;
+    var s=Math.min(vw/c.width, vh/c.height);
+    if(!(s>0))return;
+    c.style.width=Math.floor(c.width*s)+'px';
+    c.style.height=Math.floor(c.height*s)+'px';
+  }
+  window.addEventListener('resize', fit);
+  if(document.readyState==='complete')fit(); else window.addEventListener('load', fit);
+  setTimeout(fit, 50);
   var game=document.body.getAttribute('data-game')||'';
   function send(n){n=Number(n)||0;if(!(n>0))return;try{parent.postMessage({type:'nova-score',game:game,score:n},'*')}catch(e){}}
   setInterval(function(){

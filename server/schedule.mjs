@@ -40,6 +40,23 @@ export function createSchedule(db, {now, posts, hashtags, polls, intervalMs = 50
       failedAt: row.failed_at || null,
     };
   }
+  let extra = {blockwords: null};
+  function attach(ex) { if (ex && ex.blockwords) extra.blockwords = ex.blockwords; }
+  function assertDraft(text, poll) {
+    const bw = extra.blockwords;
+    if (!bw || typeof bw.assertPlatform !== 'function') return;
+    if (text) bw.assertPlatform(text);
+    if (poll == null || poll === '') return;
+    let spec = poll;
+    if (typeof poll === 'string') { try { spec = JSON.parse(poll); } catch { spec = null; } }
+    if (!spec || typeof spec !== 'object') return;
+    if (spec.question) bw.assertPlatform(spec.question);
+    const raw = Array.isArray(spec.options) ? spec.options : [];
+    for (const o of raw) {
+      const t = typeof o === 'string' ? o : (o && o.text);
+      if (t) bw.assertPlatform(t);
+    }
+  }
   function requireMine(user, id) {
     const row = byId.get(id);
     if (!row || Number(row.author_id) !== Number(user.id)) throw new ApiError(404, 'NOT_FOUND', '草稿不存在');
@@ -61,6 +78,7 @@ export function createSchedule(db, {now, posts, hashtags, polls, intervalMs = 50
       if (!String(text).trim()) throw new ApiError(400, 'BAD_TEXT', '定时发布需要正文');
       status = 'scheduled';
     }
+    assertDraft(text, body.poll);
     ins.run(id, user.id, text, pollJson(body.poll), status, scheduledAt, t, t);
     return {draft: pub(byId.get(id))};
   }
@@ -78,6 +96,7 @@ export function createSchedule(db, {now, posts, hashtags, polls, intervalMs = 50
     const text = body.text != null ? String(body.text) : row.text;
     if (len(text) > 4000) throw new ApiError(400, 'TOO_LONG', '草稿过长');
     const pj = body.poll !== undefined ? pollJson(body.poll) : row.poll_json;
+    assertDraft(text, body.poll !== undefined ? body.poll : row.poll_json);
     upd.run(text, pj, now(), id, user.id);
     return {draft: pub(byId.get(id))};
   }
@@ -106,6 +125,7 @@ export function createSchedule(db, {now, posts, hashtags, polls, intervalMs = 50
     const user = userBy.get(row.author_id);
     if (!user || user.status !== 'active') throw new ApiError(403, 'FORBIDDEN', '账号不可用，无法发布');
     if (failNext) { const m = failNext; failNext = null; const e = new Error(m); e.code = 'FORCED'; throw e; }
+    assertDraft(row.text, row.poll_json);
     const r = posts.create(user, {text: row.text, clientId: 'pd:' + row.id});
     if (hashtags) hashtags.syncPost(user, r.post);
     if (row.poll_json && polls) {
@@ -159,5 +179,5 @@ export function createSchedule(db, {now, posts, hashtags, polls, intervalMs = 50
   }
   function setFailNext(msg) { failNext = msg; }
 
-  return {create, list, get, update, scheduleOne, cancel, publishNow, tick, start, stop, setFailNext, pub};
+  return {create, list, get, update, scheduleOne, cancel, publishNow, tick, start, stop, setFailNext, pub, attach};
 }

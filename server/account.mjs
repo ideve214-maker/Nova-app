@@ -15,6 +15,13 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
   const appealsByUser = db.prepare('SELECT * FROM appeals WHERE user_id=? ORDER BY created_at DESC LIMIT ?');
   const appealsList = db.prepare(`SELECT * FROM appeals WHERE (? IS NULL OR status=?) ORDER BY created_at DESC LIMIT ?`);
   const decide = db.prepare('UPDATE appeals SET status=?, decided_at=?, decided_by=?, decision_note=? WHERE id=?');
+  const hooks = {};
+  function attach(ex) { if (ex) Object.assign(hooks, ex); }
+  function communityOf(id) {
+    const cm = hooks.communities;
+    if (!cm || !id || typeof cm.peek !== 'function') return null;
+    return cm.peek(String(id));
+  }
 
   function deleteAccount(user, body = {}) {
     if (!verifyPassword(String(body.password || ''), user.password_hash)) {
@@ -61,13 +68,23 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
 
   function submitAppeal(user, body = {}) {
     const text = String(body.body || body.reason || body.text || '').trim();
-    if (text.length < 4 || text.length > 4000) throw new ApiError(400, 'BAD_BODY', '请填写 4–4000 字的申诉说明');
+    if ([...text].length < 4 || [...text].length > 4000) throw new ApiError(400, 'BAD_BODY', '请填写 4–4000 字的申诉说明');
     const kind = String(body.kind || 'other').slice(0, 32);
-    const related = body.related || body.reportId || body.target || null;
+    let related = body.related || body.reportId || body.target || null;
+    if (kind === 'community') {
+      const cid = String(related || '').trim();
+      if (!cid) throw new ApiError(400, 'BAD_RELATED', '请指定要申诉的社区');
+      const info = communityOf(cid);
+      if (!info) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+      if (hooks.communities && typeof hooks.communities.canAppeal === 'function' && !hooks.communities.canAppeal(user, cid)) {
+        throw new ApiError(403, 'FORBIDDEN', '只有这个社区的成员可以申诉');
+      }
+      related = cid;
+    }
     const id = nid('ap');
     insAppeal.run(id, user.id, kind, text, related && String(related).slice(0, 80), now());
     if (audit) audit(user.id, 'user.appeal', 'appeal:' + id, body._ip || null, {kind});
-    return {appeal: pub(appealBy.get(id))};
+    return {appeal: decorate(pub(appealBy.get(id)))};
   }
 
   function submitAppealWithPassword(body, {ip} = {}) {
@@ -80,6 +97,19 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
     return submitAppeal(u, {...body, _ip: ip});
   }
 
+  function decorate(appeal) {
+    if (!appeal) return appeal;
+    if (appeal.kind === 'community' && appeal.related) {
+      const info = communityOf(appeal.related);
+      if (info) {
+        appeal.community = {
+          id: info.id, name: info.name, status: info.status || 'active',
+          takedownReason: info.takedownReason || '', takenDownAt: info.takenDownAt || null,
+        };
+      }
+    }
+    return appeal;
+  }
   function pub(r) {
     if (!r) return null;
     return {
@@ -91,13 +121,13 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
 
   function listMine(user, q = {}) {
     const limit = Math.min(Math.max(Number(q.limit) || 30, 1), 100);
-    return {appeals: appealsByUser.all(user.id, limit).map(pub)};
+    return {appeals: appealsByUser.all(user.id, limit).map(r => decorate(pub(r)))};
   }
 
   function listAll(q = {}) {
     const limit = Math.min(Math.max(Number(q.limit) || 50, 1), 200);
     const status = q.status ? String(q.status) : null;
-    return {appeals: appealsList.all(status, status, limit).map(pub)};
+    return {appeals: appealsList.all(status, status, limit).map(r => decorate(pub(r)))};
   }
 
   function decideAppeal(admin, id, body = {}, ip = null) {
@@ -113,15 +143,19 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
     if (status === 'accepted' && (row.kind === 'ban' || body.unban)) {
       try { db.prepare("UPDATE users SET status='active' WHERE id=? AND status='banned'").run(row.user_id); } catch {}
     }
+    if (status === 'accepted' && row.kind === 'community' && hooks.communities && row.related && typeof hooks.communities.restore === 'function') {
+      try { hooks.communities.restore(String(row.related)); }
+      catch (e) { if (!(e && (e.code === 'NOT_FOUND' || e.s === 404))) throw e; }
+    }
     if (audit) audit(admin.id, 'admin.appeal.' + status, 'appeal:' + row.id, ip, {userId: row.user_id, note, adminUsername: admin.username});
-    return {appeal: pub(appealBy.get(row.id))};
+    return {appeal: decorate(pub(appealBy.get(row.id)))};
   }
 
   function get(id) {
     const row = appealBy.get(id);
     if (!row) throw new ApiError(404, 'NOT_FOUND', '申诉不存在');
-    return {appeal: pub(row)};
+    return {appeal: decorate(pub(row))};
   }
 
-  return {deleteAccount, submitAppeal, submitAppealWithPassword, listMine, listAll, decideAppeal, get, pub};
+  return {deleteAccount, submitAppeal, submitAppealWithPassword, listMine, listAll, decideAppeal, get, pub, attach};
 }

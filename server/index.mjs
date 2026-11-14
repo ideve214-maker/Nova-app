@@ -40,6 +40,7 @@ import {
   slog, redact, lockBackoffMs,
 } from './security.mjs';
 import {createAccount} from './account.mjs';
+import {createFlags} from './flags.mjs';
 import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
@@ -98,6 +99,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   }
 
   const db = openDb(dbPath);
+  const flags = createFlags(db, {now});
   const vip = createVip(db, {clock});
   const saved = createSaved(db, {vip, now});
   const stickers = createStickers({vip});
@@ -184,6 +186,31 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     secEvents.record({...ev, ip: ev.ip, actorId: ev.actorId});
   }});
   const account = createAccount(db, {now, profile, hashPassword, verifyPassword, audit});
+  account.attach({communities});
+  communities.attach({notifications, blockwords});
+  schedule.attach({blockwords});
+  posts.attach({assertPlatform: (text) => blockwords.assertPlatform(text)});
+
+  function assertPollText(spec) {
+    if (!spec) return;
+    if (spec.question) blockwords.assertPlatform(spec.question);
+    const raw = Array.isArray(spec.options) ? spec.options : [];
+    for (const o of raw) {
+      const t = typeof o === 'string' ? o : (o && o.text);
+      if (t) blockwords.assertPlatform(String(t));
+    }
+  }
+  function maintenanceBlocks(method, path) {
+    if (!flags.read().maintenance) return false;
+    const m = String(method || 'GET').toUpperCase();
+    if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return false;
+    if (path.startsWith('/api/admin')) return false;
+    if (path === '/api/app/status' || path === '/api/health' || path === '/api/version') return false;
+    if (path === '/api/auth/logout' || path === '/api/auth/login' || path === '/api/auth/csrf') return false;
+    if (path === '/api/appeals' || path.startsWith('/api/appeals/')) return false;
+    if (path.startsWith('/api/legal')) return false;
+    return true;
+  }
 
   const srvPostAuthor = (postId) => {
     const r = db.prepare('SELECT author_id FROM posts WHERE id=? AND deleted_at IS NULL').get(postId);
@@ -261,6 +288,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const verInfo = appVersion();
   const routes = {
     'POST /api/auth/register'(req, b) {
+      if (flags.read().registrationOpen === false) throw bad('REGISTRATION_CLOSED', '暂不开放注册', 403);
       const username = String(b.username || '').trim(), email = String(b.email || '').trim().toLowerCase(), pw = b.password;
       if (!validate.username(username)) throw bad('BAD_USERNAME', '用户名需 3–20 位，仅限文字、数字、下划线');
       if (!validate.email(email)) throw bad('BAD_EMAIL', '邮箱格式不正确');
@@ -409,6 +437,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/content/check'(req, b) {
       const {user} = auth(req);
       const scope = String(b.scope || ''), text = b.text;
+      if (text != null && String(text).trim()) blockwords.assertPlatform(String(text));
       return {ok: true, now: now(), ...vip.requireTextLength(user, scope, text)};
     },
     // 贴纸（M2.5.5）：目录所有人可看（未登录也可）；选用专属包必须经 requireEntitlement。
@@ -427,7 +456,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const body = b || {};
       if (body.poll) polls.validateSpec(body.poll);
       if (body.text) blockwords.assertPlatform(body.text);
-      if (body.poll && body.poll.question) blockwords.assertPlatform(body.poll.question);
+      if (body.poll) assertPollText(body.poll);
       const r = posts.create(user, body);
       if (body.poll) {
         const pr = polls.createForPost(user, r.post.id, body.poll);
@@ -1150,6 +1179,48 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {admin} = adminAuth(req);
       return adminOps.getCommunity(req.params.id);
     },
+    'POST /api/admin/communities/:id/takedown'(req, b) {
+      const {admin} = adminAuth(req);
+      communities.takedown(req.params.id, b || {});
+      audit(admin.id, 'admin.community.takedown', 'community:' + req.params.id, ip(req), {reason: b && b.reason, adminUsername: admin.username});
+      return adminOps.getCommunity(req.params.id);
+    },
+    'POST /api/admin/communities/:id/restore'(req, b) {
+      const {admin} = adminAuth(req);
+      communities.restore(req.params.id);
+      audit(admin.id, 'admin.community.restore', 'community:' + req.params.id, ip(req), {adminUsername: admin.username});
+      return adminOps.getCommunity(req.params.id);
+    },
+    'POST /api/admin/communities/:id/warn'(req, b) {
+      const {admin} = adminAuth(req);
+      communities.warn(req.params.id, b || {});
+      audit(admin.id, 'admin.community.warn', 'community:' + req.params.id, ip(req), {reason: b && b.reason, adminUsername: admin.username});
+      return adminOps.getCommunity(req.params.id);
+    },
+    'POST /api/admin/communities/:id/delete'(req, b) {
+      const {admin} = adminAuth(req);
+      const r = communities.adminDelete(req.params.id, b || {});
+      audit(admin.id, 'admin.community.delete', 'community:' + req.params.id, ip(req), {reason: b && b.reason, adminUsername: admin.username});
+      return r;
+    },
+    'POST /api/admin/communities/:id/members/:userId/mute'(req, b) {
+      const {admin} = adminAuth(req);
+      communities.muteMember(req.params.id, req.params.userId, b || {});
+      audit(admin.id, 'admin.community.mute', 'community:' + req.params.id, ip(req), {userId: req.params.userId, adminUsername: admin.username});
+      return adminOps.getCommunity(req.params.id);
+    },
+    'POST /api/admin/communities/:id/members/:userId/unmute'(req, b) {
+      const {admin} = adminAuth(req);
+      communities.unmuteMember(req.params.id, req.params.userId);
+      audit(admin.id, 'admin.community.unmute', 'community:' + req.params.id, ip(req), {userId: req.params.userId, adminUsername: admin.username});
+      return adminOps.getCommunity(req.params.id);
+    },
+    'POST /api/admin/communities/:id/members/:userId/remove'(req, b) {
+      const {admin} = adminAuth(req);
+      communities.removeMember(req.params.id, req.params.userId, b || {});
+      audit(admin.id, 'admin.community.remove_member', 'community:' + req.params.id, ip(req), {userId: req.params.userId, adminUsername: admin.username});
+      return adminOps.getCommunity(req.params.id);
+    },
     'GET /api/admin/channels/:id/messages'(req) {
       const {admin} = adminAuth(req);
       return adminOps.listChannelMessages(req.params.id, req.query || {});
@@ -1395,11 +1466,33 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/communities/:id/polls'(req, b) {
       const {user} = auth(req);
+      assertPollText(b || {});
       const r = polls.createForCommunity(user, req.params.id, b || {});
       audit(user.id, 'poll.create', 'poll:' + r.poll.id, ip(req), {communityId: req.params.id});
       return r;
     },
 
+    'GET /api/app/status'() {
+      const f = flags.read();
+      return {
+        maintenance: f.maintenance,
+        maintenanceMessage: f.maintenanceMessage,
+        registrationOpen: f.registrationOpen,
+        reviewRequired: f.reviewRequired,
+        loginProtect: f.loginProtect,
+        flags: f,
+      };
+    },
+    'GET /api/admin/flags'(req) {
+      adminAuth(req);
+      return {flags: flags.read()};
+    },
+    'POST /api/admin/flags'(req, b) {
+      const {admin} = adminAuth(req);
+      const saved = flags.save(b || {});
+      audit(admin.id, 'admin.flags', 'flags', ip(req), saved);
+      return {flags: saved};
+    },
     'GET /api/health'() {
       try {
         const row = db.prepare('SELECT 1 AS n').get();
@@ -1691,6 +1784,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
           try { b = JSON.parse(raw.toString('utf8')); } catch { throw bad('BAD_JSON', '请求格式不正确'); }
           if (b === null || typeof b !== 'object') throw bad('BAD_JSON', '请求格式不正确');
         }
+        if (maintenanceBlocks(req.method, path)) {
+          const st = flags.read();
+          throw bad('MAINTENANCE', st.maintenanceMessage || '系统维护中，请稍后再试', 503);
+        }
         const finish = (val) => send(200, {ok: true, ...(val || {})});
         const fail = (e) => {
           if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
@@ -1705,7 +1802,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.featured = featured; server.polls = polls; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

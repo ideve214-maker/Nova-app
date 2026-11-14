@@ -8,7 +8,8 @@
 <!--[if lt IE 9]>
 <script> alert("对不起，您的浏览器不支持HTML5，请升级浏览器至IE9、firefox或者谷歌浏览器！")</script>
 < ![endif]-->
-<style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style></head>
+<style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style>
+<style>html,body{margin:0;height:100%;overflow:hidden}#chess{display:block;margin:0 auto} .menu_box{transform-origin:top center}</style></head>
 <body data-game="chess">
 <div id="chessBox" class="chess_box">
 	<canvas id="chess"></canvas>
@@ -71,6 +72,30 @@
     var n=parseInt(String(el.textContent).replace(/[^0-9]/g,''),10);
     if(n>0)send(n);
   },900);
+})();
+</script>
+<script>
+(function(){
+  function fit(){
+    var canvas=document.getElementById('chess');
+    var menu=document.getElementById('menuBox');
+    var vw=document.documentElement.clientWidth||window.innerWidth;
+    var vh=document.documentElement.clientHeight||window.innerHeight;
+    if(canvas&&canvas.width&&canvas.height){
+      var s=Math.min(vw/canvas.width,(vh-72)/canvas.height,1);
+      if(s>0){
+        canvas.style.width=Math.floor(canvas.width*s)+'px';
+        canvas.style.height=Math.floor(canvas.height*s)+'px';
+      }
+    }
+    if(menu){
+      var s2=Math.min(vw/316,(vh-16)/430,1);
+      menu.style.transform='scale('+(s2>0?s2:1)+')';
+    }
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  setInterval(fit, 500);
 })();
 </script>
 </body>

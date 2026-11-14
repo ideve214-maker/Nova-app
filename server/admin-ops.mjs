@@ -446,6 +446,10 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     return {communities: rows.map(r => ({
       id: r.id, name: r.name, description: r.description, visibility: r.visibility,
       ownerId: r.owner_id, memberCount: nMem.get(r.id).n, createdAt: r.created_at,
+      cover: r.cover || null,
+      status: r.status || 'active',
+      takedownReason: r.takedown_reason || '',
+      takenDownAt: r.taken_down_at || null,
     }))};
   }
   function getCommunity(id) {
@@ -454,7 +458,8 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
     const nMem = db.prepare("SELECT COUNT(*) AS n FROM community_members WHERE community_id=? AND status='active'").get(row.id).n;
     const members = db.prepare("SELECT * FROM community_members WHERE community_id=? AND status='active' ORDER BY joined_at").all(row.id).map(m => {
       const u = db.prepare('SELECT * FROM users WHERE id=?').get(m.user_id);
-      return {userId: m.user_id, username: u && u.username, role: m.role, status: m.status, joinedAt: m.joined_at};
+      const until = m.muted_until || null;
+      return {userId: m.user_id, username: u && u.username, role: m.role, status: m.status, joinedAt: m.joined_at, muted: !!(until && until > nowFn()), mutedUntil: until};
     });
     const chs = db.prepare("SELECT * FROM community_channels WHERE community_id=? AND deleted_at IS NULL ORDER BY created_at").all(row.id);
     const nMsg = db.prepare("SELECT COUNT(*) AS n FROM community_messages WHERE channel_id=?");
@@ -462,7 +467,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit} = {}) {
       id: ch.id, name: ch.name, kind: ch.kind, isDefault: !!ch.is_default,
       messageCount: nMsg.get(ch.id).n,
     }));
-    return {community: {id: row.id, name: row.name, description: row.description, visibility: row.visibility, ownerId: row.owner_id, memberCount: nMem, createdAt: row.created_at, members, channels}};
+    return {community: {id: row.id, name: row.name, description: row.description, visibility: row.visibility, ownerId: row.owner_id, memberCount: nMem, createdAt: row.created_at, cover: row.cover || null, status: row.status || 'active', takedownReason: row.takedown_reason || '', takenDownAt: row.taken_down_at || null, members, channels}};
   }
   function listChannelMessages(chId, q = {}) {
     const ch = db.prepare('SELECT * FROM community_channels WHERE id=?').get(chId);

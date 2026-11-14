@@ -9,7 +9,7 @@ function adoptCm(c){
     mb[me?'me':String(m.id)]=m.role;
   });
   if(c.owner)rememberAuthor(c.owner);
-  return {id:c.id,n:c.name,d:c.description||'',m:c.memberCount||0,j:c.joined?1:0,r:c.role||'',ch,mb,vis:c.visibility,joinStatus:c.joinStatus||(c.joined?'joined':'none'),pending:c.joinStatus==='pending',src:'net',banned:!!c.banned};
+  return {id:c.id,n:c.name,d:c.description||'',m:c.memberCount||0,j:c.joined?1:0,r:c.role||'',ch,mb,vis:c.visibility,joinStatus:c.joinStatus||(c.joined?'joined':'none'),pending:c.joinStatus==='pending',src:'net',banned:!!c.banned,bg:c.cover||'',status:c.status||'active',takedownReason:c.takedownReason||'',takenDownAt:c.takenDownAt||null};
 }
 function netCm(){return usingNet()&&Array.isArray(S.communities)}
 function cmSrc(){return netCm()?S.communities:D.cm}

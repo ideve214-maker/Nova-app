@@ -311,9 +311,14 @@ play.indexOfPs = function (ps,xy){
 
 //获得点击的着点
 play.getClickPoint = function (e){
-	var domXY = com.getDomXY(com.canvas);
-	var x=Math.round((e.pageX-domXY.x-com.pointStartX-20)/com.spaceX)
-	var y=Math.round((e.pageY-domXY.y-com.pointStartY-20)/com.spaceY)
+	var canvas = com.canvas;
+	var rect = canvas.getBoundingClientRect();
+	var sx = canvas.width / (rect.width || canvas.width || 1);
+	var sy = canvas.height / (rect.height || canvas.height || 1);
+	var cx = ((e.clientX != null ? e.clientX : e.pageX) - rect.left) * sx;
+	var cy = ((e.clientY != null ? e.clientY : e.pageY) - rect.top) * sy;
+	var x=Math.round((cx-com.pointStartX-20)/com.spaceX)
+	var y=Math.round((cy-com.pointStartY-20)/com.spaceY)
 	return {"x":x,"y":y}
 }
 
