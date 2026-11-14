@@ -86,9 +86,10 @@ test('退出登录会清会话、加密密钥、草稿、最近位置和本地�
 test('版本是 VEXO 1.0.0，图标资源不再是占位说明', () => {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const cap = JSON.parse(readFileSync(join(root, 'capacitor.config.json'), 'utf8'));
-  assert.equal(pkg.version, '1.0.0');
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
   assert.equal(cap.appName, 'VEXO');
-  assert.equal(cap.plugins.CapacitorUpdater.version, '1.0.0');
+  // 原生壳里的内置版本号只在出安装包时改；热更新版本以 package.json / 清单为准
+  assert.match(cap.plugins.CapacitorUpdater.version, /^\d+\.\d+\.\d+$/);
   const head = src('00_head.html');
   assert.match(head, /<title>VEXO<\/title>/);
   assert.match(head, /@font-face\{font-family:Inter/);

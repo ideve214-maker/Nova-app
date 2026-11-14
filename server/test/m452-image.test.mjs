@@ -31,8 +31,8 @@ test('拒绝错误类型和超限大小；成功的图片可取预览；失败�
   const bad = await call('POST', '/api/media', {name: 'x.exe', mime: 'application/x-msdownload', data: Buffer.from('MZ').toString('base64')}, a.tok);
   assert.equal(bad.s, 400); assert.equal(bad.j.error.code, 'BAD_TYPE');
   const user = srv.db.prepare('SELECT * FROM users WHERE id=?').get(a.id);
-  try { srv.media.upload(user, {buffer: Buffer.alloc(11 * 1024 * 1024, 1), mime: 'image/png', name: 'big.png'}); assert.fail('应拒绝超限'); }
-  catch (e) { assert.equal(e.code, 'TOO_LARGE'); }
+  // upload 是异步函数，超限要用 rejects 等它拒绝（以前同步 try/catch 抓不到，断言反而在测试结束后才炸）
+  await assert.rejects(srv.media.upload(user, {buffer: Buffer.alloc(11 * 1024 * 1024, 1), mime: 'image/png', name: 'big.png'}), e => e.code === 'TOO_LARGE');
   const up = await call('POST', '/api/media', {name: 'dot.png', mime: 'image/png', data: PNG.toString('base64')}, a.tok);
   assert.equal(up.s, 200, JSON.stringify(up.j));
   assert.equal(up.j.media.kind, 'image');
