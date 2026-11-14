@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-skin="social-blue" data-theme="dark">
+<html lang="zh-CN" data-skin="starlight" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0A0C14" />
+    <meta name="theme-color" content="#070B16" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="format-detection" content="telephone=no" />
-    <meta name="description" content="NOVA 社区管理端，用户、内容、举报与会员权益。" />
+    <meta name="description" content="VEXO 社区管理端，用户、内容、举报与会员权益。" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <title>NOVA 管理端</title>
+    <title>VEXO 管理端</title>
     <script>
       (function () {
         function show(text) {
@@ -41,15 +41,32 @@
     </script>
     <script>
       (function () {
-        var colors = { "social-blue": { dark: "#17212B", light: "#F0F2F5" }, pulse: { dark: "#0B0B0D", light: "#F7FBFB" } };
-        var renames = { facebook: "social-blue", tiktok: "pulse", social: "social-blue" };
-        var defaults = { "social-blue": "light", pulse: "dark" };
+        var FLAG = "vexo-admin-storage-migrated";
+        var pairs = [["nova-admin-v2","vexo-admin-v2"],["nova-admin-api-config-v1","vexo-admin-api-config-v1"],["nova-admin-theme","vexo-admin-theme"],["nova-admin-skin","vexo-admin-skin"],["nova-admin-bugsink","vexo-admin-bugsink"],["nova-admin-bugsink-dsn","vexo-admin-bugsink-dsn"]];
         try {
-          var raw = localStorage.getItem("nova-admin-skin") || "";
+          if (localStorage.getItem(FLAG) !== "1") {
+            for (var i = 0; i < pairs.length; i++) {
+              var oldV = localStorage.getItem(pairs[i][0]);
+              var newV = localStorage.getItem(pairs[i][1]);
+              if (oldV != null && oldV !== "" && (newV == null || newV === "")) localStorage.setItem(pairs[i][1], oldV);
+              if (oldV != null) localStorage.removeItem(pairs[i][0]);
+            }
+            var oldS = sessionStorage.getItem("nova-admin-session");
+            var newS = sessionStorage.getItem("vexo-admin-session");
+            if (oldS != null && oldS !== "" && (newS == null || newS === "")) sessionStorage.setItem("vexo-admin-session", oldS);
+            if (oldS != null) sessionStorage.removeItem("nova-admin-session");
+            localStorage.setItem(FLAG, "1");
+          }
+        } catch (e0) {}
+        var colors = { starlight: { dark: "#070B16", light: "#E8EEF8" }, "social-blue": { dark: "#17212B", light: "#F0F2F5" }, pulse: { dark: "#0B0B0D", light: "#F7FBFB" } };
+        var renames = { facebook: "social-blue", tiktok: "pulse", social: "social-blue" };
+        var defaults = { starlight: "dark", "social-blue": "light", pulse: "dark" };
+        try {
+          var raw = localStorage.getItem("vexo-admin-skin") || "";
           var skin = renames[raw] || raw;
-          if (skin !== "pulse" && skin !== "social-blue") skin = "social-blue";
-          if (raw && raw !== skin) localStorage.setItem("nova-admin-skin", skin);
-          var m = localStorage.getItem("nova-admin-theme");
+          if (skin !== "pulse" && skin !== "social-blue" && skin !== "starlight") skin = "starlight";
+          if (raw && raw !== skin) localStorage.setItem("vexo-admin-skin", skin);
+          var m = localStorage.getItem("vexo-admin-theme");
           if (m !== "light" && m !== "dark" && m !== "system") m = defaults[skin];
           var light = m === "light" || (m === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
           document.documentElement.setAttribute("data-skin", skin);
@@ -58,15 +75,17 @@
           var meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute("content", colors[skin][light ? "light" : "dark"]);
         } catch (e) {
-          document.documentElement.setAttribute("data-skin", "social-blue");
+          document.documentElement.setAttribute("data-skin", "starlight");
           document.documentElement.setAttribute("data-theme", "dark");
         }
       })();
     </script>
     <style>
       html, body, #root { position: fixed; inset: 0; width: 100%; max-width: 100%; height: 100%; height: 100vh; height: 100dvh; min-height: 100%; min-height: 100vh; min-height: 100dvh; margin: 0; overflow: hidden; overscroll-behavior: none; }
-      html, body { background: #17212B; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      html, body { background: #070B16; font-family: "Inter Variable", "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif; }
+      html[data-skin="social-blue"], html[data-skin="social-blue"] body { background: #17212B; }
       html[data-skin="pulse"], html[data-skin="pulse"] body { background: #0B0B0D; }
+      html[data-skin="starlight"][data-theme="light"], html[data-skin="starlight"][data-theme="light"] body { background: #E8EEF8; }
       html[data-skin="social-blue"][data-theme="light"], html[data-skin="social-blue"][data-theme="light"] body { background: #F0F2F5; }
       html[data-skin="pulse"][data-theme="light"], html[data-skin="pulse"][data-theme="light"] body { background: #F7FBFB; }
       #nova-static-splash {
@@ -74,6 +93,18 @@
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center;
         padding: max(32px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(32px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+        color: #F4F7FF;
+        background:
+          radial-gradient(80% 50% at 50% 38%, rgba(47,123,255,.45), transparent 70%),
+          #070B16;
+      }
+      html[data-skin="starlight"][data-theme="light"] #nova-static-splash {
+        color: #101828;
+        background:
+          radial-gradient(80% 50% at 50% 38%, rgba(47,123,255,.2), transparent 70%),
+          #E8EEF8;
+      }
+      html[data-skin="social-blue"] #nova-static-splash {
         color: #F5F7FA;
         background:
           radial-gradient(80% 50% at 50% 34%, rgba(75,139,245,.38), transparent 72%),
@@ -100,7 +131,7 @@
       #nova-static-splash .nova-static-brand {
         margin: 20px 0 0;
         font-size: 28px; font-weight: 800; letter-spacing: .06em; line-height: 1;
-        background: linear-gradient(180deg, #8BA3FF 0%, #6E8BFF 48%, #5B74F2 100%);
+        background: linear-gradient(180deg, #F4F8FF 0%, #8EBEFF 42%, #1B6DFF 100%);
         -webkit-background-clip: text; background-clip: text; color: transparent;
       }
       html[data-theme="light"] #nova-static-splash .nova-static-brand {
@@ -147,7 +178,7 @@
           <path fill="none" stroke="url(#boot-wave)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M7.5 48.2c6.8-5.6 13-5.6 19.6 0s13 5.6 19.6 0 10.2-5.3 11.3-5"/>
           <path fill="none" stroke="url(#boot-wave)" stroke-width="1.7" stroke-linecap="round" opacity=".55" d="M11.5 55.4c5.7-4.3 11.4-4.3 17.1 0s11.4 4.3 17.1 0 8.6-4.1 9.6-3.9"/>
         </svg>
-        <p class="nova-static-brand">NOVA</p>
+        <p class="nova-static-brand">VEXO</p>
         <p class="nova-static-sub">管理端</p>
         <p id="nova-static-msg">正在进入管理端。如果长时间没有变化，请关闭后重新打开。</p>
         <button type="button" id="nova-static-btn">刷新重试</button>

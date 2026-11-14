@@ -1,6 +1,12 @@
 {
-  "defaultSkin": "social-blue",
+  "defaultSkin": "starlight",
   "skins": [
+    {
+      "id": "starlight",
+      "name": "星光",
+      "path": "starlight",
+      "defaultMode": "dark"
+    },
     {
       "id": "social-blue",
       "name": "社交蓝",

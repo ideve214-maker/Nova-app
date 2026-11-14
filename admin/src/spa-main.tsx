@@ -6,6 +6,7 @@ import { useAdmin } from "./lib/admin/store";
 import { lockWebViewport } from "./lib/admin/native";
 import { initBugsink } from "./lib/admin/bugsink";
 import { initLiveUpdate } from "./lib/admin/live-update";
+import "@fontsource-variable/inter/wght.css";
 import "./styles.css";
 
 lockWebViewport();

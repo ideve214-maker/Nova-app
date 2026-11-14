@@ -16,7 +16,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function useAppearance(): { skin: SkinId; theme: ThemeMode } {
-  const [skin, setSkin] = useState<SkinId>(() => (typeof window === "undefined" ? "social-blue" : getStoredSkin()));
+  const [skin, setSkin] = useState<SkinId>(() => (typeof window === "undefined" ? "starlight" : getStoredSkin()));
   const [theme, setThemeMode] = useState<ThemeMode>(() => (typeof window === "undefined" ? "system" : getStoredTheme()));
   useEffect(() => subscribeAppearance(() => {
     setSkin(getStoredSkin());

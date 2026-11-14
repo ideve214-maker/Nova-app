@@ -2,6 +2,7 @@
  * 管理端对 0.7.0-m6.1 后端的实际调用。
  * 路径仍走 backend.ts 的对照表与别名，便于以后换版本。
  */
+import { clearAuthStorage } from "./storage-keys";
 import {
   apiBinary,
   apiRequest,
@@ -95,7 +96,11 @@ export async function remoteLogout(): Promise<void> {
   } catch {
     /* 退出以本机清令牌为准 */
   }
-  saveConfig({ token: "" });
+  try {
+    clearAuthStorage(window.localStorage, window.sessionStorage);
+  } catch {
+    saveConfig({ token: "" });
+  }
 }
 
 export async function remoteMe(): Promise<Remote<MappedAdmin>> {

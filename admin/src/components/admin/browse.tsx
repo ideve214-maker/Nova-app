@@ -89,7 +89,7 @@ export function HomeScreen() {
       <header className="nova-sticky-bar nova-bar relative z-30 shrink-0 border-b border-line" data-nova-chrome="top">
         <div className="flex h-11 items-center justify-between px-5">
           <div className="min-w-0">
-            <p className="text-[11px] leading-none text-muted">NOVA</p>
+            <p className="text-[11px] leading-none text-muted">VEXO</p>
             <h1 className="truncate text-[17px] font-semibold leading-tight">管理后台</h1>
           </div>
           <button type="button" onClick={() => go("me")} aria-label="我的" className="grid size-11 place-items-center">

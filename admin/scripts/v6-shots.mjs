@@ -33,9 +33,9 @@ async function prepare(page, theme) {
     try {
       localStorage.clear();
       sessionStorage.clear();
-      localStorage.setItem("nova-admin-theme", theme);
+      localStorage.setItem("vexo-admin-theme", theme);
       localStorage.setItem(
-        "nova-admin-api-config-v1",
+        "vexo-admin-api-config-v1",
         JSON.stringify({ baseUrl: "http://127.0.0.1:8787", timeoutMs: 8000, token: "", endpoints: {} }),
       );
     } catch {}

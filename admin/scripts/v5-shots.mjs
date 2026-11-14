@@ -35,7 +35,7 @@ await page.evaluate(() => {
     sessionStorage.clear();
     // Override baked-in production host so this preview uses the same-origin /api proxy.
     localStorage.setItem(
-      "nova-admin-api-config-v1",
+      "vexo-admin-api-config-v1",
       JSON.stringify({ baseUrl: "http://127.0.0.1:8787", timeoutMs: 8000, token: "", endpoints: {} }),
     );
   } catch {}

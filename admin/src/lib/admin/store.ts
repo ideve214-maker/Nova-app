@@ -27,6 +27,7 @@ import { captureCurrentScroll } from "./scroll-restore";
 import * as remote from "./remote";
 import { resolveAvatar } from "./avatar";
 import { ANNOUNCEMENT_BODY_MAX, ANNOUNCEMENT_TITLE_MAX, countChars } from "./backend";
+import { SESSION_KEY, STORE_KEY, clearAuthStorage, migrateAdminStorage } from "./storage-keys";
 
 export type { ConnectionStatus } from "./backend";
 
@@ -186,7 +187,19 @@ export const ENTITLEMENTS = [
 ] as const;
 
 
-const KEY = "nova-admin-v2";
+const KEY = STORE_KEY;
+
+function clearLocalAuth() {
+  try {
+    clearAuthStorage(window.localStorage, window.sessionStorage);
+  } catch {
+    try {
+      saveConfig({ token: "" });
+    } catch {
+      /* private mode */
+    }
+  }
+}
 
 function stamp() {
   return formatAdminTime(Date.now());
@@ -394,7 +407,7 @@ function restoreLocal(): Partial<Persisted> {
     const rememberLogin = data.rememberLogin !== false;
     if (authed && !rememberLogin) {
       try {
-        if (sessionStorage.getItem("nova-admin-session") !== "1") authed = false;
+        if (sessionStorage.getItem(SESSION_KEY) !== "1") authed = false;
       } catch {
         authed = false;
       }
@@ -507,12 +520,7 @@ function attachUnauthorized() {
     const s = useAdmin.getState();
     if (!s.authed) return;
     handling401 = true;
-    saveConfig({ token: "" });
-    try {
-      sessionStorage.removeItem("nova-admin-session");
-    } catch {
-      /* ignore */
-    }
+    clearLocalAuth();
     useAdmin.setState({
       authed: false,
       adminProfile: null,
@@ -611,8 +619,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
     }
     saveConfig({ token: result.data.token });
     try {
-      if (remember) sessionStorage.removeItem("nova-admin-session");
-      else sessionStorage.setItem("nova-admin-session", "1");
+      if (remember) sessionStorage.removeItem(SESSION_KEY);
+      else sessionStorage.setItem(SESSION_KEY, "1");
     } catch {
       /* ignore */
     }
@@ -646,13 +654,9 @@ export const useAdmin = create<AdminState>((set, get) => ({
     try {
       await remote.remoteLogout();
     } catch {
-      saveConfig({ token: "" });
+      clearLocalAuth();
     }
-    try {
-      sessionStorage.removeItem("nova-admin-session");
-    } catch {
-      /* ignore */
-    }
+    clearLocalAuth();
     set({
       authed: false,
       adminProfile: null,
@@ -678,7 +682,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return "管理员密码请联系技术人员修改";
   },
   resetDemo: () => {
-    saveConfig({ token: "" });
+    clearLocalAuth();
     const fresh = emptyPersisted();
     set({
       ...fresh,
@@ -1363,6 +1367,11 @@ export function hydrateAdmin() {
   if (typeof window === "undefined") return;
   if (!didHydrate) {
     didHydrate = true;
+    try {
+      migrateAdminStorage(window.localStorage, window.sessionStorage);
+    } catch {
+      /* private mode */
+    }
     // 先立刻离开启动画面，再在后台探测后端。绝不为了网络而卡住星星页。
     try {
       const restored = restoreLocal();
@@ -1410,7 +1419,7 @@ export function hydrateAdmin() {
       let sessionOk = true;
       if (useAdmin.getState().authed && !remember) {
         try {
-          sessionOk = sessionStorage.getItem("nova-admin-session") === "1";
+          sessionOk = sessionStorage.getItem(SESSION_KEY) === "1";
         } catch {
           sessionOk = false;
         }
@@ -1420,7 +1429,7 @@ export function hydrateAdmin() {
         if (me.ok) {
           useAdmin.setState({ authed: true, adminProfile: me.data, adminName: me.data.username, booted: true });
         } else {
-          saveConfig({ token: "" });
+          clearLocalAuth();
           useAdmin.setState({ authed: false, adminProfile: null, nav: { name: "home" }, history: [] });
           writeHash({ name: "home" });
         }

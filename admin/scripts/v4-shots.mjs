@@ -51,7 +51,7 @@ await page.waitForSelector("text=管理后台", { timeout: 20000 });
 await page.waitForTimeout(2500);
 const onLogin = await page.locator("text=NOVA 管理端").count();
 const onHome = await page.locator("text=管理后台").count();
-console.log("after login onLogin", onLogin, "onHome", onHome, "hash", await page.evaluate(() => location.hash), "authed", await page.evaluate(() => localStorage.getItem("nova-admin-v2")?.slice(0,80)));
+console.log("after login onLogin", onLogin, "onHome", onHome, "hash", await page.evaluate(() => location.hash), "authed", await page.evaluate(() => localStorage.getItem("vexo-admin-v2")?.slice(0,80)));
 await shot("03-home");
 
 // users

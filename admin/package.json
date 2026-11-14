@@ -20,9 +20,9 @@
     "test": "npm run test:admin && node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/preview-path-prefix.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "build:spa": "node scripts/with-app-env.mjs ./node_modules/.bin/vite build --config vite.spa.config.ts && node scripts/inline-spa.mjs",
+    "build:spa": "node scripts/with-app-env.mjs ./node_modules/.bin/vite build --config vite.spa.config.ts && node scripts/inline-spa.mjs && node scripts/apply-native-version.mjs && node scripts/strip-fine-location.mjs",
     "preview:admin": "node scripts/preview-server.mjs",
-    "test:admin": "node --experimental-strip-types --test src/lib/admin/backend.test.ts src/lib/admin/hash-route.test.ts src/lib/admin/sanitize.test.ts src/lib/admin/scroll-restore.test.ts"
+    "test:admin": "node --experimental-strip-types --test src/lib/admin/backend.test.ts src/lib/admin/hash-route.test.ts src/lib/admin/sanitize.test.ts src/lib/admin/scroll-restore.test.ts src/lib/admin/storage-keys.test.ts src/lib/admin/live-update.test.ts"
   },
   "dependencies": {
     "@capacitor/core": "^7.6.10",

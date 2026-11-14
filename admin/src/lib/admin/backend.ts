@@ -10,7 +10,8 @@ import { resolveAvatar } from "./avatar.ts";
  * 5. 后端不可达或某项能力尚未实现时，列表与指标保持为空并显示简短中文提示，绝不阻塞进入管理端。
  */
 
-export const CONFIG_KEY = "nova-admin-api-config-v1";
+import { CONFIG_KEY } from "./storage-keys";
+export { CONFIG_KEY };
 export const DEFAULT_TIMEOUT_MS = 4000;
 
 /** 当前已知 + 规划中的管理端路径。新后端只要路径相近，就可以直接接上。 */

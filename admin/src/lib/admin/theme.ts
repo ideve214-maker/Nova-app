@@ -1,16 +1,19 @@
-/** 外观：两套皮肤（社交蓝 / 脉冲），每套都有深色和浅色。默认皮肤是社交蓝，明暗跟随系统。 */
-export type ThemeMode = "system" | "dark" | "light";
-export type SkinId = "social-blue" | "pulse";
+import { SKIN_STORAGE_KEY, THEME_STORAGE_KEY } from "./storage-keys";
 
-export const THEME_STORAGE_KEY = "nova-admin-theme";
-export const SKIN_STORAGE_KEY = "nova-admin-skin";
+/** 外观：星光 / 社交蓝 / 脉冲。每套都有深色和浅色。未选过皮肤时默认星光。 */
+export type ThemeMode = "system" | "dark" | "light";
+export type SkinId = "starlight" | "social-blue" | "pulse";
+
+export { SKIN_STORAGE_KEY, THEME_STORAGE_KEY };
 
 export const SKINS: { id: SkinId; label: string }[] = [
+  { id: "starlight", label: "星光" },
   { id: "social-blue", label: "社交蓝" },
   { id: "pulse", label: "脉冲" },
 ];
 
 const THEME_COLOR: Record<SkinId, Record<"dark" | "light", string>> = {
+  starlight: { dark: "#070B16", light: "#E8EEF8" },
   "social-blue": { dark: "#17212B", light: "#F0F2F5" },
   pulse: { dark: "#0B0B0D", light: "#F7FBFB" },
 };
@@ -23,15 +26,18 @@ export const SKIN_RENAMES: Record<string, SkinId> = {
 };
 
 export const SKIN_DEFAULT_MODE: Record<SkinId, "dark" | "light"> = {
+  starlight: "dark",
   "social-blue": "light",
   pulse: "dark",
 };
+
+const DEFAULT_SKIN: SkinId = "starlight";
 
 export function canonSkin(id: string | null | undefined): SkinId | "" {
   const raw = String(id ?? "").trim();
   if (!raw) return "";
   const mapped = SKIN_RENAMES[raw.toLowerCase()] || raw;
-  if (mapped === "social-blue" || mapped === "pulse") return mapped;
+  if (mapped === "starlight" || mapped === "social-blue" || mapped === "pulse") return mapped;
   return "";
 }
 
@@ -60,10 +66,10 @@ export function getStoredTheme(): ThemeMode {
 }
 
 export function migrateStoredSkin(): SkinId {
-  let next: SkinId = "social-blue";
+  let next: SkinId = DEFAULT_SKIN;
   try {
     const raw = localStorage.getItem(SKIN_STORAGE_KEY);
-    next = canonSkin(raw) || "social-blue";
+    next = canonSkin(raw) || DEFAULT_SKIN;
     if (raw && raw !== next) localStorage.setItem(SKIN_STORAGE_KEY, next);
   } catch {
     /* private mode */
@@ -116,7 +122,7 @@ export function setTheme(mode: ThemeMode): "dark" | "light" {
 }
 
 export function setSkin(skin: SkinId): SkinId {
-  const next: SkinId = skin === "pulse" ? "pulse" : "social-blue";
+  const next: SkinId = canonSkin(skin) || DEFAULT_SKIN;
   const mode = SKIN_DEFAULT_MODE[next];
   try {
     localStorage.setItem(SKIN_STORAGE_KEY, next);

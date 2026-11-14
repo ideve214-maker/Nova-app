@@ -212,6 +212,7 @@ describe("skin ids match the user app", () => {
     assert.equal(canonSkin("social"), "social-blue");
     assert.equal(canonSkin("social-blue"), "social-blue");
     assert.equal(canonSkin("pulse"), "pulse");
+    assert.equal(canonSkin("starlight"), "starlight");
     assert.equal(canonSkin("nope"), "");
   });
 });

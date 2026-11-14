@@ -1,23 +1,41 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/noto-sans-sc/wght.css";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "NOVA 管理端";
+const APP_NAME = "VEXO 管理端";
 
 const THEME_BOOT = `
 (function () {
   if (typeof document === "undefined") return;
-  var colors = { "social-blue": { dark: "#17212B", light: "#F0F2F5" }, pulse: { dark: "#0B0B0D", light: "#F7FBFB" } };
-  var renames = { facebook: "social-blue", tiktok: "pulse", social: "social-blue" };
-  var defaults = { "social-blue": "light", pulse: "dark" };
+  var FLAG = "vexo-admin-storage-migrated";
+  var pairs = [["nova-admin-v2","vexo-admin-v2"],["nova-admin-api-config-v1","vexo-admin-api-config-v1"],["nova-admin-theme","vexo-admin-theme"],["nova-admin-skin","vexo-admin-skin"],["nova-admin-bugsink","vexo-admin-bugsink"],["nova-admin-bugsink-dsn","vexo-admin-bugsink-dsn"]];
   try {
-    var raw = localStorage.getItem("nova-admin-skin") || "";
+    if (localStorage.getItem(FLAG) !== "1") {
+      for (var i = 0; i < pairs.length; i++) {
+        var oldV = localStorage.getItem(pairs[i][0]);
+        var newV = localStorage.getItem(pairs[i][1]);
+        if (oldV != null && oldV !== "" && (newV == null || newV === "")) localStorage.setItem(pairs[i][1], oldV);
+        if (oldV != null) localStorage.removeItem(pairs[i][0]);
+      }
+      var oldS = sessionStorage.getItem("nova-admin-session");
+      var newS = sessionStorage.getItem("vexo-admin-session");
+      if (oldS != null && oldS !== "" && (newS == null || newS === "")) sessionStorage.setItem("vexo-admin-session", oldS);
+      if (oldS != null) sessionStorage.removeItem("nova-admin-session");
+      localStorage.setItem(FLAG, "1");
+    }
+  } catch (e0) {}
+  var colors = { starlight: { dark: "#070B16", light: "#E8EEF8" }, "social-blue": { dark: "#17212B", light: "#F0F2F5" }, pulse: { dark: "#0B0B0D", light: "#F7FBFB" } };
+  var renames = { facebook: "social-blue", tiktok: "pulse", social: "social-blue" };
+  var defaults = { starlight: "dark", "social-blue": "light", pulse: "dark" };
+  try {
+    var raw = localStorage.getItem("vexo-admin-skin") || "";
     var skin = renames[raw] || raw;
-    if (skin !== "pulse" && skin !== "social-blue") skin = "social-blue";
-    if (raw && raw !== skin) localStorage.setItem("nova-admin-skin", skin);
-    var m = localStorage.getItem("nova-admin-theme");
+    if (skin !== "pulse" && skin !== "social-blue" && skin !== "starlight") skin = "starlight";
+    if (raw && raw !== skin) localStorage.setItem("vexo-admin-skin", skin);
+    var m = localStorage.getItem("vexo-admin-theme");
     if (m !== "light" && m !== "dark" && m !== "system") m = defaults[skin];
     var light = m === "light" || (m === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
     document.documentElement.setAttribute("data-skin", skin);
@@ -26,7 +44,7 @@ const THEME_BOOT = `
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", colors[skin][light ? "light" : "dark"]);
   } catch (e) {
-    document.documentElement.setAttribute("data-skin", "social-blue");
+    document.documentElement.setAttribute("data-skin", "starlight");
     document.documentElement.setAttribute("data-theme", "dark");
   }
 })();
@@ -42,9 +60,9 @@ const BOOT_GUARD = `
     var el = document.createElement("div");
     el.id = "nova-boot-error";
     el.setAttribute("role", "alert");
-    el.setAttribute("style", "position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;color:#F4F6FC;background:radial-gradient(80% 50% at 50% 34%,rgba(110,139,255,.38),transparent 72%),#0A0C14;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;");
+    el.setAttribute("style", "position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;color:#F4F7FF;background:radial-gradient(80% 50% at 50% 38%,rgba(47,123,255,.45),transparent 70%),#070B16;font-family:'Inter Variable','Inter','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;");
     el.innerHTML = '<div style="font-size:42px;line-height:1;margin-bottom:12px;">✦</div>'
-      + '<p style="font-size:28px;font-weight:800;letter-spacing:.06em;margin:0 0 8px;background:linear-gradient(180deg,#8BA3FF 0%,#6E8BFF 48%,#5B74F2 100%);-webkit-background-clip:text;background-clip:text;color:transparent;">NOVA</p>'
+      + '<p style="font-size:28px;font-weight:800;letter-spacing:.06em;margin:0 0 8px;background:linear-gradient(180deg,#F4F8FF 0%,#8EBEFF 42%,#1B6DFF 100%);-webkit-background-clip:text;background-clip:text;color:transparent;">VEXO</p>'
       + '<p style="font-size:15px;font-weight:700;letter-spacing:.12em;margin:0 0 16px;color:#6E8BFF;">管理端</p>'
       + '<p style="font-size:20px;font-weight:600;margin:0 0 12px;">无法进入管理端</p>'
       + '<p style="max-width:320px;font-size:14px;line-height:1.6;margin:0 0 20px;opacity:.85;">页面停在启动画面，通常是因为用「文件预览」打开了 HTML，脚本没能加载。请用 Safari 打开完整预览链接，或使用单文件版 HTML。</p>'
@@ -64,7 +82,7 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" },
       { title: APP_NAME },
       { name: "theme-color", content: "#0A0C14" },
-      { name: "description", content: "NOVA 社区管理端，用户、内容、举报与会员权益。" },
+      { name: "description", content: "VEXO 社区管理端，用户、内容、举报与会员权益。" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -79,7 +97,7 @@ export const Route = createRootRoute({
     ],
   }),
   component: () => (
-    <html lang="zh-CN" data-skin="social-blue" data-theme="dark" suppressHydrationWarning>
+    <html lang="zh-CN" data-skin="starlight" data-theme="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

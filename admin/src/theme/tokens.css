@@ -38,7 +38,7 @@
   --sh-btn:0 4px 16px rgba(75,139,245,0.18), inset 0 1px 0 rgba(255,255,255,.16);
   --sh-dg:0 4px 14px rgba(240,107,105,0.16);
   --ease:cubic-bezier(.2,.8,.2,1); --dur:.18s;
-  --font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --font:16px/1.45 "Inter Variable","Inter","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
   --tracking-brand:.06em; --tracking-btn:.02em; color-scheme:dark;
 }
 :root[data-skin="social-blue"][data-theme="light"] {
@@ -116,7 +116,7 @@
   --sh-btn:0 4px 16px rgba(37,244,238,0.15), inset 0 1px 0 rgba(255,255,255,.16);
   --sh-dg:0 4px 14px rgba(254,44,85,0.16);
   --ease:cubic-bezier(.2,.8,.2,1); --dur:.18s;
-  --font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --font:16px/1.45 "Inter Variable","Inter","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
   --tracking-brand:.06em; --tracking-btn:.02em; color-scheme:dark;
 }
 :root[data-skin="pulse"][data-theme="light"] {
@@ -160,3 +160,73 @@
 .ib { background:transparent; color:var(--t2); border-radius:12px; }
 .ib:active { transform:scale(.9); background:var(--s2); }
 :focus-visible { outline:2px solid var(--ac); outline-offset:2px; }
+
+/* VEXO skin: starlight / 星光. Black field, white-to-electric-blue accent. */
+:root[data-skin="starlight"] {
+  --cv: #05070E;
+  --bg: #070B16;
+  --sf: #10182A;
+  --s2: #17233A;
+  --s3: #22314C;
+  --tx: #F4F7FF;
+  --t2: #A9B6D0;
+  --t3: #7E8CA8;
+  --ln: #2A3B58;
+  --ln2: rgba(255,255,255,0.07);
+  --ac: #2F7BFF;
+  --ac-hover: #6AA4FF;
+  --ac-pressed: #1A5FE0;
+  --ac-soft: rgba(47,123,255,0.20);
+  --ac-grad: linear-gradient(135deg,#F4F8FF 0%,#8EBEFF 42%,#1B6DFF 100%);
+  --onac: #07101F;
+  --dg: #FF5D73;
+  --dg-hover: #FF8A98;
+  --dg-pressed: #E04358;
+  --dg-soft: rgba(255,93,115,0.16);
+  --dg-grad: linear-gradient(180deg,#FF8A98 0%,#FF5D73 100%);
+  --ok: #3DDC97;
+  --warn: #E7B15A;
+  --vip: #D7E6FF;
+  --vip-grad: linear-gradient(135deg,#F4F8FF 0%,#7EB6FF 100%);
+  --onvip: #07101F;
+  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:24px; --r-pill:999px; --r-btn:14px;
+  --sh-sm:0 1px 2px rgba(0,0,0,.28); --sh-md:0 8px 28px rgba(0,0,0,.36); --sh-sheet:0 -8px 32px rgba(0,0,0,.4);
+  --sh-btn:0 4px 18px rgba(47,123,255,0.35), inset 0 1px 0 rgba(255,255,255,.28);
+  --sh-dg:0 4px 14px rgba(255,93,115,0.2);
+  --ease:cubic-bezier(.2,.8,.2,1); --dur:.18s;
+  --font:16px/1.45 "Inter Variable","Inter","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --tracking-brand:.06em; --tracking-btn:.02em; color-scheme:dark;
+}
+:root[data-skin="starlight"][data-theme="light"] {
+  --cv: #D9E3F2;
+  --bg: #E8EEF8;
+  --sf: #FFFFFF;
+  --s2: #F4F7FC;
+  --s3: #E2E9F4;
+  --tx: #101828;
+  --t2: #4E5D78;
+  --t3: #7B8BA6;
+  --ln: #D3DDED;
+  --ln2: rgba(16,24,40,0.07);
+  --ac: #1B6DFF;
+  --ac-hover: #3D84FF;
+  --ac-pressed: #0E56D6;
+  --ac-soft: rgba(27,109,255,0.12);
+  --ac-grad: linear-gradient(135deg,#F4F8FF 0%,#6AA4FF 40%,#1B6DFF 100%);
+  --onac: #FFFFFF;
+  --dg: #D92D4A;
+  --dg-hover: #E24B64;
+  --dg-pressed: #B51F38;
+  --dg-soft: rgba(217,45,74,0.12);
+  --dg-grad: linear-gradient(180deg,#E24B64 0%,#D92D4A 100%);
+  --ok: #0E8F62;
+  --warn: #9A6B12;
+  --vip: #2450B5;
+  --vip-grad: linear-gradient(135deg,#8EBEFF 0%,#1B6DFF 100%);
+  --onvip: #FFFFFF;
+  --sh-sm:0 1px 2px rgba(16,24,40,.06); --sh-md:0 8px 24px rgba(16,24,40,.08); --sh-sheet:0 -8px 32px rgba(16,24,40,.10);
+  --sh-btn:0 4px 14px rgba(27,109,255,0.22), inset 0 1px 0 rgba(255,255,255,.4);
+  --sh-dg:0 4px 14px rgba(217,45,74,0.16);
+  color-scheme:light;
+}
+:root[data-skin="starlight"][data-vip="gold"] { --ac:var(--vip); --ac-hover:#F4F8FF; --ac-pressed:#1B6DFF; --ac-soft:rgba(142,190,255,0.2); --ac-grad:var(--vip-grad); --onac:var(--onvip); }

@@ -1,10 +1,11 @@
 import * as Sentry from "@sentry/browser";
+import { BUGSINK_DSN_KEY, BUGSINK_KEY } from "./storage-keys";
 
 export const SENTRY_BROWSER_VERSION = "11.12.0";
 export const SENTRY_BROWSER_LICENSE = "MIT";
 
-const LS_ENABLED = "nova-admin-bugsink";
-const LS_DSN = "nova-admin-bugsink-dsn";
+const LS_ENABLED = BUGSINK_KEY;
+const LS_DSN = BUGSINK_DSN_KEY;
 
 function envFlagOn() {
   const v = String(import.meta.env.VITE_NOVA_BUGSINK ?? "").toLowerCase();

@@ -1,0 +1,26 @@
+name: Admin capacitor assets
+
+# Icons are generated from admin/resources. A failed generation fails this job.
+# This workflow does not build or upload an install package.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "admin/resources/**"
+      - "admin/scripts/generate-capacitor-assets.sh"
+      - ".github/workflows/admin-capacitor-assets.yml"
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install admin dependencies
+        working-directory: admin
+        run: npm ci
+      - name: Generate launcher assets from resources
+        working-directory: admin
+        run: bash scripts/generate-capacitor-assets.sh

@@ -140,7 +140,7 @@ const autoUpdateOn = !!updateUrl && autoFlag !== "off" && autoFlag !== "0" && au
 
 const config = {
   appId: "com.nova.admin",
-  appName: "NOVA 管理端",
+  appName: "VEXO 管理端",
   webDir: "dist-spa",
   server: {
     // Android 明文流量。iOS 还要 Info.plist 里对 47.239.0.90 的 ATS 例外。

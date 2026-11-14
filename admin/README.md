@@ -265,7 +265,7 @@ nginx 需要能访问到 manifest 和 zip（例如根路径 `/admin-updates/`）
 
 ### 启动图（@capacitor/assets）
 
-`npx capacitor-assets generate` 在 `admin/` 下先找 `assets/`，**只要 `assets/` 存在就只读它**，不存在才读 `resources/`（`--assetPath` 可指定）。所以本项目**只用 `resources/`，不要新建 `admin/assets/`**：否则 `resources/` 里的图标不会被读到，App 图标会变回 Capacitor 默认图。
+CI 与 `scripts/generate-capacitor-assets.sh` 执行 `npx @capacitor/assets generate --android --ios --assetPath resources`。必须带 `--assetPath resources`：工具在 `admin/` 下先找 `assets/`，**只要 `assets/` 存在就只读它**。本项目只用 `resources/`，不要新建 `admin/assets/`。生成失败时脚本以非 0 退出，不会改用 Capacitor 默认图标。
 
 `resources/` 里工具会读的文件：`icon.png`（1024×1024 应用图标）、`splash.png`（浅色）、`splash-dark.png`（深色）。启动图文件名必须是 `splash.png` / `splash-dark.png`，官方要求至少 2732×2732。现在两张都是 2732×2732：`splash.png` 由 `splash-light.png` 生成，`splash-dark.png` 为暗色大图。竖版原图（1170×2532）按高度等比放进正方形中间，左右用边缘颜色补齐，这样工具按正方形裁切、iOS 启动页按比例填充时，手机上看到的就是完整原图。`splash-light.png` 与 SVG 源保留不动（工具不读这两个名字）。
 

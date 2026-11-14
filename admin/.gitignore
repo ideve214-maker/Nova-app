@@ -11,3 +11,17 @@ dist/
 
 # 打包时由 build:spa 写入的热更新地址（含真实地址，不要提交）
 .nova-live-update.json
+
+# Install packages and native build output stay out of this public repo.
+*.apk
+*.aab
+*.ipa
+*.keystore
+*.jks
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+ios/App/Pods/
+ios/DerivedData/
+ios/**/xcuserdata/

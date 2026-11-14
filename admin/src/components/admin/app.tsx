@@ -90,9 +90,9 @@ export function AdminApp() {
         <div className="nova-splash nova-scroll grid min-h-0 flex-1 place-items-center px-6 text-fg" style={{ paddingTop: "max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))", paddingBottom: "max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex flex-col items-center text-center">
             <StarMark className="size-[72px]" />
-            <p className="nova-brand mt-5 text-[28px] leading-none">NOVA</p>
+            <p className="nova-brand mt-5 text-[28px] leading-none">VEXO</p>
             <p className="mt-2 text-[15px] font-bold tracking-[0.12em] text-primary">管理端</p>
-            <p className="mt-4 text-[15px] text-muted">正在进入 NOVA 管理端…</p>
+            <p className="mt-4 text-[15px] text-muted">正在进入 VEXO 管理端…</p>
             {(stalled || bootError) && (
               <>
                 <p className="mt-3 max-w-xs text-[13px] leading-5 text-muted">{bootError || "启动较慢"}</p>
