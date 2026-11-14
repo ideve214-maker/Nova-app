@@ -403,6 +403,8 @@ html.kb-open .pn{padding-bottom:12px}
 .nr .ck.on{background:var(--ac);border-color:var(--ac)}
 /* 通用：按钮行放不下时自动换行 */
 .fr{flex-wrap:wrap}
+/* 他人主页按钮行：一行排下，文字不折行；举报/拉黑在“⋯”里 */
+.pf.ovl .fr{flex-wrap:nowrap;gap:8px}.pf.ovl .fr .pb{flex:1 1 0;min-width:0;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pf.ovl .fr .pb.pmore{flex:0 0 auto;width:var(--btn-h,36px);padding:0;font-size:18px;letter-spacing:1px}.pf.ovl .fr .tag{flex:none;white-space:nowrap}
 /* 3. 小组页：身份说明在按钮上方，按钮按顺序左对齐、自动换行 */
 .cmrole{margin:10px 0 2px;padding:10px 12px;border-radius:12px;background:var(--s2);color:var(--t2);font-size:14px;line-height:1.5}
 .cmrole b{color:var(--tx);font-weight:700}

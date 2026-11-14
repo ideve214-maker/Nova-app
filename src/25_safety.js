@@ -70,6 +70,7 @@ function rpsubmit(){
     }
   }
   return api('POST','/api/reports',body).then(r=>{
+    if(r.s===404&&body.targetType==='post'&&typeof dropPost==='function'){S.sh=null;dropPost(body.targetId,true);return}
     if(r.s!==200){T(errMsg(r,'提交失败'));return}
     S.sh=null;T('已提交，管理员会处理并通知你');
   });
@@ -106,10 +107,6 @@ function safetyBtns(id){
   if(!id||id==='me'||id==='notice')return '';
   if(typeof usingNet!=='function'||!usingNet())return '';
   if(SESSION&&SESSION.user&&String(SESSION.user.id)===String(id))return '';
-  const blocked=isBlockedUser(id);
-  const rp=`<button class="pb s" data-a="reportu" data-v="${id}">举报</button>`;
-  const blk=blocked
-    ?`<button class="pb s" data-a="unblock" data-v="${id}">取消拉黑</button>`
-    :`<button class="pb s" data-a="blockq" data-v="${id}">拉黑</button>`;
-  return rp+blk;
+  /* 主页按钮一行放不下：举报 / 拉黑收进“⋯”菜单 */
+  return `<button class="pb s pmore" data-a="umore" data-v="${id}" aria-label="更多">⋯</button>`;
 }

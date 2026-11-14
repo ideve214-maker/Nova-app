@@ -33,6 +33,21 @@ function adoptPost(p){
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
   const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;return o;
 }
+/* 帖子已被删除（作者删帖或管理员处理举报）：从内存列表和离线缓存里去掉，避免继续显示旧帖子 */
+function dropPost(id,toast){
+  if(!id)return false;let hit=false;
+  if(Array.isArray(S.posts)){const n=S.posts.length;S.posts=S.posts.filter(p=>String(p.id)!==String(id));hit=S.posts.length!==n;if(hit&&typeof cacheWriteFeed==='function')cacheWriteFeed(S.posts)}
+  if(toast&&typeof T==='function')T('该帖子已被删除');
+  return hit;
+}
+function isGone(r){return r&&r.s===404}
+let feedHiddenAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){feedHiddenAt=Date.now();return}
+  if(!feedHiddenAt||Date.now()-feedHiddenAt<15000)return;feedHiddenAt=0;
+  const cur=S.st&&S.st[S.st.length-1];
+  if(!cur&&S.tab==='home'&&typeof usingNet==='function'&&usingNet())loadFeed().then(()=>{if(typeof render==='function')render()});
+});
 function netPosts(){if(MODE!=='account'||!NET)return null;return S.posts}
 async function loadFeed(){
   if(MODE!=='account'||!SESSION)return;
@@ -70,6 +85,7 @@ async function loadComments(postId){
   if(!usingNet()||!SESSION)return;
   S.commentPost=postId;S.comments=S.comments&&S.commentPost===postId?S.comments:undefined;
   const r=await api('GET','/api/posts/'+postId+'/comments');
+  if(isGone(r)){S.comments=[];S.commentErr='该帖子已被删除';dropPost(postId,true);return}
   if(r.s!==200){S.comments=[];S.commentErr=errMsg(r,'评论加载失败');return}
   S.comments=(r.j.comments||[]).map(adoptComment);S.commentErr='';S.commentPost=postId;
   const p=feedSrc().find(x=>x.id==postId);if(p)p.commentCount=r.j.commentCount;
