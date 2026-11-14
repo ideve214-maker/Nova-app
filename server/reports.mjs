@@ -7,8 +7,26 @@ const STATUSES = new Set(['pending', 'reviewing', 'resolved', 'rejected']);
 const ACTIONS = new Set(['resolve', 'reject', 'review']);
 const REASON_MAX = 80, DETAIL_MAX = 1000;
 
-export function createReports(db, {now, notifications, profile} = {}) {
+// 管理端（admin 1.1.0）只传 action=resolve + note=所选处理方式的中文文案；
+// 服务端据此（或显式 penalty 字段）真正执行处置，否则“删除内容/封禁”只改了举报状态。
+const PENALTIES = new Set(['none', 'warn', 'delete', 'ban', 'delete_ban']);
+function penaltyOf(body, note) {
+  const explicit = String(body.penalty || '').trim();
+  if (PENALTIES.has(explicit)) return explicit;
+  const n = String(note || '');
+  const del = /删除(内容|帖子|评论|消息)/.test(n);
+  const ban = /封禁/.test(n);
+  if (del && ban) return 'delete_ban';
+  if (del) return 'delete';
+  if (ban) return 'ban';
+  if (/警告/.test(n)) return 'warn';
+  return 'none';
+}
+
+export function createReports(db, {now, notifications, profile, moderation} = {}) {
   const nowFn = now || Date.now;
+  const mod = () => (typeof moderation === 'function' ? moderation() : moderation) || null;
+  const msgHide = db.prepare('UPDATE messages SET deleted_at=? WHERE id=? AND deleted_at IS NULL');
   const ins = db.prepare(`INSERT INTO reports(id,reporter_id,target_type,target_id,target_user_id,reason,detail,message_ids,context,status,created_at)
     VALUES(?,?,?,?,?,?,?,?,?,'pending',?)`);
   const byId = db.prepare('SELECT * FROM reports WHERE id=?');
@@ -279,14 +297,57 @@ export function createReports(db, {now, notifications, profile} = {}) {
       return {report: pub(byId.get(row.id)), notified: false};
     }
     const status = action === 'reject' ? 'rejected' : 'resolved';
-    setDecision.run(status, action, note || null, admin && admin.id, nowFn(), row.id);
+    const penalty = action === 'reject' ? 'none' : penaltyOf(body, note);
+    const enforced = {penalty, contentHidden: false, userBanned: false, skipped: []};
+    db.exec('BEGIN');
+    try {
+      if (penalty === 'delete' || penalty === 'delete_ban') {
+        const m = mod();
+        const reason = '举报处理：' + (fresh0Reason(row)) + (note ? '（' + note + '）' : '');
+        if ((row.target_type === 'post' || row.target_type === 'comment') && m && m.hideContent) {
+          try {
+            m.hideContent(admin, row.target_type, row.target_id, {reason, report: row.id});
+            enforced.contentHidden = true;
+          } catch (e) {
+            if (!(e instanceof ApiError) || e.s !== 404) throw e;
+            enforced.skipped.push('delete:not_found');
+          }
+        } else if (row.target_type === 'message') {
+          const ids = parseIds(row.message_ids);
+          const all = ids.length ? ids : [String(row.target_id)];
+          let n = 0;
+          for (const mid of all) n += Number(msgHide.run(nowFn(), mid).changes || 0);
+          enforced.contentHidden = n > 0;
+        } else {
+          enforced.skipped.push('delete:' + row.target_type);
+        }
+      }
+      if (penalty === 'ban' || penalty === 'delete_ban') {
+        const m = mod();
+        if (row.target_user_id != null && m && m.ban) {
+          m.ban(admin, row.target_user_id, {reason: '举报处理：' + fresh0Reason(row) + (note ? '（' + note + '）' : '')});
+          enforced.userBanned = true;
+        } else {
+          enforced.skipped.push('ban:no_target_user');
+        }
+      }
+      setDecision.run(status, action, note || null, admin && admin.id, nowFn(), row.id);
+      db.exec('COMMIT');
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw e;
+    }
     const fresh = byId.get(row.id);
     let notified = false;
     if (notify && notifications && typeof notifications.push === 'function') {
       const result = action === 'reject' ? '未成立（已驳回）' : '已处理';
       const bodyText = `你关注的举报（${fresh.reason}）处理结论：${result}` + (note ? '。说明：' + note : '。') + ' 如有疑问可再次联系管理员。';
       const reporterText = `你提交的举报（${fresh.reason}）处理结论：${result}` + (note ? '。说明：' + note : '。') + ' 如需申诉，请通过再次举报或联系运营说明情况。';
-      const targetText = `有用户对你的内容提出了举报（原因：${fresh.reason}），处理结论：${result}` + (note ? '。说明：' + note : '。') + ' 如需申诉，请联系运营并说明情况。';
+      const penaltyText = enforced.contentHidden && enforced.userBanned ? '相关内容已被删除，账号已被封禁。'
+        : enforced.contentHidden ? '相关内容已被删除，这是一次警告，请遵守社区规范。'
+        : enforced.userBanned ? '账号已被封禁。'
+        : penalty === 'warn' ? '这是一次警告，请遵守社区规范。' : '';
+      const targetText = `有用户对你的内容提出了举报（原因：${fresh.reason}），处理结论：${result}` + (note ? '。说明：' + note + '。' : '。') + penaltyText + ' 如需申诉，请联系运营并说明情况。';
       const payload = (uid, title, text) => notifications.push(uid, {
         kind: 'report_result',
         title,
@@ -302,8 +363,10 @@ export function createReports(db, {now, notifications, profile} = {}) {
       }
       notified = true;
     }
-    return {report: pub(fresh), notified};
+    return {report: pub(fresh), notified, enforced};
   }
+
+  function fresh0Reason(row) { return String(row.reason || '').slice(0, 80); }
 
   return {submit, list, get, decide, pub};
 }

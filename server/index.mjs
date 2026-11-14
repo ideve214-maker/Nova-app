@@ -150,7 +150,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const search = createSearch(db, {profile, vip, now});
   const admins = createAdmins(db, {now});
   const adminSeed = admins.seedFromEnv({username: adminUsername, password: adminPassword});
-  const reports = createReports(db, {now, notifications, profile});
+  const reports = createReports(db, {now, notifications, profile, moderation: () => adminOps});
 
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
   const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, legalVersion: u.legal_version || null, legalAgreedAt: u.legal_agreed_at || null, skin: u.ui_skin || null, profile: profile.publicOf(u)}; };
@@ -1018,7 +1018,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/admin/reports/:id/decision'(req, b) {
       const {admin} = adminAuth(req);
       const r = reports.decide(admin, req.params.id, b || {});
-      audit(admin.id, 'admin.report.decision', 'report:' + r.report.id, ip(req), {action: (b && b.action), adminUsername: admin.username});
+      audit(admin.id, 'admin.report.decision', 'report:' + r.report.id, ip(req), {action: (b && b.action), penalty: r.enforced && r.enforced.penalty, contentHidden: !!(r.enforced && r.enforced.contentHidden), userBanned: !!(r.enforced && r.enforced.userBanned), adminUsername: admin.username});
       return r;
     },
     'GET /api/admin/audit'(req) {
