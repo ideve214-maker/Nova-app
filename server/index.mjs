@@ -176,14 +176,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const audit = (actor, action, target, ip, detail) => q.audit.run(now(), actor || null, action, target || null, ip || null, detail ? JSON.stringify(detail) : null);
   const payRoot = payDir || pathJoin(dirname(fileURLToPath(import.meta.url)), '../data/pay');
   const pay = createPay(db, {now, vip, audit, dataDir: payRoot, env: payEnv || process.env});
-  const adminOps = createAdminOps(db, {now, vip, profile, pay, audit});
+  const adminOps = createAdminOps(db, {now, vip, profile, pay, audit, notifications});
   const featured = createFeatured(db, {now, posts, pubPost: adminOps.pubPost, audit});
   const secEvents = createSecurityEvents(db, {now});
   const alerts = createAlerts({webhook: alertWebhook, now, dataDir: dbPath && dbPath !== ':memory:' ? dbPath : '.'});
   const rate = rateMode === 'off' ? null : createRateLimit({now, mode: rateMode === 'strict' ? 'strict' : 'lenient', onEvent: ev => {
     secEvents.record({...ev, ip: ev.ip, actorId: ev.actorId});
   }});
-  const account = createAccount(db, {now, profile, hashPassword, verifyPassword, audit});
+  const account = createAccount(db, {now, profile, hashPassword, verifyPassword, audit, notifications, moderation: () => adminOps});
 
   const srvPostAuthor = (postId) => {
     const r = db.prepare('SELECT author_id FROM posts WHERE id=? AND deleted_at IS NULL').get(postId);
@@ -1149,6 +1149,34 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/admin/communities/:id'(req) {
       const {admin} = adminAuth(req);
       return adminOps.getCommunity(req.params.id);
+    },
+    'POST /api/admin/communities/:id/takedown'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.takedownCommunity(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/communities/:id/restore'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.restoreCommunity(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/communities/:id/warn'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.warnCommunity(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/communities/:id/delete'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.deleteCommunity(admin, req.params.id, b || {}, ip(req));
+    },
+    'POST /api/admin/communities/:id/members/:userId/remove'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.removeMember(admin, req.params.id, req.params.userId, b || {}, ip(req));
+    },
+    'POST /api/admin/communities/:id/members/:userId/mute'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.muteMember(admin, req.params.id, req.params.userId, b || {}, ip(req));
+    },
+    'POST /api/admin/communities/:id/members/:userId/unmute'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.unmuteMember(admin, req.params.id, req.params.userId, b || {}, ip(req));
     },
     'GET /api/admin/channels/:id/messages'(req) {
       const {admin} = adminAuth(req);

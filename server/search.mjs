@@ -19,7 +19,7 @@ export function createSearch(db, {profile, vip, now} = {}) {
   const cmQ = db.prepare(`
     SELECT c.* FROM communities c
     LEFT JOIN community_members m ON m.community_id=c.id AND m.user_id=? AND m.status='active'
-    WHERE c.deleted_at IS NULL
+    WHERE c.deleted_at IS NULL AND c.taken_down_at IS NULL
       AND (c.visibility='public' OR m.user_id IS NOT NULL)
       AND (c.name LIKE ? ESCAPE '\\' OR c.description LIKE ? ESCAPE '\\')
     ORDER BY c.created_at DESC LIMIT ?`);

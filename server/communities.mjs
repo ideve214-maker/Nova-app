@@ -18,9 +18,9 @@ export function createCommunities(db, {profile, vip, now}) {
   const insCm = db.prepare(`INSERT INTO communities(id,name,description,visibility,owner_id,created_at) VALUES(?,?,?,?,?,?)`);
   const byId = db.prepare('SELECT * FROM communities WHERE id=?');
   const byCode = db.prepare('SELECT * FROM community_invites WHERE code=?');
-  const pubList = db.prepare(`SELECT * FROM communities WHERE deleted_at IS NULL AND visibility='public' ORDER BY created_at DESC`);
+  const pubList = db.prepare(`SELECT * FROM communities WHERE deleted_at IS NULL AND taken_down_at IS NULL AND visibility='public' ORDER BY created_at DESC`);
   const mineList = db.prepare(`SELECT c.* FROM communities c JOIN community_members m ON m.community_id=c.id
-    WHERE c.deleted_at IS NULL AND m.user_id=? AND m.status='active' ORDER BY c.created_at DESC`);
+    WHERE c.deleted_at IS NULL AND c.taken_down_at IS NULL AND m.user_id=? AND m.status='active' ORDER BY c.created_at DESC`);
   const insMem = db.prepare(`INSERT INTO community_members(community_id,user_id,role,status,joined_at) VALUES(?,?,?,?,?)
     ON CONFLICT(community_id,user_id) DO UPDATE SET role=excluded.role, status=excluded.status, joined_at=excluded.joined_at`);
   const mem = db.prepare(`SELECT * FROM community_members WHERE community_id=? AND user_id=?`);
@@ -64,7 +64,7 @@ export function createCommunities(db, {profile, vip, now}) {
     return {id: row.id, name: row.name, kind: row.kind === 'announce' ? '公告' : '文字', kindKey: row.kind, isDefault: !!row.is_default};
   }
   function pubCm(row, user, {withMembers} = {}) {
-    if (!row || row.deleted_at) return null;
+    if (!row || row.deleted_at || row.taken_down_at) return null;
     const m = user ? mem.get(row.id, user.id) : null;
     const joined = !!(m && m.status === 'active');
     const banned = !!(m && m.status === 'banned');
@@ -81,9 +81,27 @@ export function createCommunities(db, {profile, vip, now}) {
     }
     return out;
   }
+  // 管理员下架的社区：对用户一律 404（含成员和所有者），说明已被下架。
+  const lastAppeal = db.prepare(`SELECT id,status,created_at FROM appeals WHERE kind='community' AND related=? AND user_id=? ORDER BY created_at DESC LIMIT 1`);
+  function assertLive(row, user) {
+    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+    if (row.taken_down_at) {
+      const extra = {communityId: row.id, takenDown: true};
+      if (user && Number(user.id) === Number(row.owner_id)) {
+        // 所有者看得到原因和申诉入口（用户端可直接据此显示“申诉”按钮）。
+        let ap = null;
+        try { ap = lastAppeal.get(row.id, Number(user.id)) || null; } catch {}
+        Object.assign(extra, {communityName: row.name, reason: row.takedown_reason || '', takenDownAt: row.taken_down_at, isOwner: true,
+          appealable: !(ap && ap.status === 'pending'),
+          appeal: {method: 'POST', path: '/api/appeals', kind: 'community', related: row.id},
+          appealStatus: ap ? ap.status : null, appealId: ap ? ap.id : null});
+      }
+      throw new ApiError(404, 'COMMUNITY_TAKEN_DOWN', '该社区已被管理员下架', extra);
+    }
+  }
   function getVisible(user, id) {
     const row = byId.get(id);
-    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+    assertLive(row, user);
     const m = user ? mem.get(id, user.id) : null;
     const inCm = m && m.status === 'active';
     if (row.visibility === 'private' && !inCm) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
@@ -123,7 +141,7 @@ export function createCommunities(db, {profile, vip, now}) {
   }
   function join(user, id, body = {}) {
     const row = byId.get(id);
-    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+    assertLive(row, user);
     const m = mem.get(id, user.id);
     if (m && m.status === 'banned') throw new ApiError(403, 'BANNED', '你已被这个社区封禁');
     if (m && m.status === 'active') return {community: pubCm(row, user), already: true};
@@ -139,7 +157,7 @@ export function createCommunities(db, {profile, vip, now}) {
   }
   function apply(user, id) {
     const row = byId.get(id);
-    if (!row || row.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+    assertLive(row, user);
     const m = mem.get(id, user.id);
     if (m && m.status === 'banned') throw new ApiError(403, 'BANNED', '你已被这个社区封禁');
     if (m && m.status === 'active') return {community: pubCm(row, user), already: true, pending: false};
@@ -223,6 +241,10 @@ export function createCommunities(db, {profile, vip, now}) {
     if (!ch || ch.deleted_at) throw new ApiError(404, 'NOT_FOUND', '频道不存在');
     const row = getVisible(user, ch.community_id);
     requireMem(row, user, ch.kind === 'announce' ? 'postAnn' : 'post');
+    const mm = mem.get(row.id, user.id);
+    if (mm && mm.muted_until && mm.muted_until > now()) {
+      throw new ApiError(403, 'MUTED', '你已被管理员禁言，暂时不能在这个社区发言', {mutedUntil: mm.muted_until});
+    }
     const text = String((body && body.text) || '').trim();
     if (!len(text)) throw new ApiError(400, 'BAD_TEXT', '请写下内容');
     vip.requireTextLength(user, 'channel', text);

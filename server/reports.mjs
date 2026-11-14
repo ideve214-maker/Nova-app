@@ -14,7 +14,7 @@ function penaltyOf(body, note) {
   const explicit = String(body.penalty || '').trim();
   if (PENALTIES.has(explicit)) return explicit;
   const n = String(note || '');
-  const del = /删除(内容|帖子|评论|消息)/.test(n);
+  const del = /删除(内容|帖子|评论|消息|社区)/.test(n) || /下架/.test(n);
   const ban = /封禁/.test(n);
   if (del && ban) return 'delete_ban';
   if (del) return 'delete';
@@ -312,6 +312,17 @@ export function createReports(db, {now, notifications, profile, moderation} = {}
             if (!(e instanceof ApiError) || e.s !== 404) throw e;
             enforced.skipped.push('delete:not_found');
           }
+        } else if (row.target_type === 'community' && m && m.takedownCommunity) {
+          // 社区举报的“删除内容”= 下架社区（可在管理端恢复）。所有者收到可申诉的下架通知，下面不再给所有者重复发举报结果。
+          try {
+            const r = m.takedownCommunity(admin, row.target_id, {reason});
+            enforced.contentHidden = true;
+            enforced.communityTakenDown = true;
+            if (r.already) enforced.skipped.push('takedown:already');
+          } catch (e) {
+            if (!(e instanceof ApiError) || e.s !== 404) throw e;
+            enforced.skipped.push('delete:not_found');
+          }
         } else if (row.target_type === 'message') {
           const ids = parseIds(row.message_ids);
           const all = ids.length ? ids : [String(row.target_id)];
@@ -343,7 +354,8 @@ export function createReports(db, {now, notifications, profile, moderation} = {}
       const result = action === 'reject' ? '未成立（已驳回）' : '已处理';
       const bodyText = `你关注的举报（${fresh.reason}）处理结论：${result}` + (note ? '。说明：' + note : '。') + ' 如有疑问可再次联系管理员。';
       const reporterText = `你提交的举报（${fresh.reason}）处理结论：${result}` + (note ? '。说明：' + note : '。') + ' 如需申诉，请通过再次举报或联系运营说明情况。';
-      const penaltyText = enforced.contentHidden && enforced.userBanned ? '相关内容已被删除，账号已被封禁。'
+      const penaltyText = enforced.communityTakenDown ? ('相关社区已被下架' + (enforced.userBanned ? '，账号已被封禁。' : '。'))
+        : enforced.contentHidden && enforced.userBanned ? '相关内容已被删除，账号已被封禁。'
         : enforced.contentHidden ? '相关内容已被删除，这是一次警告，请遵守社区规范。'
         : enforced.userBanned ? '账号已被封禁。'
         : penalty === 'warn' ? '这是一次警告，请遵守社区规范。' : '';
@@ -358,7 +370,7 @@ export function createReports(db, {now, notifications, profile, moderation} = {}
         dedupeKey: 'report:' + fresh.id + ':result',
       });
       payload(fresh.reporter_id, '举报处理结果', reporterText);
-      if (fresh.target_user_id != null && Number(fresh.target_user_id) !== Number(fresh.reporter_id)) {
+      if (fresh.target_user_id != null && Number(fresh.target_user_id) !== Number(fresh.reporter_id) && !(enforced.communityTakenDown && !enforced.userBanned)) {
         payload(fresh.target_user_id, '举报处理结果', targetText);
       }
       notified = true;

@@ -20,7 +20,7 @@ export function createPolls(db, {now, posts, follows, communities}) {
   const anyV = db.prepare('SELECT 1 FROM poll_votes WHERE poll_id=? AND user_id=? LIMIT 1');
   const postBy = db.prepare('SELECT * FROM posts WHERE id=?');
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
-  const cmMem = db.prepare("SELECT * FROM community_members WHERE community_id=? AND user_id=? AND status='active'");
+  const cmMem = db.prepare("SELECT m.* FROM community_members m JOIN communities c ON c.id=m.community_id AND c.deleted_at IS NULL AND c.taken_down_at IS NULL WHERE m.community_id=? AND m.user_id=? AND m.status='active'");
 
   function validateSpec(spec = {}) {
     const question = String(spec.question || '').trim();

@@ -4,7 +4,10 @@ import {ApiError} from './errors.mjs';
 
 function nid(p) { return p + '_' + randomBytes(8).toString('hex'); }
 
-export function createAccount(db, {now = Date.now, profile, hashPassword, verifyPassword, audit} = {}) {
+export function createAccount(db, {now = Date.now, profile, hashPassword, verifyPassword, audit, notifications, moderation} = {}) {
+  const mod = () => (typeof moderation === 'function' ? moderation() : moderation) || null;
+  const cmById = db.prepare('SELECT * FROM communities WHERE id=?');
+  const pendingFor = db.prepare("SELECT * FROM appeals WHERE user_id=? AND kind=? AND related=? AND status='pending' ORDER BY created_at DESC LIMIT 1");
   const userBy = db.prepare('SELECT * FROM users WHERE id=?');
   const userByLogin = db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE OR email = ?');
   const setDeletedSafe = db.prepare(`UPDATE users SET username=?, email=?, password_hash=?, status='deleted', must_change_pw=0, vip_until=NULL WHERE id=?`);
@@ -62,8 +65,19 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
   function submitAppeal(user, body = {}) {
     const text = String(body.body || body.reason || body.text || '').trim();
     if (text.length < 4 || text.length > 4000) throw new ApiError(400, 'BAD_BODY', '请填写 4–4000 字的申诉说明');
-    const kind = String(body.kind || 'other').slice(0, 32);
-    const related = body.related || body.reportId || body.target || null;
+    let kind = String(body.kind || body.targetType || body.target_type || 'other').slice(0, 32);
+    let related = body.related || body.communityId || body.targetId || body.reportId || body.target || null;
+    if (kind === 'community' || kind === 'community_takedown') {
+      // 社区下架申诉：只有该社区所有者、且社区确实处于下架状态才能提交；同一社区只保留一条待处理申诉。
+      kind = 'community';
+      const cm = related ? cmById.get(String(related)) : null;
+      if (!cm || cm.deleted_at) throw new ApiError(404, 'NOT_FOUND', '社区不存在');
+      if (Number(cm.owner_id) !== Number(user.id)) throw new ApiError(403, 'FORBIDDEN', '只有社区所有者可以申诉');
+      if (!cm.taken_down_at) throw new ApiError(400, 'NOT_TAKEN_DOWN', '该社区没有被下架，无需申诉');
+      related = cm.id;
+      const dup = pendingFor.get(user.id, kind, cm.id);
+      if (dup) return {appeal: pub(dup), already: true};
+    }
     const id = nid('ap');
     insAppeal.run(id, user.id, kind, text, related && String(related).slice(0, 80), now());
     if (audit) audit(user.id, 'user.appeal', 'appeal:' + id, body._ip || null, {kind});
@@ -82,11 +96,22 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
 
   function pub(r) {
     if (!r) return null;
-    return {
+    const out = {
       id: r.id, userId: r.user_id, kind: r.kind, body: r.body, related: r.related,
       status: r.status, createdAt: r.created_at, decidedAt: r.decided_at,
       decisionNote: r.decision_note || null,
+      targetType: r.kind === 'community' ? 'community' : (r.kind === 'ban' ? 'user' : null),
+      targetId: r.kind === 'community' ? r.related : (r.kind === 'ban' ? r.user_id : null),
     };
+    const u = userBy.get(r.user_id);
+    if (u) out.user = {id: u.id, username: u.username};
+    if (r.kind === 'community' && r.related) {
+      const cm = cmById.get(String(r.related));
+      if (cm) out.community = {id: cm.id, name: cm.name, description: cm.description, visibility: cm.visibility, ownerId: cm.owner_id,
+        status: cm.deleted_at ? 'deleted' : cm.taken_down_at ? 'taken_down' : 'active',
+        takedownReason: cm.takedown_reason || null, takenDownAt: cm.taken_down_at || null};
+    }
+    return out;
   }
 
   function listMine(user, q = {}) {
@@ -109,12 +134,31 @@ export function createAccount(db, {now = Date.now, profile, hashPassword, verify
     }
     const status = (action === 'accept' || action === 'accepted') ? 'accepted' : 'rejected';
     const note = String(body.note || body.reason || '').trim().slice(0, 2000);
+    if (row.status === 'accepted' || row.status === 'rejected') return {appeal: pub(row), already: true};
     decide.run(status, now(), admin.id, note || null, row.id);
     if (status === 'accepted' && (row.kind === 'ban' || body.unban)) {
       try { db.prepare("UPDATE users SET status='active' WHERE id=? AND status='banned'").run(row.user_id); } catch {}
     }
+    let restored = false;
+    const cm = row.kind === 'community' && row.related ? cmById.get(String(row.related)) : null;
+    if (status === 'accepted' && cm) {
+      const m = mod();
+      if (m && m.restoreCommunity && cm.taken_down_at && !cm.deleted_at) {
+        m.restoreCommunity(admin, cm.id, {reason: '申诉通过', notify: false}, ip);
+        restored = true;
+      }
+    }
+    if (notifications && typeof notifications.push === 'function') {
+      const label = cm ? `社区「${cm.name}」的下架申诉` : '你的申诉';
+      const text = status === 'accepted'
+        ? `${label}已通过` + (restored ? '，社区已恢复上架' : '') + (note ? `。说明：${note}` : '。')
+        : `${label}未通过` + (note ? `。说明：${note}` : '。') + ' 如有疑问请联系管理员。';
+      notifications.push(row.user_id, {kind: 'appeal_result', title: status === 'accepted' ? '申诉已通过' : '申诉未通过', body: text,
+        refType: cm ? 'community' : 'appeal', refId: cm ? cm.id : row.id, actorId: null, dedupeKey: 'appeal:' + row.id + ':result',
+        data: {type: 'appeal_result', appealId: row.id, status, kind: row.kind, communityId: cm ? cm.id : null, communityName: cm ? cm.name : null, restored, note: note || null}});
+    }
     if (audit) audit(admin.id, 'admin.appeal.' + status, 'appeal:' + row.id, ip, {userId: row.user_id, note, adminUsername: admin.username});
-    return {appeal: pub(appealBy.get(row.id))};
+    return {appeal: pub(appealBy.get(row.id)), restored};
   }
 
   function get(id) {
