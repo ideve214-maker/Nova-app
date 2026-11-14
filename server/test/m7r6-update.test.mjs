@@ -242,6 +242,11 @@ test('小游戏宫格使用自绘 SVG 图标，不再用单字', () => {
 
 test('打包脚本与说明文档存在', () => {
   assert.ok(existsSync(join(root, 'scripts/make-bundle.mjs')));
+  const mk=readFileSync(join(root, 'scripts/make-bundle.mjs'), 'utf8');
+  assert.match(mk, /requireDeployConfig/);
+  assert.match(mk, /NOVA_API_BASE/);
+  assert.match(mk, /NOVA_DISABLE_DEMO/);
+  assert.match(mk, /NOVA_UPDATE_MANIFEST_URL/);
   assert.ok(existsSync(join(root, 'docs/hot-update.md')));
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   assert.equal(pkg.dependencies['@capgo/capacitor-updater'], '^7.53.0');

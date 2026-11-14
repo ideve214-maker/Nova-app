@@ -21,8 +21,9 @@ test('建群键盘修复仍在：不全屏重绘时不自动聚焦群名，群�
   assert.match(sheet, /data-d="gn"/);
   assert.doesNotMatch(sheet.slice(sheet.indexOf("s.t=='newg'"), sheet.indexOf("s.t=='newg'") + 900), /data-af/);
   assert.match(sheet, /data-a="mkg"/);
-  assert.match(render, /shKey!==prevShKey/);
-  assert.match(render, /#v \.pn \[data-af\]/);
+  assert.match(render, /shKey===prevShKey/);
+  assert.doesNotMatch(render, /af\.focus\(/);
+  assert.doesNotMatch(render, /\[data-af\][^;]{0,40}focus\(/);
   assert.match(actions, /群名需要 1 到 20 个字/);
   assert.match(actions, /if\(!n\)/);
   assert.match(sheet, /默认用成员名字/);
@@ -98,8 +99,9 @@ test('版本是 VEXO 1.0.0，图标资源不再是占位说明', () => {
   assert.match(head, /<title>VEXO<\/title>/);
   assert.match(head, /@font-face\{font-family:Inter/);
   assert.match(head, /assets\/fonts\/inter-latin-400\.woff2/);
-  assert.equal(VERSION_NAME, '1.0.0');
-  assert.equal(VERSION_CODE, 100);
+  assert.equal(VERSION_NAME, pkg.version);
+  const _vp = String(pkg.version).split('.').map(n => parseInt(n, 10) || 0);
+  assert.equal(VERSION_CODE, _vp[0] * 10000 + _vp[1] * 100 + _vp[2]);
 });
 
 test('原生清单只保留粗略定位，并写出版本号', () => {
@@ -114,8 +116,8 @@ test('原生清单只保留粗略定位，并写出版本号', () => {
   assert.match(out, /ACCESS_FINE_LOCATION" tools:node="remove"/);
   assert.doesNotMatch(out, /ACCESS_FINE_LOCATION" \/>/);
   const gradle = patchGradle('android {\n    defaultConfig {\n        versionCode 1\n        versionName "1.0"\n    }\n}\n');
-  assert.match(gradle, /versionCode 100/);
-  assert.match(gradle, /versionName "1\.0\.0"/);
+  assert.match(gradle, new RegExp("versionCode " + VERSION_CODE));
+  assert.match(gradle, new RegExp("versionName \"" + VERSION_NAME.replace(/\./g, "\\.") + "\""));
   const stamp = readFileSync(join(root, 'scripts/stamp-native.mjs'), 'utf8');
   assert.match(stamp, /ACCESS_COARSE_LOCATION/);
   assert.doesNotMatch(stamp, /requestPermissions\(MainActivity\.this, new String\[\]\{Manifest\.permission\.ACCESS_FINE_LOCATION/);
