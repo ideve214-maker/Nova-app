@@ -43,6 +43,7 @@ function adoptChMsg(m){
   const at=m.createdAt||(m.createdAtUtc?Date.parse(m.createdAtUtc):0);
   const row=[who,'',m.text||'',m.id];
   row.at=at;
+  if(m.media)row.media=m.media;
   return row;
 }
 function chMsgSrc(cid){

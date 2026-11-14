@@ -45,8 +45,12 @@ export const MEDIA_QUOTA = Object.freeze({basic: 200 * 1024 * 1024, vip: 2 * 102
 function mimeKind(mime, name = '') {
   const m = String(mime || '').toLowerCase().split(';')[0].trim();
   const ext = String(name).split('.').pop().toLowerCase();
+  // 先按 MIME 判断，再按扩展名：audio/webm 的语音不能因为扩展名 .webm 被当成视频。
   for (const [k, v] of Object.entries(MEDIA_LIMITS)) {
-    if (v.mime.some(x => x.split(';')[0] === m) || v.ext.includes(ext)) return k;
+    if (v.mime.some(x => x.split(';')[0] === m)) return k;
+  }
+  for (const [k, v] of Object.entries(MEDIA_LIMITS)) {
+    if (v.ext.includes(ext)) return k;
   }
   return null;
 }
@@ -113,6 +117,9 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
 
   const lookHook = {fn: null};
   function attachLook(fn) { lookHook.fn = typeof fn === 'function' ? fn : null; }
+  // r10：频道消息里的媒体，能看这个频道的人都能看。
+  const chHook = {fn: null};
+  function attachChannelAccess(fn) { chHook.fn = typeof fn === 'function' ? fn : null; }
   function canAccess(user, row) {
     if (!row || row.deleted_at) return false;
     if (Number(row.owner_id) === Number(user.id)) return true;
@@ -121,6 +128,9 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     if (row.conversation_id) {
       const m = mem.get(row.conversation_id, Number(user.id));
       if (m) return true;
+    }
+    if (row.channel_id && chHook.fn) {
+      try { if (chHook.fn(user, row.channel_id)) return true; } catch {}
     }
     return false;
   }
@@ -278,13 +288,28 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     return pub(byId.get(mediaId));
   }
 
+  function attachToChannel(user, mediaId, channelId) {
+    const row = byId.get(mediaId);
+    if (!row || row.deleted_at || Number(row.owner_id) !== Number(user.id)) throw new ApiError(404, 'NOT_FOUND', '找不到这个文件');
+    if (row.conversation_id || row.channel_id) throw new ApiError(400, 'MEDIA_USED', '这个文件已经发送过了');
+    db.prepare('UPDATE media SET channel_id=? WHERE id=?').run(channelId, mediaId);
+    return pub(byId.get(mediaId));
+  }
+  function assertOwnFree(user, mediaId) {
+    const row = byId.get(mediaId);
+    if (!row || row.deleted_at || Number(row.owner_id) !== Number(user.id)) throw new ApiError(404, 'NOT_FOUND', '找不到这个文件');
+    if (row.conversation_id || row.channel_id) throw new ApiError(400, 'MEDIA_USED', '这个文件已经发送过了');
+    return pub(row);
+  }
+  function pubById(id) { return id ? pub(byId.get(id)) : null; }
+
   function usage(user) {
     const u = usageOf(user), q = quotaOf(user);
     return {used: u, quota: q, remain: Math.max(0, q - u), vip: isVip(user)};
   }
 
   return {
-    upload, get, ticket, fileOf, remove, purgeDeleted, attachToMessage, usage,
+    upload, get, ticket, fileOf, remove, purgeDeleted, attachToMessage, usage, attachChannelAccess, attachToChannel, assertOwnFree, pubById,
     canAccess, attachLook, pub, verifyTicket, signTicket, quotaOf, usageOf,
     root, MEDIA_LIMITS, MEDIA_QUOTA, TICKET_MS, defaultScan,
     _byId: byId,

@@ -164,7 +164,7 @@ async function sendNet(cid,text,extra){
 function stopEvents(){if(S.evtAbort){try{S.evtAbort.abort()}catch(e){}S.evtAbort=null}S.evtOn=0}
 function applyEvent(ev,data){
   if(ev&&ev.startsWith('friend.')&&typeof loadFriends==='function'){loadFriends().then(()=>{if(typeof render==='function')render()});}
-  if(ev==='draft.sync'&&data){S.drafts=S.drafts||{};const cid=data.conversationId;if(data.cleared||!(data.draft&&data.draft.text)){delete S.drafts[cid];if(typeof storeLocalDraft==='function')storeLocalDraft(cid,'')}else{S.drafts[cid]={text:data.draft.text,replyToId:data.draft.replyToId,updatedAt:data.draft.updatedAt};if(typeof storeLocalDraft==='function')storeLocalDraft(cid,data.draft.text,data.draft.replyToId)}const cur=S.st&&S.st[S.st.length-1];if(cur&&String(cur)==='chat:'+cid&&typeof applyDraft==='function')applyDraft(cid);return}
+  if(ev==='draft.sync'&&data){S.drafts=S.drafts||{};const cid=data.conversationId;if(data.cleared||!(data.draft&&data.draft.text)){delete S.drafts[cid];if(typeof storeLocalDraft==='function')storeLocalDraft(cid,'')}else{S.drafts[cid]={text:data.draft.text,replyToId:data.draft.replyToId,updatedAt:data.draft.updatedAt};if(typeof storeLocalDraft==='function')storeLocalDraft(cid,data.draft.text,data.draft.replyToId)}const cur=S.st&&S.st[S.st.length-1];const ae=typeof document!=='undefined'&&document.activeElement;const typing=ae&&ae.dataset&&ae.dataset.d==='chin';if(cur&&String(cur)==='chat:'+cid&&!typing&&typeof applyDraft==='function')applyDraft(cid);return}
   if(ev==='conversation.updated'&&data&&data.conversationId){const c=typeof cvf==='function'?cvf(data.conversationId):null;if(c&&Object.prototype.hasOwnProperty.call(data,'avatar'))c.gp=data.avatar||'';if(typeof render==='function')render();return}
   if(ev==='conversation.typing'&&data){if(typeof noteTyping==='function')noteTyping(data);return}
   if(ev==='conversation.reaction'&&data){const cid=data.conversationId,arr=S.messages&&S.messages[cid];if(arr){const i=arr.findIndex(x=>x[5]==data.messageId);if(i>=0)arr[i].reactions=data.reactions||[]}if(typeof render==='function')render();return}
@@ -294,7 +294,7 @@ function draftKey(){const id=(SESSION&&SESSION.user&&SESSION.user.id)||(D&&D.u&&
 function loadLocalDrafts(){try{return JSON.parse(localStorage.getItem(draftKey())||'{}')||{}}catch(e){return {}}}
 function storeLocalDraft(cid,text,replyToId){const all=loadLocalDrafts();if(!String(text||'').trim())delete all[cid];else all[cid]={text,replyToId:replyToId||null,updatedAt:Date.now()};try{localStorage.setItem(draftKey(),JSON.stringify(all))}catch(e){}}
 function localDraftOf(cid){return loadLocalDrafts()[cid]||null}
-let _draftTimer=null,_draftCid=null;
+let _draftTimer=null,_draftCid=null,_draftGen=0;
 function persistChatDraft(cid,immediate){
   if(!cid)return;
   const text=(S.d&&S.d.chin)||'';
@@ -317,7 +317,10 @@ function applyDraft(cid){
   else if(S.replyTo&&S.replyTo.cid==cid&&!(pick&&pick.replyToId))S.replyTo=null;
   const fill=()=>{const i=document.querySelector('[data-d=chin]');if(i)i.value=S.d.chin||''};
   if(typeof usingNet==='function'&&usingNet()&&SESSION){
+    /* 请求期间如果已经发送（草稿被清掉）、换了会话或又打了字，服务器回来的旧草稿就不要再填回输入框 */
+    const gen=++_draftGen,at=S.d.chin;
     return api('GET','/api/conversations/'+cid+'/draft').then(r=>{
+      if(gen!==_draftGen||S.d.chin!==at)return;
       if(r.s===200&&r.j.draft&&r.j.draft.text){
         const srv=r.j.draft;
         const newer=!pick||(srv.updatedAt&&pick.updatedAt&&srv.updatedAt>=pick.updatedAt)||!pick.updatedAt;
@@ -329,6 +332,9 @@ function applyDraft(cid){
   fill();
 }
 function clearChatDraft(cid){
+  /* 发送后取消还没发出的草稿保存，否则草稿会在发送之后才写到服务器，输入框又冒出刚发的字 */
+  if(_draftTimer){clearTimeout(_draftTimer);_draftTimer=null}
+  _draftGen++;
   S.drafts=S.drafts||{};delete S.drafts[cid];storeLocalDraft(cid,'');
   if(typeof usingNet==='function'&&usingNet()&&SESSION)api('DELETE','/api/conversations/'+cid+'/draft');
 }

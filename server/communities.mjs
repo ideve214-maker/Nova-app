@@ -42,7 +42,7 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
   const revInv = db.prepare(`UPDATE community_invites SET revoked_at=? WHERE id=? AND community_id=?`);
   const useInv = db.prepare(`UPDATE community_invites SET uses=uses+1 WHERE id=?`);
   const delCm = db.prepare(`UPDATE communities SET deleted_at=? WHERE id=?`);
-  const insMsg = db.prepare(`INSERT INTO community_messages(id,channel_id,author_id,text,created_at) VALUES(?,?,?,?,?)`);
+  const insMsg = db.prepare(`INSERT INTO community_messages(id,channel_id,author_id,text,created_at,media_id) VALUES(?,?,?,?,?,?)`);
   const msgs = db.prepare(`SELECT * FROM community_messages WHERE channel_id=? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?`);
 
   function authorOf(id) {
@@ -277,12 +277,20 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
       throw new ApiError(403, 'MUTED', '你已被管理员禁言，暂时不能在这个社区发言', {mutedUntil: mm.muted_until});
     }
     const text = String((body && body.text) || '').trim();
-    if (!len(text)) throw new ApiError(400, 'BAD_TEXT', '请写下内容');
-    if (deps.blockwords) deps.blockwords.assertPlatform(text);
-    vip.requireTextLength(user, 'channel', text);
+    const mediaId = body && body.mediaId ? String(body.mediaId) : null;
+    if (!len(text) && !mediaId) throw new ApiError(400, 'BAD_TEXT', '请写下内容');
+    if (mediaId && deps.media) deps.media.assertOwnFree(user, mediaId);
+    if (text && deps.blockwords) deps.blockwords.assertPlatform(text);
+    if (text) vip.requireTextLength(user, 'channel', text);
     const id = nid('ms'), t = now();
-    insMsg.run(id, chId, user.id, text, t);
-    return {message: {id, channelId: chId, author: authorOf(user.id), text, createdAt: t, createdAtUtc: new Date(t).toISOString()}};
+    insMsg.run(id, chId, user.id, text, t, mediaId);
+    const media = mediaId && deps.media ? deps.media.attachToChannel(user, mediaId, chId) : null;
+    return {message: {id, channelId: chId, author: authorOf(user.id), text, media, createdAt: t, createdAtUtc: new Date(t).toISOString()}};
+  }
+  function canReadChannel(user, chId) {
+    const ch = chBy.get(chId);
+    if (!ch || ch.deleted_at) return false;
+    try { const row = getVisible(user, ch.community_id); assertOpen(row); requireMem(row, user, 'post', 1); return true; } catch { return false; }
   }
   function listMessages(user, chId, q = {}) {
     const ch = chBy.get(chId);
@@ -291,7 +299,7 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     assertOpen(row);
     requireMem(row, user, 'post', 1);
     const limit = Math.min(Math.max(+(q.limit) || 50, 1), 100);
-    return {messages: msgs.all(chId, limit).reverse().map(r => ({id: r.id, channelId: chId, author: authorOf(r.author_id), text: r.text, createdAt: r.created_at, createdAtUtc: new Date(r.created_at).toISOString()})),
+    return {messages: msgs.all(chId, limit).reverse().map(r => ({id: r.id, channelId: chId, author: authorOf(r.author_id), text: r.text, media: r.media_id && deps.media ? deps.media.pubById(r.media_id) : null, createdAt: r.created_at, createdAtUtc: new Date(r.created_at).toISOString()})),
       pins: pinList.all(chId).map(p => p.message_id)};
   }
   // r10：频道消息删除与置顶（之前只在本机改，联网后点了没反应）。
@@ -391,11 +399,12 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     if (!ex) return;
     if (ex.notifications) deps.notifications = ex.notifications;
     if (ex.blockwords) deps.blockwords = ex.blockwords;
+    if (ex.media) deps.media = ex.media;
   }
   return {
     create, update, get, list, join, apply, leave, members, setMemberRole, kick,
     addChannel, renameChannel, removeChannel, postMessage, listMessages,
     invite, listInvites, revokeInvite, joinByCode, dissolve, getVisible, ROLE_CN, roleOf,
-    peek, canAppeal, attach, deleteMessage, pinMessage, unpinMessage, look,
+    peek, canAppeal, attach, deleteMessage, pinMessage, unpinMessage, look, canReadChannel,
   };
 }

@@ -117,7 +117,7 @@ function hydrateLook(root){
 function hydrateMedia(root){
   if(typeof hydrateLook==='function')hydrateLook(root);
   if(typeof SESSION==='undefined'||!SESSION)return;
-  (root||document).querySelectorAll('img[data-mid]:not([data-mh]),video[data-mid]:not([data-mh]),source[data-mid]:not([data-mh])').forEach(el=>{
+  (root||document).querySelectorAll('img[data-mid]:not([data-mh]),video[data-mid]:not([data-mh]),audio[data-mid]:not([data-mh]),source[data-mid]:not([data-mh])').forEach(el=>{
     el.setAttribute('data-mh','1');
     const id=el.getAttribute('data-mid');
     mediaTicket(id).then(t=>{

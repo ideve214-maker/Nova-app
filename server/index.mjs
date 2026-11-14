@@ -59,6 +59,25 @@ const bad = (code, msg, s = 400) => new HttpError(s, code, msg);
 
 // clock 仅用于测试注入固定时间；生产一律用系统时间。
 // env：只有严格等于 'development' 才会开启 VIP 测试切换（默认 production）；任何拼写变体都按生产处理。
+// r10：媒体文件支持 Range（iOS 播放音频/视频必须能按段请求，否则语音和视频放不出来）。
+function sendRanged(req, res, buf, headers) {
+  const total = buf.length;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || '').trim());
+  if (m && (m[1] !== '' || m[2] !== '')) {
+    let start, end;
+    if (m[1] === '') { start = Math.max(0, total - Number(m[2])); end = total - 1; }
+    else { start = Number(m[1]); end = m[2] === '' ? total - 1 : Math.min(Number(m[2]), total - 1); }
+    if (start >= total || start > end) {
+      res.writeHead(416, {...headers, 'Content-Range': 'bytes */' + total, 'Accept-Ranges': 'bytes'});
+      return res.end();
+    }
+    res.writeHead(206, {...headers, 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${total}`, 'Content-Length': end - start + 1});
+    return res.end(req.method === 'HEAD' ? undefined : buf.subarray(start, end + 1));
+  }
+  res.writeHead(200, {...headers, 'Accept-Ranges': 'bytes', 'Content-Length': total});
+  return res.end(req.method === 'HEAD' ? undefined : buf);
+}
+
 export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CORS_ORIGIN || '*', clock = Date.now,
   env = process.env.NOVA_ENV || 'production', vipTestToggle = process.env.NOVA_VIP_TEST_TOGGLE !== '0',
   mediaDir, mediaScan, eventsOpts = {},
@@ -199,7 +218,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   }});
   const account = createAccount(db, {now, profile, hashPassword, verifyPassword, audit, notifications, moderation: () => adminOps});
   account.attach({communities});
-  communities.attach({notifications, blockwords});
+  communities.attach({notifications, blockwords, media});
+  media.attachChannelAccess((user, chId) => communities.canReadChannel(user, chId));
   schedule.attach({blockwords});
   posts.attach({assertPlatform: (text) => blockwords.assertPlatform(text)});
 
@@ -1792,15 +1812,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         const who = req.query.ticket ? {ticket: req.query.ticket} : auth(req).user;
         const f = media.fileOf(who, mid, {preview});
         const data = readFileSync(f.path);
-        res.writeHead(200, {
+        return sendRanged(req, res, data, {
           ...corsHeaders(req),
           'Content-Type': f.mime,
-          'Content-Length': data.length,
-          'Content-Disposition': (preview ? 'inline' : 'inline') + '; filename="' + (f.name || 'file').replace(/["\\]/g, '') + '"',
+          'Content-Disposition': "inline; filename=\"" + String(f.name || 'file').replace(/[^\x20-\x7e]|["\\]/g, '_') + "\"; filename*=UTF-8''" + encodeURIComponent(f.name || 'file'),
           'Cache-Control': 'private, max-age=60',
           'X-Content-Type-Options': 'nosniff',
         });
-        return res.end(data);
       } catch (e) {
         if (e instanceof HttpError || e instanceof VipError || e instanceof ApiError) send(e.s, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
         else { slog('error', 'internal_error', {error: e.message, path}); try { alerts.crash(e, {path}); } catch {} send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}}); }
@@ -1811,8 +1829,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     if (req.method === 'GET' && mkMedia) {
       try {
         const f = marketing.mediaFile(mkMedia[1]);
-        res.writeHead(200, {...corsHeaders(req), 'Content-Type': f.mime, 'Content-Length': f.buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'});
-        return res.end(f.buf);
+        return sendRanged(req, res, f.buf, {...corsHeaders(req), 'Content-Type': f.mime, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'});
       } catch (e) {
         if (e instanceof ApiError) return send(e.s, {error: {code: e.code, message: e.message}});
         return send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}});
