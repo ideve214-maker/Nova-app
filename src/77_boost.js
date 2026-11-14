@@ -29,7 +29,7 @@ async function boostLoad(pid){
   const open=BOOST.orders.find(x=>x.status==='pending'||x.status==='awaiting_review');if(open)BOOST.order=open;
   if(S.sh&&S.sh.t==='boost')render();
 }
-function fmtNum(n){n=Number(n)||0;if(typeof LANG!=='undefined'&&LANG==='en')return n>=1000?(Math.round(n/100)/10)+'k':String(n);return n>=10000?(Math.round(n/1000)/10)+'万':String(n)}
+function fmtNum(n){n=Number(n)||0;if(typeof fmtCount==='function')return fmtCount(n);if(typeof LANG!=='undefined'&&LANG==='en')return n>=1000?(Math.round(n/100)/10)+'k':String(n);return n>=10000?(Math.round(n/1000)/10)+'万':String(n)}
 function boostOrderCard(o){
   const open=o.status==='pending'||o.status==='awaiting_review';
   const qr=open&&o.qrUrl?`<img class="vqr" src="${esc(adUrl(o.qrUrl))}" alt="${esc(bzPay(o))}" width="200" height="200">`:'';

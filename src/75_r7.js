@@ -366,7 +366,7 @@ const XI={
   sh:'<path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 13v6.5h14V13"/>'
 };
 const xic=(k,fill)=>`<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><g fill="${fill?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${XI[k]}</g></svg>`;
-function fmtN(n){n=Number(n)||0;if(n<=0)return '';if(n<1000)return String(n);if(n<10000)return (n/1000).toFixed(n<2000?1:0).replace(/\.0$/,'')+'K';return (n/10000).toFixed(1).replace(/\.0$/,'')+'万'}
+function fmtN(n){n=Number(n)||0;if(n<=0)return '';if(n>=10000||typeof fmtCount==='function')return fmtCount(n);if(n<1000)return String(n);if(n<10000)return (n/1000).toFixed(n<2000?1:0).replace(/\.0$/,'')+'K';return (n/10000).toFixed(1).replace(/\.0$/,'')+'万'}
 function lsSet(k){try{return new Set(JSON.parse(localStorage.getItem(k)||'[]'))}catch(e){return new Set()}}
 function lsSave(k,set,cap){try{let a=[...set];if(cap&&a.length>cap)a=a.slice(a.length-cap);localStorage.setItem(k,JSON.stringify(a))}catch(e){}}
 /* 阅读量：服务器还没有阅读量接口；这台设备看过就记 1 次（见 docs/r7-server-notes.md）*/

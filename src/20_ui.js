@@ -7,6 +7,11 @@ const lookPicks=(list,act,id)=>`<div class="picks">${list.map((src,i)=>`<button 
 const filePick=(kind,id,label)=>`<label class="pb filepick">${label}<input type="file" accept="image/*" data-pick="${kind}" data-id="${esc(id||'')}"></label>`;
 const avx=(c,l,s)=>`<span class="av" style="width:${s}px;height:${s}px;background:${c};color:${c=='#C8A96A'?'#1A1408':'#fff'};font-size:${Math.round(s*.42)}px">${esc(l)}</span>`;
 const phImg=(src,s)=>`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${esc(src)}" alt=""></span>`;
+/* 2.0.2：统一的数字缩写。1 万以上缩写：中文 4.6万 / 1万 / 1.2亿，英文 45.8K / 1.2M。 */
+function fmtCount(n){n=Math.max(0,Math.floor(Number(n)||0));if(n<10000)return String(n);
+  const t=(v,u)=>{const r=Math.round(v*10)/10;return String(r).replace(/\.0$/,'')+u};
+  if(typeof LANG!=='undefined'&&LANG==='en'){if(n<999950)return t(n/1e3,'K');if(n<999950000)return t(n/1e6,'M');return t(n/1e9,'B')}
+  if(n<99995000)return t(n/1e4,'万');return t(n/1e8,'亿')}
 function cssUrl(src){return String(src||'').replace(/["'\\\n\r<>]/g,'')}
 function bgCss(src){const s=cssUrl(src);if(!s)return 'background:#1a1c20';if(s.startsWith('linear-gradient')||s.startsWith('#'))return 'background:'+s;return "background-color:#1a1c20;background-image:url('"+s+"');background-size:cover;background-position:center"}
 /* r10：头像只有两种——官方默认头像，或者从相册导入的图片（存服务器，别人也能看到）。去掉了「颜色 + 文字」头像。 */
