@@ -1,4 +1,4 @@
-import { SKIN_STORAGE_KEY, THEME_STORAGE_KEY } from "./storage-keys";
+import { SKIN_STORAGE_KEY, THEME_STORAGE_KEY } from "./storage-keys.ts";
 
 /** 外观：星光 / 社交蓝 / 脉冲。每套都有深色和浅色。未选过皮肤时默认星光。 */
 export type ThemeMode = "system" | "dark" | "light";

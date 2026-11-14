@@ -35,7 +35,7 @@ if (await enter.count()) {
     await enter.click({ timeout: 1000 });
   } catch {}
 }
-await page.waitForSelector("text=NOVA 管理端", { timeout: 10000 });
+await page.waitForSelector("text=VEXO 管理端", { timeout: 10000 });
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${out}/login.png`, fullPage: false });
 console.log("login h1:", await page.locator("h1").first().innerText());

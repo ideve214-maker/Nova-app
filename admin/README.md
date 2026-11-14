@@ -1,4 +1,4 @@
-# NOVA 管理端（v7 · 星澜 Xinglan · 对接后端 0.7.0-m6.1）
+# VEXO 管理端（1.1.0 · 星光 Starlight · 原 NOVA 管理端）
 
 这是 NOVA 社区的**管理端**网页 / Capacitor App。它连到用户端的同一套后端，用真实管理员账号和真实数据。
 

@@ -58,7 +58,7 @@ await page.evaluate(() => {
 });
 await page.reload({ waitUntil: "networkidle", timeout: 30000 });
 await page.waitForTimeout(900);
-await page.waitForSelector("text=NOVA 管理端", { timeout: 10000 });
+await page.waitForSelector("text=VEXO 管理端", { timeout: 10000 });
 await overlays();
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${out}/login.png`, fullPage: false });

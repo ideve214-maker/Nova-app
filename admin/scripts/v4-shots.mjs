@@ -34,7 +34,7 @@ await page.evaluate(() => {
 });
 await page.reload({ waitUntil: "networkidle", timeout: 30000 });
 await page.waitForTimeout(800);
-await page.waitForSelector("text=NOVA 管理端", { timeout: 12000 });
+await page.waitForSelector("text=VEXO 管理端", { timeout: 12000 });
 await shot("01-login");
 
 // wrong password
@@ -49,7 +49,7 @@ await page.locator('input[placeholder="密码"]').fill("NovaAdm1n9");
 await page.getByRole("button", { name: "登录" }).click();
 await page.waitForSelector("text=管理后台", { timeout: 20000 });
 await page.waitForTimeout(2500);
-const onLogin = await page.locator("text=NOVA 管理端").count();
+const onLogin = await page.locator("text=VEXO 管理端").count();
 const onHome = await page.locator("text=管理后台").count();
 console.log("after login onLogin", onLogin, "onHome", onHome, "hash", await page.evaluate(() => location.hash), "authed", await page.evaluate(() => localStorage.getItem("vexo-admin-v2")?.slice(0,80)));
 await shot("03-home");

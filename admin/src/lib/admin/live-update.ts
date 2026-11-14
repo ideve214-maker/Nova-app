@@ -37,6 +37,32 @@ export function toDownloadOptions(latest: UpdateCheck | null | undefined) {
   return options;
 }
 
+/** The slice of CapacitorUpdater the update flow uses (injectable for tests). */
+export type UpdaterLike = {
+  getLatest(): Promise<UpdateCheck>;
+  download(options: { url: string; version: string; checksum?: string; sessionKey?: string }): Promise<{ id: string }>;
+  next(options: { id: string }): Promise<unknown>;
+};
+
+/**
+ * Ask the self-hosted server for the latest bundle, download it with the
+ * server's session_key (as `sessionKey`) and queue it for the next background.
+ * Returns the downloaded bundle id, or null when nothing was downloaded.
+ */
+export async function runLiveUpdate(updater: UpdaterLike): Promise<string | null> {
+  try {
+    const latest = await updater.getLatest();
+    const options = toDownloadOptions(latest);
+    if (!options) return null;
+    const bundle = await updater.download(options);
+    if (bundle?.id) await updater.next({ id: bundle.id });
+    return bundle?.id ?? null;
+  } catch {
+    /* no bundle, or the native auto-update path already owns this check */
+    return null;
+  }
+}
+
 /**
  * Call as early as possible on native startup.
  * notifyAppReady() must run within appReadyTimeout (10s) or a newly applied
@@ -72,11 +98,5 @@ export async function initLiveUpdate() {
     /* config-only URL still applies when allowModifyUrl is false */
   }
 
-  try {
-    const latest = await CapacitorUpdater.getLatest();
-    const options = toDownloadOptions(latest);
-    if (options) await CapacitorUpdater.download(options);
-  } catch {
-    /* no bundle, or the native auto-update path already owns this check */
-  }
+  await runLiveUpdate(CapacitorUpdater);
 }

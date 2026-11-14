@@ -1,6 +1,6 @@
 import { resolveAvatar } from "./avatar.ts";
 /**
- * NOVA 管理端 · 与用户端后端的适配层。
+ * VEXO 管理端 · 与用户端后端的适配层。
  *
  * 设计目标（面向未来版本的用户端/后端压缩包）：
  * 1. 服务器根地址可配置（localStorage），留空表示与当前页面同源（适合预览反代）。
@@ -10,7 +10,7 @@ import { resolveAvatar } from "./avatar.ts";
  * 5. 后端不可达或某项能力尚未实现时，列表与指标保持为空并显示简短中文提示，绝不阻塞进入管理端。
  */
 
-import { CONFIG_KEY } from "./storage-keys";
+import { CONFIG_KEY } from "./storage-keys.ts";
 export { CONFIG_KEY };
 export const DEFAULT_TIMEOUT_MS = 4000;
 

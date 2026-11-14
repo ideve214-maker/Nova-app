@@ -41,7 +41,7 @@ await page.evaluate(() => {
   } catch {}
 });
 await page.reload({ waitUntil: "networkidle", timeout: 30000 });
-await page.waitForSelector("text=NOVA 管理端", { timeout: 12000 });
+await page.waitForSelector("text=VEXO 管理端", { timeout: 12000 });
 
 await page.locator('input[placeholder="管理员账号"]').fill("admin");
 await page.locator('input[placeholder="密码"]').fill("NovaAdm1n9");

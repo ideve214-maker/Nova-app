@@ -24,7 +24,7 @@ async function safe(fn, label) {
 await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch {} });
 await page.reload({ waitUntil: "networkidle" });
-await page.waitForSelector("text=NOVA 管理端");
+await page.waitForSelector("text=VEXO 管理端");
 await page.locator('input[placeholder="管理员账号"]').fill("admin");
 await page.locator('input[placeholder="密码"]').fill("NovaAdm1n9");
 await page.getByRole("button", { name: "登录" }).click();
