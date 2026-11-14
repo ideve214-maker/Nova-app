@@ -52,9 +52,16 @@ export function patchManifest(text) {
       (m) => `${m}\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />`,
     );
   }
+  // r10：语音消息要用麦克风（网页里的 getUserMedia 需要原生 RECORD_AUDIO 权限）。
+  for (const perm of ['android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS']) {
+    if (!out.includes(perm)) {
+      out = out.replace(/<manifest\b[^>]*>/, (m) => `${m}\n    <uses-permission android:name="${perm}" />`);
+    }
+  }
   if (!out.includes('ACCESS_COARSE_LOCATION')) {
     throw new Error('failed to declare ACCESS_COARSE_LOCATION');
   }
+  if (!out.includes('android.permission.RECORD_AUDIO')) throw new Error('failed to declare RECORD_AUDIO');
   if (/ACCESS_FINE_LOCATION"\s*\/>/.test(out) && !/ACCESS_FINE_LOCATION"\s+tools:node="remove"/.test(out)) {
     throw new Error('ACCESS_FINE_LOCATION is still granted');
   }
@@ -67,6 +74,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.webkit.GeolocationPermissions;
+import android.webkit.PermissionRequest;
 import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -75,6 +83,8 @@ import com.getcapacitor.BridgeWebChromeClient;
 
 public class MainActivity extends BridgeActivity {
     private static final int COARSE_LOCATION_REQUEST = 4107;
+    private static final int MIC_REQUEST = 4108;
+    private PermissionRequest pendingMic;
     private GeolocationPermissions.Callback pendingGeo;
     private String pendingOrigin;
 
@@ -96,6 +106,26 @@ public class MainActivity extends BridgeActivity {
                 pendingOrigin = origin;
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{perm}, COARSE_LOCATION_REQUEST);
             }
+
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                // 语音消息：网页请求麦克风时，先拿到系统的录音权限，再授权给 WebView。
+                boolean audio = false;
+                for (String r : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) audio = true;
+                }
+                if (!audio) {
+                    super.onPermissionRequest(request);
+                    return;
+                }
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                    return;
+                }
+                if (pendingMic != null) pendingMic.deny();
+                pendingMic = request;
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, MIC_REQUEST);
+            }
         });
     }
 
@@ -107,6 +137,12 @@ public class MainActivity extends BridgeActivity {
             pendingGeo.invoke(pendingOrigin, ok, false);
             pendingGeo = null;
             pendingOrigin = null;
+        }
+        if (requestCode == MIC_REQUEST && pendingMic != null) {
+            boolean ok = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (ok) pendingMic.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+            else pendingMic.deny();
+            pendingMic = null;
         }
     }
 }
@@ -129,6 +165,9 @@ export function patchInfoPlist(text) {
   setString('CFBundleVersion', String(VERSION_CODE));
   setString('CFBundleDisplayName', 'VEXO');
   setString('NSLocationWhenInUseUsageDescription', '发帖时显示你大致所在的位置。可以不授权，改为自己填写地点。');
+  setString('NSMicrophoneUsageDescription', '录制并发送语音消息时需要使用麦克风。');
+  setString('NSCameraUsageDescription', '拍摄照片或视频并发送给好友时需要使用相机。');
+  setString('NSPhotoLibraryUsageDescription', '从相册选择照片或视频发送时需要访问相册。');
   if (!out.includes('NSLocationDefaultAccuracyReduced')) {
     out = out.replace('</dict>\n</plist>', '\t<key>NSLocationDefaultAccuracyReduced</key>\n\t<true/>\n</dict>\n</plist>');
   }
