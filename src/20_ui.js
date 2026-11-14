@@ -47,7 +47,7 @@ function riskNoticeText(id){
 }
 /* 聊天列表：登录后只留一行浅灰小字，不再用大红横幅 */
 const banList=()=>MODE==='account'?'<div class="e2line">私聊已加密</div>':ban();
-const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊已加密</b>一对一聊天会加密后发送。群聊暂时还没有加密。请核对手友的安全号码。</div>':'<div class="ban"><b>演示模式</b>这里只是演示，不会发送真实消息。</div>';
+const ban=()=>MODE==='account'?'<div class="ban"><b>已登录 · 私聊已加密</b>一对一聊天会加密后发送。请核对手友的安全号码。</div>':'<div class="ban"><b>演示模式</b>这里只是演示，不会发送真实消息。</div>';
 
 function hasSafeArea(){
   if(hasSafeArea._v!=null)return hasSafeArea._v;

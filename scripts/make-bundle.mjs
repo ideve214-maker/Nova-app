@@ -29,6 +29,28 @@ cpSync(dist, stage, {
   filter: (src) => !src.split(/[/\\]/).some(p => p.startsWith('.') || p === 'node_modules'),
 });
 copyFileSync(join(stage, 'nova_v5.html'), join(stage, 'index.html'));
+// 1.0.7 精简包（--lean 或 --games-base=...）：iOS 更新插件整段下载只有约 25 秒（responseTimeout 20 秒 + 5 秒），
+// 7.6MB 的包在手机网络下下不完。去掉重复入口、未启用的 sentry、小游戏（改从服务器加载），皮肤里与品牌图相同的 logo 改为引用品牌图，
+// 再压缩大图。原始 assets/ 不改动。
+const argv = process.argv.slice(2);
+const argOf = k => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : ''; };
+const gamesBase = argOf('games-base') || process.env.NOVA_GAMES_BASE || '';
+const lean = argv.includes('--lean') || !!gamesBase;
+if (lean) {
+  rmSync(join(stage, 'nova_v5.html'), {force: true});
+  let html = readFileSync(join(stage, 'index.html'), 'utf8');
+  if (!/NOVA_BUGSINK_DSN\s*=/.test(html)) {
+    html = html.replace('<script src="assets/vendor/sentry.js"></script>\n', '');
+    rmSync(join(stage, 'assets/vendor/sentry.js'), {force: true});
+  }
+  if (gamesBase) {
+    html = html.replace('<div id="app">', '<script>window.NOVA_GAMES_BASE = window.NOVA_GAMES_BASE || ' + JSON.stringify(gamesBase) + ';</script>\n<div id="app">');
+    rmSync(join(stage, 'assets/games'), {recursive: true, force: true});
+  }
+  writeFileSync(join(stage, 'index.html'), html);
+  const r = spawnSync('python3', [join(root, 'scripts/lean-assets.py'), stage], {stdio: 'inherit'});
+  if (r.status !== 0) { console.error('精简资源失败'); process.exit(1); }
+}
 
 mkdirSync(outDir, {recursive: true});
 if (existsSync(outPath)) rmSync(outPath);

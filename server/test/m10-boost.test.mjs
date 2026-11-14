@@ -80,3 +80,18 @@ test('推流：拒绝需要原因；非公开帖不能推流；普通用户不�
   assert.equal((await call('POST', `/api/admin/boost/orders/${o.id}/reject`, {reason: '未收到款'}, adm)).j.order.status, 'rejected');
   assert.equal((await call('GET', '/api/admin/boost/orders', null, a.tok)).s, 403);
 });
+
+test('推流套餐价格支持小数（9.9 元 = 990 分），也接受 price 字段', async () => {
+  const st = await call('POST', '/api/admin/boost/settings', {plans: [
+    {id: 'a', name: '体验', priceCents: 990, impressions: 300, days: 3},
+    {id: 'b', name: '小数', price: 9.99, impressions: 300, days: 3},
+    {id: 'c', name: '浮点', priceCents: 9.9 * 100, impressions: 300, days: 3},
+  ]}, adm);
+  assert.equal(st.s, 200, JSON.stringify(st.j));
+  const cat = await call('GET', '/api/admin/boost/settings', null, adm);
+  const plans = (cat.j && (cat.j.plans || (cat.j.settings && cat.j.settings.plans))) || st.j.plans || (st.j.settings && st.j.settings.plans);
+  const by = Object.fromEntries(plans.map(p => [p.id, p.priceCents]));
+  assert.deepEqual(by, {a: 990, b: 999, c: 990});
+  const bad = await call('POST', '/api/admin/boost/settings', {plans: [{id: 'z', name: '零', price: 0.001, impressions: 1, days: 1}]}, adm);
+  assert.equal(bad.s, 400);
+});
