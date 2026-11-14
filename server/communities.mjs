@@ -149,12 +149,12 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     if (len(name) < 2 || len(name) > 20) throw new ApiError(400, 'BAD_NAME', '名称需要 2 到 20 个字');
     if (len(description) > 80) throw new ApiError(400, 'BAD_DESC', '简介最多 80 字');
     let cover = row.cover || '', avatar = row.avatar || '';
-    if (body && (body.cover !== undefined || body.bg !== undefined)) {
-      const n = look.norm(body.cover !== undefined ? body.cover : body.bg, user, {code: 'BAD_COVER', label: '封面'});
+    if (body && (body.cover !== undefined || body.bg !== undefined || body.coverMediaId !== undefined)) {
+      const n = look.norm(body.cover !== undefined ? body.cover : body.bg !== undefined ? body.bg : body.coverMediaId, user, {code: 'BAD_COVER', label: '封面'});
       if (n !== undefined) cover = n;
     }
-    if (body && (body.avatar !== undefined || body.cp !== undefined)) {
-      const n = look.norm(body.avatar !== undefined ? body.avatar : body.cp, user, {code: 'BAD_AVATAR', label: '社区头像'});
+    if (body && (body.avatar !== undefined || body.cp !== undefined || body.avatarMediaId !== undefined)) {
+      const n = look.norm(body.avatar !== undefined ? body.avatar : body.cp !== undefined ? body.cp : body.avatarMediaId, user, {code: 'BAD_AVATAR', label: '社区头像'});
       if (n !== undefined) avatar = n;
     }
     setInfo.run(name, description, cover || null, avatar || null, id);
