@@ -58,6 +58,13 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminHotPostsOrder: "/api/admin/hot-posts/order",
   adminCommunities: "/api/admin/communities",
   adminCommunity: "/api/admin/communities/:id",
+  adminCommunityTakedown: "/api/admin/communities/:id/takedown",
+  adminCommunityRestore: "/api/admin/communities/:id/restore",
+  adminCommunityWarn: "/api/admin/communities/:id/warn",
+  adminCommunityDelete: "/api/admin/communities/:id/delete",
+  adminCommunityMemberRemove: "/api/admin/communities/:id/members/:userId/remove",
+  adminCommunityMemberMute: "/api/admin/communities/:id/members/:userId/mute",
+  adminCommunityMemberUnmute: "/api/admin/communities/:id/members/:userId/unmute",
   adminChannelMessages: "/api/admin/channels/:id/messages",
   adminBlockwords: "/api/admin/blockwords",
   adminBlockwordDelete: "/api/admin/blockwords/:id/delete",
@@ -1724,6 +1731,10 @@ export type MappedCommunity = {
   ownerId: string;
   memberCount: number;
   createdAt: string;
+  /** active | taken_down（管理员下架，可恢复） */
+  status: string;
+  takedownReason: string;
+  takenDownAt: string;
   members: MappedCommunityMember[];
   channels: MappedChannel[];
 };
@@ -1734,6 +1745,8 @@ export type MappedCommunityMember = {
   role: string;
   status: string;
   joinedAt: string;
+  muted: boolean;
+  mutedUntil: string;
 };
 
 export type MappedChannel = {
@@ -1769,6 +1782,9 @@ export function mapRemoteCommunity(raw: unknown): MappedCommunity | null {
     ownerId: asString(pick(src, "ownerId", "owner_id") ?? (isRecord(src.owner) ? src.owner.id : "")),
     memberCount: Number(pick(src, "memberCount", "member_count", "membersCount") ?? membersRaw.length) || 0,
     createdAt: asTime(pick(src, "createdAtUtc", "createdAt", "created_at")),
+    status: asString(pick(src, "status"), "active"),
+    takedownReason: asString(pick(src, "takedownReason", "takedown_reason")),
+    takenDownAt: pick(src, "takenDownAt", "taken_down_at") ? asTime(pick(src, "takenDownAt", "taken_down_at")) : "",
     members: membersRaw.map((m): MappedCommunityMember | null => {
       if (!isRecord(m)) return null;
       const user = isRecord(m.user) ? m.user : {};
@@ -1778,6 +1794,8 @@ export function mapRemoteCommunity(raw: unknown): MappedCommunity | null {
         role: asString(pick(m, "role"), "member"),
         status: asString(pick(m, "status"), "active"),
         joinedAt: asTime(pick(m, "joinedAtUtc", "joinedAt", "joined_at")),
+        muted: !!pick(m, "muted"),
+        mutedUntil: pick(m, "mutedUntil", "muted_until") ? asTime(pick(m, "mutedUntil", "muted_until")) : "",
       };
     }).filter((x): x is MappedCommunityMember => !!x && !!x.userId),
     channels: channelsRaw.map((c) => mapRemoteChannel(c, id)).filter((x): x is MappedChannel => !!x),
@@ -1880,6 +1898,9 @@ export type MappedAppeal = {
   createdAt: string;
   decidedAt: string;
   decisionNote: string;
+  username: string;
+  /** kind=community 时服务器附带的社区信息 */
+  community: { id: string; name: string; status: string; takedownReason: string; takenDownAt: string } | null;
 };
 
 export function mapRemoteAppeal(raw: unknown): MappedAppeal | null {
@@ -1897,5 +1918,15 @@ export function mapRemoteAppeal(raw: unknown): MappedAppeal | null {
     createdAt: asTime(pick(src, "createdAtUtc", "createdAt", "created_at")),
     decidedAt: asTime(pick(src, "decidedAtUtc", "decidedAt", "decided_at")),
     decisionNote: asString(pick(src, "decisionNote", "decision_note", "note", "reason")),
+    username: isRecord(src.user) ? asString(pick(src.user, "username", "displayName")) : "",
+    community: isRecord(src.community)
+      ? {
+          id: asString(pick(src.community, "id")),
+          name: asString(pick(src.community, "name"), "未命名社区"),
+          status: asString(pick(src.community, "status"), "active"),
+          takedownReason: asString(pick(src.community, "takedownReason", "takedown_reason")),
+          takenDownAt: pick(src.community, "takenDownAt") ? asTime(pick(src.community, "takenDownAt")) : "",
+        }
+      : null,
   };
 }

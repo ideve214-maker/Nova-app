@@ -80,6 +80,7 @@ const appealStatusLabel: Record<string, string> = {
 
 const appealKindLabel: Record<string, string> = {
   ban: "封禁申诉",
+  community: "社区下架申诉",
   other: "其他",
 };
 
@@ -124,7 +125,7 @@ export function AppealsScreen() {
   return (
     <Screen title="申诉处理" onBack={back}>
       <p className="px-4 pt-2 text-[12px] leading-4 text-muted">
-        用户提交的账号申诉。通过封禁申诉后，该用户会自动解除封禁。
+        用户提交的申诉。通过封禁申诉会自动解除封禁；通过社区下架申诉会自动恢复社区。处理结果会通知申诉人。
       </p>
       <Seg
         value={tab}
@@ -159,10 +160,11 @@ export function AppealsScreen() {
                     {appealStatusLabel[item.status] || item.status}
                   </Pill>
                 </div>
+                {item.community && <p className="mt-0.5 text-[13px]">社区「{sanitizeText(item.community.name)}」{item.community.status === "taken_down" ? " · 已下架" : item.community.status === "active" ? " · 已恢复" : ""}</p>}
                 <p className="mt-0.5 line-clamp-2 text-[13px] text-muted">{sanitizeText(item.body)}</p>
                 <p className="text-[11px] text-muted">
                   {item.createdAt}
-                  {item.userId ? ` · 用户 ${item.userId}` : ""}
+                  {item.username ? ` · ${item.username}` : item.userId ? ` · 用户 ${item.userId}` : ""}
                 </p>
               </button>
             </li>
@@ -173,10 +175,17 @@ export function AppealsScreen() {
         {current && (
           <>
             <p className="text-[15px] font-medium">{appealKindLabel[current.kind] || current.kind}</p>
-            <p className="mt-1 whitespace-pre-wrap text-[14px]">{sanitizeText(current.body)}</p>
+            {current.community && (
+              <div className="mt-2 rounded-xl bg-subtle px-3 py-2 text-[13px]">
+                <p className="font-semibold">社区「{sanitizeText(current.community.name)}」</p>
+                <p className="text-muted">状态：{current.community.status === "taken_down" ? "已下架" : current.community.status === "active" ? "正常" : current.community.status}</p>
+                {current.community.takedownReason && <p className="text-muted">下架原因：{sanitizeText(current.community.takedownReason)}</p>}
+              </div>
+            )}
+            <p className="mt-2 whitespace-pre-wrap text-[14px]">{sanitizeText(current.body)}</p>
             <p className="mt-1 text-[12px] text-muted">
-              用户 {current.userId || "—"} · {current.createdAt}
-              {current.related ? ` · 关联 ${current.related}` : ""}
+              {current.username || `用户 ${current.userId || "—"}`} · {current.createdAt}
+              {current.related && !current.community ? ` · 关联 ${current.related}` : ""}
             </p>
             {current.status !== "pending" && (
               <p className="mt-2 text-[13px] text-muted">
@@ -201,7 +210,7 @@ export function AppealsScreen() {
                     驳回
                   </button>
                   <PrimaryButton disabled={busy} onClick={() => decide("accept")}>
-                    {busy ? "处理中…" : "通过"}
+                    {busy ? "处理中…" : current.kind === "community" ? "通过并恢复社区" : "通过"}
                   </PrimaryButton>
                 </div>
               </>

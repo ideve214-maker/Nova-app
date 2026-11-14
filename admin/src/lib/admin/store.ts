@@ -290,6 +290,8 @@ export type AdminState = Persisted & {
   connectServer: (baseUrl: string, endpoints?: Partial<EndpointMap>) => Promise<ConnectionStatus>;
   go: (name: PageName, userId?: string, channelId?: string) => void;
   back: () => void;
+  /** 返回到指定页面：上一页正好是它就出栈，否则原地替换当前页（不往历史里再压一层，避免来回循环）。 */
+  backTo: (name: PageName, userId?: string, channelId?: string) => void;
   tab: (name: PageName) => void;
   adminProfile: MappedAdmin | null;
   stats: MappedStats | null;
@@ -343,6 +345,8 @@ export type AdminState = Persisted & {
   refreshCommunities: () => Promise<void>;
   openCommunity: (id: string, navigate?: boolean) => Promise<string | null>;
   openChannel: (communityId: string, channelId: string, navigate?: boolean) => Promise<string | null>;
+  moderateCommunity: (action: remote.CommunityAction, id: string, body: { reason?: string; confirm?: string }) => Promise<string | null>;
+  moderateMember: (action: remote.CommunityMemberAction, id: string, userId: string, body: { reason?: string; hours?: number; ban?: boolean }) => Promise<string | null>;
   refreshBlockwords: () => Promise<void>;
   addBlockword: (word: string, note?: string) => Promise<string | null>;
   deleteBlockword: (id: string) => Promise<string | null>;
@@ -589,6 +593,17 @@ export const useAdmin = create<AdminState>((set, get) => ({
       return { history, nav: prev ?? { name: "home" } };
     });
     writeHash(useAdmin.getState().nav);
+  },
+  backTo: (name, userId, channelId) => {
+    const s = get();
+    const prev = s.history[s.history.length - 1];
+    if (prev && prev.name === name && (userId === undefined || prev.userId === userId)) {
+      s.back();
+      return;
+    }
+    captureCurrentScroll(s.nav);
+    set({ nav: { name, userId, channelId } });
+    writeHash({ name, userId, channelId });
   },
   tab: (name) => {
     captureCurrentScroll(get().nav);
@@ -1114,6 +1129,37 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ channelMessages: result.data.messages, channelInfo: result.data.channel });
     const nav = get().nav;
     if (navigate && (nav.name !== "channel" || nav.channelId !== channelId)) get().go("channel", communityId, channelId);
+    return null;
+  },
+  moderateCommunity: async (action, id, body) => {
+    const result = await remote.remoteCommunityAction(action, id, body);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    if (action === "delete") {
+      set((s) => ({ communities: s.communities.filter((c) => c.id !== id), communityDetail: s.communityDetail?.id === id ? null : s.communityDetail }));
+    } else if (result.data) {
+      const item = result.data;
+      set((s) => ({
+        communityDetail: item,
+        communities: s.communities.map((c) => (c.id === id ? { ...c, status: item.status, takedownReason: item.takedownReason, takenDownAt: item.takenDownAt, memberCount: item.memberCount } : c)),
+      }));
+    }
+    get().flash({ takedown: "社区已下架，已通知所有者", restore: "社区已恢复上架", warn: "已向社区所有者发送警告", delete: "社区已删除" }[action]);
+    void get().refreshAudit();
+    return null;
+  },
+  moderateMember: async (action, id, userId, body) => {
+    const result = await remote.remoteCommunityMemberAction(action, id, userId, body);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    const item = result.data;
+    set((s) => ({ communityDetail: item, communities: s.communities.map((c) => (c.id === id ? { ...c, memberCount: item.memberCount } : c)) }));
+    get().flash(action === "remove" ? (body.ban ? "已移出并禁止再加入" : "已移出社区") : action === "mute" ? "已禁言" : "已解除禁言");
+    void get().refreshAudit();
     return null;
   },
   refreshBlockwords: async () => {

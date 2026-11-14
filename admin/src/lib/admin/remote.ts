@@ -550,3 +550,45 @@ export async function remoteSaveHotOrder(postIds: string[]): Promise<Remote<HotL
   }
   return hotOk(res);
 }
+
+/** 社区管理：下架/恢复/警告/删除。除恢复外必须填写原因；服务器会写审计并通知社区所有者。 */
+export type CommunityAction = "takedown" | "restore" | "warn" | "delete";
+const COMMUNITY_ACTION_EP = {
+  takedown: "adminCommunityTakedown",
+  restore: "adminCommunityRestore",
+  warn: "adminCommunityWarn",
+  delete: "adminCommunityDelete",
+} as const;
+const COMMUNITY_ACTION_FAIL: Record<CommunityAction, string> = { takedown: "下架失败", restore: "恢复失败", warn: "警告失败", delete: "删除失败" };
+
+export async function remoteCommunityAction(
+  action: CommunityAction,
+  id: string,
+  body: { reason?: string; confirm?: string },
+): Promise<Remote<MappedCommunity | null>> {
+  const res = await apiRequest(COMMUNITY_ACTION_EP[action], { method: "POST", params: { id }, body, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, COMMUNITY_ACTION_FAIL[action]);
+  if (action === "delete") return ok(res, null);
+  const item = mapRemoteCommunity(res.json);
+  return item ? ok(res, item) : fail(res, COMMUNITY_ACTION_FAIL[action]);
+}
+
+export type CommunityMemberAction = "remove" | "mute" | "unmute";
+const MEMBER_ACTION_EP = {
+  remove: "adminCommunityMemberRemove",
+  mute: "adminCommunityMemberMute",
+  unmute: "adminCommunityMemberUnmute",
+} as const;
+
+export async function remoteCommunityMemberAction(
+  action: CommunityMemberAction,
+  id: string,
+  userId: string,
+  body: { reason?: string; hours?: number; ban?: boolean },
+): Promise<Remote<MappedCommunity>> {
+  const res = await apiRequest(MEMBER_ACTION_EP[action], { method: "POST", params: { id, userId }, body, timeoutMs: 8000 });
+  const label = action === "remove" ? "移出成员失败" : action === "mute" ? "禁言失败" : "解除禁言失败";
+  if (!res.ok) return fail(res, label);
+  const item = mapRemoteCommunity(res.json);
+  return item ? ok(res, item) : fail(res, label);
+}

@@ -59,6 +59,7 @@ export type UpdaterLike = {
   getLatest(): Promise<UpdateCheck>;
   download(options: { url: string; version: string; checksum?: string; sessionKey?: string }): Promise<{ id: string }>;
   next(options: { id: string }): Promise<unknown>;
+  current?(): Promise<{ bundle?: { version?: string }; native?: string }>;
 };
 
 /**
@@ -71,6 +72,16 @@ export async function runLiveUpdate(updater: UpdaterLike): Promise<string | null
     const latest = await updater.getLatest();
     const options = toDownloadOptions(latest);
     if (!options) return null;
+    // 1.1.1：只在服务器版本比当前运行的版本新时才下载，避免每次启动重复下载同一个包。
+    if (typeof updater.current === "function") {
+      try {
+        const cur = await updater.current();
+        const running = cur?.bundle?.version && cur.bundle.version !== "builtin" ? cur.bundle.version : cur?.native;
+        if (running && !isNewerVersion(options.version, String(running))) return null;
+      } catch {
+        /* unknown current version: fall through and download */
+      }
+    }
     const bundle = await updater.download(options);
     if (bundle?.id) await updater.next({ id: bundle.id });
     return bundle?.id ?? null;
@@ -116,4 +127,15 @@ export async function initLiveUpdate() {
   }
 
   await runLiveUpdate(CapacitorUpdater);
+}
+
+/** a > b（按点分数字比较，非数字部分忽略）。 */
+export function isNewerVersion(a: string, b: string): boolean {
+  const pa = String(a).split(".").map((x) => parseInt(x, 10) || 0);
+  const pb = String(b).split(".").map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d > 0;
+  }
+  return false;
 }
