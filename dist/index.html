@@ -792,6 +792,12 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 /* 状态标签和「已满员」并排 */
 .pjfull{margin-left:6px;display:inline-block}
 .pjpills{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.pjpills .pjfull{margin-left:0}
+
+/* 2.0.2：资料页名字 / 账号 / 简介 / VIP 与认证章一行靠左，和左边的头像对齐（自己和别人的主页） */
+.pf.ovl{text-align:left!important;align-items:flex-start!important}
+.pf.ovl>h2,.pf.ovl>.handle,.pf.ovl>.bio{text-align:left!important;margin-left:0!important;margin-right:0!important;align-self:flex-start!important;width:auto}
+.pf.ovl .nbc,.pf.ovl .nmb{justify-content:flex-start!important}
+.pf.ovl .handle,.pf.ovl .bio{display:block}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
 <link rel="stylesheet" href="assets/vendor/photoswipe.css">
@@ -807,7 +813,7 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 /* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */
 window.NOVA_API_BASE = window.NOVA_API_BASE || "https://47.239.0.90";
 window.NOVA_DISABLE_DEMO = window.NOVA_DISABLE_DEMO === undefined ? true : window.NOVA_DISABLE_DEMO;
-window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "2.0.1";
+window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "2.0.2";
 window.NOVA_SHARE_URL = window.NOVA_SHARE_URL || "https://47.239.0.90";
 window.NOVA_UPDATE_MANIFEST_URL = window.NOVA_UPDATE_MANIFEST_URL || "https://47.239.0.90/updates/user/manifest.json";
 </script>
@@ -2835,6 +2841,11 @@ const lookPicks=(list,act,id)=>`<div class="picks">${list.map((src,i)=>`<button 
 const filePick=(kind,id,label)=>`<label class="pb filepick">${label}<input type="file" accept="image/*" data-pick="${kind}" data-id="${esc(id||'')}"></label>`;
 const avx=(c,l,s)=>`<span class="av" style="width:${s}px;height:${s}px;background:${c};color:${c=='#C8A96A'?'#1A1408':'#fff'};font-size:${Math.round(s*.42)}px">${esc(l)}</span>`;
 const phImg=(src,s)=>`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${esc(src)}" alt=""></span>`;
+/* 2.0.2：统一的数字缩写。1 万以上缩写：中文 4.6万 / 1万 / 1.2亿，英文 45.8K / 1.2M。 */
+function fmtCount(n){n=Math.max(0,Math.floor(Number(n)||0));if(n<10000)return String(n);
+  const t=(v,u)=>{const r=Math.round(v*10)/10;return String(r).replace(/\.0$/,'')+u};
+  if(typeof LANG!=='undefined'&&LANG==='en'){if(n<999950)return t(n/1e3,'K');if(n<999950000)return t(n/1e6,'M');return t(n/1e9,'B')}
+  if(n<99995000)return t(n/1e4,'万');return t(n/1e8,'亿')}
 function cssUrl(src){return String(src||'').replace(/["'\\\n\r<>]/g,'')}
 function bgCss(src){const s=cssUrl(src);if(!s)return 'background:#1a1c20';if(s.startsWith('linear-gradient')||s.startsWith('#'))return 'background:'+s;return "background-color:#1a1c20;background-image:url('"+s+"');background-size:cover;background-position:center"}
 /* r10：头像只有两种——官方默认头像，或者从相册导入的图片（存服务器，别人也能看到）。去掉了「颜色 + 文字」头像。 */
@@ -4364,7 +4375,7 @@ function cmView(){try{const v=localStorage.getItem('nova_cm_view');return (v==='
 function setCmView(v){const n=(v==='2'||v==='4'||v==='1')?v:'1';try{localStorage.setItem('nova_cm_view',n)}catch(e){}return n}
 function cycleCmView(){const o=['1','2','4'],c=cmView();return setCmView(o[(o.indexOf(c)+1)%3])}
 const CMVIEW_L={1:'单视图',2:'双视图',4:'四视图'};
-function fmtMembers(n){n=Math.max(0,Number(n)||0);if(n>=10000){const w=n/10000,s=w>=10?String(Math.round(w)):String(Math.round(w*10)/10);return s+' 万位成员'}return n+' 位成员'}
+function fmtMembers(n){n=Math.max(0,Number(n)||0);if(typeof fmtCount==='function')return fmtCount(n)+' 位成员';if(n>=10000){const w=n/10000,s=w>=10?String(Math.round(w)):String(Math.round(w*10)/10);return s+' 万位成员'}return n+' 位成员'}
 const gcard=c=>{
   const vis=c.vis||c.visibility||'public';
   const priv=vis==='private';
@@ -4425,7 +4436,7 @@ const acts=me?`<div class="fr"><button class="pb" data-a="panel">面板</button>
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">查看全部</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
 const photoGrid=photos.length?`<div class="fmedia n2 prof-ph" style="margin:8px 0">${photos.flatMap(p=>(p.media||[]).map(m=>{const x=typeof mItem==='function'?mItem(m):(typeof m==='string'?{url:m}:m);const src=x.url?` src="${esc(x.url)}"`:x.id?` data-mid="${esc(x.id)}"`:'';if(!src)return '';return (typeof mKind==='function'&&mKind(x)==='video')?`<span class="mv" data-a="post" data-v="${p.id}"><video${src} muted playsinline preload="metadata"></video></span>`:`<img${src} alt="" data-a="post" data-v="${p.id}">`})).join('')}</div>`:'<p class="em">还没有照片或视频</p>';
 const body=tab==='photos'?photoGrid:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">好友 / 关注</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp"><span>${av('me',40)}</span><button class="p" data-a="compose">分享一下你的新鲜事</button></div>`:''}${posts.map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`;
-return `<div class="cvr tall${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${lookCss(pfCoverOf(me,id),cove(id))}"${lookMbg(pfCoverOf(me,id))}>${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,80)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="VEXO VIP 资料装饰"></span>':''}<h2 class="nmb nbc">${nmB(u)}</h2><div class="handle">@${u.h}</div>${u.b?`<p class="bio">${esc(u.b)}</p>`:''}<div class="sts r7"><span><b>${posts.length}</b>帖子</span><button data-a="fl" data-v="followers|${id}"><b>${n(1)}</b>粉丝</button><button data-a="fl" data-v="following|${id}"><b>${n(0)}</b>关注</button></div>${acts}</div><div class="seg"><button data-a="mt" data-v="all" class="${tab=='all'||tab=='about'?'on':''}">全部</button><button data-a="mt" data-v="photos" class="${tab=='photos'?'on':''}">照片</button></div>${body}`};
+return `<div class="cvr tall${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${lookCss(pfCoverOf(me,id),cove(id))}"${lookMbg(pfCoverOf(me,id))}>${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,80)}${me?'<button class="cam" data-a="cover" aria-label="更换头像">更换头像</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="VEXO VIP 资料装饰"></span>':''}<h2 class="nmb nbc">${nmB(u)}</h2><div class="handle">@${u.h}</div>${u.b?`<p class="bio">${esc(u.b)}</p>`:''}<div class="sts r7"><span><b>${fmtCount(posts.length)}</b>帖子</span><button data-a="fl" data-v="followers|${id}"><b>${fmtCount(n(1))}</b>粉丝</button><button data-a="fl" data-v="following|${id}"><b>${fmtCount(n(0))}</b>关注</button></div>${acts}</div><div class="seg"><button data-a="mt" data-v="all" class="${tab=='all'||tab=='about'?'on':''}">全部</button><button data-a="mt" data-v="photos" class="${tab=='photos'?'on':''}">照片</button></div>${body}`};
 const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
 
 /* ===== 31_games.js ===== */
@@ -6034,7 +6045,7 @@ const XI={
   sh:'<path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 13v6.5h14V13"/>'
 };
 const xic=(k,fill)=>`<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><g fill="${fill?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${XI[k]}</g></svg>`;
-function fmtN(n){n=Number(n)||0;if(n<=0)return '';if(n<1000)return String(n);if(n<10000)return (n/1000).toFixed(n<2000?1:0).replace(/\.0$/,'')+'K';return (n/10000).toFixed(1).replace(/\.0$/,'')+'万'}
+function fmtN(n){n=Number(n)||0;if(n<=0)return '';if(n>=10000||typeof fmtCount==='function')return fmtCount(n);if(n<1000)return String(n);if(n<10000)return (n/1000).toFixed(n<2000?1:0).replace(/\.0$/,'')+'K';return (n/10000).toFixed(1).replace(/\.0$/,'')+'万'}
 function lsSet(k){try{return new Set(JSON.parse(localStorage.getItem(k)||'[]'))}catch(e){return new Set()}}
 function lsSave(k,set,cap){try{let a=[...set];if(cap&&a.length>cap)a=a.slice(a.length-cap);localStorage.setItem(k,JSON.stringify(a))}catch(e){}}
 /* 阅读量：服务器还没有阅读量接口；这台设备看过就记 1 次（见 docs/r7-server-notes.md）*/
@@ -6324,7 +6335,7 @@ async function boostLoad(pid){
   const open=BOOST.orders.find(x=>x.status==='pending'||x.status==='awaiting_review');if(open)BOOST.order=open;
   if(S.sh&&S.sh.t==='boost')render();
 }
-function fmtNum(n){n=Number(n)||0;if(typeof LANG!=='undefined'&&LANG==='en')return n>=1000?(Math.round(n/100)/10)+'k':String(n);return n>=10000?(Math.round(n/1000)/10)+'万':String(n)}
+function fmtNum(n){n=Number(n)||0;if(typeof fmtCount==='function')return fmtCount(n);if(typeof LANG!=='undefined'&&LANG==='en')return n>=1000?(Math.round(n/100)/10)+'k':String(n);return n>=10000?(Math.round(n/1000)/10)+'万':String(n)}
 function boostOrderCard(o){
   const open=o.status==='pending'||o.status==='awaiting_review';
   const qr=open&&o.qrUrl?`<img class="vqr" src="${esc(adUrl(o.qrUrl))}" alt="${esc(bzPay(o))}" width="200" height="200">`:'';
