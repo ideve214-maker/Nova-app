@@ -1,0 +1,115 @@
+name: VEXO user package
+
+# 只打用户端安装包。不打管理端，也不在推送时自动运行。
+# 不要把这个工作流的产物推到 build/v2（推到那里会公开发布）。
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vexo-user-package-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # 固定到这一版的提交，不要写分支名。打包脚本检出这个 SHA 作为用户端源码。
+  # 下面的值会在提交应用改动之后改成那个提交的 SHA。
+  USER_REF: ab74408303ec915497c5e7332aea9e99845025d3
+  USER_API_BASE: http://47.239.0.90
+  USER_UPDATE_URL: http://47.239.0.90/updates/user/manifest.json
+
+jobs:
+  ipa:
+    name: 用户端 IPA
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout pack scripts
+        uses: actions/checkout@v4
+
+      - name: Checkout user client
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.USER_REF }}
+          path: user
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Prepare web assets
+        run: |
+          chmod +x scripts/prepare-v2-web.sh scripts/build-unsigned-ipa.sh scripts/stamp-native.mjs
+          ./scripts/prepare-v2-web.sh user user
+
+      - name: Build unsigned IPA
+        run: |
+          mkdir -p dist
+          ./scripts/build-unsigned-ipa.sh user dist/VEXO.ipa
+          ls -lh dist/VEXO.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: VEXO.ipa
+          path: dist/VEXO.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  apk:
+    name: 用户端 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout pack scripts
+        uses: actions/checkout@v4
+
+      - name: Checkout user client
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.USER_REF }}
+          path: user
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare web assets
+        run: |
+          chmod +x scripts/prepare-v2-web.sh scripts/build-debug-apk.sh scripts/stamp-native.mjs
+          ./scripts/prepare-v2-web.sh user user
+
+      - name: Restore fixed debug keystore
+        env:
+          KS_B64: ${{ secrets.NOVA_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KS_B64" ]; then echo "ERROR: secret NOVA_DEBUG_KEYSTORE_BASE64 not set"; exit 1; fi
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/nova-debug.keystore"
+          echo "NOVA_DEBUG_KEYSTORE_FILE=$RUNNER_TEMP/nova-debug.keystore" >> "$GITHUB_ENV"
+
+      - name: Build debug APK
+        env:
+          NOVA_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.NOVA_DEBUG_KEYSTORE_PASSWORD }}
+          NOVA_DEBUG_KEY_ALIAS: ${{ secrets.NOVA_DEBUG_KEY_ALIAS }}
+          NOVA_DEBUG_KEY_PASSWORD: ${{ secrets.NOVA_DEBUG_KEY_PASSWORD }}
+        run: |
+          mkdir -p dist
+          bash scripts/build-debug-apk.sh user dist/VEXO.apk
+          ls -lh dist/VEXO.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VEXO.apk
+          path: dist/VEXO.apk
+          if-no-files-found: error
+          retention-days: 14
