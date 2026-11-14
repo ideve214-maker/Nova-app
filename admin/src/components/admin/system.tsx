@@ -78,8 +78,8 @@ function Info({ label, value, hint }: { label: string; value: string; hint?: str
 const flagRows: { key: keyof Flags; label: string; desc: string }[] = [
   { key: "loginProtect", label: "登录保护", desc: "连续失败会暂时锁定" },
   { key: "registrationOpen", label: "开放注册", desc: "关闭后新用户不能注册" },
-  { key: "reviewRequired", label: "内容先审后发", desc: "新帖进入审核队列" },
-  { key: "maintenance", label: "维护模式", desc: "用户端应显示维护说明" },
+  { key: "reviewRequired", label: "内容先审后发", desc: "开关会记到服务器，审核队列还没启用" },
+  { key: "maintenance", label: "维护模式", desc: "用户端显示维护说明，并限制发帖等操作" },
 ];
 
 
@@ -153,7 +153,7 @@ export function SettingsScreen() {
   const [server, setServer] = useState(false);
   return (
     <Screen title="系统设置" onBack={back}>
-      <DataHint>这些开关只保存在这台设备上，还不会同步到服务器。密钥不会出现在此页面。</DataHint>
+      <DataHint>维护模式、开放注册、登录保护和先审后发会保存到服务器，换设备也保持。维护开启后，用户端会显示维护说明并限制发帖等操作。先审后发目前只记录开关。</DataHint>
       <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
         <RowLink icon={<Megaphone className="size-5" />} title="公告管理" desc="草稿、发布、下线" onClick={() => go("announce")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<SlidersHorizontal className="size-5" />} title="权益开关" desc="套餐能力由配置控制" onClick={() => go("vip")} extra={<ChevronRight className="size-4 text-muted" />} />

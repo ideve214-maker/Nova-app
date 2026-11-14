@@ -72,6 +72,7 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminAppeals: "/api/admin/appeals",
   adminAppeal: "/api/admin/appeals/:id",
   adminAppealDecision: "/api/admin/appeals/:id/decision",
+  adminFlags: "/api/admin/flags",
   adminMetrics: "/api/admin/metrics",
   adminMedia: "/api/admin/media",
   adminMediaItem: "/api/admin/media/:id",

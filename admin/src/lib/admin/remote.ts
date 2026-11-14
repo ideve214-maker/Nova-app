@@ -426,6 +426,50 @@ export async function remoteDeleteBlockword(id: string): Promise<Remote<{ remove
   return ok(res, { removed: id });
 }
 
+export type RemoteFlags = {
+  loginProtect: boolean;
+  registrationOpen: boolean;
+  maintenance: boolean;
+  reviewRequired: boolean;
+};
+
+function mapRemoteFlags(json: unknown): RemoteFlags | null {
+  const rec = asRecord(json);
+  const src = rec && asRecord(rec.flags) ? (rec.flags as Record<string, unknown>) : rec;
+  if (!src) return null;
+  const bit = (key: keyof RemoteFlags, dflt: boolean) => {
+    const v = src[key];
+    if (typeof v === "boolean") return v;
+    if (v == null || v === "") return dflt;
+    const s = String(v).trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "yes" || s === "on") return true;
+    if (s === "0" || s === "false" || s === "no" || s === "off") return false;
+    return dflt;
+  };
+  return {
+    loginProtect: bit("loginProtect", true),
+    registrationOpen: bit("registrationOpen", true),
+    maintenance: bit("maintenance", false),
+    reviewRequired: bit("reviewRequired", false),
+  };
+}
+
+export async function remoteFlags(): Promise<Remote<RemoteFlags>> {
+  const res = await apiRequest("adminFlags", { timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "无法读取系统开关");
+  const flags = mapRemoteFlags(res.json);
+  if (!flags) return fail(res, "无法读取系统开关");
+  return ok(res, flags);
+}
+
+export async function remoteSetFlags(patch: Partial<RemoteFlags>): Promise<Remote<RemoteFlags>> {
+  const res = await apiRequest("adminFlags", { method: "POST", body: patch, timeoutMs: 8000 });
+  if (!res.ok) return fail(res, "系统开关没有保存到服务器");
+  const flags = mapRemoteFlags(res.json);
+  if (!flags) return fail(res, "系统开关没有保存到服务器");
+  return ok(res, flags);
+}
+
 export async function remoteSecurityEvents(query?: Record<string, string | number | undefined>): Promise<Remote<MappedSecurityEvent[]>> {
   const res = await apiRequest("adminSecurityEvents", { query, timeoutMs: 8000 });
   if (!res.ok) return fail(res, "无法读取安全事件");

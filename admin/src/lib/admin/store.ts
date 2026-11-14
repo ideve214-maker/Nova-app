@@ -348,6 +348,7 @@ export type AdminState = Persisted & {
   moderateCommunity: (action: remote.CommunityAction, id: string, body: { reason?: string; confirm?: string }) => Promise<string | null>;
   moderateMember: (action: remote.CommunityMemberAction, id: string, userId: string, body: { reason?: string; hours?: number; ban?: boolean }) => Promise<string | null>;
   refreshBlockwords: () => Promise<void>;
+  refreshFlags: () => Promise<void>;
   addBlockword: (word: string, note?: string) => Promise<string | null>;
   deleteBlockword: (id: string) => Promise<string | null>;
   refreshSecurityEvents: (opts?: { kind?: string }) => Promise<void>;
@@ -1170,6 +1171,12 @@ export const useAdmin = create<AdminState>((set, get) => ({
     }
     set({ blockwords: result.data });
   },
+  refreshFlags: async () => {
+    if (get().demoMode) return;
+    const result = await remote.remoteFlags();
+    if (!result.ok) return;
+    set((s) => ({ flags: { ...s.flags, ...result.data } }));
+  },
   addBlockword: async (word, note) => {
     const w = (word || "").trim();
     if (!w) return "请填写屏蔽词";
@@ -1243,18 +1250,29 @@ export const useAdmin = create<AdminState>((set, get) => ({
     return result.data;
   },
   toggleFlag: (key) => {
-    set((s) => {
-      const next = !s.flags[key];
-      const labels: Record<keyof Flags, string> = {
-        loginProtect: "登录保护",
-        registrationOpen: "开放注册",
-        maintenance: "维护模式",
-        reviewRequired: "内容先审后发",
-      };
-      return withAudit(s, { kind: "admin", action: next ? `开启${labels[key]}` : `关闭${labels[key]}`, target: "系统配置" }, {
+    const prev = get().flags[key];
+    const next = !prev;
+    const labels: Record<keyof Flags, string> = {
+      loginProtect: "登录保护",
+      registrationOpen: "开放注册",
+      maintenance: "维护模式",
+      reviewRequired: "内容先审后发",
+    };
+    set((s) =>
+      withAudit(s, { kind: "admin", action: next ? `开启${labels[key]}` : `关闭${labels[key]}`, target: "系统配置" }, {
         flags: { ...s.flags, [key]: next },
-      });
-    });
+      }),
+    );
+    if (get().demoMode) return;
+    void (async () => {
+      const result = await remote.remoteSetFlags({ [key]: next });
+      if (!result.ok) {
+        set((s) => ({ flags: { ...s.flags, [key]: prev } }));
+        get().flash(result.error || "没有同步到服务器，已改回");
+        return;
+      }
+      set((s) => ({ flags: { ...s.flags, ...result.data } }));
+    })();
   },
   createInvite: () => {
     const code = tempCode();
@@ -1369,6 +1387,7 @@ export async function refreshLiveData() {
     s.refreshReports(),
     s.refreshCommunities(),
     s.refreshBlockwords(),
+    s.refreshFlags(),
     s.refreshSecurityEvents(),
     s.refreshAppeals({ status: "pending" }),
   ]);
