@@ -18,13 +18,14 @@ test('审查文档：独立审查尚未通过；诚实说明已用 Olm 加密且
   assert.match(doc, /群聊/);
 });
 
-test('构建产物诚实标识：使用 Olm 加密、审查未完成、有安全号码；不宣称已端到端加密；演示仍未加密', () => {
-  assert.match(dist, /已登录 · 私聊使用 Olm（vodozemac）加密/);
-  assert.match(dist, /服务端只保?存密文/);
-  assert.match(dist, /独立安全审查尚未完成/);
+test('构建产物诚实标识：私聊已加密、有安全号码；不宣称已端到端加密；演示与群聊标明未加密', () => {
+  // 文案在 9b145ed（r6）起改为更口语的「已登录 · 私聊已加密」，测试跟上当前界面。
+  assert.match(dist, /已登录 · 私聊已加密/);
+  assert.match(dist, /一对一聊天会加密后发送/);
+  assert.match(dist, /群聊暂时还没有加密|群聊暂不加密/);
   assert.match(dist, /安全号码/);
-  assert.match(dist, /演示模式 · 未加密/);
-  assert.match(dist, /群聊暂不提供端到端加密|群聊暂不加密/);
+  assert.match(dist, /演示模式/);
+  assert.match(dist, /不会发送真实消息/);
   assert.doesNotMatch(dist, /已端到端加密/);
   assert.doesNotMatch(dist, /端到端加密已开启/);
   assert.doesNotMatch(dist, /独立安全审查已通过/);
@@ -37,6 +38,6 @@ test('构建产物诚实标识：使用 Olm 加密、审查未完成、有安全
     assert.doesNotMatch(t, /独立安全审查已通过/, f);
   }
   const ban = readFileSync(join(root, 'src/20_ui.js'), 'utf8');
-  assert.match(ban, /私聊使用 Olm（vodozemac）加密/);
+  assert.match(ban, /已登录 · 私聊已加密/);
   assert.doesNotMatch(ban, /尚未端到端加密/);
 });

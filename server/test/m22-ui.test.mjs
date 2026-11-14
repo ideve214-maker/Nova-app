@@ -30,7 +30,7 @@ test('M2.2 网页注册登录刷新退出', { timeout: 90000 }, async () => {
   try {
     const home = await fetch(base + '/');
     assert.equal(home.status, 200);
-    assert.match(await home.text(), /NOVA/);
+    assert.match(await home.text(), /<title>VEXO<\/title>/);
 
     await page.goto(base + '/');
     await page.waitForSelector('#gate');
