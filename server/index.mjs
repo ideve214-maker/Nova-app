@@ -1548,7 +1548,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return r;
     },
 
-    // ---- r10 AI 审查（Groq） ----
+    // ---- AI 审查（智谱 AI，OpenAI 兼容接口） ----
     'GET /api/admin/ai-moderation'(req) { adminAuth(req); return {settings: aiMod.settings(), status: aiMod.status(), logs: aiMod.logs(req.query || {})}; },
     'POST /api/admin/ai-moderation'(req, b) {
       const {admin} = adminAuth(req);

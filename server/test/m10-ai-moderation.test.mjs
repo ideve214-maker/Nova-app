@@ -1,10 +1,10 @@
-// r10 营销管理（4）：AI 审查（Groq）——用假的 fetch 模拟接口：拦截、放行、标记、限速冷却、超时和没配密钥时退回关键词过滤。
+// AI 审查（2.0 起只用智谱 AI，glm-4-flash）——用假的 fetch 模拟接口：拦截、放行、标记、限速冷却、超时和没配密钥时退回关键词过滤。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../index.mjs';
 
 let srv, base, seq = 0, adm;
-const env = {GROQ_API_KEY: 'test-key-not-real', GROQ_RPM: '50'};
+const env = {AI_API_KEY: 'test-key-not-real', AI_RPM: '50'};
 let mode = 'ok', calls = [];
 async function fakeFetch(url, opt) {
   const body = JSON.parse(opt.body);
@@ -41,18 +41,20 @@ test('AI 审查：默认关闭；开启后拦截违规、放行正常；设置�
   assert.equal((await call('GET', '/api/admin/ai-moderation', null, u.tok)).s, 403);
   const st = await call('POST', '/api/admin/ai-moderation', {enabled: true, rules: '禁止推销保健品'}, adm);
   assert.equal(st.j.settings.enabled, true);
-  assert.equal(st.j.settings.model, 'openai/gpt-oss-20b');
+  assert.equal(st.j.settings.model, 'glm-4-flash');
+  assert.equal(st.j.status.provider, 'zhipu');
   assert.equal(st.j.status.keyConfigured, true);
   assert.ok(!JSON.stringify(st.j).includes('test-key-not-real'), '不返回密钥');
   const bad = await call('POST', '/api/posts', {text: '加微信 带你赌博'}, u.tok);
   assert.equal(bad.s, 422);
   assert.equal(bad.j.error.code || bad.j.code, 'AI_REJECTED');
   const c = calls.at(-1);
-  assert.equal(c.url, 'https://api.groq.com/openai/v1/chat/completions');
+  assert.equal(c.url, 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
   assert.equal(c.auth, 'Bearer test-key-not-real');
-  assert.equal(c.body.model, 'openai/gpt-oss-20b');
+  assert.equal(c.body.model, 'glm-4-flash');
   assert.equal(c.body.temperature, 0);
-  assert.equal(c.body.reasoning_effort, 'low');
+  assert.equal(c.body.reasoning_effort, undefined);
+  assert.equal(c.body.response_format.type, 'json_object');
   assert.match(c.body.messages[0].content, /禁止推销保健品/);
   const ok = await call('POST', '/api/posts', {text: '今天天气真好'}, u.tok);
   assert.equal(ok.s, 200);
@@ -96,7 +98,7 @@ test('AI 审查：仅标记模式不拦截；失败、超时、限速都退回�
   assert.equal(fb.logs[0].error, 'rate_limited');
 });
 
-test('AI 审查：没配置 GROQ_API_KEY 时不调用，退回关键词过滤', async () => {
+test('AI 审查：没配置 AI_API_KEY / ZHIPU_API_KEY 时不调用，退回关键词过滤', async () => {
   const s2 = createApp({adminUsername: 'ops_ai2', adminPassword: 'OpsAiPass1!', aiEnv: {}, aiFetch: () => { throw new Error('should not call'); }});
   await new Promise(r => s2.listen(0, '127.0.0.1', r));
   const b2 = 'http://127.0.0.1:' + s2.address().port;
@@ -109,4 +111,51 @@ test('AI 审查：没配置 GROQ_API_KEY 时不调用，退回关键词过滤', 
   const lg = (await c2('GET', '/api/admin/ai-moderation', null, a)).j.logs[0];
   assert.equal(lg.error, 'no_key');
   s2.close();
+});
+
+async function mini(aiEnv, fetchImpl, name) {
+  const sv = createApp({adminUsername: name, adminPassword: 'OpsAiPass1!', aiEnv, aiFetch: fetchImpl});
+  await new Promise(r => sv.listen(0, '127.0.0.1', r));
+  const b = 'http://127.0.0.1:' + sv.address().port;
+  const c = async (m, p, body, tok) => { const r = await fetch(b + p, {method: m, headers: {'Content-Type': 'application/json', ...(tok ? {Authorization: 'Bearer ' + tok} : {})}, body: body ? JSON.stringify(body) : undefined}); return {s: r.status, j: await r.json()}; };
+  const a = (await c('POST', '/api/admin/auth/login', {username: name, password: 'OpsAiPass1!'})).j.token;
+  return {sv, c, a};
+}
+
+test('AI 审查：只填 ZHIPU_API_KEY 也能用；AI_API_BASE / AI_MODEL 可在 .env 里换', async () => {
+  const seen = [];
+  const f = async (url, opt) => { seen.push({url, auth: opt.headers.Authorization, model: JSON.parse(opt.body).model}); return Response.json({choices: [{message: {content: '{"verdict":"allow"}'}}]}); };
+  const {sv, c, a} = await mini({ZHIPU_API_KEY: 'zp-test', AI_API_BASE: 'https://example.test/v1/', AI_MODEL: 'glm-4-flash-250414'}, f, 'ops_ai3');
+  const st = await c('POST', '/api/admin/ai-moderation', {enabled: true}, a);
+  assert.equal(st.j.status.keyConfigured, true);
+  assert.equal(st.j.status.provider, 'openai-compatible');
+  assert.equal(st.j.settings.model, 'glm-4-flash-250414');
+  const t = await c('POST', '/api/admin/ai-moderation/test', {text: '你好'}, a);
+  assert.equal(t.s, 200, JSON.stringify(t.j));
+  assert.equal(seen[0].url, 'https://example.test/v1/chat/completions');
+  assert.equal(seen[0].auth, 'Bearer zp-test');
+  assert.equal(seen[0].model, 'glm-4-flash-250414');
+  sv.close();
+});
+
+test('AI 审查：不使用 DeepSeek——地址或模型带 deepseek 都不调用，退回关键词过滤', async () => {
+  const f = () => { throw new Error('不应调用 DeepSeek'); };
+  const {sv, c, a} = await mini({AI_API_KEY: 'k', AI_API_BASE: 'https://api.deepseek.com/v1'}, f, 'ops_ai4');
+  const st = await c('POST', '/api/admin/ai-moderation', {enabled: true}, a);
+  assert.equal(st.j.status.providerAllowed, false);
+  assert.equal((await c('POST', '/api/admin/ai-moderation', {model: 'deepseek-chat'}, a)).s, 400);
+  const u = (await c('POST', '/api/auth/register', {agree: true, username: 'dsk1', email: 'dsk1@x.test', password: 'Passw0rd123'})).j.token;
+  assert.equal((await c('POST', '/api/posts', {text: '普通内容'}, u)).s, 200);
+  const lg = (await c('GET', '/api/admin/ai-moderation', null, a)).j.logs[0];
+  assert.equal(lg.error, 'provider_not_allowed');
+  sv.close();
+});
+
+test('AI 审查：以前存过的 Groq 模型自动换回 glm-4-flash', async () => {
+  const {sv, c, a} = await mini({AI_API_KEY: 'k'}, async () => Response.json({choices: [{message: {content: '{"verdict":"allow"}'}}]}), 'ops_ai5');
+  sv.db.prepare("INSERT INTO app_flags(key,value,updated_at) VALUES('ai.moderation',?,0) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify({enabled: true, model: 'openai/gpt-oss-20b'}));
+  const st = await c('GET', '/api/admin/ai-moderation', null, a);
+  assert.equal(st.j.settings.model, 'glm-4-flash');
+  assert.ok(!st.j.status.models.some(m => /gpt-oss|deepseek/.test(m)));
+  sv.close();
 });
