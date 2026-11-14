@@ -20,4 +20,4 @@ html[data-skin="pulse"] nav svg,
 html[data-skin="pulse"] .ib svg,
 html[data-skin="pulse"] .bar svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 html[data-skin="pulse"] nav button.on{color:var(--ac)}
-html[data-skin="pulse"] .br-logo{height:22px;width:auto;display:block}
+html[data-skin="pulse"] .br-logo{height:26px;width:auto;display:block}

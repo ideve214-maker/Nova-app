@@ -19,4 +19,4 @@ html[data-skin="xinglan"] nav svg,
 html[data-skin="xinglan"] .ib svg,
 html[data-skin="xinglan"] .bar svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 html[data-skin="xinglan"] nav button.on{background:var(--ac-soft,rgba(110,139,255,.16));border-radius:999px;margin:6px 4px;color:var(--ac)}
-html[data-skin="xinglan"] .br-logo{height:22px;width:auto;display:block}
+html[data-skin="xinglan"] .br-logo{height:26px;width:auto;display:block}
