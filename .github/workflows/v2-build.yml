@@ -39,7 +39,7 @@ permissions:
 env:
   # ---- source pins (full SHAs; never branch names) -------------------------
   USER_SHA: 9b5bdb2154a5fac3675c0abc6959e558f4bbded0   # v7-m7.r8-vexo (Bob)
-  ADMIN_SHA: 4ac5fbeecc6c52a18441116553ab1d7da2437406  # admin-vexo-1.1.0 (Agent); will move after the VEXO_Admin.html rename
+  ADMIN_SHA: c67a21cecca1b3aeae106df13492d4d9ab606dfd  # admin-vexo-1.1.0 (Agent), entry dist-spa/VEXO_Admin.html
   # ---- versions --------------------------------------------------------------
   # Android versionCode = BASE + github.run_number of THIS workflow (monotonic).
   USER_VERSION_NAME: '1.0.0'
@@ -133,7 +133,7 @@ jobs:
           {
             echo "PKG_FILE=$FILE"; echo "PKG_KIND=$EXT"; echo "PROJ=$PROJ"
             echo "APP_VERSION_NAME=$VN"; echo "APP_VERSION_CODE=$VC"
-            echo "VEXO_VERSION_CODE=$VC"; echo "IPA_BUILD_VERSION=$VC"
+            echo "VEXO_VERSION_CODE=$VC"; echo "NOVA_VERSION_CODE=$VC"; echo "IPA_BUILD_VERSION=$VC"
             echo "EXPECT_NAME=$DISP"; echo "EXPECT_URL=$URL"
           } >> "$GITHUB_ENV"
           echo "will build $FILE from $SRC_SHA"
@@ -284,5 +284,9 @@ jobs:
           printf '%s\n' "$KNOWN" > "$RUNNER_TEMP/known_hosts"
           SSH_OPTS=(-i "$RUNNER_TEMP/deploy_key" -o IdentitiesOnly=yes -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o StrictHostKeyChecking=yes -o BatchMode=yes)
           scp -q "${SSH_OPTS[@]}" "out/$PKG_FILE" "out/$PKG_FILE.json" "$DUSER@$HOST:$DPATH/"
+          # Stable URL for fast downloads from China: <dir>/VEXO-Admin-latest-debug.apk
+          # and VEXO-Admin-latest-unsigned.ipa always point at the newest verified build.
+          if [ "$PKG_KIND" = apk ]; then LATEST=VEXO-Admin-latest-debug.apk; else LATEST=VEXO-Admin-latest-unsigned.ipa; fi
+          ssh "${SSH_OPTS[@]}" "$DUSER@$HOST" "cd '$DPATH' && cp -f '$PKG_FILE' '.$LATEST.tmp' && mv -f '.$LATEST.tmp' '$LATEST' && cp -f '$PKG_FILE.json' '$LATEST.json'"
           rm -f "$RUNNER_TEMP/deploy_key"
           echo "deployed $PKG_FILE (+ .json) to the hidden admin download dir" >> "$GITHUB_STEP_SUMMARY"
