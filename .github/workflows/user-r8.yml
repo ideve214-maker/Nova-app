@@ -15,7 +15,7 @@ permissions:
 env:
   # 固定到这一版的提交，不要写分支名。打包脚本检出这个 SHA 作为用户端源码。
   # 下面的值会在提交应用改动之后改成那个提交的 SHA。
-  USER_REF: aaaac8e8a93c553aeffdfaf3f55b41a34d0331a1
+  USER_REF: e6893c7caa6aad620ca96084b7e9715354ba2864
   USER_API_BASE: https://47.239.0.90
   USER_UPDATE_URL: https://47.239.0.90/updates/user/manifest.json
 
