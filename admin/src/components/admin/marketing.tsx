@@ -324,7 +324,16 @@ function StatsTab() {
   );
 }
 
-type Plan = { id: string; name: string; priceCents: number; impressions: number; days: number; priceLabel?: string; cpm?: number };
+type Plan = { id: string; name: string; priceCents: number; impressions: number; days: number; priceLabel?: string; cpm?: number; priceText?: string };
+// 价格输入：编辑时保留原文（否则输入「9.」会被立刻改回「9」，小数点打不进去）；接受中英文逗号/句号，最多两位小数。
+export function normPrice(raw: string): string | null {
+  const t = String(raw).replace(/[，,。]/g, ".").replace(/\s+/g, "");
+  return /^\d{0,6}(\.\d{0,2})?$/.test(t) ? t : null;
+}
+export function yuanText(cents: number): string {
+  const n = Math.round(Number(cents) || 0);
+  return n % 100 === 0 ? String(n / 100) : (n / 100).toFixed(2).replace(/0$/, "");
+}
 type BoostOrder = {
   id: string; code: string; postId: string; planName: string; amountLabel: string; impressions: number; days: number;
   methodName: string; status: string; statusLabel: string; delivered: number; progress: number; rejectReason: string | null;
@@ -454,14 +463,14 @@ function BoostTab() {
             {planEdit.map((p, i) => (
               <div key={i} className="mb-2 grid grid-cols-[1fr_1fr_1fr_0.7fr_auto] items-end gap-1.5">
                 <Field label="名称"><input className={inputClass} value={p.name} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} /></Field>
-                <Field label="价格（元）"><input className={inputClass} inputMode="decimal" value={String(p.priceCents / 100)} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, priceCents: Math.round((Number(e.target.value) || 0) * 100) } : x)))} /></Field>
+                <Field label="价格（元）"><input className={inputClass} type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" autoComplete="off" placeholder="9.90" value={p.priceText ?? yuanText(p.priceCents)} onChange={(e) => { const t = normPrice(e.target.value); if (t == null) return; setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, priceText: t, priceCents: Math.round((Number(t) || 0) * 100) } : x))); }} onBlur={() => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, priceText: undefined } : x)))} /></Field>
                 <Field label="曝光"><input className={inputClass} inputMode="numeric" value={String(p.impressions)} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, impressions: Number(e.target.value.replace(/\D/g, "")) || 0 } : x)))} /></Field>
                 <Field label="天数"><input className={inputClass} inputMode="numeric" value={String(p.days)} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, days: Number(e.target.value.replace(/\D/g, "")) || 0 } : x)))} /></Field>
                 <button type="button" aria-label="删除套餐" className="mb-2.5 h-11 px-1 text-danger" onClick={() => setPlanEdit(planEdit.filter((_, j) => j !== i))}>✕</button>
               </div>
             ))}
             {planEdit.length < 8 && <button type="button" className="mb-3 h-10 w-full rounded-full bg-subtle text-[14px] font-semibold" onClick={() => setPlanEdit([...planEdit, { id: "p" + Date.now().toString(36), name: "新套餐", priceCents: 1000, impressions: 300, days: 3 }])}>添加套餐</button>}
-            <PrimaryButton onClick={() => void saveSettings({ plans: planEdit }).then((ok) => { if (ok) setPlanEdit(null); })}>保存套餐</PrimaryButton>
+            <PrimaryButton onClick={() => void saveSettings({ plans: planEdit.map(({ priceText: _t, ...x }) => x) }).then((ok) => { if (ok) setPlanEdit(null); })}>保存套餐</PrimaryButton>
           </div>
         )}
       </Sheet>
