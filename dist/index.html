@@ -166,7 +166,7 @@ nav button:active,.pb:active,.lk:active,.mi:active,.ctools button:active,.gmini:
 .pjstat{display:flex;gap:10px;width:100%;margin-top:4px}.pjstat span{flex:1;background:var(--s2);border-radius:12px;padding:8px;text-align:center;display:flex;flex-direction:column}.pjstat b{font-size:17px}.pjstat small{color:var(--t2);font-size:12px}
 .pjact{display:flex;gap:8px;width:100%;flex-wrap:wrap;margin-top:4px}.pjact .pb{flex:1;min-width:120px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .pjsec{padding:12px 16px;border-top:8px solid var(--bg)}.pjsec h4{font-size:15px;margin:0 0 10px}.pjsec h4 small{color:var(--t2);font-weight:400;margin-left:4px}.pjdesc{white-space:pre-wrap;line-height:1.55;font-size:15px;margin:0 0 8px;word-break:break-word}
-.pjmem{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}.pjm{flex:none;width:68px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;color:inherit;padding:0}.pjm .nmb{font-size:12px;max-width:68px;flex-wrap:wrap!important;justify-content:center;gap:2px}.pjm small{font-size:11px;color:var(--t2)}
+.pjmem{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}.pjm{flex:none;width:68px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;color:inherit;padding:0}.pjm .nmb{font-size:12px;max-width:68px;flex-wrap:wrap!important;justify-content:center;gap:2px}.pjm small{font-size:11px;color:var(--t2)}.pjm .obg{padding:0 2px}.pjm .obg span,.pjm .vip{display:none}
 .pjseg{border:0;background:var(--s2);border-radius:12px;padding:3px;margin-bottom:10px}.pjseg button{border-radius:9px}.pjseg button.on{background:var(--sf)}
 .pjadd{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}.pjadd .fld{flex:1 1 140px;margin:0;min-width:0}.pjadd select.fld{flex:0 1 130px;padding:10px}.pjadd.col{flex-direction:column;align-items:stretch}.pjadd.col .fld{flex:none;width:100%}.pjadd .fr{display:flex;gap:8px;justify-content:flex-end}.pjadd .pb{display:inline-flex;align-items:center;gap:4px}.pjadd .hint{font-size:12px;margin:0}
 .pjtk{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ln)}.pjtk .gr{flex:1;min-width:0}.pjtk .gr b{font-weight:500;font-size:15px;white-space:normal;word-break:break-word}.pjtk.done .gr b{text-decoration:line-through;color:var(--t2)}.pjtk small .nmb{font-size:12px}
@@ -654,8 +654,10 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 <div id="app"><div id="v"></div><div id="tt" role="status"></div></div>
 <script>
 /* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */
+window.NOVA_API_BASE = window.NOVA_API_BASE || "https://47.239.0.90";
 window.NOVA_DISABLE_DEMO = window.NOVA_DISABLE_DEMO === undefined ? true : window.NOVA_DISABLE_DEMO;
-window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "1.0.8";
+window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "2.0.0";
+window.NOVA_UPDATE_MANIFEST_URL = window.NOVA_UPDATE_MANIFEST_URL || "https://47.239.0.90/updates/user/manifest.json";
 </script>
 <script>
 /* vendored @kinsh/vodozemac-wasm 0.4.2, Apache-2.0; crypto is official vodozemac (Olm). */
@@ -4990,7 +4992,7 @@ const chk=t=>{const k=t.dataset.d,mx=+t.dataset.max||0,raw=len(t.value),b=$(`[da
 /* r10：输入框随内容自动变高，最多 data-grow 行（默认 5 行），超过后在框内滚动。回车键换行，点「发送」发送。 */
 function growTa(t){if(!t||t.tagName!=='TEXTAREA')return;const max=+(t.dataset.grow||5)||5;const cs=getComputedStyle(t);const lh=parseFloat(cs.lineHeight)||20;const pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);t.style.height='auto';const want=Math.min(t.scrollHeight,lh*max+pad);t.style.height=Math.max(want,lh+pad)+'px';t.style.overflowY=t.scrollHeight>lh*max+pad+1?'auto':'hidden'}
 function renderCore(){
-if(MODE==='boot'||MODE==='gate'||MODE==='offline'||MODE==='maint'){document.documentElement.dataset.theme=typeof resolvedTheme==='function'?resolvedTheme():((D.st&&D.st.theme)||'dark');applyVipTheme(false);document.body.classList.toggle('rm',!!(D.st&&D.st.rm));$('#v').innerHTML=(typeof iosStatus==='function'?iosStatus():'')+(MODE==='gate'&&typeof maintBar==='function'?maintBar():'')+(MODE==='boot'?bootView():MODE==='offline'?offlineView():MODE==='maint'?maintView():gateView());if(MODE==='gate'){document.querySelectorAll('#v [data-d]').forEach(el=>{if(S.d[el.dataset.d]!=null)el.value=S.d[el.dataset.d]});const af=$('#v [data-af]');if(af&&!af.value)af.focus()}return}
+if(MODE==='boot'||MODE==='gate'||MODE==='offline'||MODE==='maint'){document.documentElement.dataset.theme=typeof resolvedTheme==='function'?resolvedTheme():((D.st&&D.st.theme)||'dark');applyVipTheme(false);document.body.classList.toggle('rm',!!(D.st&&D.st.rm));$('#v').innerHTML=(typeof iosStatus==='function'?iosStatus():'')+(MODE==='gate'&&typeof maintBar==='function'?maintBar():'')+(MODE==='boot'?bootView():MODE==='offline'?offlineView():MODE==='maint'?maintView():gateView());if(MODE==='gate'){document.querySelectorAll('#v [data-d]').forEach(el=>{if(S.d[el.dataset.d]!=null)el.value=S.d[el.dataset.d]})}return}
 fixIds();const cur=S.st[S.st.length-1],key=typeof scrollKey==='function'?scrollKey():(cur||S.tab),prevKey=S.k,prevDepth=S._sd||0,newDepth=(S.st||[]).length;if(typeof captureScroll==='function')captureScroll();else{const old=$('#v .sc');if(old&&prevKey){S.sy=S.sy||{};S.sy[prevKey]=old.scrollTop}}if(typeof planScroll==='function')planScroll(prevKey,key,prevDepth,newDepth,cur);S.k=key;S._sd=newDepth;
 document.documentElement.dataset.theme=typeof resolvedTheme==='function'?resolvedTheme():(D.st.theme||'dark');syncVipUser();applyVipTheme(vipThemeOn());document.body.classList.toggle('rm',!!D.st.rm);
 const hideNav=!!cur;
@@ -4999,12 +5001,11 @@ const shKey=S.sh?String(S.sh.t)+':'+(S.sh.id||''):'',prevShKey=S._shk||'';S._shk
 $('#v').innerHTML=(typeof iosStatus==='function'?iosStatus():'')+(cur?page(cur):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='co'&&typeof tCo==='function'?tCo():S.tab=='chat'?tChat():tMe())+(typeof maintBar==='function'?maintBar():'')+(hideNav?'':nav())+sheet();
 document.querySelectorAll('#v [data-d]').forEach(el=>{el.value=S.d[el.dataset.d]||'';chk(el);if(el.dataset.grow)growTa(el)});
 const sc=$('#v .sc');if(typeof applyScroll==='function')applyScroll(sc,S._restore);else if(sc)sc.scrollTop=(cur&&cur.startsWith('chat:'))||S.bot?1e9:(prevKey==key?(S.sy&&S.sy[key]||0):0);S.bot=0;if(S.jump&&sc){const el=sc.querySelector('[data-mid="'+S.jump+'"]');if(el){sc.scrollTop=el.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-70;el.classList.add('flash')}S.jump=null}
-/* r7：只在刚打开页面/面板时自动聚焦一次。以前每次点按都会整页重绘并重新聚焦输入框，键盘反复弹出收起，页面跟着上下跳、看起来忽大忽小；
-   面板打开时也不再去聚焦面板后面页面里的输入框。 */
+/* r7：面板只在刚打开时播放动画（shKey 未变则加 noanim）。
+   1.0.9：启动和打开页面、面板时都不自动聚焦输入框；键盘只在用户点输入框，或点「回复」等明确操作（S.foc）时弹出。 */
 if(shKey&&shKey===prevShKey)document.querySelectorAll('#v .pn,#v .ov').forEach(x=>x.classList.add('noanim'));
-const pgKey=String(cur||S.tab);let af=null;
-if(shKey){if(shKey!==prevShKey)af=$('#v .pn [data-af]')}else if(pgKey!==S._afp)af=$('#v .pg [data-af]');
-S._afp=pgKey;if(af)af.focus();if(S.foc){const fi=$('#v [data-d='+S.foc+']');fi&&fi.focus();S.foc=null}save()}
+S._afp=String(cur||S.tab);
+if(S.foc){const fi=$('#v [data-d='+S.foc+']');fi&&fi.focus();S.foc=null}save()}
 
 /* ===== 65_feel.js ===== */
 /* NOVA V5 手感引擎：声音 + 触觉 + 页面转场 + 边缘右滑返回 + 滚动阻尼
