@@ -45,7 +45,7 @@ const TABS = [
   { id: "boost", label: "推流加热" },
   { id: "ai", label: "AI 审查" },
 ];
-const READY = new Set(["ads", "stats"]);
+const READY = new Set(["ads", "stats", "boost"]);
 
 export function MarketingScreen() {
   const back = useAdmin((s) => s.back);
@@ -56,6 +56,7 @@ export function MarketingScreen() {
       <Seg value={tab} options={tabs} onChange={setTab} />
       {tab === "ads" && <AdsTab />}
       {tab === "stats" && <StatsTab />}
+      {tab === "boost" && <BoostTab />}
     </Screen>
   );
 }
@@ -319,5 +320,158 @@ function StatsTab() {
         )}
       </Sheet>
     </div>
+  );
+}
+
+type Plan = { id: string; name: string; priceCents: number; impressions: number; days: number; priceLabel?: string; cpm?: number };
+type BoostOrder = {
+  id: string; code: string; postId: string; planName: string; amountLabel: string; impressions: number; days: number;
+  methodName: string; status: string; statusLabel: string; delivered: number; progress: number; rejectReason: string | null;
+  createdAt: number; endsAt: number | null; user: { id: number; username: string; displayName: string } | null;
+  post: { id: string; text: string; deleted: boolean } | null;
+};
+type BoostSettings = { enabled: boolean; perFeed: number; slots: number[] };
+const BOOST_FILTERS = [
+  { id: "awaiting_review", label: "待核对" }, { id: "active", label: "推流中" }, { id: "all", label: "全部" },
+];
+function BoostTab() {
+  const flash = useAdmin((s) => s.flash);
+  const [filter, setFilter] = useState("awaiting_review");
+  const [orders, setOrders] = useState<BoostOrder[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [st, setSt] = useState<BoostSettings | null>(null);
+  const [err, setErr] = useState("");
+  const [planEdit, setPlanEdit] = useState<Plan[] | null>(null);
+  const [rej, setRej] = useState<null | { o: BoostOrder; reason: string; mode: "reject" | "stop" | "refund" }>(null);
+  const load = useCallback(async (f: string) => {
+    const r = await mk<{ orders: BoostOrder[]; plans: Plan[]; settings: BoostSettings }>("adminBoostOrders", { query: { status: f } });
+    if (!r.ok) { setErr(r.error); return; }
+    setErr(""); setOrders(r.data.orders || []); setPlans(r.data.plans || []); setSt(r.data.settings);
+  }, []);
+  useEffect(() => { void load(filter); }, [load, filter]);
+  const saveSettings = async (body: Record<string, unknown>) => {
+    const r = await mk<{ settings: BoostSettings; plans: Plan[] }>("adminBoostSettings", { method: "POST", body });
+    if (!r.ok) { flash(r.error); return false; }
+    setSt(r.data.settings); setPlans(r.data.plans); flash("已保存"); return true;
+  };
+  const confirm = async (o: BoostOrder) => {
+    const r = await mk("adminBoostConfirm", { method: "POST", params: { id: o.id } });
+    if (!r.ok) { flash(r.error); return; }
+    flash("已开通，开始推流"); void load(filter);
+  };
+  const submitRej = async () => {
+    if (!rej) return;
+    const r = rej.mode === "reject"
+      ? await mk("adminBoostReject", { method: "POST", params: { id: rej.o.id }, body: { reason: rej.reason } })
+      : await mk("adminBoostStop", { method: "POST", params: { id: rej.o.id }, body: { reason: rej.reason, refund: rej.mode === "refund" } });
+    if (!r.ok) { flash(r.error); return; }
+    setRej(null); flash(rej.mode === "reject" ? "已拒绝" : rej.mode === "refund" ? "已标记退款，请线下退回款项" : "已停止推流"); void load(filter);
+  };
+  const tone = (s: string) => (s === "active" ? "ok" : s === "awaiting_review" ? "warn" : s === "rejected" || s === "refunded" ? "danger" : "muted") as "ok" | "warn" | "danger" | "muted";
+  return (
+    <div className="pb-6">
+      {err && <p className="px-4 pt-3 text-sm text-danger">{err}</p>}
+      {st && (
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold">开放推流</div>
+              <p className="text-[12px] text-muted">用户可在自己的公开帖子 ⋯ 菜单里购买</p>
+            </div>
+            <Toggle on={st.enabled} label="推流开关" onChange={(v) => void saveSettings({ enabled: v })} />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <SettingNum label="每次刷新最多插入几条" value={st.perFeed} onSave={(v) => void saveSettings({ perFeed: Math.min(5, v) })} />
+            <label className="block min-w-0">
+              <span className="mb-1 block min-h-8 text-[11px] leading-4 text-muted">插在第几条之后（逗号分隔）</span>
+              <SlotsInput value={st.slots} onSave={(v) => void saveSettings({ slots: v })} />
+            </label>
+          </div>
+          <div className="mt-3">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[13px] font-semibold">套餐（价格 → 曝光人数）</span>
+              <button type="button" className="text-[13px] font-semibold text-primary" onClick={() => setPlanEdit(plans.map((p) => ({ ...p })))}>编辑</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {plans.map((p) => (
+                <div key={p.id} className="rounded-xl bg-subtle px-3 py-2">
+                  <div className="text-[15px] font-semibold">{p.priceLabel} · {p.name}</div>
+                  <div className="text-[12px] text-muted">{p.impressions} 次曝光 · {p.days} 天 · 千次 ¥{((p.priceCents / p.impressions) * 10).toFixed(1)}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-4 text-muted">参考：抖音 DOU+ 约 100 元 ≈ 5000 次播放（约 ¥20/千次），信息流 CPM 常见 ¥4–30/千次。这里每人只算 1 次、投满即止，用户少时请把曝光数设得保守些。</p>
+          </div>
+        </Card>
+      )}
+      <div className="mt-3"><Seg value={filter} options={BOOST_FILTERS} onChange={setFilter} /></div>
+      {orders.length === 0 && !err && <EmptyState title="没有订单" hint={filter === "awaiting_review" ? "用户点「我已付款」后会出现在这里。" : undefined} />}
+      <ul className="mt-2 space-y-2 px-4">
+        {orders.map((o) => (
+          <li key={o.id} className="rounded-card bg-surface p-3 shadow-card">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[15px] font-semibold">{o.code}</span>
+              <Pill tone={tone(o.status)}>{o.statusLabel}</Pill>
+              <span className="ml-auto text-[14px] font-semibold">{o.amountLabel}</span>
+            </div>
+            <p className="mt-1 text-[12px] text-muted">{o.user ? sanitizeText(o.user.displayName) + " @" + o.user.username : ""} · {o.methodName} · {o.planName} {o.impressions} 次 / {o.days} 天</p>
+            {o.post && <p className="mt-1 line-clamp-2 text-[13px]">{o.post.deleted ? "（帖子已删除）" : sanitizeText(o.post.text)}</p>}
+            {(o.status === "active" || o.status === "done" || o.status === "ended" || o.status === "refunded") && (
+              <div className="mt-2">
+                <div className="h-2 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-primary" style={{ width: o.progress + "%" }} /></div>
+                <p className="mt-1 text-[12px] text-muted">已曝光 {o.delivered} / {o.impressions}（{o.progress}%）</p>
+              </div>
+            )}
+            {o.rejectReason && <p className="mt-1 text-[12px] text-danger">原因：{sanitizeText(o.rejectReason)}</p>}
+            <div className="mt-2 flex gap-2">
+              {(o.status === "awaiting_review" || o.status === "pending" || o.status === "expired") && (
+                <>
+                  <button type="button" className="nova-btn-primary h-9 flex-1 text-[13px]" onClick={() => void confirm(o)}>已收款，开始推流</button>
+                  <button type="button" className="h-9 flex-1 rounded-full nova-danger-soft text-[13px] font-semibold" onClick={() => setRej({ o, reason: "", mode: "reject" })}>拒绝</button>
+                </>
+              )}
+              {o.status === "active" && <button type="button" className="h-9 flex-1 rounded-full bg-subtle text-[13px] font-semibold" onClick={() => setRej({ o, reason: "", mode: "stop" })}>停止推流</button>}
+              {(o.status === "active" || o.status === "done" || o.status === "ended") && <button type="button" className="h-9 flex-1 rounded-full nova-danger-soft text-[13px] font-semibold" onClick={() => setRej({ o, reason: "", mode: "refund" })}>标记退款</button>}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <Sheet open={!!rej} title={rej?.mode === "reject" ? "拒绝订单" : rej?.mode === "refund" ? "标记退款" : "停止推流"} onClose={() => setRej(null)}>
+        {rej && (
+          <div className="px-4 pb-4">
+            {rej.mode === "refund" && <p className="mb-2 text-[13px] text-muted">会停止投放并把订单标记为已退款。款项需要你在微信 / 支付宝里手动退回。</p>}
+            <Field label={rej.mode === "reject" ? "拒绝原因（用户可见）" : "备注（可选）"}>
+              <input className={inputClass} value={rej.reason} onChange={(e) => setRej({ ...rej, reason: e.target.value })} placeholder={rej.mode === "reject" ? "例如 未收到款项" : ""} />
+            </Field>
+            <PrimaryButton disabled={rej.mode === "reject" && !rej.reason.trim()} onClick={() => void submitRej()}>确定</PrimaryButton>
+          </div>
+        )}
+      </Sheet>
+      <Sheet open={!!planEdit} title="编辑推流套餐" onClose={() => setPlanEdit(null)}>
+        {planEdit && (
+          <div className="max-h-[70dvh] overflow-y-auto px-4 pb-4">
+            {planEdit.map((p, i) => (
+              <div key={i} className="mb-2 grid grid-cols-[1fr_1fr_1fr_0.7fr_auto] items-end gap-1.5">
+                <Field label="名称"><input className={inputClass} value={p.name} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} /></Field>
+                <Field label="价格（元）"><input className={inputClass} inputMode="decimal" value={String(p.priceCents / 100)} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, priceCents: Math.round((Number(e.target.value) || 0) * 100) } : x)))} /></Field>
+                <Field label="曝光"><input className={inputClass} inputMode="numeric" value={String(p.impressions)} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, impressions: Number(e.target.value.replace(/\D/g, "")) || 0 } : x)))} /></Field>
+                <Field label="天数"><input className={inputClass} inputMode="numeric" value={String(p.days)} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, days: Number(e.target.value.replace(/\D/g, "")) || 0 } : x)))} /></Field>
+                <button type="button" aria-label="删除套餐" className="mb-2.5 h-11 px-1 text-danger" onClick={() => setPlanEdit(planEdit.filter((_, j) => j !== i))}>✕</button>
+              </div>
+            ))}
+            {planEdit.length < 8 && <button type="button" className="mb-3 h-10 w-full rounded-full bg-subtle text-[14px] font-semibold" onClick={() => setPlanEdit([...planEdit, { id: "p" + Date.now().toString(36), name: "新套餐", priceCents: 1000, impressions: 300, days: 3 }])}>添加套餐</button>}
+            <PrimaryButton onClick={() => void saveSettings({ plans: planEdit }).then((ok) => { if (ok) setPlanEdit(null); })}>保存套餐</PrimaryButton>
+          </div>
+        )}
+      </Sheet>
+    </div>
+  );
+}
+function SlotsInput({ value, onSave }: { value: number[]; onSave: (v: number[]) => void }) {
+  const [v, setV] = useState(value.join(","));
+  useEffect(() => setV(value.join(",")), [value]);
+  return (
+    <input className={inputClass + " text-center"} value={v} onChange={(e) => setV(e.target.value.replace(/[^\d,，]/g, ""))}
+      onBlur={() => { const arr = v.split(/[,，]/).map((x) => Math.round(Number(x))).filter((n) => Number.isFinite(n) && n >= 0).slice(0, 5); if (arr.length && arr.join(",") !== value.join(",")) onSave(arr); }} />
   );
 }
