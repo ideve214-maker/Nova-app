@@ -15,7 +15,10 @@ const av=(id,s,opt)=>{const own=id==='me'&&D.pf&&D.pf.me&&D.pf.me.ph;
   const deco=opt&&Object.prototype.hasOwnProperty.call(opt,'dec')?!!opt.dec:(id==='me'&&typeof vipDecoOn==='function'&&vipDecoOn());
   if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');return h};
 const gface=(c,s)=>phImg(c&&c.gp&&(String(c.gp).startsWith('data:')||String(c.gp).startsWith('assets/'))?c.gp:PH.group,s);
-const cmface=(c,s)=>phImg(c&&c.cp&&(String(c.cp).startsWith('data:')||String(c.cp).startsWith('assets/'))?c.cp:cove(c&&c.id||''),s);
+const isMediaId=src=>/^md_[A-Za-z0-9_-]{8,80}$/.test(String(src||''));
+function lookCss(src,fallback){const s=String(src||'');return bgCss(isMediaId(s)?(fallback||''):(s||fallback||''))}
+function lookMbg(src){return isMediaId(src)?` data-mbg="${esc(src)}"`:''}
+const cmface=(c,s)=>{const src=c&&c.cp||'';if(isMediaId(src))return `<span class="av ph" style="width:${s}px;height:${s}px"><img data-mid="${esc(src)}" alt=""></span>`;return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('assets/'))?src:cove(c&&c.id||''),s)};
 const meCover=()=>{const f=D.pf&&D.pf.me||{};return f.bg||BG[(+f.cv||0)%BG.length]};
 const cove=(key)=>BG[[...String(key)].reduce((a,c)=>a+c.charCodeAt(0),0)%BG.length];
 const PAL=['#2F6F5E','#5C4A3A','#243044','#6B3A4A','#3A465C','#6A5A3C'],hc=s=>PAL[[...s].reduce((a,c)=>a+c.charCodeAt(0),0)%6];

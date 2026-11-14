@@ -20,7 +20,8 @@ if(s.t=='tagfr'){const ids=typeof pickPeople==='function'?pickPeople((S.comp&&S.
 
 if(s.t=='search')h=`<input class="fld" id="sq" data-af placeholder="搜索" value="${esc(S.sq)}"><div id="sr">${srch(S.sq)}</div>`;
 if(s.t=='notif'){const ns=notifShown();h='<h3>通知</h3>'+(ns.list.length?ns.list.map(n=>swrow(`data-a="nr" data-v="${n.id}"`,notifRow(n),[['nrtog',n.u?'标为已读':'标为未读','#2D88FF',n.id],['nrdel','删除','#D4655A',n.id]],'nr')).join('')+(ns.more?notifMoreRow():''):'<p class="em">没有通知</p>')+'<p class="lab" style="padding-top:8px">提示：点一下查看详情，左滑可标为已读/删除</p>'}
-if(s.t=='cmgone')h=`<h3>无法打开社区</h3><p class="hint" style="white-space:pre-wrap;line-height:1.6">${esc(s.msg||'')}</p><div class="fr"><button class="pb" data-a="x">知道了</button></div>`;
+if(s.t=='cmgone'){const can=s.isOwner&&s.appealable,pending=s.isOwner&&s.appealStatus==='pending',reason=s.reason?`<p class="hint">原因：${esc(s.reason)}</p>`:'',btn=can?`<button class="pb" data-a="cmapform" data-v="${esc(String(s.id||''))}">申诉</button>`:(pending?'<button class="pb s" disabled>已提交申诉</button>':'');h=`<h3>无法打开社区</h3><p class="hint" style="white-space:pre-wrap;line-height:1.6">${esc(s.msg||'')}</p>${reason}<div class="fr">${btn}<button class="pb${btn?' s':''}" data-a="x">知道了</button></div>`}
+if(s.t=='cmappeal')h=typeof cmAppealForm==='function'?cmAppealForm(s):'';
 if(s.t=='nappeal')h=typeof notifAppealForm==='function'?notifAppealForm(s.id):'';
 if(s.t=='ndetail')h=notifDetail(typeof notifFind==='function'?notifFind(s.id):null);
 if(s.t=='leave')h=`<h3>退出这个社区？</h3><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="leave2" data-v="${s.id}">确定</button></div>`;

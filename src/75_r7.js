@@ -92,7 +92,23 @@ function mediaTicket(id){
 function mediaFileUrl(id,ticket,preview){
   return apiUrl('/api/media/'+encodeURIComponent(id)+'/'+(preview?'preview':'file')+'?ticket='+encodeURIComponent(ticket));
 }
+function hydrateLook(root){
+  if(typeof SESSION==='undefined'||!SESSION)return;
+  (root||document).querySelectorAll('[data-mbg]:not([data-mh])').forEach(el=>{
+    el.setAttribute('data-mh','1');
+    const id=el.getAttribute('data-mbg');
+    if(!id||typeof mediaTicket!=='function')return;
+    mediaTicket(id).then(ticket=>{
+      if(!el.isConnected||!ticket)return;
+      const url=mediaFileUrl(id,ticket,false);
+      el.style.backgroundImage="url('"+cssUrl(url)+"')";
+      el.style.backgroundSize='cover';
+      el.style.backgroundPosition='center';
+    });
+  });
+}
 function hydrateMedia(root){
+  if(typeof hydrateLook==='function')hydrateLook(root);
   if(typeof SESSION==='undefined'||!SESSION)return;
   (root||document).querySelectorAll('img[data-mid]:not([data-mh]),video[data-mid]:not([data-mh]),source[data-mid]:not([data-mh])').forEach(el=>{
     el.setAttribute('data-mh','1');

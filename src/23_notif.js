@@ -93,9 +93,10 @@ function notifAppeal(n){
   if(!n)return null;const d=n.data||{};
   const ok=n.appealable||d.appealable||n.kind==='community_takedown';
   if(!ok)return null;
-  const tt=String(d.target_type||d.targetType||(n.kind==='community_takedown'?'community':(n.refType||'other')));
-  const tid=String(d.target_id||d.targetId||d.communityId||d.community_id||n.refId||'');
-  return {targetType:tt,targetId:tid,name:d.name||d.communityName||'',reason:d.reason||''};
+  const tt=String(d.target_type||d.targetType||(d.appeal&&d.appeal.kind)||(n.kind==='community_takedown'?'community':(n.refType||'other')));
+  const raw=d.target_id||d.targetId||d.communityId||d.community_id||(d.appeal&&d.appeal.related)||n.refId||'';
+  const tid=typeof rawCommunityId==='function'?rawCommunityId(raw):String(raw||'').replace(/^community:/i,'');
+  return {targetType:tt==='community_takedown'?'community':tt,targetId:tid,name:d.name||d.communityName||'',reason:d.reason||''};
 }
 function notifAppealKey(){return 'nova_appealed_'+(SESSION&&SESSION.user?SESSION.user.id:'demo')}
 function notifAppealed(n){try{return !!JSON.parse(localStorage.getItem(notifAppealKey())||'{}')[n.id]}catch(e){return false}}
@@ -111,7 +112,9 @@ async function notifAppealSend(id){
   const text=String(S.d.aptxt||'').trim();
   if(text.length<4){T('请填写至少 4 个字的申诉理由');return}
   if(S.apBusy)return;S.apBusy=1;
-  let r;try{r=await api('POST','/api/appeals',{kind:ap.targetType,body:text,related:ap.targetId,communityId:ap.targetType==='community'?ap.targetId:undefined,target_type:ap.targetType,target_id:ap.targetId,targetType:ap.targetType,targetId:ap.targetId,notificationId:String(n.id)})}finally{S.apBusy=0}
+  const kind=ap.targetType==='community_takedown'?'community':ap.targetType;
+  const related=typeof rawCommunityId==='function'?rawCommunityId(ap.targetId):String(ap.targetId||'').replace(/^community:/i,'');
+  let r;try{r=await api('POST','/api/appeals',{kind,body:text,related,communityId:kind==='community'?related:undefined})}finally{S.apBusy=0}
   if(!r||r.s!==200){T(errMsg(r,'申诉提交失败，请稍后再试'));return}
   notifAppealMark(n);S.d.aptxt='';S.sh={t:'ndetail',id:n.id};T('申诉已提交，管理员会尽快处理');
 }
