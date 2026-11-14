@@ -104,7 +104,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   // CORS：未设置或 * 时与原先一致（允许任意来源）。逗号分隔白名单只回显匹配的 Origin。
   function corsHeaders(req) {
     const out = {
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name, Last-Event-ID, Last-Event-Id, X-CSRF-Token, X-Nova-Session',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name, X-Media-Duration, Last-Event-ID, Last-Event-Id, X-CSRF-Token, X-Nova-Session',
       'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS',
     };
     const raw = (corsOrigin == null || String(corsOrigin).trim() === '') ? '*' : String(corsOrigin).trim();
@@ -1025,7 +1025,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const name = (b && (b.name || b.filename)) || 'file';
       const mime = (b && (b.mime || b.type)) || 'application/octet-stream';
       const data = buf || (b && b.data ? Buffer.from(b.data, 'base64') : null);
-      const r = await media.upload(user, {buffer: data, mime, name, kind: b && b.kind});
+      const r = await media.upload(user, {buffer: data, mime, name, kind: b && b.kind, durationHint: b && b.durationMs});
       audit(user.id, 'media.upload', 'media:' + r.media.id, ip(req), {kind: r.media.kind, size: r.media.size});
       return r;
     },
@@ -1907,7 +1907,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         req.rawBody = raw;
         const ct = String(req.headers['content-type'] || '');
         if (path === '/api/media' && req.method === 'POST' && raw.length && !ct.includes('application/json')) {
-          b = {_buffer: raw, name: decodeURIComponent(String(req.headers['x-file-name'] || 'file')), mime: ct.split(';')[0] || 'application/octet-stream'};
+          b = {_buffer: raw, name: decodeURIComponent(String(req.headers['x-file-name'] || 'file')), mime: ct.split(';')[0] || 'application/octet-stream', durationMs: req.headers['x-media-duration']};
         } else if (raw.length) {
           try { b = JSON.parse(raw.toString('utf8')); } catch { throw bad('BAD_JSON', '请求格式不正确'); }
           if (b === null || typeof b !== 'object') throw bad('BAD_JSON', '请求格式不正确');

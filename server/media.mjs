@@ -151,7 +151,7 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
     return {mediaId, userId: Number(userId), exp: Number(exp)};
   }
 
-  async function upload(user, {buffer, mime, name, kind: forceKind}) {
+  async function upload(user, {buffer, mime, name, kind: forceKind, durationHint}) {
     if (!buffer || !Buffer.isBuffer(buffer) || !buffer.length) throw new ApiError(400, 'NO_FILE', '请选择要上传的文件');
     const name0 = String(name || 'file').slice(0, 120);
     const kind = forceKind || mimeKind(mime, name0);
@@ -197,6 +197,12 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
         if (vs) { width = +vs.width || null; height = +vs.height || null; }
         const dur = parseFloat((info.format && info.format.duration) || (vs && vs.duration) || (as_ && as_.duration) || 0);
         if (dur) duration = Math.round(dur * 1000);
+      }
+      // 2.0：手机录音（MediaRecorder 的 webm）头里常常没有时长，ffprobe 读不出；这时用客户端录音计时（只给语音用，限制在 0.5 秒–时长上限之间）
+      if (!duration && kind === 'audio' && durationHint != null) {
+        const h = Math.round(Number(durationHint));
+        const cap = (isVip(user) ? lim.vipDurationMs : lim.maxDurationMs) || 600000;
+        if (Number.isFinite(h) && h >= 500) duration = Math.min(h, cap);
       }
       if (lim.maxDurationMs && duration) {
         const maxD = isVip(user) ? lim.vipDurationMs : lim.maxDurationMs;

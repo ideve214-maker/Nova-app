@@ -25,8 +25,8 @@ async function acc(n) {
 }
 // 最小的 WebM（EBML 头 + 填充），够服务器按 MIME 识别
 const webm = () => Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d]), Buffer.alloc(4000, 7)]);
-async function upload(tok, type, name, body) {
-  const r = await fetch(base + '/api/media', {method: 'POST', headers: {Authorization: 'Bearer ' + tok, 'Content-Type': type, 'X-File-Name': encodeURIComponent(name)}, body});
+async function upload(tok, type, name, body, extra = {}) {
+  const r = await fetch(base + '/api/media', {method: 'POST', headers: {Authorization: 'Bearer ' + tok, 'Content-Type': type, 'X-File-Name': encodeURIComponent(name), ...extra}, body});
   return {s: r.status, j: await r.json()};
 }
 
@@ -86,4 +86,17 @@ test('网页版允许本站使用麦克风和相机', async () => {
   const r = await fetch(base + '/');
   assert.match(r.headers.get('permissions-policy') || '', /microphone=\(self\)/);
   assert.match(r.headers.get('permissions-policy') || '', /camera=\(self\)/);
+});
+
+test('2.0 语音时长：读不出时长的录音用客户端计时（X-Media-Duration），并限制范围', async () => {
+  const a = await acc('du');
+  const up = await upload(a.tok, 'audio/webm', 'voice.webm', webm(), {'X-Media-Duration': '3400'});
+  assert.equal(up.s, 200, JSON.stringify(up.j));
+  assert.equal(up.j.media.duration, 3400);
+  const tiny = await upload(a.tok, 'audio/webm', 'voice.webm', webm(), {'X-Media-Duration': '100'});
+  assert.equal(tiny.j.media.duration, undefined, '太短的计时不采用');
+  const huge = await upload(a.tok, 'audio/webm', 'voice.webm', webm(), {'X-Media-Duration': '99999999'});
+  assert.ok(huge.j.media.duration <= 600000, '不超过时长上限');
+  const r = await fetch(base + '/api/media', {method: 'OPTIONS', headers: {Origin: 'https://localhost', 'Access-Control-Request-Headers': 'x-media-duration'}});
+  assert.match(r.headers.get('access-control-allow-headers') || '', /X-Media-Duration/);
 });

@@ -56,18 +56,18 @@ function cbMedia(md){
 }
 function cbParse(v){const p=String(v||'').split('|');return p[0]==='ch'?{type:'ch',cm:p[1],ch:p[2],rest:p.slice(3)}:{type:'cv',id:p[1],rest:p.slice(2)}}
 function cbKey(v){const t=cbParse(v);return t.type==='ch'?'ch|'+t.cm+'|'+t.ch:'cv|'+t.id}
-async function cbUpload(blob,name){
-  const r=await fetch(apiUrl('/api/media'),{method:'POST',headers:{Authorization:'Bearer '+SESSION.token,'Content-Type':(blob.type||'application/octet-stream').split(';')[0],'X-File-Name':encodeURIComponent(name||'file')},body:blob});
+async function cbUpload(blob,name,durMs){
+  const r=await fetch(apiUrl('/api/media'),{method:'POST',headers:{Authorization:'Bearer '+SESSION.token,'Content-Type':(blob.type||'application/octet-stream').split(';')[0],'X-File-Name':encodeURIComponent(name||'file'),...(durMs?{'X-Media-Duration':String(Math.round(durMs))}:{})},body:blob});
   let j=null;try{j=await r.json()}catch(e){}
   if(r.status!==200)throw new Error((j&&j.error&&j.error.message)||'上传失败');
   return j.media;
 }
-async function cbSendMedia(target,blob,name,ok){
+async function cbSendMedia(target,blob,name,ok,durMs){
   if(typeof usingNet!=='function'||!usingNet()||!SESSION){T('演示模式暂不支持此功能');return}
   const t=cbParse(target);
   T('正在上传…');
   try{
-    const md=await cbUpload(blob,name);
+    const md=await cbUpload(blob,name,durMs);
     if(t.type==='ch'){
       const r=await api('POST','/api/channels/'+t.ch+'/messages',{mediaId:md.id});
       if(r.s!==200){T(errMsg(r,'发送失败'));return}
@@ -123,7 +123,8 @@ function cbVoice(target){
       const blob=new Blob(chunks,{type});
       if(blob.size<200){T('说话时间太短');return}
       const ext=/mp4|aac|m4a/.test(type)?'m4a':/ogg/.test(type)?'ogg':'webm';
-      cbSendMedia(target,blob,'voice.'+ext,'语音已发送');
+      /* 2.0：把录音时长一起传给服务器，气泡上显示秒数 */
+      cbSendMedia(target,blob,'voice.'+ext,'语音已发送',dur);
     };
     mr.start(250);S.rec=rec;
     cbStopTick();CB_TICK=setInterval(()=>{const el=document.getElementById('cbrect');if(el)el.textContent=cbFmtDur(Date.now()-rec.t0);if(Date.now()-rec.t0>=119000&&mr.state!=='inactive'){try{mr.stop()}catch(e){}}},250);
