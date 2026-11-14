@@ -68,6 +68,7 @@ export type PageName =
   | "communities"
   | "channel"
   | "blockwords"
+  | "marketing"
   | "events"
   | "appeals";
 

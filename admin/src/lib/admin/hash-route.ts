@@ -21,6 +21,7 @@ export const PAGE_NAMES = [
   "communities",
   "channel",
   "blockwords",
+  "marketing",
   "events",
   "appeals",
 ] as const;

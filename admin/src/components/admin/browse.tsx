@@ -33,6 +33,7 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
   { name: "hot", label: "热门话题", desc: "首页热门帖子与顺序", icon: Flame },
   { name: "announce", label: "公告通知", desc: "弹窗公告的发布与下线", icon: Megaphone },
   { name: "blockwords", label: "屏蔽词", desc: "平台拦截规则", icon: Ban },
+  { name: "marketing", label: "营销管理", desc: "营销帖、数据调整、推流加热、AI 审查", icon: Megaphone },
   { name: "payments", label: "付款审核", desc: "收款码人工核对", icon: CreditCard },
   { name: "reports", label: "举报处理", desc: "待处理队列", icon: Flag },
   { name: "appeals", label: "申诉处理", desc: "通过或驳回", icon: Flag },
@@ -46,6 +47,7 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
 const groups: { title: string; names: PageName[] }[] = [
   { title: "用户与会员", names: ["users", "vip"] },
   { title: "内容与社区", names: ["content", "hot", "communities", "announce", "blockwords"] },
+  { title: "营销", names: ["marketing"] },
   { title: "审核与处理", names: ["payments", "reports", "appeals"] },
   { title: "安全", names: ["events", "security"] },
   { title: "系统与数据", names: ["stats", "settings", "audit"] },
