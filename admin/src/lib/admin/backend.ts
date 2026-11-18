@@ -107,6 +107,12 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminV2List: "/api/admin/v2/:kind",
   adminV2Remove: "/api/admin/v2/:kind/:id/remove",
   adminV2Restore: "/api/admin/v2/:kind/:id/restore",
+  // AI 助手（/api/admin/ai/*）
+  adminAiStatus: "/api/admin/ai/status",
+  adminAiChat: "/api/admin/ai/chat",
+  adminAiConfirm: "/api/admin/ai/confirm",
+  adminAiCancel: "/api/admin/ai/cancel",
+  adminAiPending: "/api/admin/ai/pending",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",

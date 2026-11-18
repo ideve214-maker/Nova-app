@@ -71,6 +71,7 @@ export type PageName =
   | "marketing"
   | "events"
   | "appeals"
+  | "ai"
   | "tags"
   | "notify"
   | "aireport"
