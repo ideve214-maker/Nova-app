@@ -18,5 +18,6 @@ html[data-skin="xinglan"] .ib:hover{background:var(--ac-soft,rgba(110,139,255,.1
 html[data-skin="xinglan"] nav svg,
 html[data-skin="xinglan"] .ib svg,
 html[data-skin="xinglan"] .bar svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
-html[data-skin="xinglan"] nav button.on{background:var(--ac-soft,rgba(110,139,255,.16));border-radius:999px;margin:6px 4px;color:var(--ac)}
+/* 选中色只改图标和文字颜色。指示块由全局 .tgpill 液态玻璃胶囊负责，不再另画一层背景，以免出现两块高亮，margin 也会在拖动换项时挤乱间距。 */
+html[data-skin="xinglan"] nav button.on{background:none;margin:0;border-radius:0;color:var(--ac)}
 html[data-skin="xinglan"] .br-logo{height:26px;width:auto;display:block}
