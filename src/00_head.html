@@ -92,7 +92,10 @@ small{color:var(--t2);font-size:13px}
 .rxs{display:flex;justify-content:space-between;padding:8px 0}.rxs button{font-size:32px;width:52px;height:52px;border-radius:50%}.rxs button:active{background:var(--s2)}
 .cm{display:flex;gap:8px;padding:8px 16px}.cm.sub{padding-left:52px}
 .cthread{min-width:0}
-.crep{display:block;margin:0 16px 8px 60px;padding:6px 0;color:var(--ac);font-size:13px;font-weight:700;text-align:left;background:none}
+.crep{display:inline-flex;align-items:center;gap:4px;margin:0 16px 10px 60px;padding:6px 0;min-height:28px;line-height:1;color:var(--ac);font-size:13px;font-weight:700;text-align:left;background:none;border:0;cursor:pointer}
+.crep::before{content:'';width:22px;height:1px;margin-right:6px;background:var(--ln2,var(--ln))}
+.crep svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.crep[data-open="1"] svg{transform:rotate(180deg)}
 .cb{background:var(--s2);border-radius:16px;padding:8px 12px;display:inline-block;max-width:100%;word-break:break-word}.cb b{display:block;font-size:14px}
 .lk{font-size:13px;color:var(--t2);font-weight:600;padding:8px 2px}.lk.on{color:var(--ac)}
 .ban{flex:none;background:var(--s2);padding:8px 16px;border-bottom:1px solid var(--ln);font-size:13px;color:var(--t2)}.ban b{display:block;color:var(--dg);font-size:15px}
