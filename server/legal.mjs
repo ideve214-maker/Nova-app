@@ -1,5 +1,5 @@
 // 法律文档：配置中的运营者信息渲染进《隐私政策》《用户协议》。
-// 未配置的项保持【待填：…】占位符，不得在代码里编造公司名、邮箱或日期。
+// 已确认的运营者、生效日期写入默认值；其余未确认项保持【待填：…】。可用环境变量覆盖。
 import {readFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -8,9 +8,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(ROOT, 'docs', 'compliance');
 
 export const LEGAL_DEFAULTS = {
-  operatorName: '【待填：公司全称或运营者姓名】',
+  operatorName: 'Sterling ideve',
   contactEmail: '【待填：联系邮箱】',
-  effectiveDate: '【待填：生效日期】',
+  effectiveDate: '2026年11月20日',
   version: '2026-11-19',
   address: '【待填：注册或经营地址】',
   icp: '【待填：ICP 备案号，如无可注明暂无】',

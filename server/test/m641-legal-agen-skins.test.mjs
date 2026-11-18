@@ -23,12 +23,12 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j, text, headers: r.headers, ct};
 };
 
-test('未配置时保留【待填】占位符，不编造运营者信息；环境变量可覆盖', () => {
+test('未配置环境变量时使用内置默认值：已确认的运营者与生效日期，其余为【待填】；环境变量可覆盖', () => {
   const cfg = legalConfig({});
   assert.equal(cfg.operatorName, LEGAL_DEFAULTS.operatorName);
-  assert.match(cfg.operatorName, /【待填：/);
+  assert.equal(cfg.operatorName, 'Sterling ideve');
+  assert.equal(cfg.effectiveDate, '2026年11月20日');
   assert.match(cfg.contactEmail, /【待填：联系邮箱】/);
-  assert.match(cfg.effectiveDate, /【待填：生效日期】/);
   assert.match(cfg.address, /【待填：/);
   assert.match(cfg.icp, /【待填：/);
   assert.match(cfg.court, /【待填：/);
@@ -36,14 +36,17 @@ test('未配置时保留【待填】占位符，不编造运营者信息；环�
   assert.equal(cfg.version, '2026-11-19');
   for (const kind of ['privacy', 'terms']) {
     const d = legalDoc(kind, {});
-    assert.match(d.body, /【待填：公司全称或运营者姓名】/);
+    assert.match(d.body, /Sterling ideve/);
+    assert.match(d.body, /2026年11月20日/);
     assert.match(d.body, /【待填：联系邮箱】/);
-    assert.match(d.body, /【待填：生效日期】/);
-    assert.equal(d.operatorName, LEGAL_DEFAULTS.operatorName);
+    assert.doesNotMatch(d.body, /【待填：公司全称或运营者姓名】/);
+    assert.doesNotMatch(d.body, /【待填：生效日期】/);
+    assert.equal(d.operatorName, 'Sterling ideve');
+    assert.equal(d.effectiveDate, '2026年11月20日');
     assert.ok(d.html, '应提供已渲染的 html');
     assert.match(d.html, /legal-ph/);
     assert.match(d.html, /<h1>/);
-    assert.doesNotMatch(d.body, /\{\{|\}\}|草案|不构成法律意见|reviewRequired|Sterling ideve|ideve217@gmail.com/);
+    assert.doesNotMatch(d.body, /\{\{|\}\}|草案|不构成法律意见|reviewRequired|ideve217@gmail.com/);
     assert.doesNotMatch(d.title, /草案/);
   }
   const filled = legalDoc('privacy', {
@@ -62,13 +65,14 @@ test('未配置时保留【待填】占位符，不编造运营者信息；环�
   assert.equal(filled.version, '2026-12-01');
 });
 
-test('GET /api/legal 与 /legal 页面为正式文档，未配置时展示占位符', async () => {
+test('GET /api/legal 与 /legal 页面为正式文档，默认展示已确认信息与其余占位符', async () => {
   for (const kind of ['privacy', 'terms']) {
     const api = await call('GET', '/api/legal/' + kind);
     assert.equal(api.s, 200, api.text);
     assert.equal(api.j.reviewRequired, undefined);
     assert.equal(api.j.disclaimer, undefined);
-    assert.match(api.j.body, /【待填：公司全称或运营者姓名】/);
+    assert.match(api.j.body, /Sterling ideve/);
+    assert.match(api.j.body, /2026年11月20日/);
     assert.match(api.j.body, /【待填：联系邮箱】/);
     assert.ok(api.j.html);
     assert.match(api.j.html, /legal-ph/);
@@ -77,7 +81,8 @@ test('GET /api/legal 与 /legal 页面为正式文档，未配置时展示占位
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(page.headers.get('content-type'), /text\/html/);
-    assert.match(html, /【待填：公司全称或运营者姓名】/);
+    assert.match(html, /Sterling ideve/);
+    assert.match(html, /2026年11月20日/);
     assert.match(html, /legal-ph/);
     assert.doesNotMatch(html, /草案|不构成法律意见|\{\{/);
   }

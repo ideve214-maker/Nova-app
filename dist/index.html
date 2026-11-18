@@ -5213,7 +5213,7 @@ const pAbout=()=>{
       <button type="button" data-a="legal" data-v="terms"><span>用户协议</span><small>›</small></button>
       <button type="button" data-a="go" data-v="info:help"><span>帮助</span><small>›</small></button>
     </div>
-    <p class="about-fine">运营者：${legalPh(esc((d&&d.operatorName)||'【待填：公司全称或运营者姓名】'))}<br>联系邮箱：${legalPh(esc((d&&d.contactEmail)||'【待填：联系邮箱】'))}<br>本页版本号来自当前实际运行的应用包，与设置页「版本」一致。</p>
+    <p class="about-fine">运营者：${legalPh(esc((d&&d.operatorName)||'Sterling ideve'))}<br>联系邮箱：${legalPh(esc((d&&d.contactEmail)||'【待填：联系邮箱】'))}<br>本页版本号来自当前实际运行的应用包，与设置页「版本」一致。</p>
   </div></div>`;
 };
 const pInfo=k=>k==='help'?pHelp():k==='about'?pAbout():`<div class="pg">${sub((INF[k]&&INF[k][0])||'说明')}<div class="sc"><p style="padding:16px;white-space:pre-line">${(INF[k]&&INF[k][1])||''}</p></div></div>`;
