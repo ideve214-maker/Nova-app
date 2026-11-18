@@ -837,5 +837,24 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 .about-links button small{color:var(--t3)}
 .about-fine{color:var(--t3);font-size:12px;line-height:1.7;padding:0 4px}
 @media (prefers-reduced-motion:reduce){.faq-item>summary::after{transition:none}}
+
+/* 登录 / 注册：同意协议 */
+.agree-row{display:flex;align-items:flex-start;gap:10px;margin:14px 0 10px;width:100%;text-align:left;background:none;border:0;padding:0;color:inherit;cursor:pointer}
+.agree-box{flex:none;width:22px;height:22px;margin-top:1px;border-radius:6px;border:1.5px solid var(--t3);background:transparent;display:grid;place-items:center;color:var(--onac)}
+.agree-row[aria-checked=true] .agree-box,.agree-box.on{background:var(--ac);border-color:var(--ac)}
+.agree-box svg{width:14px;height:14px;display:block;opacity:0}
+.agree-row[aria-checked=true] .agree-box svg,.agree-box.on svg{opacity:1}
+.agree-txt{flex:1;min-width:0;font-size:13px;line-height:1.55;color:var(--tx);font-weight:600;overflow-wrap:anywhere}
+.agree-txt .lk{display:inline;padding:0;margin:0;color:var(--ac);font-size:inherit;font-weight:700;vertical-align:baseline}
+.auth-agree{padding-left:20px;padding-right:20px}
+.auth-agree h3{font-size:17px;line-height:1.45;margin:4px 0 10px}
+.auth-agree .agree-links{margin:0 0 16px;font-size:14px;line-height:1.7;color:var(--t2)}
+.auth-agree .agree-links .lk{color:var(--ac);font-size:inherit;padding:0;font-weight:700}
+.auth-agree .fr{display:flex;gap:10px;flex-wrap:wrap;justify-content:stretch}
+.auth-agree .fr .pb{flex:1 1 120px;min-width:0;text-align:center}
+@media (max-width:320px){
+  .auth.sc{padding-left:14px;padding-right:14px}
+  .agree-txt{font-size:12px}
+}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
