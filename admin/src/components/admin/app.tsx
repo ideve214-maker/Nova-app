@@ -16,6 +16,7 @@ import { HotScreen } from "./hot";
 import { BlockwordsScreen } from "./blockwords";
 import { MarketingScreen } from "./marketing";
 import { AppealsScreen, EventsScreen } from "./appeals";
+import { AiReportScreen, NotifyScreen, TagsScreen, V2Screen } from "./ops2";
 import { ChannelMessagesScreen, CommunitiesScreen, CommunityDetailScreen } from "./communities";
 import {
   AdminsScreen,
@@ -152,6 +153,10 @@ export function AdminApp() {
       {name === "hot" && <HotScreen />}
       {name === "devices" && <DevicesScreen />}
       {name === "admins" && <AdminsScreen />}
+      {name === "tags" && <TagsScreen />}
+      {name === "notify" && <NotifyScreen />}
+      {name === "aireport" && <AiReportScreen />}
+      {name === "v2" && <V2Screen />}
     </>
   );
 
