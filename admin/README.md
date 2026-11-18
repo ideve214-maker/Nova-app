@@ -197,7 +197,8 @@ npm run build:spa
 打包图标与启动屏（供以后运行 `@capacitor/assets`）放在 `resources/`：
 
 - `resources/icon.png`：1024×1024 应用图标，VEXO 星光版（黑色圆角方块 + 白到电光蓝发光的 V，取自 `/workspace/vexo-assets/starlight-1.jpg`）；`icon-masked.png` 为满版（安卓自适应图标用，V 在安全区内），`icon.svg` 为矢量近似稿
-- `resources/splash.png` / `resources/splash-dark.png`：2732×2732 启动屏（星光深色底 + V + 「VEXO 管理端」，两张相同，capacitor-assets 读这两个）
+- `resources/splash.png` / `resources/splash-dark.png` / `resources/splash-light.png`：2732×2732 启动屏，与用户端完全相同（深空星光 + 轨道环 + 发光 V 图标 + 地球弧线，无文字；三张相同，原样复制自 VEXOold fix/splash-restore fadb44a 的 resources/）。capacitor-assets 读 splash.png 和 splash-dark.png，底色 #000000 与用户端一致
+- `resources/brand/vexo-v.png`：启动页 V 图标（同上 fadb44a 的 assets/brand/vexo-v.png），spa.html 里以 base64 内联
 - 网页用：`public/favicon.svg`、`public/apple-touch-icon.png`（180）、`public/icon-192.png`
 
 

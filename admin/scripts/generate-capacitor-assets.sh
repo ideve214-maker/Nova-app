@@ -23,7 +23,7 @@ fi
 
 npx @capacitor/assets generate --android --ios --assetPath resources \
   --iconBackgroundColor '#05070E' \
-  --splashBackgroundColor '#05070E'
+  --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000'
 
 # The generator must have written the launcher icons; otherwise fail the build.
 for f in android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png \

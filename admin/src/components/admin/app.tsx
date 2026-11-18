@@ -6,7 +6,7 @@ import { getStoredSkin, resolvedTheme, subscribeAppearance } from "@/lib/admin/t
 import { hydrateAdmin, markAppBooted, useAdmin, type PageName } from "@/lib/admin/store";
 import { usePagePullToRefresh } from "@/lib/admin/pull-to-refresh";
 import { useRestoreScroll } from "@/lib/admin/scroll-restore";
-import { Frame, SkinIcon, StarMark, type SkinIconName } from "./ui";
+import { Frame, SkinIcon, type SkinIconName } from "./ui";
 import { LoginScreen } from "./login";
 import { HomeScreen, ManageScreen, MeScreen, MessagesScreen } from "./browse";
 import { UserScreen, UsersScreen } from "./people";
@@ -90,10 +90,7 @@ export function AdminApp() {
       <Frame>
         <div className="nova-splash nova-scroll grid min-h-0 flex-1 place-items-center px-6 text-fg" style={{ paddingTop: "max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px))", paddingBottom: "max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex flex-col items-center text-center">
-            <StarMark className="size-[72px]" />
-            <p className="nova-brand mt-5 text-[28px] leading-none">VEXO</p>
-            <p className="mt-2 text-[15px] font-bold tracking-[0.12em] text-primary">管理端</p>
-            <p className="mt-4 text-[15px] text-muted">正在进入 VEXO 管理端…</p>
+            {/* 启动画面由 spa.html 的 #vxsplash（与用户端相同，只有图标）负责；这里不再显示文字和旧星星标志，只在启动过慢时给出提示。 */}
             {(stalled || bootError) && (
               <>
                 <p className="mt-3 max-w-xs text-[13px] leading-5 text-muted">{bootError || "启动较慢"}</p>
