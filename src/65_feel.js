@@ -18,26 +18,79 @@ function beep(kind){
       o.connect(n);n.connect(_ac.destination);o.start(t);o.stop(t+d+.02)}
   }catch(e){}
 }
-/* ---- 触觉：Android/桌面用 vibrate；iPhone Safari 没有 vibrate，用 iOS 18 的 <input switch> 触觉技巧（未在真机验证） ---- */
-const HP={tap:10,switch:7,send:[10,24,12],warn:[18,30,18],open:8,close:6,snap:12,edge:6,success:[8,40,14]};
-let _hx=null;
-function iosTick(){try{if(!_hx){_hx=document.createElement('label');_hx.className='hxl';_hx.setAttribute('aria-hidden','true');
-  const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');_hx.appendChild(i);document.body.appendChild(_hx)}_hx.click()}catch(e){}}
-function haptic(kind){
-  if(D.st&&D.st.haptic===0)return;
-  const N=window.NovaNative;
-  if(N&&N.Haptics&&typeof N.Haptics.impact==='function'){
-    const style=(kind==='warn'||kind==='success'||kind==='send')?N.ImpactStyle.Medium:N.ImpactStyle.Light;
-    Promise.resolve(N.Haptics.impact({style})).catch(()=>{if(IOS)iosTick()});
-    return;
-  }
-  if(IOS)iosTick();
+/* ---- 触觉：有原生 @capacitor/haptics 时用 impact / selection / notification。
+   热更新加不了原生插件。若当前安装包还没有该插件，运行时检测并降级：
+   安卓短震 8ms，iOS 网页或无插件时不震动。绝不抛错，也不调用 Haptics.vibrate（默认 300ms 长震）。
+   完整手感需要下次出安装包。滚动不震动，连点有防抖。 ---- */
+const HAP_MS=8,HAP_GAP=48;
+let _hapAt=0,_hapSel=0;
+function capNative(){try{return (window.NovaNative&&window.NovaNative.Capacitor)||window.Capacitor||null}catch(e){return null}}
+function hasNativeHaptics(){
+  try{
+    const cap=capNative();
+    if(!cap)return false;
+    if(typeof cap.isNativePlatform==='function'&&!cap.isNativePlatform())return false;
+    if(typeof cap.isPluginAvailable==='function')return !!cap.isPluginAvailable('Haptics');
+    return Array.isArray(cap.PluginHeaders)&&cap.PluginHeaders.some(h=>h&&h.name==='Haptics');
+  }catch(e){return false}
 }
-const FEEL={log:[],cap(){const N=window.NovaNative;if(N&&N.Capacitor&&N.Capacitor.isNativePlatform&&N.Capacitor.isNativePlatform())return '使用系统振动';if(navigator.vibrate&&!IOS)return '点按会振动';if(IOS)return '这台 iPhone 的浏览器不能振动，已自动关掉';return '这台设备不能振动，仍会播放提示音'}};
+function hapticFallback(){try{if(IOS)return;if(typeof navigator.vibrate==='function')navigator.vibrate(HAP_MS)}catch(e){}}
+function hapticGrade(kind){
+  if(kind==='edge')return null;
+  if(kind==='switch'||kind==='select')return 'selection';
+  if(kind==='send')return 'medium';
+  if(kind==='warn'||kind==='confirm')return 'notify';
+  if(kind==='success')return 'notify-success';
+  if(kind==='like'||kind==='fav')return 'light';
+  return 'light';
+}
+function haptic(kind){
+  try{
+    if(D.st&&D.st.haptic===0)return;
+    const grade=hapticGrade(kind);
+    if(!grade)return;
+    const now=performance.now();
+    if(now-_hapAt<HAP_GAP)return;
+    _hapAt=now;
+    if(hasNativeHaptics()){
+      const N=window.NovaNative||{},H=N.Haptics||{};
+      const IS=N.ImpactStyle||{Light:'LIGHT',Medium:'MEDIUM'};
+      const NT=N.NotificationType||{Success:'SUCCESS',Warning:'WARNING',Error:'ERROR'};
+      const go=p=>Promise.resolve(p).catch(()=>{hapticFallback()});
+      if(grade==='selection'&&typeof H.selectionChanged==='function'){
+        if(!_hapSel&&typeof H.selectionStart==='function'){_hapSel=1;go(H.selectionStart())}
+        go(H.selectionChanged());
+        return;
+      }
+      if((grade==='notify'||grade==='notify-success')&&typeof H.notification==='function'){
+        go(H.notification({type:grade==='notify-success'?(NT.Success||'SUCCESS'):(NT.Warning||'WARNING')}));
+        return;
+      }
+      if(typeof H.impact==='function'){
+        const style=(grade==='medium'||grade==='notify'||grade==='notify-success')?(IS.Medium||'MEDIUM'):(IS.Light||'LIGHT');
+        go(H.impact({style}));
+        return;
+      }
+    }
+    hapticFallback();
+  }catch(e){}
+}
+const FEEL={log:[],cap(){
+  try{
+    if(hasNativeHaptics())return '使用系统振动';
+    const cap=capNative(),native=cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform();
+    if(native)return IOS?'当前安装包还没有完整的系统振动，完整手感需要下次出安装包；这台 iPhone 暂时不会振动':'当前安装包还没有完整的系统振动，完整手感需要下次出安装包；现在只有很短的震动';
+    if(navigator.vibrate&&!IOS)return '点按会短震；完整的系统振动手感需要 App 安装包';
+    if(IOS)return '这台 iPhone 的浏览器不能振动，完整手感需要下次出的 App 安装包';
+    return '这台设备不能振动，仍会播放提示音';
+  }catch(e){return '点按会振动'}
+},haptic,hasNativeHaptics,grade:hapticGrade,resetHaptic(){_hapAt=0;_hapSel=0}};
 function feel(kind){FEEL.log.push(kind);if(FEEL.log.length>60)FEEL.log.shift();beep(kind);haptic(kind)}
 window.__feel=FEEL;
 const KIND={send:['send','cs','cmsend','pub','saveedit','mkcm','mkg','grn2','sendm'],switch:['tab','go','back','user','post','cm','conv','chan','feed','cmseg','seg','mt'],
-  warn:['report','delp','reset','dis2','kick','grm','gleave2','cvdel2','leave2','rmch2','delmsg'],close:['x'],success:['pin','unpin','setrole','cvpin','pinm','unpinm','setimg']};
+  like:['xlike','rx','rxp','cl','mreact'],fav:['xbm','savp','savm','unsav','saved'],
+  warn:['report','delp','reset','dis2','kick','grm','gleave2','cvdel2','leave2','rmch2','delmsg','delc','delacct','delacctq','resetq','block2','blockq','mrblock','mrblock2','gdis2','reportp','reportu','reportcm','reportcv','reportm'],
+  close:['x'],success:['pin','unpin','setrole','cvpin','pinm','unpinm','setimg']};
 const kindOf=a=>{for(const k in KIND)if(KIND[k].includes(a))return k;return 'tap'};
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el||el.disabled)return;feel(kindOf(el.dataset.a))},{capture:true});
 

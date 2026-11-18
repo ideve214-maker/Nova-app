@@ -52,13 +52,78 @@ module.exports = async () => {
     T.ok((await p.locator('.sc').innerText()).includes('振动'), '设置页诚实显示本设备触觉能力');
     await p.ctx.close();
   });
-  await T.group('M1 iPhone 触觉降级路径（开关触觉）', async () => {
-    const p = await T.open({ ua: T.IPHONE_UA, init: () => { Object.defineProperty(Navigator.prototype, 'vibrate', { value: undefined, configurable: true }); } });
-    await p.evaluate(() => { window.__sw = 0; });
+  await T.group('M1 触觉：短震、防抖、滚动不震', async () => {
+    const p = await T.open();
+    const first = await p.evaluate(() => { __feel.resetHaptic(); __vib.length = 0; D.st.haptic = 1; feel('tap'); return __vib.slice(); });
+    T.ok(first.length === 1 && first[0] === 8, '非 iOS 降级为 8ms 短震：' + JSON.stringify(first));
+    const burst = await p.evaluate(() => { __feel.resetHaptic(); __vib.length = 0; feel('tap'); feel('tap'); feel('tap'); return __vib.slice(); });
+    T.eq(burst.length, 1, '连点防抖，只震动一次');
+    await T.wait(80);
+    const again = await p.evaluate(() => { feel('tap'); return __vib.slice(); });
+    T.ok(again.length >= 2, '间隔后可以再次震动');
+    const edge = await p.evaluate(() => { __vib.length = 0; feel('edge'); return { n: __vib.length, log: __feel.log.slice(-1)[0] }; });
+    T.eq(edge.n, 0, '滚动/边缘回弹不震动');
+    T.eq(edge.log, 'edge', 'edge 仍记入手感日志（可有音效）');
+    const jsErr = p.errors.filter(e => !/skins\/index\.json|Failed to load resource|CORS policy/.test(e));
+    T.eq(jsErr, [], '无 JS 报错');
+    await p.ctx.close();
+  });
+  await T.group('M1 iPhone 触觉降级路径（不振动、不抛错）', async () => {
+    const p = await T.open({ ua: T.IPHONE_UA, init: () => { window.__vib = []; Object.defineProperty(Navigator.prototype, 'vibrate', { value: function (x) { window.__vib.push(x); return true; }, configurable: true }); } });
     await p.click('nav [data-v=cm]');
-    T.ok(await p.locator('label.hxl input[switch]').count() === 1, '创建了隐藏的 switch 触觉元素');
-    await p.evaluate(() => { document.querySelector('label.hxl input').addEventListener('change', () => window.__sw++); });
-    await p.click('nav [data-v=chat]'); T.ok(await p.evaluate(() => window.__sw) >= 1, '点击时触发了 switch（真机效果未验证）');
+    T.eq(await p.locator('label.hxl input[switch]').count(), 0, '不再使用隐藏 switch 触觉技巧');
+    T.eq(await p.evaluate(() => __vib.length), 0, 'iOS 浏览器不调用 vibrate');
+    T.eq(p.errors.filter(e => !/skins\/index\.json|Failed to load resource|CORS policy/.test(e)), [], 'Haptics 缺失时不抛错');
+    const cap = await p.evaluate(() => FEEL.cap());
+    T.ok(/安装包|不能振动/.test(cap), '设置页说明完整手感需要安装包：' + cap);
+    await p.ctx.close();
+  });
+  await T.group('M1 Haptics 插件缺失时降级不抛错', async () => {
+    const p = await T.open();
+    const cap = await p.evaluate(() => {
+      window.NovaNative = { Capacitor: { isNativePlatform: () => true, isPluginAvailable: () => false, PluginHeaders: [] } };
+      __feel.resetHaptic();
+      __vib.length = 0;
+      D.st.haptic = 1;
+      feel('tap');
+      return { vib: __vib.slice(), cap: FEEL.cap() };
+    });
+    T.eq(p.errors.filter(e => !/skins\/index\.json|Failed to load resource|CORS policy/.test(e)), [], '原生壳没有 Haptics 插件时不抛错');
+    T.ok(cap.vib.length >= 1, '非 iOS 降级为短震动');
+    T.ok(cap.vib.every(v => v === 8 || (Array.isArray(v) && v.length === 1 && v[0] === 8)), '只有 8ms 短震，没有长震或振动模式：' + JSON.stringify(cap.vib));
+    T.ok(cap.cap.includes('安装包'), '设置页说明完整手感需要下次出安装包：' + cap.cap);
+    await p.ctx.close();
+  });
+  await T.group('M1 原生 Haptics 按按钮分级，绝不长震', async () => {
+    const p = await T.open();
+    const got = await p.evaluate(async () => {
+      window.__hap = [];
+      window.NovaNative = {
+        Capacitor: { isNativePlatform: () => true, isPluginAvailable: (n) => n === 'Haptics', PluginHeaders: [{ name: 'Haptics' }] },
+        ImpactStyle: { Light: 'LIGHT', Medium: 'MEDIUM', Heavy: 'HEAVY' },
+        NotificationType: { Success: 'SUCCESS', Warning: 'WARNING', Error: 'ERROR' },
+        Haptics: {
+          impact: (o) => { window.__hap.push(['impact', o && o.style]); return Promise.resolve(); },
+          selectionStart: () => { window.__hap.push(['selectionStart']); return Promise.resolve(); },
+          selectionChanged: () => { window.__hap.push(['selectionChanged']); return Promise.resolve(); },
+          notification: (o) => { window.__hap.push(['notification', o && o.type]); return Promise.resolve(); },
+          vibrate: (o) => { window.__hap.push(['vibrate', o]); return Promise.resolve(); }
+        }
+      };
+      __vib.length = 0;
+      D.st.haptic = 1;
+      const run = (k) => new Promise(r => { feel(k); setTimeout(r, 60); });
+      await run('switch'); await run('tap'); await run('like'); await run('fav'); await run('send'); await run('warn'); await run('success');
+      return { hap: window.__hap, vib: __vib.slice() };
+    });
+    const kinds = got.hap.map(x => x.join(':'));
+    T.ok(kinds.some(k => k.startsWith('selectionChanged') || k === 'selectionStart'), '切 Tab 走 selection：' + kinds.join(','));
+    T.ok(kinds.includes('impact:LIGHT'), '普通/点赞/收藏走 Light impact');
+    T.ok(kinds.includes('impact:MEDIUM'), '发送走 Medium impact');
+    T.ok(kinds.some(k => k.startsWith('notification:')), '确认/删除走 notification');
+    T.ok(!kinds.some(k => k.startsWith('vibrate')), '不调用 Haptics.vibrate 长震');
+    T.eq(got.vib.length, 0, '有原生插件时不走 navigator.vibrate');
+    T.eq(p.errors.filter(e => !/skins\/index\.json|Failed to load resource|CORS policy/.test(e)), [], '无 JS 报错');
     await p.ctx.close();
   });
   await T.group('M1 边缘右滑返回', async () => {

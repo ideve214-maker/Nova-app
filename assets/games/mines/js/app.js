@@ -369,7 +369,10 @@
     longPressTimer = window.setTimeout(() => {
       suppressFollowUpActivation();
       performTileAction(longPressIndex, "flag");
-      if (typeof navigator.vibrate === "function") navigator.vibrate(18);
+      try {
+        if (window.parent && window.parent !== window && typeof window.parent.feel === "function") window.parent.feel("tap");
+        else if (typeof navigator.vibrate === "function" && !/iP(hone|ad|od)/.test(navigator.userAgent || "")) navigator.vibrate(8);
+      } catch (e) {}
       longPressTimer = null;
       longPressIndex = null;
     }, LONG_PRESS_MS);
