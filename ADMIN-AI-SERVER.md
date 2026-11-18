@@ -1,6 +1,6 @@
 # 管理端 AI 助手 — 服务器说明
 
-迁移：`057_admin_ai.sql`（排在用户端 055、056 之后；新增表 admin_ai_pending，不改旧表），`057_admin_ads.sql`（新增表 ad_directions、ad_campaigns、ad_copies、admin_ai_settings，预置 5 个生意方向）。
+迁移：`057_admin_ai.sql`（排在用户端 055、056 之后；新增表 admin_ai_pending，不改旧表），`058_admin_ads.sql`（新增表 ad_directions、ad_campaigns、ad_copies、admin_ai_settings，预置 5 个生意方向）。
 模块：`server/admin-ai.mjs`（助手 + 待确认动作）、`server/admin-asr.mjs`（语音识别适配器）、`server/admin-ads.mjs`（广告文案）。
 `server/index.mjs` 只做挂载：合并路由、ASR 接口放宽到 4MB 请求体、启动/停止广告定时任务。用户端接口和行为没改。
 

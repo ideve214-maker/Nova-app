@@ -1,5 +1,5 @@
 -- 每日广告文案（admin-ads）：生意方向、推广项目、文案记录、设置。只新增表，不改已有表。
--- 依赖 056_admin_ai。
+-- 编号 058：排在用户端 055、056 和管理端 057_admin_ai 之后（依赖 057_admin_ai）。用户端以后的迁移从 059 起。
 
 -- 生意方向：预设 + 自定义。
 CREATE TABLE IF NOT EXISTS ad_directions(
