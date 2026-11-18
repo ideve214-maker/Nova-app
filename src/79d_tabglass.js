@@ -20,7 +20,7 @@ function tgPill(nav){
   all.slice(1).forEach(n=>n.remove());
   return all[0]||null;
 }
-function tgHaptic(){try{const N=window.NovaNative;if(D.st&&D.st.haptic===0)return;if(N&&N.Haptics){if(typeof N.Haptics.selectionChanged==='function'){N.Haptics.selectionStart&&N.Haptics.selectionStart();Promise.resolve(N.Haptics.selectionChanged()).catch(()=>{});return}if(typeof N.Haptics.impact==='function'){Promise.resolve(N.Haptics.impact({style:N.ImpactStyle&&N.ImpactStyle.Light})).catch(()=>{});return}}if(navigator.vibrate&&!(typeof IOS!=='undefined'&&IOS))navigator.vibrate(6)}catch(e){}}
+function tgHaptic(){try{if(typeof haptic==='function')haptic('switch')}catch(e){}}
 function tgSnap(nav,b,from){
   if(!nav||!b)return;
   const p=tgPill(nav);if(!p)return;
