@@ -1,5 +1,5 @@
 // 法律文档：配置中的运营者信息渲染进《隐私政策》《用户协议》。
-// 已确认的运营者、生效日期写入默认值；其余未确认项保持【待填：…】。可用环境变量覆盖。
+// 运营者、生效日期已写入默认值；仅联系邮箱在未提供前保持【待填：联系邮箱】。可用环境变量覆盖。
 import {readFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -12,10 +12,6 @@ export const LEGAL_DEFAULTS = {
   contactEmail: '【待填：联系邮箱】',
   effectiveDate: '2026年11月20日',
   version: '2026-11-19',
-  address: '【待填：注册或经营地址】',
-  icp: '【待填：ICP 备案号，如无可注明暂无】',
-  court: '【待填：争议管辖法院】',
-  website: '【待填：网站域名】',
 };
 
 const KEYS = Object.keys(LEGAL_DEFAULTS);
@@ -24,10 +20,6 @@ const ENV_MAP = {
   contactEmail: 'NOVA_LEGAL_EMAIL',
   effectiveDate: 'NOVA_LEGAL_EFFECTIVE',
   version: 'NOVA_LEGAL_VERSION',
-  address: 'NOVA_LEGAL_ADDRESS',
-  icp: 'NOVA_LEGAL_ICP',
-  court: 'NOVA_LEGAL_COURT',
-  website: 'NOVA_LEGAL_WEBSITE',
 };
 
 export function legalConfig(env = process.env) {
@@ -62,10 +54,6 @@ export function legalDoc(kind, env = process.env) {
     effectiveDate: cfg.effectiveDate,
     operatorName: cfg.operatorName,
     contactEmail: cfg.contactEmail,
-    address: cfg.address,
-    icp: cfg.icp,
-    court: cfg.court,
-    website: cfg.website,
     language: 'zh-CN',
     body,
     html,
