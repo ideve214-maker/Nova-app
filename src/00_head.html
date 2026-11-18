@@ -811,6 +811,9 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 .pjmore{height:40px!important;align-self:start;display:flex!important;align-items:center!important;justify-content:center}
 .pjmore .pjst{flex:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;line-height:1}
 /* 2.0.3：资料页名字上方的金色装饰线和名字一起靠左 */
-.pf.ovl .pdec{margin:2px 0 6px!important;align-self:flex-start!important}
+.pf.ovl .pdec{margin:-2px 0 10px calc(44px - 26px)!important;align-self:flex-start!important}
+/* 2.0.3：装饰标识正好在头像水平中心的正下方（头像 88px 宽、标识 52px 宽），紧贴头像而不是贴着名字；
+   「更换头像」按钮移到头像右侧，不再盖住头像 */
+.pf.ovl .avw .cam{left:calc(100% + 10px)!important;right:auto!important;bottom:6px!important;white-space:nowrap}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
