@@ -1,19 +1,25 @@
 /* ---- pages ---- */
+/* 2.0.3 评论折叠：每条一级评论下的回复（含楼中楼，按楼层顺序平铺）默认只显示前 3 条，
+   其余收起，下面只放一个「展开 N 条回复」按钮；展开后变成「收起回复」。3 条及以下不显示按钮。
+   展开状态记在 S.crep[一级评论 id]，重新渲染或实时更新同一列表时保持不变。 */
+const CM_FOLD=3;
 const cmts=id=>{
   const all=typeof commentsOf==='function'?commentsOf(id):D.c.filter(c=>c.p==id);
   const kids=pid=>all.filter(c=>pid?c.pa==pid:!c.pa);
-  const descN=cid=>kids(cid).reduce((n,c)=>n+1+descN(c.id),0);
-  function tree(pid,depth){
-    return kids(pid).map(c=>{
-      const row=ci(c,depth),ch=kids(c.id);
-      if(!ch.length||depth<1)return row+(ch.length?tree(c.id,depth+1):'');
-      const k=String(c.id),open=!!(S.crep&&S.crep[k]),n=descN(c.id);
-      const lab=open?'收起':('展开 '+n+' 条回复');
-      return `<div class="cthread">${row}${open?tree(c.id,depth+1):''}<button type="button" class="crep" data-a="crep" data-v="${esc(k)}" data-open="${open?1:0}">${lab}</button></div>`;
-    }).join('');
-  }
-  return '<div id="cbox">'+ (tree(0,0)||tree('',0)||'<p class="em">还没有评论</p>') +'</div>';
+  const flat=(pid,depth,out)=>{kids(pid).forEach(c=>{out.push([c,depth]);flat(c.id,depth+1,out)});return out};
+  const roots=kids(0).length?kids(0):kids('');
+  const html=roots.map(c=>{
+    const row=ci(c,0),reps=flat(c.id,1,[]);
+    if(!reps.length)return row;
+    const k=String(c.id),fold=reps.length>CM_FOLD,open=fold&&!!(S.crep&&S.crep[k]);
+    const shown=fold&&!open?reps.slice(0,CM_FOLD):reps;
+    const btn=fold?`<button type="button" class="crep" data-a="crep" data-v="${esc(k)}" data-open="${open?1:0}"><span>${open?'收起回复':('展开 '+(reps.length-CM_FOLD)+' 条回复')}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`:'';
+    return `<div class="cthread">${row}${shown.map(([r,d])=>ci(r,d)).join('')}${btn}</div>`;
+  }).join('');
+  return '<div id="cbox">'+(html||'<p class="em">还没有评论</p>')+'</div>';
 };
+/* 回复某条评论后，展开它所在的一级评论 */
+function cmRootOf(cid){const all=(S.comments&&S.commentPost)?S.comments:D.c;let c=all.find(x=>x.id==cid),n=0;while(c&&c.pa&&n++<50){const up=all.find(x=>x.id==c.pa);if(!up)break;c=up}return c?c.id:cid}
 const ci=(c,depth)=>{const s=depth>=1,collapse=(c.depth!=null?c.depth:depth)>=2,rt=c.replyTo,who=rt&&(rt.author&&(rt.author.displayName||rt.author.username)||'');const hint=collapse&&who?`<span class="hint">回复 @${esc(who)}</span> `:((c.depth>=1||s)&&who&&depth>=2?`<span class="hint">回复 @${esc(who)}</span> `:'');const tm=typeof fmtTime==='function'&&c.at?fmtTime(c.at):(c.t||'');return `<div class="cm${s?' sub':''}" data-cid="${c.id}" data-depth="${c.depth||depth||0}">${av(c.a,s?28:34)}<div class="gr"><div class="cb"><b class="nmb">${nmB(P(c.a))}</b> ${hint}${c.deleted?'<i style="color:var(--t3)">'+(esc(c.x)||'（已删除）')+'</i>':esc(c.x)}</div>${c.deleted&&!(c.replyCount)?`<small style="display:block;padding-left:4px">${tm}</small>`:`<small style="display:block;padding-left:4px">${tm}${c.deleted?'':` · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button> · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>`}${c.a=='me'&&!c.deleted?` · <button class="lk dg" data-a="delc" data-v="${c.id}">删除</button>`:''}</small>`}</div></div>`};
 const inbar=(k,ph,btn,v,extra='')=>{if(Array.isArray(extra))return cbBar(k,ph,btn,v,extra);return `<div class="inrow">${extra}<textarea class="inta" rows="1" data-grow="5" enterkeyhint="enter" data-d="${k}" data-max="${k=='chin'?textLimit('chat'):k=='cmin'?textLimit('channel'):k=='cin'?280:textLimit('post')}" placeholder="${ph}" autocomplete="off"></textarea><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`};
 const pPost=id=>{const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==id)||D.p.find(x=>x.id==id)||(S.postCache&&S.postCache[String(id)]);if(!p)return sub('帖子')+'<p class="em">帖子不存在</p>';const all=typeof commentsOf==='function'?commentsOf(id):D.c;const rc=S.reply&&all.find(c=>c.id==S.reply);
