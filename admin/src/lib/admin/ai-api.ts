@@ -25,13 +25,15 @@ export async function call<T = Record<string, unknown>>(
 
 export type AiPending = { id: string; tool: string; summary: string; status: string; createdAt: number; expiresAt: number };
 export type AiChatReply = { reply: string; pending: AiPending | null; tools?: string[]; executed?: boolean; cancelled?: boolean; result?: unknown };
-export type AiStatus = { configured: boolean; provider: string; model: string; pendingTtlMs: number; tools: { read: string[]; write: string[] } };
+export type AsrProvider = { provider: string; model: string; ready: boolean; shandong: string; note: string };
+export type AiStatus = { configured: boolean; provider: string; model: string; asr: AsrProvider[]; pendingTtlMs: number; tools: { read: string[]; write: string[] } };
 
 export const aiStatus = () => call<AiStatus>("adminAiStatus");
 export const aiChat = (text: string, history: { role: "user" | "assistant"; content: string }[], pendingId?: string) =>
   call<AiChatReply>("adminAiChat", { body: { text, history, pendingId }, timeoutMs: 60000 });
 export const aiConfirm = (id: string) => call<AiChatReply>("adminAiConfirm", { body: { id }, timeoutMs: 30000 });
 export const aiCancel = (id: string) => call<AiChatReply>("adminAiCancel", { body: { id } });
+export const aiAsr = (audio: string) => call<{ text: string; provider: string; model: string }>("adminAiAsr", { body: { audio }, timeoutMs: 30000 });
 
 // ---- 管理端 2.0
 export type TagCount = { tag: string; count: number };

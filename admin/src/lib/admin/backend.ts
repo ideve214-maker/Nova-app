@@ -113,6 +113,7 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminAiConfirm: "/api/admin/ai/confirm",
   adminAiCancel: "/api/admin/ai/cancel",
   adminAiPending: "/api/admin/ai/pending",
+  adminAiAsr: "/api/admin/ai/asr",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",
