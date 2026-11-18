@@ -287,8 +287,8 @@
     announceWinner(winnerPiece) {
       const winner = {
         ["D" /* DRAW */]: "draw",
-        ["\u{1F534}" /* PLAYER_1 */]: "Player 1",
-        ["\u{1F535}" /* PLAYER_2 */]: "Player 2",
+        ["\u{1F534}" /* PLAYER_1 */]: "玩家1",
+        ["\u{1F535}" /* PLAYER_2 */]: "玩家2",
         [" " /* EMPTY */]: "none"
       }[winnerPiece];
       console.log("[GameBase] Game over: winner is ", winner, winnerPiece);
@@ -665,18 +665,19 @@
       this.onresize();
     }
     getBoardScale() {
-      if (window.innerWidth < 640) {
-        BoardBase.SCALE = 0.5;
-      } else {
-        BoardBase.SCALE = 1;
-      }
+      const vw = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 320);
+      const vh = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 568);
+      // 为标题、状态栏和对局按钮留出空间，棋盘按剩余宽高等比缩放。
+      const reserved = Math.min(260, Math.max(150, Math.round(vh * 0.36)));
+      const scale = Math.min(vw / 640, Math.max(120, vh - reserved) / 480, 1);
+      BoardBase.SCALE = Math.max(0.32, Math.round(scale * 100) / 100);
       return BoardBase.SCALE;
     }
     onresize() {
       let prevBoardScale = BoardBase.SCALE;
       this.removeResizeListener = onresize(() => {
         this.getBoardScale();
-        if (prevBoardScale !== BoardBase.SCALE) {
+        if (Math.abs(prevBoardScale - BoardBase.SCALE) >= 0.01) {
           prevBoardScale = BoardBase.SCALE;
           this.initConstants();
           clearCanvas(this);
@@ -825,9 +826,9 @@
   var lastRenderedBoardState;
   var boardPieceLabel = {
     [" " /* EMPTY */]: "Empty",
-    ["\u{1F534}" /* PLAYER_1 */]: "Player 1",
-    ["\u{1F535}" /* PLAYER_2 */]: "Player 2",
-    ["D" /* DRAW */]: "Draw"
+    ["\u{1F534}" /* PLAYER_1 */]: "玩家1",
+    ["\u{1F535}" /* PLAYER_2 */]: "玩家2",
+    ["D" /* DRAW */]: "平局"
   };
   function announce(message) {
     if (liveRegion) {
@@ -1763,14 +1764,14 @@
       playAgainButton3?.classList.add("hidden");
       if (chosenMode2 === "offline-human") {
         currentGameHandler = initGameLocal2p(
-          playerNames[0] || "Player 1",
-          playerNames[1] || "Player 2"
+          playerNames[0] || "玩家1",
+          playerNames[1] || "玩家2"
         );
       } else if (chosenMode2 === "offline-ai") {
-        currentGameHandler = initGameLocalAi(playerNames[0] || "Player 1");
+        currentGameHandler = initGameLocalAi(playerNames[0] || "玩家1");
       } else if (chosenMode2 === "online-human") {
         currentGameHandler = initGameOnline2p(
-          connectionMatchId ? playerNames[1] || "Player 2" : playerNames[0] || "Player 1"
+          connectionMatchId ? playerNames[1] || "玩家2" : playerNames[0] || "玩家1"
         );
       } else if (chosenMode2 === "ai-vs-ai") {
         currentGameHandler = initGameAiVsAi();
