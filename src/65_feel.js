@@ -72,8 +72,8 @@ document.addEventListener('touchend',e=>{if(!e.touches||!e.touches.length)RD_DRA
 document.addEventListener('touchcancel',()=>{RD_DRAG=0},{capture:true,passive:true});
 ['click','keydown','submit','change'].forEach(t=>document.addEventListener(t,()=>{RD_CLICK++;setTimeout(()=>{RD_CLICK=Math.max(0,RD_CLICK-1)},0)},{capture:true,passive:true}));
 function scrollBusy(){return RD_DRAG||performance.now()-RD_SCROLL<160}
-function render(){
-  if(!RD_CLICK&&MODE!=='boot'&&MODE!=='gate'&&scrollBusy()){
+function render(force){
+  if(!force&&!RD_CLICK&&MODE!=='boot'&&MODE!=='gate'&&scrollBusy()){
     if(!RD_T)RD_T=setTimeout(function wait(){if(scrollBusy()){RD_T=setTimeout(wait,120);return}RD_T=null;render()},120);
     return;
   }
