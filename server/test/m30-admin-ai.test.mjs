@@ -1,4 +1,4 @@
-// 管理端 AI 助手：服务端强制确认、只读免确认、钱相关拦截、过期 / 单次 / 本人确认、审计。
+// 管理端 AI 助手：服务端强制确认、只读免确认、钱相关拦截、过期 / 单次 / 本人确认、审计、ASR。
 // 智谱接口全部用本地假实现（fetchImpl），不会访问外网，也不需要真实密钥。
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,8 +8,10 @@ import {TOOLS, MONEY_PATH, isConfirmText, isCancelText, redactForLlm, PENDING_TT
 let T = Date.now();
 const script = [];            // 每次调用 /chat/completions 依次取一个函数 (body) => message
 const seen = [];              // 记录发给模型的请求体
+const asrSeen = [];
 const llm = async (url, init) => {
   const u = String(url);
+  if (u.endsWith('/audio/transcriptions')) { asrSeen.push(init.body); return new Response(JSON.stringify({text: '把 ID 17 的账号封了'}), {status: 200, headers: {'content-type': 'application/json'}}); }
   if (!u.endsWith('/chat/completions')) return new Response('{}', {status: 404});
   const body = JSON.parse(init.body); seen.push(body);
   const f = script.shift();
@@ -75,6 +77,7 @@ test('未登录不能用；状态接口说明已配置', async () => {
   assert.equal(st.s, 200);
   assert.equal(st.j.configured, true);
   assert.equal(st.j.moneyBlocked, true);
+  assert.equal(st.j.asr[0].provider, 'zhipu');
 });
 
 test('只读查询直接执行、不需要确认，且发给模型的数据去掉了邮箱', async () => {
@@ -184,4 +187,16 @@ test('目标不存在时不生成待确认操作；涉及钱的工具名直接�
   assert.match(m.j.reply, /不能由 AI 代办/);
   assert.ok(audits('admin.ai.blocked').length >= 1);
   assert.equal(srv.db.prepare("SELECT COUNT(*) n FROM admin_ai_pending WHERE path LIKE '%pay%'").get().n, 0);
+});
+
+test('语音转文字：收 16k wav，交给智谱 GLM-ASR；格式不对会拒绝', async () => {
+  const wav = Buffer.alloc(44 + 3200); wav.write('RIFF', 0); wav.write('WAVE', 8);
+  const r = await call('POST', '/api/admin/ai/asr', {audio: 'data:audio/wav;base64,' + wav.toString('base64')}, tokA);
+  assert.equal(r.s, 200, JSON.stringify(r.j));
+  assert.equal(r.j.provider, 'zhipu');
+  assert.equal(r.j.text, '把 ID 17 的账号封了');
+  assert.ok(asrSeen.at(-1) instanceof FormData);
+  assert.equal(asrSeen.at(-1).get('model'), 'glm-asr-2512');
+  const bad = await call('POST', '/api/admin/ai/asr', {audio: Buffer.from('hello').toString('base64')}, tokA);
+  assert.equal(bad.s, 400);
 });

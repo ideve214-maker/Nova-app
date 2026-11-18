@@ -11,6 +11,7 @@
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {tokenHash} from './auth.mjs';
+import {createAsr} from './admin-asr.mjs';
 
 const DEFAULT_BASE = 'https://open.bigmodel.cn/api/paas/v4';
 export const PENDING_TTL_MS = 5 * 60e3;
@@ -195,6 +196,7 @@ export function toolSchemas() {
 }
 
 const SYSTEM = `你是 VEXO 管理端的 AI 助手，只为当前登录的管理员服务，用简体中文简短回答。
+- 管理员的话可能是语音转写，可能带山东方言或口语（例如“俺”“恁”“咋弄”“中/行”），按意思理解。
 - 查询类问题调用只读工具后再回答，数据只能来自工具结果，不要编造。
 - 需要改动数据时，调用对应的写操作工具。写操作不会立即执行：系统会把核对后的操作摘要发给管理员确认，确认后才执行。你绝不能说“已经执行”。
 - 一次只提出一个写操作。参数不清楚（比如不知道用户 ID）时，先用查询工具查清楚或向管理员追问。
@@ -231,6 +233,7 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
     return msg;
   }
 
+  const asr = createAsr({env, fetchImpl: doFetch});
 
   const q = {
     ins: db.prepare('INSERT INTO admin_ai_pending(id,admin_id,token_hash,tool,method,path,body,args,summary,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'),
@@ -374,7 +377,7 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
   }
 
   function status() {
-    return {configured: ready(), provider: '智谱', model: model(), pendingTtlMs: PENDING_TTL_MS,
+    return {configured: ready(), provider: '智谱', model: model(), asr: asr.status(), pendingTtlMs: PENDING_TTL_MS,
       tools: {read: READ.map(t => t.name), write: WRITE.map(t => t.name)}, moneyBlocked: true};
   }
 
@@ -387,8 +390,14 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
       async 'POST /api/admin/ai/confirm'(req, b) { const {admin, token} = A(req); sweep(); return confirm(req, admin, token, b || {}, ip(req)); },
       'POST /api/admin/ai/cancel'(req, b) { const {admin, token} = A(req); return cancel(admin, token, b || {}, ip(req)); },
       'GET /api/admin/ai/pending'(req) { const {admin} = A(req); sweep(); return {pending: q.mine.all(admin.id).map(pubPending)}; },
+      async 'POST /api/admin/ai/asr'(req, b) {
+        const {admin} = A(req); take('asr', admin.id, Number(env.ADMIN_AI_ASR_RPH) || 240);
+        const r = await asr.transcribe(b || {});
+        audit(admin.id, 'admin.ai.asr', 'admin:' + admin.id, ip(req), {provider: r.provider, chars: r.text.length});
+        return r;
+      },
     };
   }
 
-  return {routes, chat, confirm, cancel, status, sweep, llm};
+  return {routes, chat, confirm, cancel, status, sweep, asr, llm};
 }

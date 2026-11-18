@@ -2120,6 +2120,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     let size = 0; const chunks = [];
     const bodyLimit = (req.method === 'POST' && path === '/api/media') ? 100 * 1024 * 1024
       : (req.method === 'POST' && path === '/api/admin/marketing/media') ? 42 * 1024 * 1024
+      : (req.method === 'POST' && path === '/api/admin/ai/asr') ? 4 * 1024 * 1024
       : (req.method === 'POST' && /\/api\/pay\/orders\/[^/]+\/paid$/.test(path)) ? 8 * 1024 * 1024
       : 1e6;
     req.on('data', c => { size += c.length; if (size > bodyLimit) { send(413, {error: {code: 'TOO_LARGE', message: '请求过大'}}); req.destroy(); } else chunks.push(c); });
