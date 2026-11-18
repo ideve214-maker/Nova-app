@@ -22,6 +22,7 @@ import {
   Scale,
   TrendingUp,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
@@ -54,7 +55,7 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
   { name: "settings", label: "系统设置", desc: "开关与服务器", icon: Settings },
 ];
 
-/** 5 个大类，每类一组图标入口。 */
+/** 5 个大类，每类一组图标入口；AI 助手单独放在最上面。 */
 const groups: { title: string; names: PageName[] }[] = [
   { title: "用户", names: ["users", "vip", "tags", "notify"] },
   { title: "内容与社区", names: ["content", "communities", "hot", "v2", "announce"] },
@@ -378,6 +379,14 @@ export function ManageScreen() {
       <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <DemoBanner />
       <div className="space-y-3 px-4 pb-3 pt-3">
+        <button type="button" onClick={() => go("ai")} className="nova-hero flex w-full items-center gap-3 rounded-card px-4 py-3 text-left">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-on-primary/15"><Sparkles className="size-5" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[16px] font-semibold">AI 助手</span>
+            <span className="block truncate text-[12px] text-on-primary/80">说一句话就能查数据、封号、处理举报（执行前会让你确认）</span>
+          </span>
+          <ChevronRight className="size-4 shrink-0" />
+        </button>
         {groups.map((group) => (
           <section key={group.title}>
             <h2 className="mb-1.5 px-1 text-[13px] font-semibold text-muted">{group.title}</h2>

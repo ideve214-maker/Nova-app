@@ -16,7 +16,9 @@ import { HotScreen } from "./hot";
 import { BlockwordsScreen } from "./blockwords";
 import { MarketingScreen } from "./marketing";
 import { AppealsScreen, EventsScreen } from "./appeals";
+import { AssistantScreen } from "./assistant";
 import { AiReportScreen, NotifyScreen, TagsScreen, V2Screen } from "./ops2";
+import { Sparkles } from "lucide-react";
 import { ChannelMessagesScreen, CommunitiesScreen, CommunityDetailScreen } from "./communities";
 import {
   AdminsScreen,
@@ -46,6 +48,7 @@ export function AdminApp() {
   const userId = useAdmin((s) => s.nav.userId);
   const toast = useAdmin((s) => s.toast);
   const tab = useAdmin((s) => s.tab);
+  const go = useAdmin((s) => s.go);
   const unread = useAdmin((s) => s.notices.filter((item) => !item.read).length);
   const [stalled, setStalled] = useState(false);
   usePagePullToRefresh(booted && authed, name);
@@ -153,6 +156,7 @@ export function AdminApp() {
       {name === "hot" && <HotScreen />}
       {name === "devices" && <DevicesScreen />}
       {name === "admins" && <AdminsScreen />}
+      {name === "ai" && <AssistantScreen />}
       {name === "tags" && <TagsScreen />}
       {name === "notify" && <NotifyScreen />}
       {name === "aireport" && <AiReportScreen />}
@@ -165,8 +169,16 @@ export function AdminApp() {
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div className="absolute inset-0 flex flex-col overflow-hidden">{pages}</div>
         {showTabs && (
-          <nav data-nova-chrome="tab" className="nova-tabbar nova-bar absolute inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line">
-            {tabs.map((item) => {
+          <nav data-nova-chrome="tab" className="nova-tabbar nova-bar absolute inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line">
+            {[...tabs.slice(0, 2), null, ...tabs.slice(2)].map((item) => {
+              if (!item) {
+                return (
+                  <button key="ai" type="button" onClick={() => { void hapticLight(); go("ai"); }} className="relative flex h-[49px] flex-col items-center justify-center gap-px text-primary" aria-label="AI 助手">
+                    <span className="grid size-[30px] place-items-center rounded-full bg-primary text-on-primary"><Sparkles className="size-[17px]" /></span>
+                    <span className="text-[10px] font-semibold leading-3">AI 助手</span>
+                  </button>
+                );
+              }
               const on = name === item.id;
               return (
                 <button key={item.id} type="button" onClick={() => { void hapticLight(); tab(item.id); }} className={`relative flex h-[49px] flex-col items-center justify-center gap-px ${on ? "font-semibold text-primary" : "text-muted"}`}>

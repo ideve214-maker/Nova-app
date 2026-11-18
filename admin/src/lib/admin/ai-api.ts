@@ -1,5 +1,5 @@
 /**
- * 管理端 2.0 接口的轻量调用层。
+ * 管理端 AI 助手 / 2.0 接口的轻量调用层。
  * 路径都登记在 backend.ts 的 DEFAULT_ENDPOINT_MAP 里（以 admin 开头，401 会回到登录页）。
  * 只展示服务器返回的真实数据，不做任何本地假数据。
  */
@@ -22,6 +22,16 @@ export async function call<T = Record<string, unknown>>(
     error: missing && name.startsWith("adminAi") ? "服务器还没有更新到带 AI 助手的版本" : readErrorMessage(res.json, res.error || "请求失败"),
   };
 }
+
+export type AiPending = { id: string; tool: string; summary: string; status: string; createdAt: number; expiresAt: number };
+export type AiChatReply = { reply: string; pending: AiPending | null; tools?: string[]; executed?: boolean; cancelled?: boolean; result?: unknown };
+export type AiStatus = { configured: boolean; provider: string; model: string; pendingTtlMs: number; tools: { read: string[]; write: string[] } };
+
+export const aiStatus = () => call<AiStatus>("adminAiStatus");
+export const aiChat = (text: string, history: { role: "user" | "assistant"; content: string }[], pendingId?: string) =>
+  call<AiChatReply>("adminAiChat", { body: { text, history, pendingId }, timeoutMs: 60000 });
+export const aiConfirm = (id: string) => call<AiChatReply>("adminAiConfirm", { body: { id }, timeoutMs: 30000 });
+export const aiCancel = (id: string) => call<AiChatReply>("adminAiCancel", { body: { id } });
 
 // ---- 管理端 2.0
 export type TagCount = { tag: string; count: number };
