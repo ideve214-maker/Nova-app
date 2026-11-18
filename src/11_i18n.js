@@ -26,7 +26,6 @@ const I18N_PAT=[
   [/^(\d+)\s*名成员\s*·\s*(\d+)\s*个频道$/,(m,a,b)=>a+(a==='1'?' member':' members')+' · '+b+(b==='1'?' channel':' channels')],
   [/^(\d+)\s*[位名]成员$/,(m,n)=>n+(n==='1'?' member':' members')],
   [/^(\d+(?:\.\d+)?)\s*万位成员$/,(m,n)=>(Number(n)*10)+'k members'],
-  [/^展开\s*(\d+)\s*条回复$/,(m,n)=>'Show '+n+(n==='1'?' more reply':' more replies')],
   [/^(\d+)\s*条回复$/,(m,n)=>n+(n==='1'?' reply':' replies')],
   [/^(\d+)\s*天$/,(m,n)=>n+(n==='1'?' day':' days')],
   [/^(\d+)\s*个$/,(m,n)=>n],
