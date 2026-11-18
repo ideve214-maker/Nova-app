@@ -385,7 +385,7 @@ function repostForget(id){id=String(id);const m=repostMap();let ch=0;for(const k
 /* 打开转帖面板时向服务器确认那条转帖还在（在别的设备上删掉的也能清掉） */
 async function repostVerify(id){const m=repostMap(),nid=m[id];if(!nid||!(typeof usingNet==='function'&&usingNet())||typeof api!=='function')return;try{const r=await api('GET','/api/posts/'+encodeURIComponent(nid));if(r&&(r.s===404||r.s===410)){repostForget(nid);if(typeof render==='function')render()}}catch(e){}}
 function postReposts(p){return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
-function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Number.isFinite(s)&&s>0?s:(mine?1:0)}
+function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Math.max(Number.isFinite(s)&&p.bookmarkCount!=null?s:0,mine?1:0)}
 function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[],S.postCache?Object.values(S.postCache):[]);return a.find(x=>String(x.id)===String(id))}
 function xbar(p,nLike,nC){
   const id=esc(String(p.id)),liked=p.m>=0,rt=!!repostMap()[p.id],bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
