@@ -329,6 +329,8 @@ export function createProjects(db, {now, authorOf, chats, notifications}) {
   function cancel(user, id) {
     const r = need(id); requireOwner(r, user); requireOpen(r);
     setSt.run('cancelled', now(), null, id);
+    // 2.0.3：项目取消后，项目群聊自动解散（复用群聊解散逻辑，成员会收到 conversation.dissolved）
+    if (r.conversation_id && chats && typeof chats.systemDissolve === 'function') { try { chats.systemDissolve(r.conversation_id, user.id); } catch {} }
     return {project: pub(byId.get(id), user)};
   }
   function canAccessMedia(user, mediaId) { try { return !!fileOfMember.get(Number(user.id), mediaId); } catch { return false; } }
