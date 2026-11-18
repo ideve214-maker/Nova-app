@@ -1,9 +1,10 @@
-// 管理端 AI 助手：服务端强制确认、只读免确认、钱相关拦截、过期 / 单次 / 本人确认、审计。
+// 管理端 AI 助手：服务端强制确认、只读免确认、钱相关拦截、过期 / 单次 / 本人确认、审计、每日广告文案。
 // 智谱接口全部用本地假实现（fetchImpl），不会访问外网，也不需要真实密钥。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../index.mjs';
 import {TOOLS, MONEY_PATH, isConfirmText, isCancelText, redactForLlm, PENDING_TTL_MS} from '../admin-ai.mjs';
+import {isPrivateAddress, parseMeta} from '../admin-ads.mjs';
 
 let T = Date.now();
 const script = [];            // 每次调用 /chat/completions 依次取一个函数 (body) => message
@@ -19,6 +20,7 @@ const llm = async (url, init) => {
 const tc = (name, args) => () => ({role: 'assistant', content: '', tool_calls: [{id: 'c' + Math.random(), type: 'function', function: {name, arguments: JSON.stringify(args)}}]});
 const say = (text) => () => ({role: 'assistant', content: text});
 
+const PAGE = '<html><head><title>山东煎饼铺 &amp; 小吃</title><meta name="description" content="济南老字号，手工现做"></head></html>';
 let srv, base, tokA, tokA2, tokB;
 test.before(async () => {
   srv = createApp({
@@ -27,6 +29,8 @@ test.before(async () => {
     aiFetch: async () => { throw new Error('offline'); },
     adminAiOpts: {
       fetchImpl: llm,
+      lookup: async (h) => [{address: h === 'intranet.example' ? '10.0.0.8' : '93.184.216.34'}],
+      pageFetch: async () => new Response(PAGE, {status: 200, headers: {'content-type': 'text/html'}}),
     },
   });
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
@@ -66,6 +70,9 @@ test('工具登记里没有任何付款 / 退款 / 推流订单工具，执行�
   assert.doesNotMatch('/api/admin/users/1/ban', MONEY_PATH);
   assert.ok(isConfirmText('确认') && isConfirmText('中！') && !isConfirmText('确认封禁 18'));
   assert.ok(isCancelText('算了') && !isCancelText('确认'));
+  for (const ip of ['127.0.0.1', '10.1.2.3', '192.168.1.1', '172.20.0.1', '169.254.169.254', '100.64.0.1', '::1', 'fd00::1', '::ffff:127.0.0.1']) assert.ok(isPrivateAddress(ip), ip);
+  assert.ok(!isPrivateAddress('93.184.216.34'));
+  assert.deepEqual(parseMeta('<title>A</title><meta property="og:description" content="B">'), {title: 'A', desc: 'B'});
   assert.deepEqual(redactForLlm({user: {id: 1, email: 'a@b', ip: '1.2.3.4', username: 'x'}}), {user: {id: 1, username: 'x'}});
 });
 
@@ -184,4 +191,48 @@ test('目标不存在时不生成待确认操作；涉及钱的工具名直接�
   assert.match(m.j.reply, /不能由 AI 代办/);
   assert.ok(audits('admin.ai.blocked').length >= 1);
   assert.equal(srv.db.prepare("SELECT COUNT(*) n FROM admin_ai_pending WHERE path LIKE '%pay%'").get().n, 0);
+});
+
+test('每日广告文案：生意方向切换、项目配原网址、去掉模型写的网址、私网地址不抓取、定时任务每天一次', async () => {
+  const ov = await call('GET', '/api/admin/ai/ads', null, tokA);
+  assert.equal(ov.s, 200);
+  assert.ok(ov.j.directions.length >= 5 && ov.j.directions.every((d) => d.preset));
+  const dir = await call('POST', '/api/admin/ai/ads/directions', {name: '山东特产', prompt: '面向想买家乡味道的人'}, tokA);
+  assert.equal(dir.s, 200, JSON.stringify(dir.j));
+  const did = dir.j.direction.id;
+  assert.equal((await call('POST', '/api/admin/ai/ads/active', {directionId: did}, tokA)).j.activeDirectionId, did);
+  assert.equal((await call('POST', '/api/admin/ai/ads/directions/' + ov.j.directions[0].id + '/delete', {}, tokA)).s, 400);
+
+  const camp = await call('POST', '/api/admin/ai/ads/campaigns', {name: '煎饼铺', url: 'https://shop.example/jianbing', info: '手工现做，每天早上 6 点开门', directionId: did}, tokA);
+  assert.equal(camp.s, 200, JSON.stringify(camp.j));
+  assert.equal(camp.j.campaign.pageTitle, '山东煎饼铺 & 小吃');
+  assert.equal(camp.j.campaign.pageDesc, '济南老字号，手工现做');
+  const bad = await call('POST', '/api/admin/ai/ads/campaigns', {name: '内网', url: 'http://intranet.example/x'}, tokA);
+  assert.equal(bad.j.campaign.fetchError, 'private_address');
+  assert.equal(bad.j.campaign.pageTitle, '');
+  assert.equal((await call('POST', '/api/admin/ai/ads/campaigns', {name: 'x', url: 'file:///etc/passwd'}, tokA)).s, 400);
+  await call('POST', '/api/admin/ai/ads/campaigns/' + bad.j.campaign.id + '/delete', {}, tokA);
+
+  script.push((body) => {
+    const u = body.messages[1].content;
+    assert.match(u, /手工现做，每天早上 6 点开门/);
+    assert.match(u, /山东煎饼铺/);
+    assert.deepEqual(body.response_format, {type: 'json_object'});
+    return {role: 'assistant', content: JSON.stringify({text: '济南老字号煎饼，手工现做，早上 6 点开门 https://evil.example'})};
+  });
+  const g = await call('POST', '/api/admin/ai/ads/generate', {campaignId: camp.j.campaign.id}, tokA);
+  assert.equal(g.s, 200, JSON.stringify(g.j));
+  const c = g.j.generated[0];
+  assert.equal(c.url, 'https://shop.example/jianbing');
+  assert.equal(c.source, 'ai');
+  assert.doesNotMatch(c.text, /evil|https?:/);
+  assert.equal(c.trigger, 'manual');
+
+  const sh = new Date(T + 8 * 3600e3); sh.setUTCHours(10, 0, 0, 0); T = sh.getTime() - 8 * 3600e3;
+  script.push(say(JSON.stringify({text: '手工现做的煎饼'})));
+  const d1 = await srv.adminAi.ads.runDaily();
+  assert.equal(d1.generated.length, 1);
+  assert.equal(d1.generated[0].trigger, 'schedule');
+  assert.equal((await srv.adminAi.ads.runDaily()).skipped, 'not_due', '同一天只跑一次');
+  assert.ok(audits('admin.ads.daily').length === 1);
 });

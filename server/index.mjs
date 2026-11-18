@@ -1906,6 +1906,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
   // 管理端 AI 助手：新增 /api/admin/ai/*。确认后的写操作通过 invoke 原样重放到上面的管理端接口（同一令牌、同样校验与审计）。
   const adminAi = createAdminAi(db, {now, env: aiEnv || process.env, fetchImpl: adminAiOpts.fetchImpl || aiFetch, audit,
+    pageFetch: adminAiOpts.pageFetch, lookup: adminAiOpts.lookup,
     invoke: async (src, method, path, body, query) => {
       const found = findRoute(method, path);
       if (!found) throw bad('NOT_FOUND', '接口不存在', 404);
@@ -2163,9 +2164,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
+  if (autoSched && process.env.ADMIN_AI_ADS_DAILY !== '0') adminAi.ads.start();
   const _close = server.close.bind(server);
   server.close = function(cb) {
     try { schedule.stop(); } catch {}
+    try { adminAi.ads.stop(); } catch {}
     try { events.closeAll(); } catch {}
     return _close(cb);
   };
