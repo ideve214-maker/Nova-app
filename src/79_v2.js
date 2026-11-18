@@ -296,7 +296,7 @@ Object.assign(A,{
   pjno:v=>{const[id,u]=v.split('|');return pjDo(id,'/requests/'+encodeURIComponent(u)+'/reject',{},'已拒绝')},
   pjmore:v=>{S.sh={t:'pjmore',id:v}},
   pjleave:v=>{v2confirm('退出这个项目？','退出后会离开项目群聊，需要重新申请才能加入。','退出项目',()=>pjDo(v,'/leave',{},'已退出项目'))},
-  pjcxl:v=>{v2confirm('取消这个项目？','取消后项目会从列表中隐藏，不能恢复。','取消项目',()=>pjDo(v,'/cancel',{},'项目已取消').then(()=>coLoad()))},
+  pjcxl:v=>{const cid=(pjOf(v)||{}).conversationId;v2confirm('取消这个项目？','取消后项目会从列表中隐藏，不能恢复；项目群聊会自动解散。','取消项目',()=>pjDo(v,'/cancel',{},'项目已取消').then(r=>{if(r&&cid&&typeof cvDrop==='function')cvDrop(cid);return coLoad()}))},
   pjdone:v=>{S.sh=null;S.d.pjsum='';S.d.pjsl='';A.go('pjdone:'+v)},
   pjdone2:async v=>{const links=String(S.d.pjsl||'').split(/\s+/).map(s=>s.trim()).filter(Boolean).slice(0,6);const summary=String(S.d.pjsum||'').trim();if(!summary)return T('请填写成果介绍');
     const r=await pjDo(v,'/complete',{summary,links},'项目已完成 🎉');if(r){S.st.pop();coLoad()}},

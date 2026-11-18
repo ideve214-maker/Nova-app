@@ -798,5 +798,19 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 .pf.ovl>h2,.pf.ovl>.handle,.pf.ovl>.bio{text-align:left!important;margin-left:0!important;margin-right:0!important;align-self:flex-start!important;width:auto}
 .pf.ovl .nbc,.pf.ovl .nmb{justify-content:flex-start!important}
 .pf.ovl .handle,.pf.ovl .bio{display:block}
+
+/* 2.0.3：「项目群聊」「添加链接」等按钮——图标在金色主按钮上改用文字颜色（之前和底色同色，看起来像空了一块、文字偏移）；
+   文字和图标都用 flex 居中，行高固定为 1，不受字体上下留白影响 */
+.pjact .pb,.pjadd .pb,.pjwsgo{align-items:center!important;padding-top:0!important;padding-bottom:0!important;line-height:1!important}
+.pjact .pb>span,.pjadd .pb>span,.pjwsgo>span{display:inline-flex!important;align-items:center;height:1.25em;line-height:1!important;margin:0;padding:0}
+.pjact .pb:not(.s):not(.off) svg,.pjadd .pb:not(.s) svg{color:currentColor!important;stroke:currentColor}
+.pjact .pb svg,.pjadd .pb svg,.pjwsgo svg{align-self:center;margin:0}
+/* 2.0.3：成员头像的会员光环不再被这一行的 overflow 裁掉上沿，光环和头像同心；右侧「+N」与头像同一中线 */
+.pjmem{padding-top:5px!important;height:92px!important;box-sizing:border-box}
+.pjm .av{margin:0 auto}
+.pjmore{height:40px!important;align-self:start;display:flex!important;align-items:center!important;justify-content:center}
+.pjmore .pjst{flex:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;line-height:1}
+/* 2.0.3：资料页名字上方的金色装饰线和名字一起靠左 */
+.pf.ovl .pdec{margin:2px 0 6px!important;align-self:flex-start!important}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
