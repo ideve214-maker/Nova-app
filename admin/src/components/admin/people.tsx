@@ -1,3 +1,4 @@
+import { UserOpsPanel } from "./ops2";
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import {
@@ -218,8 +219,8 @@ export function UserScreen() {
               封禁账号
             </button>
           )}
-          <button type="button" className="h-11 rounded-full bg-subtle font-semibold text-muted" disabled>
-            发送通知（未接入）
+          <button type="button" className="h-11 rounded-full bg-subtle font-semibold" onClick={() => setTab("ops")}>
+            资料与通知
           </button>
         </div>
       }
@@ -238,7 +239,8 @@ export function UserScreen() {
           { id: "info", label: "基本信息" },
           { id: "activity", label: "行为记录" },
           { id: "access", label: "权限设置" },
-          { id: "vip", label: "VIP 记录" },
+          { id: "vip", label: "VIP" },
+          { id: "ops", label: "运营" },
         ]}
         onChange={setTab}
       />
@@ -257,8 +259,8 @@ export function UserScreen() {
           <Info label="简介" value={sanitizeText(member.bio) || "未填写"} />
           <Info label="最后登录" value={member.lastLogin} />
           <div className="grid grid-cols-2 gap-2 px-4 py-3">
-            <button type="button" className="h-11 rounded-full bg-subtle font-semibold text-muted" disabled>
-              编辑资料（未接入）
+            <button type="button" className="h-11 rounded-full bg-subtle font-semibold" onClick={() => setTab("ops")}>
+              编辑资料
             </button>
             <button type="button" className="h-11 rounded-full bg-subtle font-semibold" onClick={() => { void resetPassword(member.id).then((c) => { if (c) setCode(c); }); }}>
               重置密码
@@ -286,6 +288,7 @@ export function UserScreen() {
           <p className="py-3 text-sm text-muted">暂时不能单独开关发帖或评论。封禁后该用户会立即退出。</p>
         </div>
       )}
+      {tab === "ops" && <UserOpsPanel userId={member.id} />}
       {tab === "vip" && (
         <div className="mt-2 bg-surface px-4 py-4">
           <p className="text-sm text-muted">

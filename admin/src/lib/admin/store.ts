@@ -70,7 +70,11 @@ export type PageName =
   | "blockwords"
   | "marketing"
   | "events"
-  | "appeals";
+  | "appeals"
+  | "tags"
+  | "notify"
+  | "aireport"
+  | "v2";
 
 export type Nav = { name: PageName; userId?: string; channelId?: string };
 
