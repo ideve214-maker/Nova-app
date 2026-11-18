@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>24点</title>
-<link rel="stylesheet" href="static/style/index.css"><style>body{margin:0;padding:16px;font-family:sans-serif;background:#f4f7fb}</style><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style></head>
+<link rel="stylesheet" href="static/style/index.css"><style>body{margin:0;padding:16px;font-family:sans-serif;background:#f4f7fb}.input-content{display:flex;flex-wrap:wrap;gap:8px}.mod-panel input[type="number"]{width:64px;max-width:22vw}</style><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style></head>
 <body data-game="calc24"><h1 style="font-size:20px">24点</h1><section class="mod-panel">
                         <div class="hd"><h3 class="title">计算24点</h3></div>
                         <div class="bd">
@@ -30,6 +30,34 @@
                             
                         </div>
                     </section><script src="static/script/calc24.js"></script><script>
+(function(){
+  var inputs=[].slice.call(document.querySelectorAll('input[name="number"]'));
+  var out=document.getElementById('reslut');
+  function randCard(){return 1+Math.floor(Math.random()*13)}
+  function deal(){
+    inputs.forEach(function(i){i.value=randCard()});
+    if(out)out.value='';
+  }
+  function solve(){
+    var nums=inputs.map(function(i){return Number(i.value)});
+    if(nums.some(function(n){return !n || n<1 || !isFinite(n)})){
+      if(out)out.value='请先输入四个正整数，或点「随机」发一组。';
+      return;
+    }
+    var r=calc24.apply(null,nums);
+    if(!out)return;
+    out.value=r.length?('共 '+r.length+' 种算法：\n'+r.join('\n')):'这四个数算不出 24，换一组试试。';
+  }
+  var rnd=document.getElementById('random');
+  var start=document.getElementById('start');
+  if(rnd)rnd.addEventListener('click',deal);
+  if(start)start.addEventListener('click',solve);
+  inputs.forEach(function(i){
+    i.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();solve()}});
+  });
+  deal();
+})();
+</script><script>
 (function(){
   var game=document.body.getAttribute('data-game')||'';
   function send(n){n=Number(n)||0;if(!(n>0))return;try{parent.postMessage({type:'nova-score',game:game,score:n},'*')}catch(e){}}

@@ -30,6 +30,8 @@
     cacheElements();
     bindEvents();
     updateCustomForm();
+    // 默认进入简单难度（9×9，10 颗雷），玩法说明显示在棋盘上方。
+    startGame({ rows: 9, columns: 9, mines: 10 });
   }
 
   function cacheElements() {
@@ -139,21 +141,21 @@
 
     const errors = [];
     if (columns === null || columns < MIN_COLUMNS || columns > MAX_COLUMNS) {
-      errors.push(`width must be a whole number between ${MIN_COLUMNS} and ${MAX_COLUMNS}`);
+      errors.push(`宽度必须是 ${MIN_COLUMNS} 到 ${MAX_COLUMNS} 之间的整数`);
     }
     if (rows === null || rows < MIN_ROWS || rows > MAX_ROWS) {
-      errors.push(`height must be a whole number between ${MIN_ROWS} and ${MAX_ROWS}`);
+      errors.push(`高度必须是 ${MIN_ROWS} 到 ${MAX_ROWS} 之间的整数`);
     }
 
     if (errors.length === 0) {
       const maxMines = getMaxMines(rows, columns);
       if (mines === null || mines < 1 || mines > maxMines) {
-        errors.push(`the number of mines must be a whole number between 1 and ${maxMines}`);
+        errors.push(`地雷数量必须是 1 到 ${maxMines} 之间的整数`);
       }
     }
 
     if (errors.length > 0) {
-      showFormError(`Check your settings: ${errors.join("; ")}.`);
+      showFormError(`请检查设置：${errors.join("；")}。`);
       return null;
     }
 
@@ -185,7 +187,7 @@
       elements.customMines.value = String(maxMines);
     }
 
-    elements.mineRange.textContent = `Suggested: ${suggestedMines} · maximum: ${maxMines}`;
+    elements.mineRange.textContent = `建议 ${suggestedMines} · 最多 ${maxMines}`;
   }
 
   function getDraftDimensions() {
@@ -418,11 +420,11 @@
     renderGame();
 
     if (result.reason === "flag-limit") {
-      announce("All available flags have been placed.");
+      announce("旗子已经用完。");
     } else if (result.reason === "flagged") {
-      announce("Flag placed.");
+      announce("已插旗。");
     } else if (result.reason === "unflagged") {
-      announce("Flag removed.");
+      announce("已取消插旗。");
     }
 
     if (game.isOver) {
@@ -435,7 +437,7 @@
     if (!game) return;
 
     elements.boardSize.textContent = `${game.columns} × ${game.rows}`;
-    elements.boardSummary.textContent = `${game.columns} × ${game.rows} · ${game.mines} ${game.mines === 1 ? "mine" : "mines"}`;
+    elements.boardSummary.textContent = `${game.columns} × ${game.rows} · ${game.mines} 颗雷`;
     elements.minesLeft.textContent = String(game.minesRemaining);
     renderStatus();
 
@@ -475,15 +477,15 @@
     if (cell.isMine && cell.isRevealed) return `Mine, ${position}`;
     if (!cell.isRevealed) return `Hidden cell, ${position}`;
     if (cell.adjacentMines === 0) return `Empty cell, ${position}`;
-    return `${cell.adjacentMines} adjacent ${cell.adjacentMines === 1 ? "mine" : "mines"}, ${position}`;
+    return `${cell.adjacentMines} 颗相邻的雷，${position}`;
   }
 
   function renderStatus() {
     const labels = {
-      [ClearField.STATUS.READY]: "First move",
-      [ClearField.STATUS.PLAYING]: "Playing",
-      [ClearField.STATUS.WON]: "Solved",
-      [ClearField.STATUS.LOST]: "Game over",
+      [ClearField.STATUS.READY]: "请先翻开一格",
+      [ClearField.STATUS.PLAYING]: "进行中",
+      [ClearField.STATUS.WON]: "已过关",
+      [ClearField.STATUS.LOST]: "踩到雷了",
     };
 
     elements.gameStatus.textContent = labels[game.status];
@@ -500,7 +502,7 @@
       button.setAttribute("aria-pressed", String(isActive));
     });
 
-    announce(tool === "flag" ? "Flag mode active." : "Reveal mode active.");
+    announce(tool === "flag" ? "当前是插旗模式。" : "当前是翻开模式。");
   }
 
   function handleKeyboardShortcut(event) {
@@ -550,11 +552,11 @@
     const won = game.status === ClearField.STATUS.WON;
     elements.resultDialog.dataset.result = won ? "won" : "lost";
     elements.resultMark.textContent = won ? "✓" : "!";
-    elements.resultEyebrow.textContent = won ? "Field cleared" : "Mine triggered";
-    elements.resultTitle.textContent = won ? "You solved it!" : "So close.";
+    elements.resultEyebrow.textContent = won ? "全部扫清" : "踩到地雷";
+    elements.resultTitle.textContent = won ? "全部扫清！" : "差一点点。";
     elements.resultCopy.textContent = won
-      ? `${game.columns} × ${game.rows} board, ${game.mines} ${game.mines === 1 ? "mine" : "mines"}, ${formatTime(elapsedSeconds)}. Your result is not saved.`
-      : "The first reveal is always safe. Restart the same board size or choose another one.";
+      ? `${game.columns} × ${game.rows} 棋盘，${game.mines} 颗雷，用时 ${formatTime(elapsedSeconds)}。成绩只保存在本机。`
+      : "第一次点击不会踩雷。可以重来，或换一个难度。";
 
     if (typeof elements.resultDialog.showModal === "function" && !elements.resultDialog.open) {
       elements.resultDialog.showModal();

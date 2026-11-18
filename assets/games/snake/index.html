@@ -75,20 +75,20 @@
     // To add a theme, add its stylesheet to src/css and push an entry here.
     // The dropdown is built from this array. "selected" marks the default theme.
     const THEMES = [
-      { label: "Light Theme by yokesharun", url: "css/light-snake.css" },
-      { label: "Main Theme by patorjk", url: "css/main-snake.css", selected: true },
-      { label: "Dark Theme by KenyStev", url: "css/dark-snake.css" },
-      { label: "Green Theme by CoffeeCatDE", url: "css/green-snake.css" },
-      { label: "Matrix Theme by Geahad Haymor", url: "css/matrix-snake.css" },
-      { label: "Theme by Senura Ratnayake", url: "css/Senura-snake.css" },
-      { label: "Snake Head Theme by Rb64", url: "css/head-snake.css" },
-      { label: "Black and purple Theme by LucassSantoss", url: "css/black-snake.css" },
-      { label: "Neon Theme by Daisy21000", url: "css/neon-snake.css" },
-      { label: "Clean Theme by CrashoutKing123", url: "css/clean-snake.css" },
-      { label: "Original Theme by DylanLCrocker", url: "css/blue-snake.css" },
-      { label: "Golden Theme By JosephVoboril29", url: "css/golden-snake.css" },
-      { label: "Cotton Candy Theme by KiwiNguyen29", url: "css/cotton-candy-snake.css" },
-      { label: "OG Theme by NevanJohnson", url: "css/og-snake.css" },
+      { label: "浅色", url: "css/light-snake.css" },
+      { label: "默认", url: "css/main-snake.css", selected: true },
+      { label: "深色", url: "css/dark-snake.css" },
+      { label: "绿色", url: "css/green-snake.css" },
+      { label: "矩阵", url: "css/matrix-snake.css" },
+      { label: "简约", url: "css/Senura-snake.css" },
+      { label: "蛇头", url: "css/head-snake.css" },
+      { label: "黑紫", url: "css/black-snake.css" },
+      { label: "霓虹", url: "css/neon-snake.css" },
+      { label: "干净", url: "css/clean-snake.css" },
+      { label: "经典蓝", url: "css/blue-snake.css" },
+      { label: "金色", url: "css/golden-snake.css" },
+      { label: "棉花糖", url: "css/cotton-candy-snake.css" },
+      { label: "复古", url: "css/og-snake.css" },
     ];
 
     function getTheme() {
@@ -135,7 +135,7 @@
         </select>
       </div>
       <div class="snake-control-buttons">
-        <button id="go_full_screen" class="tui-button">Full Screen</button>
+        <button id="go_full_screen" class="tui-button">全屏</button>
       </div>
     </div>
 
@@ -145,11 +145,11 @@
 
   <!-- On-screen controls, only shown on touch devices (wired up in js/init.js) -->
   <div class="snake-gamepad" id="snake-gamepad">
-    <button data-key="38" style="grid-area: 1 / 2" aria-label="Up">&#9650;</button>
-    <button data-key="37" style="grid-area: 2 / 1" aria-label="Left">&#9664;</button>
-    <button data-key="32" style="grid-area: 2 / 2" aria-label="Pause">&#10074;&#10074;</button>
-    <button data-key="39" style="grid-area: 2 / 3" aria-label="Right">&#9654;</button>
-    <button data-key="40" style="grid-area: 3 / 2" aria-label="Down">&#9660;</button>
+    <button data-key="38" style="grid-area: 1 / 2" aria-label="上">&#9650;</button>
+    <button data-key="37" style="grid-area: 2 / 1" aria-label="左">&#9664;</button>
+    <button data-key="32" style="grid-area: 2 / 2" aria-label="暂停">&#10074;&#10074;</button>
+    <button data-key="39" style="grid-area: 2 / 3" aria-label="右">&#9654;</button>
+    <button data-key="40" style="grid-area: 3 / 2" aria-label="下">&#9660;</button>
   </div>
 
   <script type="text/javascript" src="js/snake.js"></script>
@@ -178,7 +178,7 @@
         }
       } catch (err) {
         console.error(err);
-        SNAKE.showAlert("Sorry, fullscreen won't work in this setup.");
+        SNAKE.showAlert("当前环境不支持全屏。");
       }
     }
 
