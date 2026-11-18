@@ -25,6 +25,7 @@ export const PAGE_NAMES = [
   "events",
   "appeals",
   "ai",
+  "ads",
   "tags",
   "notify",
   "aireport",
