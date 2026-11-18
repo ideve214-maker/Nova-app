@@ -16,6 +16,8 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Scale,
+  TrendingUp,
 } from "lucide-react";
 import { useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
@@ -26,31 +28,31 @@ import { DataHint, DemoBanner, EmptyState, Pill, RowLink, Seg, StarMark, useAppe
 import { ConnectionBadge } from "./server-panel";
 
 const modules: { name: PageName; label: string; desc: string; icon: typeof Users }[] = [
-  { name: "users", label: "用户管理", desc: "查看、封禁、重置", icon: Users },
-  { name: "vip", label: "会员权益", desc: "开通与撤销", icon: Crown },
-  { name: "content", label: "内容审核", desc: "帖子与评论", icon: Hash },
-  { name: "communities", label: "社区管理", desc: "成员、频道、消息", icon: MessagesSquare },
-  { name: "hot", label: "热门话题", desc: "首页热门帖子与顺序", icon: Flame },
-  { name: "announce", label: "公告通知", desc: "弹窗公告的发布与下线", icon: Megaphone },
-  { name: "blockwords", label: "屏蔽词", desc: "平台拦截规则", icon: Ban },
-  { name: "marketing", label: "营销管理", desc: "营销帖、数据调整、推流加热、AI 审查", icon: Megaphone },
+  { name: "users", label: "用户", desc: "查看、封禁、重置", icon: Users },
+  { name: "vip", label: "会员", desc: "开通与撤销", icon: Crown },
+  { name: "content", label: "帖子评论", desc: "帖子与评论", icon: Hash },
+  { name: "communities", label: "社区", desc: "成员、频道、消息", icon: MessagesSquare },
+  { name: "hot", label: "热门", desc: "首页热门帖子与顺序", icon: Flame },
+  { name: "announce", label: "公告", desc: "弹窗公告的发布与下线", icon: Megaphone },
+  { name: "reports", label: "举报", desc: "待处理队列", icon: Flag },
+  { name: "appeals", label: "申诉", desc: "通过或驳回", icon: Scale },
   { name: "payments", label: "付款审核", desc: "收款码人工核对", icon: CreditCard },
-  { name: "reports", label: "举报处理", desc: "待处理队列", icon: Flag },
-  { name: "appeals", label: "申诉处理", desc: "通过或驳回", icon: Flag },
+  { name: "blockwords", label: "屏蔽词", desc: "平台拦截规则", icon: Ban },
   { name: "events", label: "安全事件", desc: "限流与异常", icon: ShieldCheck },
   { name: "security", label: "安全中心", desc: "设备、邀请、权限", icon: KeyRound },
+  { name: "marketing", label: "营销推流", desc: "营销帖、推流加热、AI 审查", icon: TrendingUp },
   { name: "stats", label: "数据统计", desc: "用户与内容", icon: BarChart3 },
+  { name: "audit", label: "操作日志", desc: "操作可追溯", icon: ScrollText },
   { name: "settings", label: "系统设置", desc: "开关与服务器", icon: Settings },
-  { name: "audit", label: "审计日志", desc: "操作可追溯", icon: ScrollText },
 ];
 
+/** 5 个大类，每类一组图标入口。 */
 const groups: { title: string; names: PageName[] }[] = [
-  { title: "用户与会员", names: ["users", "vip"] },
-  { title: "内容与社区", names: ["content", "hot", "communities", "announce", "blockwords"] },
-  { title: "营销", names: ["marketing"] },
-  { title: "审核与处理", names: ["payments", "reports", "appeals"] },
-  { title: "安全", names: ["events", "security"] },
-  { title: "系统与数据", names: ["stats", "settings", "audit"] },
+  { title: "用户", names: ["users", "vip"] },
+  { title: "内容与社区", names: ["content", "communities", "hot", "announce"] },
+  { title: "审核与安全", names: ["reports", "appeals", "payments", "blockwords", "events", "security"] },
+  { title: "运营营销", names: ["marketing"] },
+  { title: "系统", names: ["stats", "audit", "settings"] },
 ];
 
 const moduleByName = new Map(modules.map((item) => [item.name, item]));
@@ -362,35 +364,27 @@ export function ManageScreen() {
       <header className="nova-sticky-bar nova-bar relative z-30 shrink-0 border-b border-line" data-nova-chrome="top">
         <div className="flex min-h-11 flex-col justify-center px-5 py-2.5">
           <h1 className="text-[17px] font-semibold leading-tight">管理</h1>
-          <p className="text-[13px] leading-4 text-muted">按类别进入</p>
+          <p className="text-[13px] leading-4 text-muted">5 个大类，点图标进入</p>
         </div>
       </header>
       <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <DemoBanner />
-      <div className="space-y-3 px-5 pb-3 pt-3">
+      <div className="space-y-3 px-4 pb-3 pt-3">
         {groups.map((group) => (
           <section key={group.title}>
             <h2 className="mb-1.5 px-1 text-[13px] font-semibold text-muted">{group.title}</h2>
-            <div className="overflow-hidden rounded-card bg-surface shadow-card">
+            <div className="grid grid-cols-4 gap-y-1 rounded-card bg-surface px-1 py-2 shadow-card">
               {group.names.map((name) => {
                 const item = moduleByName.get(name);
                 if (!item) return null;
                 const Icon = item.icon;
                 const extra = item.name === "payments" ? pending : item.name === "reports" ? openReports : 0;
                 return (
-                  <RowLink
-                    key={item.name}
-                    icon={<Icon className="size-4" />}
-                    title={item.label}
-                    desc={item.desc}
-                    onClick={() => go(item.name)}
-                    extra={
-                      <span className="flex items-center gap-1 text-[13px] text-muted">
-                        {extra > 0 && <Pill tone="danger">{extra}</Pill>}
-                        <ChevronRight className="size-4" />
-                      </span>
-                    }
-                  />
+                  <button key={item.name} type="button" onClick={() => go(item.name)} aria-label={item.label + "：" + item.desc} className="relative flex flex-col items-center gap-1 rounded-xl px-0.5 py-2">
+                    <span className="grid size-10 place-items-center rounded-xl nova-soft"><Icon className="size-[18px]" /></span>
+                    <span className="max-w-full truncate text-[12px] leading-4">{item.label}</span>
+                    {extra > 0 && <span className="absolute right-2 top-1"><Pill tone="danger">{extra}</Pill></span>}
+                  </button>
                 );
               })}
             </div>
