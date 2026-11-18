@@ -1,5 +1,5 @@
 /**
- * 管理端 AI 助手 / 2.0 接口的轻量调用层。
+ * 管理端 AI 助手 / 广告文案 / 2.0 接口的轻量调用层。
  * 路径都登记在 backend.ts 的 DEFAULT_ENDPOINT_MAP 里（以 admin 开头，401 会回到登录页）。
  * 只展示服务器返回的真实数据，不做任何本地假数据。
  */
@@ -32,6 +32,22 @@ export const aiChat = (text: string, history: { role: "user" | "assistant"; cont
   call<AiChatReply>("adminAiChat", { body: { text, history, pendingId }, timeoutMs: 60000 });
 export const aiConfirm = (id: string) => call<AiChatReply>("adminAiConfirm", { body: { id }, timeoutMs: 30000 });
 export const aiCancel = (id: string) => call<AiChatReply>("adminAiCancel", { body: { id } });
+
+export type AdDirection = { id: number; name: string; prompt: string; preset: boolean };
+export type AdCampaign = { id: number; name: string; url: string; info: string; directionId: number | null; enabled: boolean; pageTitle: string; pageDesc: string; fetchedAt: number | null; fetchError: string | null };
+export type AdCopy = { id: number; campaignId: number; directionId: number | null; day: string; text: string; url: string; source: "ai" | "local"; model: string | null; trigger: string; createdAt: number };
+export type AdsOverview = { directions: AdDirection[]; activeDirectionId: number | null; campaigns: AdCampaign[]; copies: AdCopy[]; schedule: { hour: number; timezone: string; lastRunDay: string | null; enabled: boolean } };
+
+export const adsOverview = () => call<AdsOverview>("adminAds", { query: { limit: 60 } });
+export const adsAddDirection = (name: string, prompt: string) => call<AdsOverview>("adminAdsDirections", { body: { name, prompt } });
+export const adsDeleteDirection = (id: number) => call<AdsOverview>("adminAdsDirectionDelete", { params: { id: String(id) }, body: {} });
+export const adsSetActive = (directionId: number) => call<AdsOverview>("adminAdsActive", { body: { directionId } });
+export const adsSaveCampaign = (c: { id?: number; name: string; url: string; info: string; directionId: number | null; enabled: boolean; refresh?: boolean }) =>
+  c.id
+    ? call<AdsOverview>("adminAdsCampaign", { params: { id: String(c.id) }, body: c, timeoutMs: 15000 })
+    : call<AdsOverview>("adminAdsCampaigns", { body: c, timeoutMs: 15000 });
+export const adsDeleteCampaign = (id: number) => call<AdsOverview>("adminAdsCampaignDelete", { params: { id: String(id) }, body: {} });
+export const adsGenerate = (campaignId?: number) => call<AdsOverview & { generated: AdCopy[] }>("adminAdsGenerate", { body: campaignId ? { campaignId } : {}, timeoutMs: 90000 });
 
 // ---- 管理端 2.0
 export type TagCount = { tag: string; count: number };
