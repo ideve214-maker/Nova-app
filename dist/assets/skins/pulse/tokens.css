@@ -23,9 +23,9 @@ html[data-skin="pulse"] {
   --dg-grad: linear-gradient(180deg, #FF5878 0%, #FE2C55 100%);
   --ok: #35D39A;
   --warn: #F6B94A;
-  --vip: #D9B7FF;
-  --vip-grad: linear-gradient(135deg,#F0D9FF 0%,#B88BFF 100%);
-  --onvip: #1B1026;
+  --vip: #E2C07A;
+  --vip-grad: linear-gradient(180deg,#F0D9A0 0%,#E2C07A 48%,#C4A056 100%);
+  --onvip: #1A1408;
   --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:24px; --r-pill:999px; --r-btn:14px;
   --sh-sm:0 1px 2px rgba(0,0,0,.22); --sh-md:0 8px 28px rgba(0,0,0,.28); --sh-sheet:0 -8px 32px rgba(0,0,0,.32);
   --sh-btn:0 4px 16px rgba(37,244,238,0.15), inset 0 1px 0 rgba(255,255,255,.16);
@@ -59,21 +59,22 @@ html[data-skin="pulse"][data-theme="light"] {
   --dg-grad: linear-gradient(180deg,#E83B60 0%,#D91F49 100%);
   --ok: #168B69;
   --warn: #A86B12;
-  --vip: #7852A8;
-  --vip-grad: linear-gradient(135deg,#CDB1F2 0%,#7852A8 100%);
+  --vip: #8B6E32;
+  --vip-grad: linear-gradient(180deg,#A68540 0%,#8B6E32 50%,#6E5424 100%);
   --onvip: #FFFFFF;
   --sh-sm:0 1px 2px rgba(16,20,40,.06); --sh-md:0 8px 24px rgba(16,20,40,.08); --sh-sheet:0 -8px 32px rgba(16,20,40,.10);
   --sh-btn:0 4px 14px rgba(8,127,131,.28), inset 0 1px 0 rgba(255,255,255,.35); --sh-dg:0 4px 14px rgba(217,31,73,.22); color-scheme:light;
 }
 
+/* 香槟金主题：与全局及其他皮肤一致，使用香槟金，不再用 Lavender 紫覆盖脉冲原色 */
 html[data-skin="pulse"][data-theme="dark"][data-vip="gold"],
 html[data-skin="pulse"][data-theme="dark"] .gpv.g {
-  --ac:#D9B7FF; --ac-hover:#E8D4FF; --ac-pressed:#B88BFF; --ac-soft:rgba(217,183,255,.18);
+  --ac:#E2C07A; --ac-hover:#F0D9A0; --ac-pressed:#C4A056; --ac-soft:rgba(226,192,122,.16);
   --ac-grad:var(--vip-grad); --onac:var(--onvip);
 }
 html[data-skin="pulse"][data-theme="light"][data-vip="gold"],
 html[data-skin="pulse"][data-theme="light"] .gpv.g {
-  --ac:#7852A8; --ac-hover:#9168C4; --ac-pressed:#5E3D86; --ac-soft:rgba(120,82,168,.14);
+  --ac:#8B6E32; --ac-hover:#A68540; --ac-pressed:#6E5424; --ac-soft:rgba(139,110,50,.14);
   --ac-grad:var(--vip-grad); --onac:var(--onvip);
 }
 html[data-skin="pulse"][data-theme="dark"] .gpv.n {

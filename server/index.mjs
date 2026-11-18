@@ -923,6 +923,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(user.id, 'chat.nickname', 'conversation:' + req.params.id, ip(req));
       return r;
     },
+    'POST /api/conversations/:id/delete'(req) {
+      const {user} = auth(req);
+      const r = chats.deleteForMe(user, req.params.id);
+      audit(user.id, 'chat.delete', 'conversation:' + req.params.id, ip(req));
+      return r;
+    },
     'POST /api/conversations/:id/dissolve'(req, b) {
       const {user} = auth(req);
       const r = chats.dissolve(user, req.params.id, b || {});

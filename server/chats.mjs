@@ -31,10 +31,16 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
   const setRole = db.prepare(`UPDATE conversation_members SET role=? WHERE conversation_id=? AND user_id=?`);
   const setLeft = db.prepare(`UPDATE conversation_members SET left_at=? WHERE conversation_id=? AND user_id=?`);
   const clearLeft = db.prepare(`UPDATE conversation_members SET left_at=NULL, joined_at=? WHERE conversation_id=? AND user_id=?`);
+  /* 2.0.3：「删除会话」只影响自己一侧——记下 cleared_at，之前的消息对自己不再显示；
+     对方再发消息时会话重新出现（只显示新消息）。 */
+  const hasClear = (() => { try { db.prepare('SELECT cleared_at FROM conversation_members LIMIT 1').get(); return true; } catch { return false; } })();
   const mine = db.prepare(`SELECT c.* FROM conversations c
     JOIN conversation_members m ON m.conversation_id=c.id
     WHERE c.deleted_at IS NULL AND m.user_id=? AND m.left_at IS NULL
+    ${hasClear ? `AND (m.cleared_at IS NULL OR EXISTS (SELECT 1 FROM messages x WHERE x.conversation_id=c.id AND x.created_at > m.cleared_at))` : ''}
     ORDER BY c.created_at DESC, c.id DESC`);
+  const setCleared = hasClear ? db.prepare('UPDATE conversation_members SET cleared_at=? WHERE conversation_id=? AND user_id=?') : null;
+  const clearedOf = (cvId, uid) => { if (!hasClear) return 0; const m = mem.get(cvId, Number(uid)); return (m && m.cleared_at) || 0; };
   const nMem = db.prepare(`SELECT COUNT(*) AS n FROM conversation_members WHERE conversation_id=? AND left_at IS NULL`);
   const hasMsg = (() => { try { db.prepare('SELECT 1 FROM messages LIMIT 1').get(); return true; } catch { return false; } })();
   const nidMsg = () => nid('mg');
@@ -154,7 +160,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     if (row.kind === 'group' && projOf) { const pj = projOf.get(row.id); if (pj) out.projectId = pj.id; }
     if (listMsg) {
       const last = listMsg.last(row.id);
-      if (last) out.lastMessage = last;
+      const cut = clearedOf(row.id, me.id);
+      if (last && !(cut && Number(last.createdAt || 0) <= cut)) out.lastMessage = last;
     }
     const myMem = mem.get(row.id, Number(me.id));
     if (myMem) {
@@ -431,15 +438,39 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return {nickname: nick || null, conversation: pub(byId.get(id), user)};
   }
 
+  /* 解散群聊：所有成员移出并标记会话删除，通知在线成员。项目取消时由项目模块直接调用 systemDissolve。 */
+  function systemDissolve(cvId, byUserId) {
+    const row = byId.get(cvId);
+    if (!row || row.deleted_at || row.kind !== 'group') return false;
+    const t = now();
+    const ids = mems.all(cvId).map(x => Number(x.user_id));
+    for (const uid of ids) setLeft.run(t, cvId, uid);
+    delCv.run(t, cvId);
+    emit(ids, 'conversation.dissolved', {conversationId: cvId, by: byUserId != null ? Number(byUserId) : null});
+    return true;
+  }
   function dissolve(user, id) {
     const row = requireConv(id);
     if (row.kind !== 'group') throw new ApiError(400, 'NOT_GROUP', '只有群聊能解散');
     const m = requireMem(row, user);
     if (m.role !== 'owner') throw new ApiError(403, 'FORBIDDEN', '只有群主能解散群聊');
-    const t = now();
-    for (const x of mems.all(id)) setLeft.run(t, id, x.user_id);
-    delCv.run(t, id);
+    systemDissolve(id, user.id);
+    // 2.0.3：发起人手动解散项目群聊后，项目不再指向这个已解散的群
+    try { db.prepare('UPDATE projects SET conversation_id=NULL WHERE conversation_id=?').run(id); } catch {}
     return {dissolved: id};
+  }
+  /* 2.0.3：私聊「删除会话」——只影响自己：从列表移除、清空自己能看到的历史，不通知对方 */
+  function deleteForMe(user, id) {
+    const row = requireConv(id);
+    requireMem(row, user);
+    if (row.kind !== 'dm') throw new ApiError(400, 'NOT_DM', '群聊请使用退出或解散');
+    if (!setCleared) throw new ApiError(503, 'NO_CLEAR', '删除会话功能尚未就绪');
+    const t = now();
+    const last = lastMsg && lastMsg.get(id);
+    setCleared.run(Math.max(t, last ? Number(last.created_at) : 0), id, Number(user.id));
+    if (last && setRead) setRead.run(last.id, last.created_at, id, Number(user.id));
+    if (setPinned) setPinned.run(0, id, Number(user.id));
+    return {deleted: id};
   }
 
   function quoteOf(row) {
@@ -627,7 +658,8 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     if (q.after) {
       const cur = parseCursor(q.after);
       if (!cur) return {messages: [], nextCursor: null, hasMore: false};
-      const rows = afterMsg.all(id, cur.at, cur.at, cur.id, limit + 1);
+      const cutA = clearedOf(id, user.id);
+      const rows = afterMsg.all(id, cur.at, cur.at, cur.id, limit + 1).filter(r => !cutA || r.created_at > cutA);
       const more = rows.length > limit;
       const page = more ? rows.slice(0, limit) : rows;
       return {
@@ -638,10 +670,13 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
       };
     }
     const cur = parseCursor(q.cursor);
-    const rows = cur
+    const cut = clearedOf(id, user.id);
+    let rows = cur
       ? olderMsg.all(id, cur.at, cur.at, cur.id, limit + 1)
       : newestMsg.all(id, limit + 1);
-    const more = rows.length > limit;
+    let cutHit = false;
+    if (cut) { const n = rows.length; rows = rows.filter(r => r.created_at > cut); cutHit = rows.length < n; }
+    const more = !cutHit && rows.length > limit;
     const page = (more ? rows.slice(0, limit) : rows).reverse();
     const next = more ? page[0] : null; // oldest in this page — next older page starts here
     return {
@@ -925,7 +960,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     return mems.all(id).map(m => Number(m.user_id));
   }
   return {
-    create, list, get, addMember, setMemberRole, kick, leave, rename, setAvatar, setNickname, dissolve,
+    create, list, get, addMember, setMemberRole, kick, leave, rename, deleteForMe, systemDissolve, setAvatar, setNickname, dissolve,
     send, listMessages, pubMsg, quoteOf, forward, react, messageOf, getMessageDraft, listMessageDrafts, putMessageDraft, clearMessageDraft, markRead, setMute, setConvPin, unreadOf, receiptOf,
     recall, pinMessage, unpinMessage, RECALL_MS,
     attachMessages,
