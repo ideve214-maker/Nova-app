@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../index.mjs';
-import {TOOLS, MONEY_PATH, isConfirmText, isCancelText, redactForLlm, PENDING_TTL_MS} from '../admin-ai.mjs';
+import {TOOLS, MONEY_PATH, SYSTEM, isConfirmText, isCancelText, redactForLlm, PENDING_TTL_MS} from '../admin-ai.mjs';
 
 let T = Date.now();
 const script = [];            // 每次调用 /chat/completions 依次取一个函数 (body) => message
@@ -184,4 +184,75 @@ test('目标不存在时不生成待确认操作；涉及钱的工具名直接�
   assert.match(m.j.reply, /不能由 AI 代办/);
   assert.ok(audits('admin.ai.blocked').length >= 1);
   assert.equal(srv.db.prepare("SELECT COUNT(*) n FROM admin_ai_pending WHERE path LIKE '%pay%'").get().n, 0);
+});
+
+test('get_stats 区分累计总数与今日/24小时/7日新增；提示词禁止把总数当成今日数据或猜测', async () => {
+  const before = await call('GET', '/api/admin/stats', null, tokA);
+  assert.equal(before.s, 200, JSON.stringify(before.j));
+  assert.ok(typeof before.j.users.total === 'number');
+  assert.equal(before.j.users_total, before.j.users.total);
+  assert.equal(before.j.timezone, 'Asia/Shanghai');
+  assert.ok(before.j.windows && before.j.windows.today && before.j.windows.last_24h && before.j.windows.last_7d);
+  assert.match(before.j.field_meanings.users_total, /不是今日新增/);
+
+  const t = T;
+  const sh = new Date(t + 8 * 3600e3);
+  const todayStart = Date.UTC(sh.getUTCFullYear(), sh.getUTCMonth(), sh.getUTCDate()) - 8 * 3600e3;
+  assert.ok(t >= todayStart + 2000, '测试时钟应落在当天开始之后');
+  const todayA = t - 2000, todayB = t - 1000;
+  const yesterday = todayStart - 3600e3;
+  const tenDays = todayStart - 10 * 86400e3;
+
+  const insUser = (name, at) => srv.db.prepare('INSERT INTO users(username,email,password_hash,created_at) VALUES(?,?,?,?)').run(name, name + '@stats.test', 'x', at);
+  insUser('stat_today_a', todayA);
+  insUser('stat_today_b', todayB);
+  insUser('stat_yday', yesterday);
+  insUser('stat_old', tenDays);
+  const author = srv.db.prepare("SELECT id FROM users WHERE username='stat_today_a'").get().id;
+  const insPost = (id, at) => srv.db.prepare('INSERT INTO posts(id,author_id,text,created_at,updated_at) VALUES(?,?,?,?,?)').run(id, author, 'stats', at, at);
+  insPost('p_stat_today_a', todayA);
+  insPost('p_stat_today_b', todayB);
+  insPost('p_stat_yday', yesterday);
+  insPost('p_stat_old', tenDays);
+  const insRep = (id, at) => srv.db.prepare("INSERT INTO reports(id,reporter_id,target_type,target_id,reason,status,created_at) VALUES(?,?,?,?,?,'pending',?)").run(id, author, 'user', String(author), 'spam', at);
+  insRep('r_stat_today', todayA);
+  insRep('r_stat_yday', yesterday);
+
+  const after = await call('GET', '/api/admin/stats', null, tokA);
+  assert.equal(after.s, 200, JSON.stringify(after.j));
+  assert.equal(after.j.users_total, before.j.users.total + 4);
+  assert.equal(after.j.users_total, after.j.users.total);
+  assert.equal(after.j.new_users_today, before.j.new_users_today + 2);
+  assert.equal(after.j.new_users_24h, before.j.new_users_24h + 3);
+  assert.equal(after.j.new_users_7d, before.j.new_users_7d + 3);
+  assert.equal(after.j.new_posts_today, before.j.new_posts_today + 2);
+  assert.equal(after.j.new_posts_24h, before.j.new_posts_24h + 3);
+  assert.equal(after.j.new_posts_7d, before.j.new_posts_7d + 3);
+  assert.equal(after.j.new_reports_today, before.j.new_reports_today + 1);
+  assert.equal(after.j.new_reports_24h, before.j.new_reports_24h + 2);
+  assert.notEqual(after.j.new_users_today, after.j.users_total, '今日新增不得等于累计总数');
+  assert.ok(after.j.new_users_today < after.j.users_total);
+  assert.equal(after.j.timezone, 'Asia/Shanghai');
+  assert.equal(after.j.windows.today.start, todayStart);
+  assert.ok('payments' in after.j && 'comments' in after.j && 'reports' in after.j);
+
+  assert.match(SYSTEM, /不要猜测/);
+  assert.match(SYSTEM, /不是每日新增/);
+  assert.match(TOOLS.get('get_stats').desc, /不是今日新增|绝不是今日新增/);
+
+  script.push(tc('get_stats', {}), say('今天（上海时间 00:00 起）新增用户以 new_users_today 为准，不是累计总数。'));
+  const n = seen.length;
+  const r = await call('POST', '/api/admin/ai/chat', {text: '今天有多少新用户'}, tokA);
+  assert.equal(r.s, 200, JSON.stringify(r.j));
+  const sysMsg = seen[n].messages.find((m) => m.role === 'system');
+  assert.ok(sysMsg, '应把系统提示词发给模型');
+  assert.match(sysMsg.content, /不要猜测/);
+  assert.match(sysMsg.content, /不是每日新增|累计总数/);
+  const toolMsg = seen[n + 1].messages.find((m) => m.role === 'tool');
+  assert.ok(toolMsg && toolMsg.content.includes('new_users_today'), toolMsg && toolMsg.content.slice(0, 200));
+  const payload = JSON.parse(toolMsg.content);
+  assert.equal(payload.new_users_today, after.j.new_users_today);
+  assert.equal(payload.users_total, after.j.users_total);
+  assert.notEqual(payload.new_users_today, payload.users_total);
+  assert.equal(payload.timezone, 'Asia/Shanghai');
 });

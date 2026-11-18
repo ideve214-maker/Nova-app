@@ -2,6 +2,7 @@
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {hashPassword} from './auth.mjs';
+import {shanghaiDayRange} from './admin-v2.mjs';
 
 function asInt(v) {
   const n = Number(v);
@@ -326,29 +327,81 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
     throw new ApiError(400, 'BAD_TYPE', 'type 须为 post 或 comment');
   }
 
+  function countSafe(sql, ...args) {
+    try { return db.prepare(sql).get(...args).n || 0; } catch { return 0; }
+  }
+  function between(table, col, from, to, extra = '') {
+    return countSafe(`SELECT COUNT(*) n FROM ${table} WHERE ${col}>=? AND ${col}<? ${extra}`, from, to);
+  }
+
   function stats() {
-    const users = db.prepare('SELECT COUNT(*) n FROM users').get().n;
-    const banned = db.prepare("SELECT COUNT(*) n FROM users WHERE status='banned'").get().n;
-    const vipN = db.prepare('SELECT COUNT(*) n FROM users WHERE vip_until IS NOT NULL AND vip_until>?').get(nowFn()).n;
-    const postsVis = db.prepare('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NULL').get().n;
-    const postsHid = db.prepare('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NOT NULL').get().n;
-    const commentsVis = db.prepare('SELECT COUNT(*) n FROM post_comments WHERE deleted_at IS NULL').get().n;
-    const reportsPending = (() => {
-      try { return db.prepare("SELECT COUNT(*) n FROM reports WHERE status='pending'").get().n; }
-      catch { return 0; }
-    })();
+    const t = nowFn();
+    const {date, start: todayStart, end: todayEnd} = shanghaiDayRange(null, nowFn);
+    const start24h = t - 24 * 3600e3;
+    const start7d = t - 7 * 86400e3;
+    const until = t + 1; // 包含恰好等于 now 的记录
+    const users = countSafe('SELECT COUNT(*) n FROM users');
+    const banned = countSafe("SELECT COUNT(*) n FROM users WHERE status='banned'");
+    const vipN = countSafe('SELECT COUNT(*) n FROM users WHERE vip_until IS NOT NULL AND vip_until>?', t);
+    const postsVis = countSafe('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NULL');
+    const postsHid = countSafe('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NOT NULL');
+    const commentsVis = countSafe('SELECT COUNT(*) n FROM post_comments WHERE deleted_at IS NULL');
+    const reportsPending = countSafe("SELECT COUNT(*) n FROM reports WHERE status='pending'");
     let payPending = 0, payReview = 0;
     if (pay) {
       pay.expire();
-      payPending = db.prepare("SELECT COUNT(*) n FROM pay_orders WHERE status='pending'").get().n;
-      payReview = db.prepare("SELECT COUNT(*) n FROM pay_orders WHERE status='awaiting_review'").get().n;
+      payPending = countSafe("SELECT COUNT(*) n FROM pay_orders WHERE status='pending'");
+      payReview = countSafe("SELECT COUNT(*) n FROM pay_orders WHERE status='awaiting_review'");
     }
+    const visiblePost = 'AND deleted_at IS NULL';
+    const todayUntil = Math.min(todayEnd, until);
+    const new_users_today = between('users', 'created_at', todayStart, todayUntil);
+    const new_users_24h = between('users', 'created_at', start24h, until);
+    const new_users_7d = between('users', 'created_at', start7d, until);
+    const new_posts_today = between('posts', 'created_at', todayStart, todayUntil, visiblePost);
+    const new_posts_24h = between('posts', 'created_at', start24h, until, visiblePost);
+    const new_posts_7d = between('posts', 'created_at', start7d, until, visiblePost);
+    const new_reports_today = between('reports', 'created_at', todayStart, todayUntil);
+    const new_reports_24h = between('reports', 'created_at', start24h, until);
     return {
       users: {total: users, active: users - banned, banned, vip: vipN},
       posts: {visible: postsVis, removed: postsHid},
       comments: {visible: commentsVis},
       reports: {pending: reportsPending},
       payments: {pending: payPending, awaitingReview: payReview},
+      timezone: 'Asia/Shanghai',
+      today_date: date,
+      today_start: todayStart,
+      today_end: todayEnd,
+      now: t,
+      users_total: users,
+      new_users_today,
+      new_users_24h,
+      new_users_7d,
+      posts_visible: postsVis,
+      new_posts_today,
+      new_posts_24h,
+      new_posts_7d,
+      reports_pending: reportsPending,
+      new_reports_today,
+      new_reports_24h,
+      windows: {
+        today: {start: todayStart, end: t, label: date + ' 00:00（Asia/Shanghai）到现在'},
+        last_24h: {start: start24h, end: t, label: '最近 24 小时'},
+        last_7d: {start: start7d, end: t, label: '最近 7 天'},
+      },
+      field_meanings: {
+        users_total: '累计用户总数，不是今日新增，也不是某日新增',
+        new_users_today: date + ' 00:00（Asia/Shanghai）到现在新注册的用户数',
+        new_users_24h: '最近 24 小时新注册的用户数',
+        new_users_7d: '最近 7 天新注册的用户数',
+        new_posts_today: '今日（上海时间）新发布且未删除的帖子数',
+        new_posts_24h: '最近 24 小时新发布且未删除的帖子数',
+        new_posts_7d: '最近 7 天新发布且未删除的帖子数',
+        new_reports_today: '今日（上海时间）新提交的举报数',
+        new_reports_24h: '最近 24 小时新提交的举报数',
+        reports_pending: '当前待处理举报数（不是今日新增）',
+      },
     };
   }
 
