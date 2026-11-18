@@ -1,5 +1,6 @@
 -- 管理端 AI 助手（admin-ai）：待确认操作。只新增表，不改已有表。
--- 编号从 056 起：055 已被用户端 2.0.3（055_conversation_clear.sql）占用。
+-- 编号 057：055（055_conversation_clear.sql，用户端 2.0.3）和 056（056_post_repost.sql，用户端 PR #8）归用户端；
+-- 迁移按文件名排序执行，并以完整文件名记在 schema_migrations。用户端以后的迁移从 059 起。
 
 -- AI 提出的写操作，必须由同一个管理员、同一个登录令牌确认后才执行；一次性，约 5 分钟过期。
 CREATE TABLE IF NOT EXISTS admin_ai_pending(

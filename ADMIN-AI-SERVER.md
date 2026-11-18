@@ -1,6 +1,6 @@
 # 管理端 AI 助手 — 服务器说明
 
-迁移：`056_admin_ai.sql`（依赖 055；新增表 admin_ai_pending，不改旧表）。
+迁移：`057_admin_ai.sql`（排在用户端 055、056 之后；新增表 admin_ai_pending，不改旧表）。
 模块：`server/admin-ai.mjs`（助手 + 待确认动作）。
 `server/index.mjs` 只做挂载：合并路由。用户端接口和行为没改。
 
