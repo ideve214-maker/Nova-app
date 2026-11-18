@@ -616,13 +616,17 @@ html[data-lang=en] .row>.gr{flex:1 1 160px;min-width:0}
 html[data-lang=en] .row>.gr b,html[data-lang=en] .row>.gr small{overflow-wrap:anywhere}
 html[data-lang=en] .sw{flex-wrap:wrap;justify-content:flex-end}
 html[data-lang=en] .pb{white-space:normal;line-height:1.2}
-/* 启动页（2.0.3）：纯色底 + 居中 VEXO 标志 + 一个细小的加载圈（极简风格）。
+/* 启动页（2.0.3）：纯色底 + 居中 VEXO 矢量标志和字标（内联 SVG，高分屏清晰，随主题换色）+ 一个细小的加载圈（极简风格）。
    跟随主题：深色纯黑、浅色纯白；不叠渐变、光晕或玻璃效果。加载圈延迟 0.4 秒才淡入，启动快时只看到标志。 */
 #vxsplash{position:fixed;inset:0;z-index:2147483000;background:#000;display:flex;align-items:center;justify-content:center;transition:opacity .28s ease,visibility .28s;-webkit-user-select:none;user-select:none;pointer-events:none}
 #vxsplash.lt{background:#fff}
 #vxsplash.out{opacity:0;visibility:hidden}
-#vxsplash .vxs-mark{width:76px;height:auto;display:block;margin-top:-2vh}
-#vxsplash .vxs-ring{position:absolute;left:50%;top:calc(50% - 1vh + 64px);width:22px;height:22px;margin-left:-11px;opacity:0;animation:vxsIn .3s ease .4s forwards}
+#vxsplash .vxs-c{display:flex;flex-direction:column;align-items:center;margin-top:-4vh;color:#f5f7fb}
+#vxsplash .vxs-mark{width:152px;height:auto;display:block}
+#vxsplash .vxs-word{width:150px;height:auto;display:block;margin-top:22px}
+#vxsplash.lt .vxs-c{color:#0f1a33}
+#vxsplash.lt .s1{stop-color:#0b1430}#vxsplash.lt .s2{stop-color:#1c2850}#vxsplash.lt .s3{stop-color:#2c4590}
+#vxsplash .vxs-ring{position:absolute;left:50%;top:calc(50% - 2vh + 126px);width:22px;height:22px;margin-left:-11px;opacity:0;animation:vxsIn .3s ease .4s forwards}
 #vxsplash .vxs-ring svg{width:100%;height:100%;display:block;animation:vxsSpin .8s linear infinite}
 #vxsplash .vxs-ring circle{fill:none;stroke-width:2;stroke-linecap:round}
 #vxsplash .vxs-ring .t{stroke:rgba(255,255,255,.12)}
@@ -808,5 +812,5 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 .pf.ovl .avw .cam.avcam{left:auto!important;right:-2px!important;bottom:-2px!important;top:auto!important;width:30px;height:30px;min-width:30px;padding:0!important;border-radius:50%;display:grid;place-items:center;background:var(--s3,#23262C);color:var(--tx);border:2px solid var(--sf);box-shadow:0 1px 4px rgba(0,0,0,.35);font-size:0;line-height:0;z-index:2}
 .pf.ovl .avw .cam.avcam svg{width:16px;height:16px;display:block}
 </style></head><body>
-<div id="vxsplash" aria-hidden="true"><img class="vxs-mark" src="assets/brand/vexo-v.png" alt="" width="76" height="55" decoding="sync"><div class="vxs-ring"><svg viewBox="0 0 24 24"><circle class="t" cx="12" cy="12" r="10"/><circle class="h" cx="12" cy="12" r="10" pathLength="100"/></svg></div></div>
-<script>/* 启动页跟随上次的主题（由 render 记在 vx_splash_theme），没有记录时跟随系统 */(function(){try{var s=document.getElementById('vxsplash'),t=localStorage.getItem('vx_splash_theme');if(!t)t=(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';if(t==='light'){s.className='lt';s.firstChild.src='assets/brand/vexo-v-light.png'}}catch(e){}})();</script>
+<div id="vxsplash" aria-hidden="true"><div class="vxs-c"><svg class="vxs-mark" viewBox="0 0 250 180" width="152" height="109"><defs><linearGradient id="vxgl" x1="20" y1="20" x2="128" y2="170" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffffff" class="s1"/><stop offset=".5" stop-color="#dbe5f8" class="s2"/><stop offset=".78" stop-color="#9db8f0" class="s3"/><stop offset="1" stop-color="#2f7dff"/></linearGradient><linearGradient id="vxgr" x1="235" y1="20" x2="125" y2="160" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2b78ff"/><stop offset=".6" stop-color="#1449e8"/><stop offset="1" stop-color="#0a2fb4"/></linearGradient><linearGradient id="vxgf" x1="235" y1="19" x2="125" y2="85" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6fd0ff"/><stop offset=".55" stop-color="#2f86ff"/><stop offset="1" stop-color="#1a5cff"/></linearGradient></defs><path fill="url(#vxgr)" d="M173 21H235L115 168 117 88C130 62 146 34 173 21Z"/><path fill="url(#vxgf)" d="M173 21H235L205 57C170 60 140 70 117 88 130 62 146 34 173 21Z"/><path fill="url(#vxgl)" d="M7 21H56C64 21 70 24 74 31L143 127 115 168Z"/></svg><svg class="vxs-word" viewBox="0 0 482 100" width="150" height="31" fill="currentColor"><defs><linearGradient id="vxga" x1="410" y1="0" x2="482" y2="40" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2f86ff" stop-opacity="0"/><stop offset=".5" stop-color="#3d9bff"/><stop offset="1" stop-color="#6fd0ff"/></linearGradient></defs><path d="M0 0H24L58 74 92 0H116L70 100H46Z"/><path d="M134 0H218V19H155V40.5H210V59.5H155V81H218V100H134Z"/><path d="M236 0H262L346 100H320Z"/><path d="M320 0H346L262 100H236Z"/><rect x="372" y="10" width="100" height="80" rx="40" fill="none" stroke="currentColor" stroke-width="20"/><path d="M412 0H432A50 50 0 0 1 482 50A46 46 0 0 0 432 4H412Z" fill="url(#vxga)"/></svg></div><div class="vxs-ring"><svg viewBox="0 0 24 24"><circle class="t" cx="12" cy="12" r="10"/><circle class="h" cx="12" cy="12" r="10" pathLength="100"/></svg></div></div>
+<script>/* 启动页跟随上次的主题（由 render 记在 vx_splash_theme），没有记录时跟随系统 */(function(){try{var s=document.getElementById('vxsplash'),t=localStorage.getItem('vx_splash_theme');if(!t)t=(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';if(t==='light')s.className='lt'}catch(e){}})();</script>

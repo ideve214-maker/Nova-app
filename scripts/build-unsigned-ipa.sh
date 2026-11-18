@@ -27,7 +27,7 @@ mkdir -p www
 if [ ! -f www/manifest.json ]; then echo '{}' > www/manifest.json; fi
 npx capacitor-assets generate --ios --assetPath resources \
   --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' \
-  --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000'
+  --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#000000'
 
 echo "==> cap sync ios"
 npx cap sync ios
