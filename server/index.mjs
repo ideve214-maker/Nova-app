@@ -40,6 +40,7 @@ import {createE2ee, safetyNumber} from './e2ee.mjs';
 import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
 import {createAdminV2} from './admin-v2.mjs';
+import {createAdminAi} from './admin-ai.mjs';
 import {createFeatured} from './featured.mjs';
 import {
   clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
@@ -100,7 +101,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   hsts = process.env.NOVA_HSTS === '1',
   rateLimitMode = process.env.NOVA_RATE_LIMIT || '',
   alertWebhook = process.env.NOVA_ALERT_WEBHOOK || '',
-  aiEnv = process.env, aiFetch,
+  aiEnv = process.env, aiFetch, adminAiOpts = {},
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -1903,6 +1904,16 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
   };
 
+  // 管理端 AI 助手：新增 /api/admin/ai/*。确认后的写操作通过 invoke 原样重放到上面的管理端接口（同一令牌、同样校验与审计）。
+  const adminAi = createAdminAi(db, {now, env: aiEnv || process.env, fetchImpl: adminAiOpts.fetchImpl || aiFetch, audit,
+    invoke: async (src, method, path, body, query) => {
+      const found = findRoute(method, path);
+      if (!found) throw bad('NOT_FOUND', '接口不存在', 404);
+      const r = {method, url: path, headers: {...(src.headers || {})}, socket: src.socket, query: query || {}, params: found.params, _aiInternal: true};
+      return await found.fn(r, body || {});
+    }});
+  Object.assign(routes, adminAi.routes({adminAuth, ip}));
+
   function findRoute(method, path) {
     const exact = routes[method + ' ' + path];
     if (exact) return {fn: exact, params: {}};
@@ -2148,7 +2159,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest);
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
