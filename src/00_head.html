@@ -556,6 +556,25 @@ html.kb-open .pn{padding-bottom:12px}
 .prof-ph .mfail{min-height:0;aspect-ratio:1/1;font-size:11px;padding:4px}
 .fmore{display:none}
 .xbar{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 4px;margin-top:4px}
+/* 2.0.3 转帖卡片（X 式）：原帖嵌在细边框圆角卡片里；直接转帖时上方一行「xx 转帖了」 */
+.rptop{display:flex;align-items:center;gap:6px;padding:10px 8px 2px 16px;color:var(--t2);font-size:13px;line-height:1.2}
+.rptop>span{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rptop svg{width:16px;height:16px;flex:none}
+.rptop b{color:var(--t2);font-weight:700}
+.rptop small{color:var(--t3);font-size:12px;flex:none}
+.rptop .ib{margin-left:auto}
+.rpc{display:block;margin:8px 16px 6px;border:1px solid var(--ln);border-radius:16px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rpc:active{background:var(--s2)}
+.rpc .rph{display:flex;align-items:center;gap:6px;padding:10px 12px 0;min-width:0}
+.rpc .rph b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rpc .rph small{color:var(--t3);font-size:12px;flex:none}
+.rpc .rph small::before{content:'· ';}
+.rpc .rpx{padding:4px 12px 10px;font-size:15px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.rpc .rpx.clamp{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.rpc .fmedia{margin:0;border-radius:0}
+.rpc .rph+.fmedia{margin-top:8px}
+.rpc.del{cursor:default;padding:14px 12px;color:var(--t3);font-size:14px;background:var(--s2)}
+.fcard.rp.plain .rpc{margin-top:6px}
 .xbar button{flex:1;min-width:0;height:40px;display:flex;align-items:center;justify-content:center;gap:4px;color:var(--t2);font-size:13px;font-variant-numeric:tabular-nums;border-radius:20px;-webkit-tap-highlight-color:transparent}
 .xbar button span{min-width:1ch;text-align:left}
 .xbar button.xs{flex:0 0 44px}
