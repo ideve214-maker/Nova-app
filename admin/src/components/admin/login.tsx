@@ -4,7 +4,8 @@ import { hapticLight } from "@/lib/admin/native";
 import { useAdmin } from "@/lib/admin/store";
 import { resolveBase } from "@/lib/admin/backend";
 import { ServerPanel } from "./server-panel";
-import { Sheet, StarMark } from "./ui";
+import { Sheet } from "./ui";
+import { AdminLoginLogo } from "./login-logo";
 
 export function LoginScreen() {
   const attemptLogin = useAdmin((s) => s.attemptLogin);
@@ -50,7 +51,7 @@ export function LoginScreen() {
     >
       <div className="nova-scroll nova-login-body min-h-0 flex-1 overflow-y-auto">
         <div className="flex min-h-full flex-col items-center pt-4">
-          <StarMark className="size-[72px]" />
+          <AdminLoginLogo />
           <h1 className="nova-brand mt-5 text-[28px] leading-none">VEXO</h1>
           <p className="mt-2 text-[15px] font-bold tracking-[0.12em] text-primary">管理端</p>
           <p className="mt-1 text-[13px] text-muted">社区管理</p>

@@ -1,0 +1,77 @@
+/* 管理端登录页图标（轨道 V）。光晕全部用 CSS drop-shadow，和启动页 .vxs-logo img 同一套蓝。 */
+.vx-ll {
+  display: block;
+  overflow: visible;
+}
+.vx-ll .vx-ll-glyph {
+  filter: drop-shadow(0 0 6px rgba(70, 150, 255, 0.75))
+    drop-shadow(0 0 16px rgba(40, 110, 255, 0.45));
+}
+.vx-ll .vx-ll-arc {
+  filter: drop-shadow(0 0 3px rgba(200, 230, 255, 0.95))
+    drop-shadow(0 0 8px rgba(90, 170, 255, 0.8));
+}
+
+/* 呼吸光：只在用户没有要求“减少动态效果”时才动。 */
+@media (prefers-reduced-motion: no-preference) {
+  .vx-ll .vx-ll-glyph {
+    animation: vxLlPulse 2.4s ease-in-out infinite;
+  }
+}
+@keyframes vxLlPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px rgba(70, 150, 255, 0.6))
+      drop-shadow(0 0 14px rgba(40, 110, 255, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(90, 170, 255, 0.95))
+      drop-shadow(0 0 22px rgba(40, 110, 255, 0.55));
+  }
+}
+
+/* 亮色模式：白刀片和浅色轨道会融进浅底，改成银灰刀片 + 深蓝描边，轨道和节点换成电光蓝。 */
+html[data-theme="light"] .vx-ll .vx-ll-b0 {
+  stop-color: #f2f5fc;
+}
+html[data-theme="light"] .vx-ll .vx-ll-b1 {
+  stop-color: #cbd5ee;
+}
+html[data-theme="light"] .vx-ll .vx-ll-b2 {
+  stop-color: #8fa3de;
+}
+html[data-theme="light"] .vx-ll .vx-ll-bladeedge {
+  opacity: 0.35;
+}
+html[data-theme="light"] .vx-ll .vx-ll-o0 {
+  stop-color: #2f6bff;
+  stop-opacity: 0.25;
+}
+html[data-theme="light"] .vx-ll .vx-ll-o1 {
+  stop-color: #2f6bff;
+  stop-opacity: 0.6;
+}
+html[data-theme="light"] .vx-ll .vx-ll-o2 {
+  stop-color: #1e5bff;
+  stop-opacity: 0.95;
+}
+html[data-theme="light"] .vx-ll .vx-ll-arc {
+  stroke: #1e6bff;
+  filter: drop-shadow(0 0 3px rgba(60, 140, 255, 0.6));
+}
+html[data-theme="light"] .vx-ll .vx-ll-node {
+  fill: #ffffff;
+  stroke: #1e6bff;
+}
+html[data-theme="light"] .vx-ll .vx-ll-dot {
+  fill: #1e6bff;
+}
+html[data-theme="light"] .vx-ll .vx-ll-glyph {
+  filter: drop-shadow(0 2px 4px rgba(20, 60, 160, 0.25))
+    drop-shadow(0 0 12px rgba(40, 110, 255, 0.3));
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-theme="light"] .vx-ll .vx-ll-glyph {
+    animation: none;
+  }
+}
