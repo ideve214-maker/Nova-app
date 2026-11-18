@@ -1,4 +1,5 @@
 // 法律文档：配置中的运营者信息渲染进《隐私政策》《用户协议》。
+// 未配置的项保持【待填：…】占位符，不得在代码里编造公司名、邮箱或日期。
 import {readFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -7,33 +8,41 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(ROOT, 'docs', 'compliance');
 
 export const LEGAL_DEFAULTS = {
-  operatorName: 'Sterling ideve',
-  contactEmail: 'ideve217@gmail.com',
-  effectiveDate: '2026年11月20日',
-  version: '2026-11-20',
+  operatorName: '【待填：公司全称或运营者姓名】',
+  contactEmail: '【待填：联系邮箱】',
+  effectiveDate: '【待填：生效日期】',
+  version: '2026-11-19',
+  address: '【待填：注册或经营地址】',
+  icp: '【待填：ICP 备案号，如无可注明暂无】',
+  court: '【待填：争议管辖法院】',
+  website: '【待填：网站域名】',
+};
+
+const KEYS = Object.keys(LEGAL_DEFAULTS);
+const ENV_MAP = {
+  operatorName: 'NOVA_LEGAL_OPERATOR',
+  contactEmail: 'NOVA_LEGAL_EMAIL',
+  effectiveDate: 'NOVA_LEGAL_EFFECTIVE',
+  version: 'NOVA_LEGAL_VERSION',
+  address: 'NOVA_LEGAL_ADDRESS',
+  icp: 'NOVA_LEGAL_ICP',
+  court: 'NOVA_LEGAL_COURT',
+  website: 'NOVA_LEGAL_WEBSITE',
 };
 
 export function legalConfig(env = process.env) {
   const pick = (k, d) => {
-    const s = env && env[k] != null ? String(env[k]).trim() : '';
+    const s = env && env[ENV_MAP[k]] != null ? String(env[ENV_MAP[k]]).trim() : '';
     return s || d;
   };
-  return {
-    operatorName: pick('NOVA_LEGAL_OPERATOR', LEGAL_DEFAULTS.operatorName),
-    contactEmail: pick('NOVA_LEGAL_EMAIL', LEGAL_DEFAULTS.contactEmail),
-    effectiveDate: pick('NOVA_LEGAL_EFFECTIVE', LEGAL_DEFAULTS.effectiveDate),
-    version: pick('NOVA_LEGAL_VERSION', LEGAL_DEFAULTS.version),
-  };
+  const out = {};
+  for (const k of KEYS) out[k] = pick(k, LEGAL_DEFAULTS[k]);
+  return out;
 }
 
 export function interpolate(text, cfg = legalConfig()) {
-  const map = {
-    operatorName: cfg.operatorName,
-    contactEmail: cfg.contactEmail,
-    effectiveDate: cfg.effectiveDate,
-    version: cfg.version,
-  };
-  return String(text).replace(/\{\{(operatorName|contactEmail|effectiveDate|version)\}\}/g, (_, k) => map[k]);
+  const re = new RegExp('\\{\\{(' + KEYS.join('|') + ')\\}\\}', 'g');
+  return String(text).replace(re, (_, k) => cfg[k]);
 }
 
 export function legalDoc(kind, env = process.env) {
@@ -45,6 +54,7 @@ export function legalDoc(kind, env = process.env) {
   try { raw = readFileSync(join(DIR, name), 'utf8'); }
   catch { raw = '# ' + title + '\n\n文档暂时无法加载，请联系 ' + cfg.contactEmail + '。'; }
   const body = interpolate(raw, cfg);
+  const html = markPlaceholders(mdToHtml(body));
   return {
     kind: isTerms ? 'terms' : 'privacy',
     title,
@@ -52,13 +62,22 @@ export function legalDoc(kind, env = process.env) {
     effectiveDate: cfg.effectiveDate,
     operatorName: cfg.operatorName,
     contactEmail: cfg.contactEmail,
+    address: cfg.address,
+    icp: cfg.icp,
+    court: cfg.court,
+    website: cfg.website,
     language: 'zh-CN',
     body,
+    html,
   };
 }
 
 export function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+export function markPlaceholders(html) {
+  return String(html).replace(/【待填：[^】]+】/g, m => '<span class="legal-ph">' + m + '</span>');
 }
 
 export function mdToHtml(src) {
@@ -104,30 +123,63 @@ export function mdToHtml(src) {
 }
 
 export function renderLegalHtml(doc) {
-  const inner = mdToHtml(doc.body);
+  const inner = doc.html || markPlaceholders(mdToHtml(doc.body));
+  const title = escapeHtml(doc.title);
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(doc.title)}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>${title}</title>
 <style>
-  body{font:16px/1.65 "Noto Sans CJK SC","Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;max-width:720px;margin:0 auto;padding:24px 20px 64px;color:#13151C;background:#F3F4F9}
-  h1{font-size:24px;margin:0 0 8px}
-  h2{font-size:18px;margin:28px 0 8px}
-  h3{font-size:16px;margin:20px 0 8px}
+  :root{
+    --bg:#0B0C0F;--sf:#14161A;--tx:#F5F6F7;--t2:#A4A9B2;--ln:#292D34;
+    --ac:#2D88FF;--ac-soft:rgba(45,136,255,.16);
+    --font:Inter,"Noto Sans CJK SC","Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,sans-serif;
+    color-scheme:dark;
+  }
+  .mark-light{display:none}
+  .mark-dark{display:block}
+  @media (prefers-color-scheme:light){
+    :root{--bg:#F0F2F5;--sf:#fff;--tx:#15171A;--t2:#65676B;--ln:#CED0D4;--ac:#2D88FF;--ac-soft:rgba(45,136,255,.12);color-scheme:light}
+    .mark-dark{display:none}
+    .mark-light{display:block}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.75 var(--font)}
+  .wrap{max-width:720px;margin:0 auto;padding:28px 20px 80px}
+  .brand{display:flex;align-items:center;gap:10px;margin:0 0 28px;text-decoration:none;color:inherit}
+  .brand img{height:28px;width:auto;display:block}
+  h1{font-size:26px;letter-spacing:.02em;margin:0 0 10px;font-weight:650}
+  h2{font-size:17px;margin:32px 0 10px;font-weight:650}
+  h3{font-size:15px;margin:22px 0 8px;font-weight:650}
   p,li{margin:0 0 10px}
-  ul{padding-left:1.3em}
-  .meta{color:#5C6478;font-size:14px;margin-bottom:24px}
-  .foot{margin-top:40px;padding-top:16px;border-top:1px solid #E0E3EC;font-size:14px;color:#5C6478}
-  a{color:#4F6EF7}
-  code{font-size:.92em;background:#EEEFF5;padding:0 4px;border-radius:4px}
+  ul{padding-left:1.25em;margin:0 0 12px}
+  .meta{color:var(--t2);font-size:13px;line-height:1.7;margin:0 0 28px;padding-bottom:18px;border-bottom:1px solid var(--ln)}
+  .meta div{margin:0}
+  .foot{margin-top:48px;padding-top:18px;border-top:1px solid var(--ln);font-size:13px;color:var(--t2)}
+  a{color:var(--ac);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-size:.92em;background:var(--sf);padding:0 4px;border-radius:4px}
+  .legal-ph{display:inline;background:var(--ac-soft);color:var(--ac);border-radius:4px;padding:0 .28em;font-weight:600}
 </style>
 </head>
 <body>
-<p class="meta">运营者：${escapeHtml(doc.operatorName)} · 生效日期：${escapeHtml(doc.effectiveDate)} · 版本：${escapeHtml(doc.version)} · 联系：<a href="mailto:${escapeHtml(doc.contactEmail)}">${escapeHtml(doc.contactEmail)}</a></p>
-${inner}
-<p class="foot"><a href="/legal/privacy">隐私政策</a> · <a href="/legal/terms">用户协议</a> · <a href="/">返回应用</a></p>
+<div class="wrap">
+  <a class="brand" href="/">
+    <img class="mark-dark" src="/assets/brand/vexo-lockup.png" alt="VEXO">
+    <img class="mark-light" src="/assets/brand/vexo-lockup-light.png" alt="VEXO">
+  </a>
+  <h1>${title}</h1>
+  <div class="meta">
+    <div>运营者：${markPlaceholders(escapeHtml(doc.operatorName))}</div>
+    <div>生效日期：${markPlaceholders(escapeHtml(doc.effectiveDate))} · 版本：${escapeHtml(doc.version)}</div>
+    <div>联系：${String(doc.contactEmail||'').includes('待填') ? markPlaceholders(escapeHtml(doc.contactEmail||'')) : '<a href="mailto:' + escapeHtml(doc.contactEmail) + '">' + escapeHtml(doc.contactEmail) + '</a>'}</div>
+  </div>
+  ${inner}
+  <p class="foot"><a href="/legal/privacy">隐私政策</a> · <a href="/legal/terms">用户协议</a> · <a href="/">返回应用</a></p>
+</div>
 </body>
 </html>`;
 }

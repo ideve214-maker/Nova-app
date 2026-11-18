@@ -135,3 +135,9 @@ async function legal(kind){
   if(r.s===200)S.legal[k]=r.j;
   else S.legal[k]={title:k==='terms'?'用户协议':'隐私政策',body:'暂时无法加载文档。'};
 }
+
+async function loadLegalMeta(){
+  if(S.legal&&S.legal.privacy&&S.legal.privacy.operatorName)return;
+  const r=await api('GET','/api/legal/privacy');
+  if(r.s===200){S.legal=S.legal||{};S.legal.privacy=r.j}
+}

@@ -69,8 +69,76 @@ const pSet=()=>{const t=D.st.theme,r=D.st.rm,s=D.st.sound!==0,h=D.st.haptic!==0,
 const demoSwitch=(!demoDisabled()&&acct)?`<div class="row"><div class="gr"><b>切换到演示数据</b><small>和这个账号的本地内容分开保存，不会互相覆盖</small></div><button class="pb sm s" data-a="todemo">切换</button></div>`:'';
 const who=NET?(acct?`<div class="row"><div class="gr"><b>真实账号</b><small>@${esc(SESSION.user.username)} · ${esc(maskEmail(SESSION.user.email))}${SESSION.user.vip?' · VIP':''}</small></div><button class="pb sm" data-a="logout">退出</button></div>`+demoSwitch:`<div class="row"><div class="gr"><b>${held?'演示数据（登录还在）':'演示数据'}</b><small>${held?'@'+esc(SESSION.user.username)+' 还登录着，可以回去':'未登录。内容只存在这台设备'}</small></div><button class="pb sm" data-a="toacct">${held?'回到账号':'登录'}</button></div>`):(demoDisabled()?`<div class="row"><div class="gr"><b>无法连接服务器</b><small>当前版本未开放本机演示。</small></div><button class="pb sm" data-a="retryconnect">重试</button></div>`:`<div class="row"><div class="gr"><b>当前是离线演示</b><small>没有连上服务器，所以不能登录。数据只在这台设备。</small></div></div>`);
 return `<div class="pg">${sub('设置')}<div class="sc"><div class="shd">账号</div>${who}${typeof friendsRow==="function"?friendsRow():""}${vipRow()}${savedRow()}<div class="shd">外观与手感</div><div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button><button class="pb${t=='system'?'':' s'}" data-a="theme" data-v="system">跟随系统</button></div></div><div class="row"><div class="gr"><b>语言</b><small>只切换界面文字，用户发的内容不翻译</small></div><div class="sw" data-ut="1"><button class="pb${LANG==='zh'?'':' s'}" data-a="setlang" data-v="zh">简体中文</button><button class="pb${LANG==='en'?'':' s'}" data-a="setlang" data-v="en">English</button></div></div>${typeof uiSizeRow==='function'?uiSizeRow():''}${typeof skinRow==='function'?skinRow():''}<div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div><div class="shd">隐私与安全</div><button class="row" style="width:100%;text-align:left" data-a="priv" id="privrow"><div class="gr"><b>隐私</b><small>资料可见、好友请求等，保存在服务器</small></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="sec" id="secrow"><div class="gr"><b>账号安全</b><small>修改密码、登录设备、退出其他设备</small></div><small>›</small></button><div class="shd">关于</div><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="privacy"><div class="gr"><b>隐私政策</b></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="terms"><div class="gr"><b>用户协议</b></div><small>›</small></button>${['help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>版本</b><small>当前运行的应用版本</small></div><small>${esc(typeof runningAppVersion==='function'?runningAppVersion():'')}</small></div><div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>VEXO</b><small style="display:block;margin-top:5px">${acct?'已登录。动态、社区和聊天会保存在账号里。':'演示内容只存在这台设备。'}一对一聊天会加密。群聊暂时还没有加密。</small></div></div></div>`};
-const pInfo=k=>{const ver=(k==='about'&&typeof runningAppVersion==='function')?('\n\n版本 '+runningAppVersion()):'';return `<div class="pg">${sub(INF[k][0])}<div class="sc"><p style="padding:16px;white-space:pre-line">${INF[k][1]}${ver?esc(ver):''}</p></div></div>`};
-const pLegal=k=>{const d=(S.legal&&S.legal[k])||{};const title=d.title||(k==='terms'?'用户协议':'隐私政策');const body=d.body||'正在加载…';return `<div class="pg">${sub(esc(title))}<div class="sc"><p class="hint" style="padding:16px 16px 0">${d.effectiveDate?esc('生效日期：'+d.effectiveDate)+' · ':''}${d.version?esc('版本 '+d.version):''}</p><div style="padding:16px;white-space:pre-wrap;font-size:14px;line-height:1.65">${esc(body)}</div></div></div>`};
+function legalPh(html){return String(html||'').replace(/【待填：[^】]+】/g,m=>'<span class="legal-ph">'+m+'</span>')}
+function legalMd(src){
+  const escL=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const inline=t=>escL(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  const lines=String(src||'').replace(/\r\n/g,'\n').split('\n');
+  const out=[];let para=[],list=null;
+  const flushP=()=>{if(!para.length)return;const t=para.join(' ').trim();para=[];if(t)out.push('<p>'+inline(t)+'</p>')};
+  const flushL=()=>{if(!list)return;out.push('<ul>'+list.map(x=>'<li>'+inline(x)+'</li>').join('')+'</ul>');list=null};
+  for(const raw of lines){
+    const line=raw.trimEnd();
+    if(!line.trim()){flushP();flushL();continue}
+    const h=/^(#{1,3})\s+(.+)$/.exec(line);
+    if(h){flushP();flushL();out.push('<h'+h[1].length+'>'+inline(h[2])+'</h'+h[1].length+'>');continue}
+    const li=/^[-*]\s+(.+)$/.exec(line);
+    if(li){flushP();if(!list)list=[];list.push(li[1]);continue}
+    flushL();para.push(line.trim());
+  }
+  flushP();flushL();
+  return legalPh(out.join('\n'));
+}
+const pHelp=()=>{
+  const items=[
+    ['账号与登录','<p>用用户名或邮箱和密码登录。忘记密码时，请通过《隐私政策》里的联系邮箱联系官方。</p><p>登录后刷新页面仍会保持登录。「我的」里可以编辑昵称、头像、封面和简介。设置里可以切换简体中文 / English，以及深色、浅色或跟随系统。</p>'],
+    ['资料、隐私与账号安全','<p>「设置 → 隐私」可以控制谁能看你的资料、谁能加你好友，以及是否公开生日、年龄或性别。</p><p>「设置 → 账号安全」可以修改密码、查看并退出登录设备、导出我的数据，或注销账号。注销前请先导出需要保留的内容，注销后不能自行恢复。</p>'],
+    ['发帖与动态','<p>首页点「+」发帖，可以添加最多 9 个照片或视频，也可以加心情、位置和好友标记。发帖前可选择可见范围。正文里写 #话题 会变成话题标签。</p><p>首页有「推荐」「关注」「热门话题」。下拉可以刷新，同时也会检查有没有新版本。「日常」显示在首页顶部，24 小时后消失，不计入帖子数。你可以对帖子表态、评论、收藏、转发和分享。自己帖子的「⋯」菜单里可以给帖子做「推流加热」。</p>'],
+    ['聊天与加密','<p>「聊天」里有私聊、群聊和消息请求。互为好友才能直接私聊；不是好友时先发消息请求，对方接受后才能继续聊。</p><p>一对一私聊是端到端加密的，服务器只保存密文。群聊和社区频道目前没有端到端加密，请不要在里面发送只想给对方看的敏感信息。</p><p>输入栏「+」可以发相册、拍摄、语音、文件、表情和@提及。长按消息可以表态、回复、转发、复制、收藏、置顶、删除或举报，也可以翻译（中英文互译）。加密私聊里，只有你点了「翻译」才会把这一条文字发给 AI 翻译。</p>'],
+    ['好友、关注与安全','<p>在别人的主页可以关注、加好友或发消息。遇到骚扰可以拉黑或举报，入口在主页或帖子的「⋯」菜单，举报由管理员处理。</p><p>不要轻信陌生人的转账、投资或站外链接。</p>'],
+    ['社区','<p>「社区」标签里可以发现、加入或创建小组。小组有多个频道，可以在频道里发言。小组管理员可以管理频道和成员。</p>'],
+    ['共创','<p>底部「共创」分为技能交换和共创项目。</p><p>技能交换：发布「我会什么 / 我想要什么」并选择分类。看到合适的人，点「咨询」会打开加密私聊，不必先加好友。也可以让 AI 根据你的发布来匹配。</p><p>共创项目：写明目标和需要的技能，他人申请、发起人同意后即可加入项目群聊，一起处理任务、公告和共享资料。项目完成后可以展示成果。</p>'],
+    ['官方账号、投票与活动','<p>名字旁的蓝色「官方」或绿色「官方授权」标识，表示经过认证的账号。投票和活动只有这些账号能发起，普通用户可以参与投票或报名活动。每个投票每人只能投一次，投完即可看到结果。</p>'],
+    ['VIP 会员','<p>当前价格为每月 ¥9.9、每年 ¥99，入口在「我的 → 会员中心」。付款后由管理员核对开通，不会自动扣款，也不会马上到账。VIP 提供更高的额度（例如更长的帖子、更多收藏和更大上传）以及专属装饰，基础功能始终免费。</p>'],
+    ['通知、更新与小游戏','<p>应用会检查新版本，发现后询问你是否更新；下载完成可以立即重启生效，也可以等下次打开时生效。在首页下拉刷新，或从后台回到应用，也会检查更新。</p><p>「社区」页面有小游戏入口，例如 2048、扫雷。</p>'],
+    ['需要人工帮助','<p>可以在聊天列表顶部询问「VEXO 助手」，也可以通过《隐私政策》中的联系邮箱联系运营者。请不要在对话里发送密码或验证码。</p>']
+  ];
+  const faqs=items.map((it,i)=>`<details class="faq-item"${i===0?' open':''}><summary>${it[0]}</summary><div class="faq-body">${it[1]}</div></details>`).join('');
+  return `<div class="pg legal-pg">${sub('帮助')}<div class="sc legal-doc"><p class="legal-lead">这里汇总了 VEXO 的常用做法。更具体的问题也可以问聊天列表顶部的「VEXO 助手」。助手的回答仅供参考。</p><div class="faq">${faqs}</div></div></div>`;
+};
+const pAbout=()=>{
+  const d=(S.legal&&S.legal.privacy)||{};
+  const ver=esc(typeof runningAppVersion==='function'?runningAppVersion():'');
+  return `<div class="pg legal-pg">${sub('关于')}<div class="sc about-page">
+    <div class="about-hero">
+      <img class="about-lockup dark-only" src="assets/brand/vexo-lockup.png" alt="VEXO">
+      <img class="about-lockup light-only" src="assets/brand/vexo-lockup-light.png" alt="VEXO">
+      <p class="about-tag">Beyond Connection.</p>
+      <p class="about-ver">版本 ${ver||'—'}</p>
+    </div>
+    <div class="about-card">
+      <p>VEXO 提供账号、动态、社区、聊天、好友、共创和可选的会员服务。</p>
+      <p class="muted">一对一私聊会在设备上加密后发送，服务器只保存密文。群聊和社区频道暂时没有端到端加密。</p>
+    </div>
+    <div class="about-links">
+      <button type="button" data-a="legal" data-v="privacy"><span>隐私政策</span><small>›</small></button>
+      <button type="button" data-a="legal" data-v="terms"><span>用户协议</span><small>›</small></button>
+      <button type="button" data-a="go" data-v="info:help"><span>帮助</span><small>›</small></button>
+    </div>
+    <p class="about-fine">运营者：${legalPh(esc((d&&d.operatorName)||'【待填：公司全称或运营者姓名】'))}<br>联系邮箱：${legalPh(esc((d&&d.contactEmail)||'【待填：联系邮箱】'))}<br>本页版本号来自当前实际运行的应用包，与设置页「版本」一致。</p>
+  </div></div>`;
+};
+const pInfo=k=>k==='help'?pHelp():k==='about'?pAbout():`<div class="pg">${sub((INF[k]&&INF[k][0])||'说明')}<div class="sc"><p style="padding:16px;white-space:pre-line">${(INF[k]&&INF[k][1])||''}</p></div></div>`;
+const pLegal=k=>{
+  const d=(S.legal&&S.legal[k])||{};
+  const short=k==='terms'?'用户协议':'隐私政策';
+  const title=d.title||short;
+  let body=d.html||(d.body?legalMd(d.body):'<p class="legal-lead">正在加载…</p>');
+  body=String(body).replace(/^\s*<h1>[\s\S]*?<\/h1>\s*/,'');
+  const meta=[d.operatorName?('运营者：'+esc(d.operatorName)):'',d.effectiveDate?('生效日期：'+esc(d.effectiveDate)):'',d.version?('版本 '+esc(d.version)):''].filter(Boolean);
+  return `<div class="pg legal-pg">${sub(esc(short))}<div class="sc legal-doc">${meta.length?'<div class="legal-meta">'+legalPh(meta.join('<br>'))+'</div>':''}${body}</div></div>`;
+};
+
 
 const MOODS=['开心','兴奋','幸福','感恩','放松','思考','想旅行','在工作','想吃饭','运动中','难过','疲惫'];
 function compState(){S.comp=S.comp||{media:[],aud:'public',mood:'',loc:'',tags:[]};return S.comp}

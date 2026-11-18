@@ -23,40 +23,62 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j, text, headers: r.headers, ct};
 };
 
-test('配置默认值即运营者信息，渲染后无占位符', () => {
+test('未配置时保留【待填】占位符，不编造运营者信息；环境变量可覆盖', () => {
   const cfg = legalConfig({});
-  assert.equal(cfg.operatorName, 'Sterling ideve');
-  assert.equal(cfg.contactEmail, 'ideve217@gmail.com');
-  assert.equal(cfg.effectiveDate, '2026年11月20日');
-  assert.equal(LEGAL_DEFAULTS.operatorName, cfg.operatorName);
+  assert.equal(cfg.operatorName, LEGAL_DEFAULTS.operatorName);
+  assert.match(cfg.operatorName, /【待填：/);
+  assert.match(cfg.contactEmail, /【待填：联系邮箱】/);
+  assert.match(cfg.effectiveDate, /【待填：生效日期】/);
+  assert.match(cfg.address, /【待填：/);
+  assert.match(cfg.icp, /【待填：/);
+  assert.match(cfg.court, /【待填：/);
+  assert.match(cfg.website, /【待填：/);
+  assert.equal(cfg.version, '2026-11-19');
   for (const kind of ['privacy', 'terms']) {
     const d = legalDoc(kind, {});
-    assert.match(d.body, /Sterling ideve/);
-    assert.match(d.body, /ideve217@gmail.com/);
-    assert.match(d.body, /2026年11月20日/);
-    assert.equal(d.operatorName, 'Sterling ideve');
-    assert.doesNotMatch(d.body, /\{\{|\}\}|【运营者|【联系|【生效|草案|不构成法律意见|reviewRequired/);
+    assert.match(d.body, /【待填：公司全称或运营者姓名】/);
+    assert.match(d.body, /【待填：联系邮箱】/);
+    assert.match(d.body, /【待填：生效日期】/);
+    assert.equal(d.operatorName, LEGAL_DEFAULTS.operatorName);
+    assert.ok(d.html, '应提供已渲染的 html');
+    assert.match(d.html, /legal-ph/);
+    assert.match(d.html, /<h1>/);
+    assert.doesNotMatch(d.body, /\{\{|\}\}|草案|不构成法律意见|reviewRequired|Sterling ideve|ideve217@gmail.com/);
     assert.doesNotMatch(d.title, /草案/);
   }
+  const filled = legalDoc('privacy', {
+    NOVA_LEGAL_OPERATOR: '示例科技有限公司',
+    NOVA_LEGAL_EMAIL: 'legal@example.com',
+    NOVA_LEGAL_EFFECTIVE: '2026年12月1日',
+    NOVA_LEGAL_VERSION: '2026-12-01',
+    NOVA_LEGAL_ADDRESS: '示例路 1 号',
+    NOVA_LEGAL_ICP: '暂无',
+    NOVA_LEGAL_COURT: '示例人民法院',
+    NOVA_LEGAL_WEBSITE: 'example.com',
+  });
+  assert.match(filled.body, /示例科技有限公司/);
+  assert.match(filled.body, /legal@example.com/);
+  assert.doesNotMatch(filled.body, /【待填：公司全称或运营者姓名】/);
+  assert.equal(filled.version, '2026-12-01');
 });
 
-test('GET /api/legal 与 /legal 页面为正式文档，不含草案字样', async () => {
+test('GET /api/legal 与 /legal 页面为正式文档，未配置时展示占位符', async () => {
   for (const kind of ['privacy', 'terms']) {
     const api = await call('GET', '/api/legal/' + kind);
     assert.equal(api.s, 200, api.text);
     assert.equal(api.j.reviewRequired, undefined);
     assert.equal(api.j.disclaimer, undefined);
-    assert.match(api.j.body, /Sterling ideve/);
-    assert.match(api.j.body, /ideve217@gmail.com/);
-    assert.match(api.j.body, /2026年11月20日/);
+    assert.match(api.j.body, /【待填：公司全称或运营者姓名】/);
+    assert.match(api.j.body, /【待填：联系邮箱】/);
+    assert.ok(api.j.html);
+    assert.match(api.j.html, /legal-ph/);
     assert.ok(api.j.version);
     const page = await fetch(base + '/legal/' + kind);
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(page.headers.get('content-type'), /text\/html/);
-    assert.match(html, /Sterling ideve/);
-    assert.match(html, /ideve217@gmail.com/);
-    assert.match(html, /2026年11月20日/);
+    assert.match(html, /【待填：公司全称或运营者姓名】/);
+    assert.match(html, /legal-ph/);
     assert.doesNotMatch(html, /草案|不构成法律意见|\{\{/);
   }
 });
