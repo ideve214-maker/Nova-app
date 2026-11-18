@@ -25,7 +25,7 @@ mkdir -p www
 [ -f www/manifest.json ] || echo '{}' > www/manifest.json
 npx capacitor-assets generate --android --assetPath resources \
   --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' \
-  --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#000000'
+  --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000'
 
 echo "==> cap sync android"
 npx cap sync android

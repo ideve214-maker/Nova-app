@@ -64,7 +64,7 @@ if [ "$APP" = "user" ]; then
   if [ -d android ] || [ -d ios ]; then
     npx capacitor-assets generate --assetPath resources \
       --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' \
-      --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#000000'
+      --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000'
   fi
 
   echo "==> node scripts/build.mjs --api-base=${USER_API_BASE} --disable-demo --update-manifest-url=<user>"
