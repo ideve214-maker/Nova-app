@@ -798,5 +798,44 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 .pf.ovl>h2,.pf.ovl>.handle,.pf.ovl>.bio{text-align:left!important;margin-left:0!important;margin-right:0!important;align-self:flex-start!important;width:auto}
 .pf.ovl .nbc,.pf.ovl .nmb{justify-content:flex-start!important}
 .pf.ovl .handle,.pf.ovl .bio{display:block}
+
+/* 设置：隐私政策 / 用户协议 / 帮助 / 关于 */
+.legal-pg > .top + .sc.legal-doc,.legal-pg > .top + .sc.about-page{padding:calc(var(--top-h,44px) + env(safe-area-inset-top,0px) + 8px) 20px 48px;background:var(--bg)}
+.legal-doc{color:var(--tx);font-size:15px;line-height:1.75}
+.legal-doc h1{font-size:22px;font-weight:650;letter-spacing:.02em;margin:8px 0 10px}
+.legal-doc h2{font-size:16px;font-weight:650;margin:28px 0 10px;color:var(--tx)}
+.legal-doc h3{font-size:15px;font-weight:650;margin:20px 0 8px}
+.legal-doc p,.legal-doc li{margin:0 0 10px}
+.legal-doc ul{padding-left:1.25em;margin:0 0 12px}
+.legal-doc .legal-meta{color:var(--t2);font-size:12px;line-height:1.7;margin:0 0 20px;padding:0 0 16px;border-bottom:1px solid var(--ln)}
+.legal-doc .legal-lead{color:var(--t2);font-size:14px;margin:8px 0 18px;line-height:1.7}
+.legal-doc code{font-size:.92em;background:var(--sf);padding:0 4px;border-radius:4px}
+.legal-ph{display:inline;background:var(--ac-soft);color:var(--ac);border-radius:4px;padding:0 .28em;font-weight:600}
+.faq{display:flex;flex-direction:column;gap:10px}
+.faq-item{background:var(--sf);border:1px solid var(--ln);border-radius:var(--r-md);overflow:hidden}
+.faq-item>summary{list-style:none;cursor:pointer;padding:14px 16px;font-weight:650;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:var(--tap)}
+.faq-item>summary::-webkit-details-marker{display:none}
+.faq-item>summary::after{content:'';width:8px;height:8px;border-right:1.5px solid var(--t3);border-bottom:1.5px solid var(--t3);transform:rotate(45deg);transition:transform .2s ease;flex:none;margin-top:-3px}
+.faq-item[open]>summary::after{transform:rotate(-135deg);margin-top:3px}
+.faq-item .faq-body{padding:0 16px 16px;color:var(--t2);font-size:14px;line-height:1.7}
+.faq-item .faq-body p{margin:0 0 8px;color:var(--t2)}
+.faq-item .faq-body p:last-child{margin-bottom:0}
+.about-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 8px 20px}
+.about-lockup{height:36px;width:auto;display:block}
+.about-lockup.light-only{display:none}
+:root[data-theme=light] .about-lockup.dark-only{display:none}
+:root[data-theme=light] .about-lockup.light-only{display:block}
+.about-tag{margin:12px 0 0;color:var(--t2);font-size:13px;letter-spacing:.08em}
+.about-ver{margin:14px 0 0;display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:var(--r-pill);background:var(--sf);border:1px solid var(--ln);color:var(--tx);font-size:13px;font-weight:650}
+.about-card{background:var(--sf);border:1px solid var(--ln);border-radius:var(--r-md);padding:16px 18px;margin:8px 0 12px}
+.about-card p{margin:0 0 10px;font-size:14px;line-height:1.7;color:var(--tx)}
+.about-card p:last-child{margin:0}
+.about-card .muted{color:var(--t2)}
+.about-links{display:flex;flex-direction:column;gap:0;background:var(--sf);border:1px solid var(--ln);border-radius:var(--r-md);overflow:hidden;margin:0 0 16px}
+.about-links button{width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--ln);color:var(--tx);padding:14px 16px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.about-links button:last-child{border-bottom:0}
+.about-links button small{color:var(--t3)}
+.about-fine{color:var(--t3);font-size:12px;line-height:1.7;padding:0 4px}
+@media (prefers-reduced-motion:reduce){.faq-item>summary::after{transition:none}}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
