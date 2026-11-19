@@ -265,7 +265,7 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
   const searchP = () => { const p = prov.searchProvider(); return p && !banned(p.base) && !banned(p.model) ? p : null; };
   const web = createWebSearch({env, fetchImpl: doFetch, now, provider: searchP, withProvider: router ? fn => router.search(fn) : null,
     unavailable: () => (ready() ? '当前 AI 服务商（' + cur().name + '）不支持联网搜索，也没有可用的智谱密钥' : 'AI 助手还没有配置智谱密钥')});
-  const autoAds = marketing ? createAutoAds(db, {now, env, audit: (...a) => audit(...a), marketing, blockwords, search: (qq, o) => web.search(qq, o), configured: () => ready() && !!searchP(),
+  const autoAds = marketing ? createAutoAds(db, {now, env, audit: (...a) => audit(...a), marketing, blockwords, search: (qq, o) => web.search(qq, o), searchLeft: () => { const st = web.status(); return Math.max(0, st.perDay - st.usedToday); }, configured: () => ready() && !!searchP(),
     chatJson: m => chatText(m, {json: true, maxTokens: 500, temperature: 0.3})}) : null;
   const needAuto = () => { if (!autoAds) throw new ApiError(503, 'AUTOADS_UNAVAILABLE', '营销帖模块未加载'); return autoAds; };
 
