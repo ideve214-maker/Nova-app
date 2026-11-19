@@ -41,6 +41,7 @@ import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
 import {createAdminV2} from './admin-v2.mjs';
 import {createAdminAi} from './admin-ai.mjs';
+import {createWeather, WeatherError} from './weather.mjs';
 import {createFeatured} from './featured.mjs';
 import {
   clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
@@ -102,6 +103,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   rateLimitMode = process.env.NOVA_RATE_LIMIT || '',
   alertWebhook = process.env.NOVA_ALERT_WEBHOOK || '',
   aiEnv = process.env, aiFetch, adminAiOpts = {},
+  weatherFetch, weatherEnv, weatherIpLookup,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -349,6 +351,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     return loadLegal(kind, process.env);
   }
   const verInfo = appVersion();
+  const weather = createWeather({fetchFn: weatherFetch || globalThis.fetch, env: weatherEnv || process.env, now, ipLookup: weatherIpLookup});
   const routes = {
     'POST /api/auth/register'(req, b) {
       if (flags.read().registrationOpen === false) throw bad('REGISTRATION_CLOSED', '暂不开放注册', 403);
@@ -1822,6 +1825,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'GET /api/version'() {
       return verInfo;
+    },
+    async 'GET /api/weather'(req) {
+      auth(req);
+      try {
+        const q = req.query || {};
+        const hint = q.name ? {id: q.id || '', name: q.name, adm1: q.adm1 || '', adm2: q.adm2 || '', country: q.country || ''} : undefined;
+        return await weather.handle(q, {clientIp: ip(req), placeHint: hint});
+      } catch (e) {
+        if (e instanceof WeatherError) throw bad(e.code, e.message, e.s);
+        throw e;
+      }
     },
     'GET /api/metrics'(req) {
       const {admin} = adminAuth(req);
