@@ -44,22 +44,35 @@ const tsOf = v => {
   if (typeof v === 'number') return v > 1e12 ? v : v * 1000;
   const t = String(v); return Date.parse(t.replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(t) ? '' : '+08:00')) || null;
 };
-/** 一行资源包 → {name, remaining, total, unit, expiresAt, kind, scene}；只返回生效中的 token 包（按次计费的包单列，不计入 token）。 */
-export function parsePackageRows(rows) {
+// 按次计费的包（图片/视频生成等）：有 consumeType 就按它；没有就看名字。生产实测（2026-11-19）返回里没有 code 字段，
+// 行里有 tokenBalance / expirationTime / packageExpirationTime / resourcePackageName，tokenBalance 对按次包是剩余次数。
+const PER_USE_NAME = /\d+\s*(次|张|条|个视频|秒)|次数|按次|(图片|图像|视频|绘图|生图)\s*(\/\s*(图片|视频))?\s*生成|cogview|cogvideo|vidu/i;
+const TOKEN_NAME = /\d+(\.\d+)?\s*(万|亿|千万|百万|k|m|b)?\s*tokens?|\d+(\.\d+)?\s*(万|亿)\s*[a-z]/i;
+export function isPerUsePackage(x) {
+  const ct = String((x && x.consumeType) || '').toUpperCase();
+  if (ct) return ct === 'TIMES' || ct === 'COUNT' || ct === 'TIME';
+  const name = String((x && (x.resourcePackageName || x.packageName)) || '');
+  return PER_USE_NAME.test(name) && !TOKEN_NAME.test(name.replace(PER_USE_NAME, ''));
+}
+/** 一行资源包 → {name, remaining, total, unit, expiresAt, kind, scene}。
+ *  有 status 只要生效中（EFFECTIVE）；没有 status 就看到期时间，已过期的不算。按次包 unit='次'，不计入 token 合计。 */
+export function parsePackageRows(rows, nowMs = Date.now()) {
   const out = [];
   for (const x of rows || []) {
     if (!x || typeof x !== 'object') continue;
-    if (x.status && String(x.status).toUpperCase() !== 'EFFECTIVE') continue;
-    const remaining = num(x.availableBalance != null ? x.availableBalance : x.tokenBalance);
+    if (x.status != null && x.status !== '' && String(x.status).toUpperCase() !== 'EFFECTIVE') continue;
+    const remaining = num(x.availableBalance != null ? x.availableBalance : x.tokenBalance != null ? x.tokenBalance : x.balance);
     if (remaining == null) continue;
-    const ct = String(x.consumeType || 'TOKENS').toUpperCase();
+    const expiresAt = tsOf(x.packageExpirationTime || x.expirationTime || x.expireTime) || undefined;
+    if (expiresAt && expiresAt <= nowMs) continue;
     out.push({name: String(x.resourcePackageName || x.packageName || '资源包').slice(0, 40), remaining,
       total: num(x.tokensMagnitude != null ? x.tokensMagnitude : x.tokenTotal != null ? x.tokenTotal : x.totalToken),
-      unit: ct === 'TIMES' ? '次' : 'token', kind: x.type === 'give' ? '赠送' : x.type === 'pay' ? '购买' : undefined,
-      expiresAt: tsOf(x.packageExpirationTime || x.expirationTime) || undefined,
+      unit: isPerUsePackage(x) ? '次' : 'token', kind: x.type === 'give' ? '赠送' : x.type === 'pay' ? '购买' : undefined,
+      expiresAt,
       scene: x.suitableScene || x.suitableModel ? String(x.suitableScene || x.suitableModel).slice(0, 80) : undefined});
   }
-  return out;
+  // token 包在前、按次包在后，各自按到期时间先后
+  return out.sort((p, q) => (p.unit === 'token' ? 0 : 1) - (q.unit === 'token' ? 0 : 1) || (p.expiresAt || Infinity) - (q.expiresAt || Infinity));
 }
 /** 按顺序试候选地址，第一个返回有效列表的就用（每个最多等 timeoutMs）。全失败时抛出带每个地址原因的错误。 */
 export async function zhipuPackages({key, fetch: f, env = {}, timeoutMs = 5000, now = Date.now}) {
@@ -73,7 +86,7 @@ export async function zhipuPackages({key, fetch: f, env = {}, timeoutMs = 5000, 
     const j = r.j || {};
     const rows = pickRows(j);
     const codeOk = j.code == null || Number(j.code) === 200;
-    if (r.ok && codeOk && j.success !== false && rows) { if (!override) { st.okUrl = url; st.fail = null; } return parsePackageRows(rows); }
+    if (r.ok && codeOk && j.success !== false && rows) { if (!override) { st.okUrl = url; st.fail = null; } return parsePackageRows(rows, now()); }
     const msg = String(j.msg || j.message || (j.error && (j.error.message || j.error)) || '').split(String(key)).join('***').replace(/\s+/g, ' ').slice(0, 40);
     why.push(hostTag(url) + '：' + (r.status === 0 ? '连不上/超时' : r.ok ? (j.code != null ? 'code ' + j.code : '格式不对') : 'HTTP ' + r.status) + (msg ? ' ' + msg : ''));
   }

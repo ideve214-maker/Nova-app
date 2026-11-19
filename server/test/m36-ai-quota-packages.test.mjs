@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {createApp} from '../index.mjs';
-import {ZHIPU_BALANCE_URL, ZHIPU_PACKAGES_URL, ZHIPU_PACKAGES_URLS, zhipuPackages, isZhipuFreeModel} from '../ai-quota.mjs';
+import {ZHIPU_BALANCE_URL, ZHIPU_PACKAGES_URL, ZHIPU_PACKAGES_URLS, zhipuPackages, parsePackageRows, isPerUsePackage, isZhipuFreeModel} from '../ai-quota.mjs';
 
 const ENV_KEY = 'zhipu-env-key-NOT-REAL-0001';
 const PAID_KEY = 'zhipu-paid-key-NOT-REAL-0002';
@@ -230,4 +230,72 @@ test('额度卡片：资源包接口都不可用时显示具体原因并按估�
   assert.equal(q.packageSource, 'estimated');
   assert.equal(q.packagesError, '候选地址都不通：www：HTTP 404 not found；open：HTTP 404 not found；裸域：HTTP 404 not found');
   assert.ok(!JSON.stringify(q).includes(ENV_KEY));
+});
+
+// —— 生产实测返回（2026-11-19 Dift 探测，已脱敏：id / tokenNo / customerId 换成假值）。顶层没有 code，只有 {total, rows} ——
+const realRow = (name, tokenBalance, extra = {}) => ({id: 1001, tokenNo: 'bundle_test', customerId: 1, tokenBalance,
+  expirationTime: '2026-12-14T23:40:29', purchaseTime: null, resourcePackageName: name, packageExpirationTime: '2026-12-14T23:40:29', ...extra});
+const REAL = {total: 3, rows: [
+  realRow('【新用户专享】20次图片/视频生成资源包', 19),
+  realRow('【新用户专享】1500万GLM-5.3-Flash资源包', 15_000_000),
+  realRow('过期的旧资源包', 888, {expirationTime: '2026-10-01T00:00:00', packageExpirationTime: '2026-10-01T00:00:00'}),
+]};
+const NOV19 = Date.parse('2026-11-19T16:00:00+08:00');
+
+test('生产实测格式：没有 code 字段也算成功；没有 status 按到期时间过滤；按次包靠名字识别，单列「次」', async () => {
+  const seen = [];
+  const rows = await zhipuPackages({key: 'k-real', now: () => NOV19, fetch: async u => { seen.push(u); return json(REAL); }});
+  assert.deepEqual(seen, [ZHIPU_PACKAGES_URLS[0]], 'www 第一个就成功');
+  assert.match(seen[0], /filterEnabled=false/);
+  assert.deepEqual(rows.map(r => [r.name, r.remaining, r.unit]), [
+    ['【新用户专享】1500万GLM-5.3-Flash资源包', 15_000_000, 'token'],
+    ['【新用户专享】20次图片/视频生成资源包', 19, '次'],
+  ]);
+  assert.equal(rows[0].expiresAt, Date.parse('2026-12-14T23:40:29+08:00'));
+  // 到期后都不算
+  assert.deepEqual(parsePackageRows(REAL.rows, Date.parse('2026-12-15T00:00:00+08:00')), []);
+});
+
+test('code 不是 200 的 body 仍算失败（即使带 rows）', async () => {
+  const err = await zhipuPackages({key: 'k-code', now: () => NOV19, fetch: async () => json({code: 500, msg: '系统繁忙', rows: []})}).then(() => null, e => e);
+  assert.ok(err); assert.match(err.message, /www：code 500 系统繁忙/);
+});
+
+test('按次包识别：consumeType 优先，其次看名字', () => {
+  assert.equal(isPerUsePackage({consumeType: 'TIMES', resourcePackageName: '1000万 tokens'}), true);
+  assert.equal(isPerUsePackage({consumeType: 'TOKENS', resourcePackageName: '20次图片生成'}), false);
+  for (const n of ['【新用户专享】20次图片/视频生成资源包', '100张 CogView 生图包', 'CogVideoX 视频生成 10 条', '图片生成资源包']) assert.equal(isPerUsePackage({resourcePackageName: n}), true, n);
+  for (const n of ['【新用户专享】1500万GLM-5.3-Flash资源包', 'GLM-4V 图片理解 500万 tokens', '通用资源包', '2000万 tokens GLM-4-Plus']) assert.equal(isPerUsePackage({resourcePackageName: n}), false, n);
+});
+
+test('额度卡片（生产实测格式）：付费模型 + 现金 ¥0，主数字只算 token 包 1500 万，19 次单列，不跳过', async () => {
+  const KEY = 'zhipu-real-shape-NOT-REAL-0004';
+  const net = async (url, init = {}) => {
+    const u = String(url), auth = (init.headers || {}).Authorization || '';
+    if (!auth.endsWith(KEY)) return json({code: 1000, msg: '身份验证失败', success: false});
+    if (u === ZHIPU_BALANCE_URL) return json({code: 200, msg: '操作成功', data: {balance: 0, rechargeAmount: 0, giveAmount: 0, totalSpendAmount: 0, availableBalance: 0, frozenBalance: 0}});
+    if (u === ZHIPU_PACKAGES_URL) return json(REAL); // 实测：没有 code 字段
+    if (u.endsWith('/chat/completions')) return json({choices: [{message: {role: 'assistant', content: 'ok'}}], usage: {prompt_tokens: 1, completion_tokens: 1, total_tokens: 2}});
+    return json({code: 404, msg: '接口不存在'}, 200);
+  };
+  const dir = mkdtempSync(join(tmpdir(), 'vexo-pkg-real-'));
+  const app = createApp({adminUsername: 'ops_real', adminPassword: 'OpsUsrPass1', clock: () => NOV19, dbPath: join(dir, 'x.db'),
+    aiEnv: {AI_API_KEY: KEY, AI_API_BASE: 'https://open.bigmodel.cn/api/paas/v4', ADMIN_AI_MODEL: 'glm-4-plus', ADMIN_AI_KEY_SECRET: 'unit-test-secret'}, aiFetch: net, adminAiOpts: {fetchImpl: net}});
+  await new Promise(r => app.listen(0, '127.0.0.1', r));
+  const b = 'http://127.0.0.1:' + app.address().port;
+  const t = (await (await fetch(b + '/api/admin/auth/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: 'ops_real', password: 'OpsUsrPass1'})})).json()).token;
+  const H = {'Content-Type': 'application/json', Authorization: 'Bearer ' + t};
+  await fetch(b + '/api/admin/ai/quota/env/settings', {method: 'POST', headers: H, body: JSON.stringify({stopBalance: 1})});
+  const text = await (await fetch(b + '/api/admin/ai/quota', {headers: H})).text();
+  assert.ok(!text.includes(KEY));
+  const q = JSON.parse(text).providers.find(x => x.id === 'env');
+  try {
+    assert.equal(q.packageSource, 'provider');
+    assert.equal(q.packagesError, null);
+    assert.equal(q.packageTokens, 15_000_000);
+    assert.deepEqual(q.resourcePackages.map(p => [p.remaining, p.unit]), [[15_000_000, 'token'], [19, '次']]);
+    assert.equal(q.balance, 0);
+    assert.equal(q.exhausted, false);
+    assert.equal(q.freeModel, false);
+  } finally { app.close(); }
 });
