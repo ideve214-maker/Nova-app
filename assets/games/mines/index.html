@@ -1,17 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0b1220" />
     <meta
       name="description"
-      content="ClearField — a mobile-first, fan-made Minesweeper game built with Vanilla JavaScript and CSS."
+      content="扫雷：根据数字提示找出所有地雷。"
     />
-    <meta property="og:title" content="ClearField — Read the clues. Clear the field." />
+    <meta property="og:title" content="扫雷" />
     <meta
       property="og:description"
-      content="A fast, mobile-first, fan-made Minesweeper implementation with no external dependencies."
+      content="根据数字提示找出所有地雷。"
     />
     <meta property="og:type" content="website" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
@@ -20,41 +20,40 @@
     <script src="js/game.js" defer></script>
     <script src="js/app.js" defer></script>
     <title>扫雷</title>
-  <style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style></head>
+  <style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style><style data-nova-rules>.game-help--open{padding:10px 12px;margin:8px 0 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;font-size:13px;line-height:1.5}.game-help--open p{margin:0}.hero .control-guide{margin-top:12px}</style></head>
   <body data-game="mines">
-    <a class="skip-link" href="#main-content">Skip to content</a>
+    <a class="skip-link" href="#main-content">跳到内容</a>
 
     <header class="site-header">
-      <a class="brand" href="#" data-home-link aria-label="ClearField home">
+      <a class="brand" href="#" data-home-link aria-label="扫雷首页">
         <svg class="brand__mark" viewBox="0 0 48 48" aria-hidden="true">
           <rect x="3" y="3" width="18" height="18" rx="5"></rect>
           <rect x="27" y="3" width="18" height="18" rx="5"></rect>
           <rect x="3" y="27" width="18" height="18" rx="5"></rect>
           <path d="M31 39V28m0 1h9l-2.6 3.4L40 36h-9" fill="none"></path>
         </svg>
-        <span class="brand__wordmark">ClearField</span>
+        <span class="brand__wordmark" >扫雷</span>
       </a>
-      <span class="site-header__tagline">Read the clues. Clear the field.</span>
+      <span class="site-header__tagline">根据数字，找出地雷。</span>
     </header>
 
     <main id="main-content" class="app-shell">
       <section id="home-screen" class="screen home-screen" aria-labelledby="home-title">
         <div class="hero panel panel--hero">
-          <p class="eyebrow">Mobile-first logic game</p>
-          <h1 id="home-title">Every clue counts.</h1>
+          <p class="eyebrow">益智小游戏</p>
+          <h1 id="home-title">扫雷</h1>
           <p class="hero__lead">
-            Find the mines without hitting one. Numbers show how many mines touch a cell.
-            Pick a board below — your first reveal is always safe.
+            打开格子，根据数字找出所有地雷，不要踩到雷。数字表示它周围 8 格里有几颗雷。第一次点击保证安全。
           </p>
 
-          <div class="control-guide" aria-label="How to play">
+          <div class="control-guide" aria-label="玩法说明">
             <div class="control-guide__item">
               <span class="control-guide__icon" aria-hidden="true">1</span>
-              <span><strong>Reveal:</strong> choose Reveal mode, then tap a cell.</span>
+              <span><strong>翻开：</strong>选「翻开」，再点一个格子。</span>
             </div>
             <div class="control-guide__item">
               <span class="control-guide__icon" aria-hidden="true">2</span>
-              <span><strong>Flag:</strong> switch to Flag mode, or press and hold a cell.</span>
+              <span><strong>插旗：</strong>改成「插旗」，或长按格子标记地雷。</span>
             </div>
           </div>
         </div>
@@ -62,37 +61,29 @@
         <section class="panel" aria-labelledby="quick-title">
           <div class="section-heading">
             <div>
-              <p class="eyebrow">One-tap start</p>
-              <h2 id="quick-title">Quick boards</h2>
+              <p class="eyebrow">一键开始</p>
+              <h2 id="quick-title">选择难度</h2>
             </div>
-            <p>From 5 × 5 to 10 × 10, with balanced mine counts.</p>
+            <p>默认是简单难度（9×9，10 颗雷）。也可以选其他大小。</p>
           </div>
 
           <div class="quick-grid">
-            <button class="quick-card" type="button" data-quick="5,5,4">
-              <span class="quick-card__size">5 × 5</span>
-              <span class="quick-card__meta">4 mines</span>
+            <button class="quick-card quick-card--featured" type="button" data-quick="9,9,10" data-easy-default>
+              <span class="quick-card__badge">默认</span>
+              <span class="quick-card__size">简单 · 9 × 9</span>
+              <span class="quick-card__meta">10 颗雷</span>
             </button>
-            <button class="quick-card" type="button" data-quick="6,6,6">
-              <span class="quick-card__size">6 × 6</span>
-              <span class="quick-card__meta">6 mines</span>
+            <button class="quick-card" type="button" data-quick="8,8,10">
+              <span class="quick-card__size">较易 · 8 × 8</span>
+              <span class="quick-card__meta">10 颗雷</span>
             </button>
-            <button class="quick-card" type="button" data-quick="7,7,8">
-              <span class="quick-card__size">7 × 7</span>
-              <span class="quick-card__meta">8 mines</span>
+            <button class="quick-card" type="button" data-quick="12,12,20">
+              <span class="quick-card__size">中等 · 12 × 12</span>
+              <span class="quick-card__meta">20 颗雷</span>
             </button>
-            <button class="quick-card quick-card--featured" type="button" data-quick="8,8,10">
-              <span class="quick-card__badge">Top pick</span>
-              <span class="quick-card__size">8 × 8</span>
-              <span class="quick-card__meta">10 mines</span>
-            </button>
-            <button class="quick-card" type="button" data-quick="9,9,13">
-              <span class="quick-card__size">9 × 9</span>
-              <span class="quick-card__meta">13 mines</span>
-            </button>
-            <button class="quick-card" type="button" data-quick="10,10,16">
-              <span class="quick-card__size">10 × 10</span>
-              <span class="quick-card__meta">16 mines</span>
+            <button class="quick-card" type="button" data-quick="16,16,40">
+              <span class="quick-card__size">困难 · 16 × 16</span>
+              <span class="quick-card__meta">40 颗雷</span>
             </button>
           </div>
         </section>
@@ -100,57 +91,57 @@
         <section class="panel" aria-labelledby="custom-title">
           <div class="section-heading">
             <div>
-              <p class="eyebrow">Your setup</p>
-              <h2 id="custom-title">Custom board</h2>
+              <p class="eyebrow">自定义</p>
+              <h2 id="custom-title">自定义棋盘</h2>
             </div>
-            <p>Choose a square or rectangle, then enter the dimensions.</p>
+            <p>可以自己设定长宽和地雷数量。</p>
           </div>
 
           <form id="custom-form" class="custom-form" novalidate>
             <fieldset class="form-fieldset">
-              <legend>Shape</legend>
+              <legend>形状</legend>
               <div class="segmented segmented--wide" data-shape-control>
                 <label class="segmented__option">
                   <input type="radio" name="shape" value="square" checked />
-                  <span>Square</span>
+                  <span>正方形</span>
                 </label>
                 <label class="segmented__option">
                   <input type="radio" name="shape" value="rectangle" />
-                  <span>Rectangle</span>
+                  <span>长方形</span>
                 </label>
               </div>
             </fieldset>
 
             <div id="square-fields" class="form-grid form-grid--dimensions">
               <label class="field" for="square-size">
-                <span>Side length</span>
+                <span>边长</span>
                 <input id="square-size" name="squareSize" type="number" min="4" max="20" step="1" value="10" inputmode="numeric" />
-                <small>4–20 cells</small>
+                <small>4–20 格</small>
               </label>
             </div>
 
             <div id="rectangle-fields" class="form-grid form-grid--dimensions" hidden>
               <label class="field" for="custom-columns">
-                <span>Width</span>
+                <span>宽</span>
                 <input id="custom-columns" name="columns" type="number" min="4" max="20" step="1" value="12" inputmode="numeric" />
-                <small>4–20 columns</small>
+                <small>4–20 列</small>
               </label>
               <label class="field" for="custom-rows">
-                <span>Height</span>
+                <span>高</span>
                 <input id="custom-rows" name="rows" type="number" min="4" max="30" step="1" value="10" inputmode="numeric" />
-                <small>4–30 rows</small>
+                <small>4–30 行</small>
               </label>
             </div>
 
             <div class="form-grid form-grid--submit">
               <label class="field" for="custom-mines">
-                <span>Number of mines</span>
+                <span>地雷数量</span>
                 <input id="custom-mines" name="mines" type="number" min="1" max="32" step="1" value="16" inputmode="numeric" />
-                <small id="mine-range">Suggested: 16 · maximum: 32</small>
+                <small id="mine-range">建议 16 · 最多 32</small>
               </label>
 
               <button class="button button--primary button--large" type="submit">
-                Start custom game
+                开始自定义
               </button>
             </div>
 
@@ -159,17 +150,9 @@
         </section>
 
         <details class="panel about-panel">
-          <summary>What is ClearField?</summary>
+          <summary>这是什么？</summary>
           <div class="about-panel__content">
-            <p>
-              ClearField is an independent, fan-made take on the classic Minesweeper puzzle.
-              It is designed to provide a simpler, friendlier, mobile-ready experience using
-              plain HTML, Vanilla JavaScript, and Vanilla CSS.
-            </p>
-            <p>
-              This project is not affiliated with any original game publisher. It does not
-              save game results and uses no analytics or AI libraries.
-            </p>
+            <p>这是经典扫雷的简易版，可以在手机上直接玩。成绩只保存在本机，不会上传。</p>
           </div>
         </details>
       </section>
@@ -177,92 +160,85 @@
       <section id="game-screen" class="screen game-screen" aria-labelledby="game-title" hidden>
         <div class="game-topbar">
           <button class="button button--ghost" type="button" data-back-home>
-            <span aria-hidden="true">←</span> Choose board
+            <span aria-hidden="true">←</span> 换难度
           </button>
           <button class="button button--secondary" type="button" data-restart>
-            Restart
+            重来
           </button>
         </div>
 
         <section class="panel game-panel">
           <div class="game-heading">
             <div>
-              <p class="eyebrow">Active game</p>
-              <h1 id="game-title"><span data-board-size>8 × 8</span> board</h1>
+              <p class="eyebrow">进行中</p>
+              <h1 id="game-title"><span data-board-size>9 × 9</span> 棋盘</h1>
             </div>
-            <span class="status-pill" data-game-status>First move</span>
+            <span class="status-pill" data-game-status>请先翻开一格</span>
           </div>
 
-          <div class="stats" aria-label="Game status">
+          <div class="stats" aria-label="对局状态">
             <div class="stat">
-              <span class="stat__label">Flags left</span>
+              <span class="stat__label">剩余旗子</span>
               <strong class="stat__value" data-mines-left>10</strong>
             </div>
             <div class="stat">
-              <span class="stat__label">Time</span>
+              <span class="stat__label">用时</span>
               <strong class="stat__value" data-timer>00:00</strong>
             </div>
             <div class="stat">
-              <span class="stat__label">Board</span>
-              <strong class="stat__value stat__value--small" data-board-summary>8 × 8 · 10 mines</strong>
+              <span class="stat__label">棋盘</span>
+              <strong class="stat__value stat__value--small" data-board-summary>9 × 9 · 10 颗雷</strong>
             </div>
           </div>
 
-          <div class="action-dock" aria-label="Cell action">
+          <div class="action-dock" aria-label="格子操作">
             <div class="action-dock__copy">
-              <strong>Action</strong>
-              <span>A tap uses the active mode.</span>
+              <strong>操作</strong>
+              <span>点击会按当前模式生效。</span>
             </div>
-            <div class="segmented" role="group" aria-label="Active action">
+            <div class="segmented" role="group" aria-label="当前操作">
               <button class="segmented__button is-active" type="button" data-tool="reveal" aria-pressed="true">
                 <span class="tool-icon tool-icon--reveal" aria-hidden="true"></span>
-                Reveal
+                翻开
               </button>
               <button class="segmented__button" type="button" data-tool="flag" aria-pressed="false">
                 <span class="tool-icon tool-icon--flag" aria-hidden="true">⚑</span>
-                Flag
+                插旗
               </button>
             </div>
           </div>
 
           <div class="board-tools">
-            <details class="game-help">
-              <summary>How to play</summary>
-              <p>Numbers count nearby mines, including diagonals. Tap to reveal; switch to Flag
-                or press and hold to mark a mine. Drag to scroll a large board.</p>
-              <p>In Reveal mode, tap a number with all its nearby mines correctly flagged to
-                open the remaining neighbors. On desktop, right-click to flag.</p>
-            </details>
+            <div class="game-help game-help--open" data-rules>
+              <p><strong>玩法：</strong>数字表示周围 8 格里有几颗雷。点格子翻开；长按或切到「插旗」来标记地雷。把安全格子全部翻开就过关。第一次点击不会踩雷。</p>
+            </div>
             <button class="button button--ghost" type="button" data-cell-size aria-pressed="false">
-              Larger cells
+              格子大一点
             </button>
           </div>
-          <p id="board-scroll-hint" class="interaction-hint" hidden>Swipe or scroll sideways to see the rest of the board.</p>
+          <p id="board-scroll-hint" class="interaction-hint" hidden>左右滑动可以查看棋盘其余部分。</p>
 
           <div id="game-announcement" class="sr-only" aria-live="polite"></div>
 
           <div class="board-viewport" data-board-viewport>
-            <div class="board" data-board role="grid" aria-label="ClearField game board"></div>
+            <div class="board" data-board role="grid" aria-label="扫雷棋盘"></div>
           </div>
         </section>
       </section>
     </main>
 
     <footer class="site-footer">
-      <p>A hobby project made for fun. Deployed on GitHub Pages so you can
-        <span>try it out</a>.</p>
-      <p>Made by <span>Keresztes Zsolt</a> ·
-        <span>Source code on GitHub</a> · MIT</p>
+      <p>经典扫雷简易版，可离线游玩。</p>
     </footer>
 
     <dialog id="result-dialog" class="result-dialog" aria-labelledby="result-title">
       <div class="result-dialog__mark" data-result-mark aria-hidden="true">✓</div>
-      <p class="eyebrow" data-result-eyebrow>Game over</p>
-      <h2 id="result-title" data-result-title>You solved it!</h2>
+      <p class="eyebrow" data-result-eyebrow>游戏结束</p>
+      <h2 id="result-title" data-result-title>全部扫清！</h2>
       <p data-result-copy></p>
       <div class="result-dialog__actions">
-        <button class="button button--primary" type="button" data-result-restart>Play again</button>
-        <button class="button button--ghost" type="button" data-result-home>Choose another board</button>
+        <button class="button button--primary" type="button" data-result-restart>再来一局</button>
+        <button class="button button--ghost" type="button" data-result-home>换个难度</button>
       </div>
     </dialog>
   <script>
