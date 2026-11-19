@@ -37,7 +37,10 @@ export function StatsScreen() {
             <Card label="正常账号" value={String(stats?.usersActive ?? 0)} delta="" />
             <Card label="封禁" value={String(stats?.usersBanned ?? 0)} delta="" />
             <Card label="VIP" value={String(stats?.usersVip ?? 0)} delta="" />
+            <Card label="今日活跃" value={stats?.usersActiveToday != null ? String(stats.usersActiveToday) : "—"} delta="" />
+            <Card label="7 日活跃" value={stats?.usersActive7d != null ? String(stats.usersActive7d) : "—"} delta="" />
           </div>
+          <p className="-mt-1 px-4 pb-2 text-[12px] leading-4 text-muted">总用户不含已注销账号（和用户列表一致）；活跃 = 登录过或打开过 App 的正常账号，今日按上海时间 0 点起算。</p>
           <div className="mx-4 overflow-hidden rounded-card bg-surface shadow-card">
             <Info label="可见帖子" value={String(stats?.postsVisible ?? 0)} hint="来自当前统计" />
             <Info label="已删帖子" value={String(stats?.postsRemoved ?? 0)} />

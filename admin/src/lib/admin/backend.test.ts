@@ -271,6 +271,15 @@ describe("m4.12 admin mappers", () => {
     assert.equal(s!.usersTotal, 3);
     assert.equal(s!.paymentsReview, 3);
     assert.equal(s!.postsRemoved, 1);
+    // 旧服务器没有活跃字段：今日活跃 / 7 日活跃为 null（界面显示 —），不能拿 users.active（正常账号）冒充
+    assert.equal(s!.usersActiveToday, null);
+    assert.equal(s!.usersActive7d, null);
+    // 2.0.6 起：总用户不含已注销；活跃是真实活跃
+    const s2 = mapRemoteStats({ users: { total: 4, normal: 4, active: 4, banned: 0, vip: 0, deleted: 3, activeToday: 0, active7d: 1, onlineNow: 0 }, posts: { visible: 1 } });
+    assert.equal(s2!.usersTotal, 4);
+    assert.equal(s2!.usersActive, 4);
+    assert.equal(s2!.usersActiveToday, 0);
+    assert.equal(s2!.usersActive7d, 1);
   });
   it("maps audit, announcement, login token", () => {
     const a = mapRemoteAudit({ id: 8, action: "admin.user.ban", target: "user:1", at: 1700000000000, ip: "127.0.0.1", actorId: 1 });

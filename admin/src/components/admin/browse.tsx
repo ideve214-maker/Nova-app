@@ -126,7 +126,7 @@ export function HomeScreen() {
         <p className="mt-2 text-[12px] text-on-primary/80">{statsOk ? "当前平台数据" : "暂时没有数据"}</p>
         <div className="mt-1.5 grid grid-cols-3 gap-2">
           <Metric value={statsOk && liveStats ? liveStats.usersTotal.toLocaleString("zh-CN") : dash} label="总用户" />
-          <Metric value={statsOk && liveStats ? liveStats.usersActive.toLocaleString("zh-CN") : dash} label="活跃用户" />
+          <Metric value={statsOk && liveStats && liveStats.usersActiveToday != null ? liveStats.usersActiveToday.toLocaleString("zh-CN") : dash} label="今日活跃" />
           <Metric value={statsOk && liveStats ? liveStats.postsVisible.toLocaleString("zh-CN") : dash} label="发帖数" />
         </div>
       </div>

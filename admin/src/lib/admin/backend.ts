@@ -1510,8 +1510,14 @@ export function isFeatureMissing(res: { status: number; json: unknown }): boolea
 }
 
 export type MappedStats = {
+  /** 总用户：没注销的账号（含封禁），和用户管理列表一致。 */
   usersTotal: number;
+  /** 正常账号（没封禁）。旧服务器字段 users.active 就是这个，不是“活跃用户”。 */
   usersActive: number;
+  /** 今日活跃（上海时间今天登录过或打开过 App）；旧服务器没有这个字段时为 null。 */
+  usersActiveToday: number | null;
+  /** 7 日活跃；旧服务器没有时为 null。 */
+  usersActive7d: number | null;
   usersBanned: number;
   usersVip: number;
   postsVisible: number;
@@ -1554,7 +1560,9 @@ export function mapRemoteStats(raw: unknown): MappedStats | null {
   };
   return {
     usersTotal: n(users, "total"),
-    usersActive: n(users, "active"),
+    usersActive: n(users, "normal", "active"),
+    usersActiveToday: (() => { const v = pick(users, "activeToday", "active_today"); return typeof v === "number" && Number.isFinite(v) ? v : null; })(),
+    usersActive7d: (() => { const v = pick(users, "active7d", "active_7d"); return typeof v === "number" && Number.isFinite(v) ? v : null; })(),
     usersBanned: n(users, "banned"),
     usersVip: n(users, "vip"),
     postsVisible: n(posts, "visible"),
