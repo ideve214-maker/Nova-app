@@ -81,7 +81,7 @@ export function securityHeaders({hsts = false, html = false, connectSrc} = {}) {
     'Referrer-Policy': 'no-referrer',
     'X-Frame-Options': 'DENY',
     'Content-Security-Policy': html ? cspHtml : cspApi,
-    'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(), payment=()',
+    'Permissions-Policy': html ? 'camera=(self), microphone=(self), geolocation=(self), payment=()' : 'camera=(self), microphone=(self), geolocation=(), payment=()',
     'X-DNS-Prefetch-Control': 'off',
   };
   if (hsts) h['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
