@@ -898,7 +898,7 @@ SNAKE.Board =
         elmAboutPanel = document.createElement("div");
         elmAboutPanel.className = "snake-panel-component";
         elmAboutPanel.innerHTML =
-          "<a href='http://patorjk.com/' class='snake-link'>patorjk.com</a> - <a href='https://github.com/patorjk/JavaScript-Snake' class='snake-link'>source code</a> - <a href='https://www.youtube.com/channel/UCpcCLm9y6CsjHUrCvJHYHUA' class='snake-link'>pat's youtube</a>";
+          "<a href='http://patorjk.com/' class='snake-link'>patorjk.com</a> - <a href='https://github.com/patorjk/JavaScript-Snake' class='snake-link'>源码</a> - <a href='https://www.youtube.com/channel/UCpcCLm9y6CsjHUrCvJHYHUA' class='snake-link'>作者频道</a>";
         
         elmLengthPanel = document.createElement("div");
         elmLengthPanel.className = "snake-panel-component snake-length-panel";
@@ -922,7 +922,7 @@ SNAKE.Board =
         elmMobileLinksPanel.style.display = "none";
         elmMobileLinksPanel.innerHTML =
           "<a href='https://patorjk.com' class='snake-link'>patorjk.com</a><br/><br/>" +
-          "<a href='https://www.youtube.com/channel/UCpcCLm9y6CsjHUrCvJHYHUA' class='snake-link'>pat's youtube</a>";
+          "<a href='https://www.youtube.com/channel/UCpcCLm9y6CsjHUrCvJHYHUA' class='snake-link'>作者频道</a>";
 
         // if it's not AI, show the dialogs
         if (!config.moveSnakeWithAI) {

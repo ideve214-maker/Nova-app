@@ -9,10 +9,10 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
-  // node_modules/@capacitor/core/dist/index.js
+  // ../vexo-weather/node_modules/@capacitor/core/dist/index.js
   var ExceptionCode, CapacitorException, getPlatformId, createCapacitor, initCapacitorGlobal, Capacitor, registerPlugin, WebPlugin, encode, decode, CapacitorCookiesPluginWeb, CapacitorCookies, readBlobAsBase64, normalizeHttpHeaders, buildUrlParams, buildRequestInit, CapacitorHttpPluginWeb, CapacitorHttp;
   var init_dist = __esm({
-    "node_modules/@capacitor/core/dist/index.js"() {
+    "../vexo-weather/node_modules/@capacitor/core/dist/index.js"() {
       (function(ExceptionCode2) {
         ExceptionCode2["Unimplemented"] = "UNIMPLEMENTED";
         ExceptionCode2["Unavailable"] = "UNAVAILABLE";
@@ -492,10 +492,10 @@
     }
   });
 
-  // node_modules/@capacitor/haptics/dist/esm/definitions.js
+  // ../vexo-weather/node_modules/@capacitor/haptics/dist/esm/definitions.js
   var ImpactStyle, NotificationType;
   var init_definitions = __esm({
-    "node_modules/@capacitor/haptics/dist/esm/definitions.js"() {
+    "../vexo-weather/node_modules/@capacitor/haptics/dist/esm/definitions.js"() {
       (function(ImpactStyle2) {
         ImpactStyle2["Heavy"] = "HEAVY";
         ImpactStyle2["Medium"] = "MEDIUM";
@@ -509,14 +509,14 @@
     }
   });
 
-  // node_modules/@capacitor/haptics/dist/esm/web.js
+  // ../vexo-weather/node_modules/@capacitor/haptics/dist/esm/web.js
   var web_exports = {};
   __export(web_exports, {
     HapticsWeb: () => HapticsWeb
   });
   var HapticsWeb;
   var init_web = __esm({
-    "node_modules/@capacitor/haptics/dist/esm/web.js"() {
+    "../vexo-weather/node_modules/@capacitor/haptics/dist/esm/web.js"() {
       init_dist();
       init_definitions();
       HapticsWeb = class extends WebPlugin {
@@ -574,10 +574,10 @@
     }
   });
 
-  // node_modules/@capgo/capacitor-updater/dist/esm/definitions.js
+  // ../vexo-weather/node_modules/@capgo/capacitor-updater/dist/esm/definitions.js
   var AppUpdateAvailability, FlexibleUpdateInstallStatus, AppUpdateResultCode;
   var init_definitions2 = __esm({
-    "node_modules/@capgo/capacitor-updater/dist/esm/definitions.js"() {
+    "../vexo-weather/node_modules/@capgo/capacitor-updater/dist/esm/definitions.js"() {
       (function(AppUpdateAvailability2) {
         AppUpdateAvailability2[AppUpdateAvailability2["UNKNOWN"] = 0] = "UNKNOWN";
         AppUpdateAvailability2[AppUpdateAvailability2["UPDATE_NOT_AVAILABLE"] = 1] = "UPDATE_NOT_AVAILABLE";
@@ -605,14 +605,14 @@
     }
   });
 
-  // node_modules/@capgo/capacitor-updater/dist/esm/web.js
+  // ../vexo-weather/node_modules/@capgo/capacitor-updater/dist/esm/web.js
   var web_exports2 = {};
   __export(web_exports2, {
     CapacitorUpdaterWeb: () => CapacitorUpdaterWeb
   });
   var BUNDLE_BUILTIN, CapacitorUpdaterWeb;
   var init_web2 = __esm({
-    "node_modules/@capgo/capacitor-updater/dist/esm/web.js"() {
+    "../vexo-weather/node_modules/@capgo/capacitor-updater/dist/esm/web.js"() {
       init_dist();
       init_definitions2();
       BUNDLE_BUILTIN = {
@@ -855,10 +855,10 @@
   // nova-native.js
   init_dist();
 
-  // node_modules/@capacitor/keyboard/dist/esm/index.js
+  // ../vexo-weather/node_modules/@capacitor/keyboard/dist/esm/index.js
   init_dist();
 
-  // node_modules/@capacitor/keyboard/dist/esm/definitions.js
+  // ../vexo-weather/node_modules/@capacitor/keyboard/dist/esm/definitions.js
   var KeyboardStyle;
   (function(KeyboardStyle2) {
     KeyboardStyle2["Dark"] = "DARK";
@@ -873,13 +873,13 @@
     KeyboardResize2["None"] = "none";
   })(KeyboardResize || (KeyboardResize = {}));
 
-  // node_modules/@capacitor/keyboard/dist/esm/index.js
+  // ../vexo-weather/node_modules/@capacitor/keyboard/dist/esm/index.js
   var Keyboard = registerPlugin("Keyboard");
 
-  // node_modules/@capacitor/status-bar/dist/esm/index.js
+  // ../vexo-weather/node_modules/@capacitor/status-bar/dist/esm/index.js
   init_dist();
 
-  // node_modules/@capacitor/status-bar/dist/esm/definitions.js
+  // ../vexo-weather/node_modules/@capacitor/status-bar/dist/esm/definitions.js
   var Style;
   (function(Style2) {
     Style2["Dark"] = "DARK";
@@ -893,20 +893,20 @@
     Animation2["Fade"] = "FADE";
   })(Animation || (Animation = {}));
 
-  // node_modules/@capacitor/status-bar/dist/esm/index.js
+  // ../vexo-weather/node_modules/@capacitor/status-bar/dist/esm/index.js
   var StatusBar = registerPlugin("StatusBar");
 
-  // node_modules/@capacitor/haptics/dist/esm/index.js
+  // ../vexo-weather/node_modules/@capacitor/haptics/dist/esm/index.js
   init_dist();
   init_definitions();
   var Haptics = registerPlugin("Haptics", {
     web: () => Promise.resolve().then(() => (init_web(), web_exports)).then((m) => new m.HapticsWeb())
   });
 
-  // node_modules/@capgo/capacitor-updater/dist/esm/index.js
+  // ../vexo-weather/node_modules/@capgo/capacitor-updater/dist/esm/index.js
   init_dist();
 
-  // node_modules/@capgo/capacitor-updater/dist/esm/history.js
+  // ../vexo-weather/node_modules/@capgo/capacitor-updater/dist/esm/history.js
   var KEEP_FLAG_KEY = "__capgo_keep_url_path_after_reload";
   var HISTORY_STORAGE_KEY = "__capgo_history_stack__";
   var MAX_STACK_ENTRIES = 100;
@@ -1168,7 +1168,7 @@
     }
   }
 
-  // node_modules/@capgo/capacitor-updater/dist/esm/index.js
+  // ../vexo-weather/node_modules/@capgo/capacitor-updater/dist/esm/index.js
   init_definitions2();
   var CapacitorUpdater = registerPlugin("CapacitorUpdater", {
     web: () => Promise.resolve().then(() => (init_web2(), web_exports2)).then((m) => new m.CapacitorUpdaterWeb())
