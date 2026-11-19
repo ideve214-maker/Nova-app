@@ -9,32 +9,77 @@
 // 用量：每一次发出去的对话 / 联网搜索都记一行 ai_usage（服务商、模型、token 数），见 meterFetch。
 // 缓存：每家 60 秒（ADMIN_AI_QUOTA_TTL_MS）；?refresh=1 强制刷新，但同一家 10 秒内最多查一次。
 // 安全：接口只返回打码后的密钥；这些接口不允许 AI 助手代调；这里没有充值、付款能力。
+import {createHash} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {ENV_ID, maskKey, typeInfo} from './ai-providers.mjs';
 
 /** 智谱免费模型（调用不扣现金，见 bigmodel.cn 定价页“免费模型”）：不按现金余额判断是否用完。 */
 export const ZHIPU_FREE_MODELS = ['glm-4-flash', 'glm-4-flash-250414', 'glm-4.5-flash', 'glm-4v-flash', 'glm-z1-flash', 'glm-4.1v-thinking-flash', 'cogview-3-flash', 'cogvideox-flash'];
 export const isZhipuFreeModel = m => ZHIPU_FREE_MODELS.includes(String(m || '').trim().toLowerCase());
-export const ZHIPU_PACKAGES_URL = 'https://bigmodel.cn/api/biz/tokenAccounts/list?filterEnabled=true&pageNum=1&pageSize=50';
-/** 智谱资源包余量（控制台“资源包管理”用的接口；rows[].tokenBalance = 剩余 token，status=EFFECTIVE 为有效）。 */
-export async function zhipuPackages({key, fetch: f, env = {}}) {
-  const url = String(env.ZHIPU_PACKAGES_URL || '').trim() || ZHIPU_PACKAGES_URL;
-  const r = await getJson(f, url, key);
-  if (!r.ok) throw new Error(httpError(r.status));
-  const j = r.j || {};
-  if (j.success === false || (j.code != null && Number(j.code) !== 200)) throw new Error('智谱返回：' + String(j.msg || '查询失败').slice(0, 40));
-  const rows = Array.isArray(j.rows) ? j.rows : Array.isArray(j.data && j.data.rows) ? j.data.rows : Array.isArray(j.data) ? j.data : [];
+// 智谱资源包余量（控制台“资源包管理” https://bigmodel.cn/finance-center/resource-package/package-mgmt 用的接口，没写进公开文档）。
+// 旧地址 /api/biz/tokenAccounts/list 2025-10 起 404（linux.do 1047311）；现在控制台用 /api/biz/tokenAccounts/list/my（cc-toolkit 2026-06 脚本）。
+// 生产服务器连不上裸域 bigmodel.cn（TLS 超时），www.bigmodel.cn 的余额接口能用，所以 www 排第一。按顺序试，记住第一个能用的。
+const PKG_QS = 'pageNum=1&pageSize=50&filterEnabled=false';
+export const ZHIPU_PACKAGES_URLS = [
+  'https://www.bigmodel.cn/api/biz/tokenAccounts/list/my?' + PKG_QS,
+  'https://open.bigmodel.cn/api/biz/tokenAccounts/list/my?' + PKG_QS,
+  'https://bigmodel.cn/api/biz/tokenAccounts/list/my?' + PKG_QS,
+];
+export const ZHIPU_PACKAGES_URL = ZHIPU_PACKAGES_URLS[0];
+// 进程内缓存（按 fetch 实现 + 密钥摘要分开）：okUrl = 上次能用的地址；fail = 全部失败时记 10 分钟，避免每次刷新都等超时
+let pkgCache = new WeakMap();
+export const resetPackagesUrlCache = () => { pkgCache = new WeakMap(); };
+const pkgState = (f, key) => {
+  let m = pkgCache.get(f); if (!m) { m = new Map(); pkgCache.set(f, m); }
+  const k = createHash('sha256').update(String(key)).digest('hex').slice(0, 16);
+  if (!m.has(k)) m.set(k, {okUrl: null, fail: null});
+  return m.get(k);
+};
+const hostTag = u => { try { const h = new URL(u).hostname; return h === 'bigmodel.cn' ? '裸域' : h.split('.')[0]; } catch { return '?'; } };
+const pickRows = j => (!j || typeof j !== 'object') ? null
+  : Array.isArray(j.rows) ? j.rows : j.data && Array.isArray(j.data.rows) ? j.data.rows : j.data && Array.isArray(j.data.list) ? j.data.list
+  : j.data && Array.isArray(j.data.records) ? j.data.records : Array.isArray(j.data) ? j.data : null;
+const tsOf = v => {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v > 1e12 ? v : v * 1000;
+  const t = String(v); return Date.parse(t.replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(t) ? '' : '+08:00')) || null;
+};
+/** 一行资源包 → {name, remaining, total, unit, expiresAt, kind, scene}；只返回生效中的 token 包（按次计费的包单列，不计入 token）。 */
+export function parsePackageRows(rows) {
   const out = [];
-  for (const x of rows) {
+  for (const x of rows || []) {
     if (!x || typeof x !== 'object') continue;
     if (x.status && String(x.status).toUpperCase() !== 'EFFECTIVE') continue;
-    const exp = x.expirationTime ? Date.parse(String(x.expirationTime).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(x.expirationTime)) ? '' : '+08:00')) : null;
-    const remaining = num(x.tokenBalance);
+    const remaining = num(x.availableBalance != null ? x.availableBalance : x.tokenBalance);
     if (remaining == null) continue;
-    out.push({name: String(x.resourcePackageName || x.packageName || '资源包').slice(0, 40), remaining, total: num(x.tokenTotal != null ? x.tokenTotal : x.totalToken), unit: 'token',
-      expiresAt: Number.isFinite(exp) ? exp : undefined, models: x.suitableModel ? String(x.suitableModel).slice(0, 80) : undefined});
+    const ct = String(x.consumeType || 'TOKENS').toUpperCase();
+    out.push({name: String(x.resourcePackageName || x.packageName || '资源包').slice(0, 40), remaining,
+      total: num(x.tokensMagnitude != null ? x.tokensMagnitude : x.tokenTotal != null ? x.tokenTotal : x.totalToken),
+      unit: ct === 'TIMES' ? '次' : 'token', kind: x.type === 'give' ? '赠送' : x.type === 'pay' ? '购买' : undefined,
+      expiresAt: tsOf(x.packageExpirationTime || x.expirationTime) || undefined,
+      scene: x.suitableScene || x.suitableModel ? String(x.suitableScene || x.suitableModel).slice(0, 80) : undefined});
   }
   return out;
+}
+/** 按顺序试候选地址，第一个返回有效列表的就用（每个最多等 timeoutMs）。全失败时抛出带每个地址原因的错误。 */
+export async function zhipuPackages({key, fetch: f, env = {}, timeoutMs = 5000, now = Date.now}) {
+  const override = String(env.ZHIPU_PACKAGES_URL || '').trim();
+  const st = pkgState(f, key);
+  const list = override ? [override] : [...new Set([st.okUrl, ...ZHIPU_PACKAGES_URLS].filter(Boolean))];
+  if (!override && st.fail && now() - st.fail.at < 10 * 60e3) throw new Error(st.fail.msg);
+  const why = [];
+  for (const url of list) {
+    const r = await getJson(f, url, key, timeoutMs);
+    const j = r.j || {};
+    const rows = pickRows(j);
+    const codeOk = j.code == null || Number(j.code) === 200;
+    if (r.ok && codeOk && j.success !== false && rows) { if (!override) { st.okUrl = url; st.fail = null; } return parsePackageRows(rows); }
+    const msg = String(j.msg || j.message || (j.error && (j.error.message || j.error)) || '').split(String(key)).join('***').replace(/\s+/g, ' ').slice(0, 40);
+    why.push(hostTag(url) + '：' + (r.status === 0 ? '连不上/超时' : r.ok ? (j.code != null ? 'code ' + j.code : '格式不对') : 'HTTP ' + r.status) + (msg ? ' ' + msg : ''));
+  }
+  const msg = '候选地址都不通：' + why.join('；');
+  if (!override) { st.okUrl = null; st.fail = {at: now(), msg}; }
+  throw new Error(msg);
 }
 export const ZHIPU_BALANCE_URL = 'https://www.bigmodel.cn/api/biz/account/query-customer-account-report';
 const DAY = 86400e3;
@@ -63,7 +108,7 @@ const originOf = b => { try { return new URL(b).origin; } catch { return ''; } }
  * 出错时抛 Error(中文原因)，原因里绝不带密钥。
  */
 export const BALANCE_ADAPTERS = {
-  async zhipu({base, key, fetch: f, env = {}}) {
+  async zhipu({base, key, fetch: f, env = {}, now = Date.now}) {
     const url = String(env.ZHIPU_BALANCE_URL || '').trim() || ZHIPU_BALANCE_URL;
     if (!env.ZHIPU_BALANCE_URL && !/(^|\.)bigmodel\.cn$/.test((() => { try { return new URL(base).hostname; } catch { return ''; } })())) throw new Error('接口地址不是智谱官方，查不到余额');
     const r = await getJson(f, url, key);
@@ -76,9 +121,9 @@ export const BALANCE_ADAPTERS = {
     const recharge = num(d.rechargeAmount), give = num(d.giveAmount);
     // 资源包（token 包，含赠送的免费额度）：智谱先扣资源包，用完才扣现金。控制台用的接口，没写进公开文档，查不到不影响现金余额。
     let packages = null, packagesError = null;
-    try { packages = await zhipuPackages({key, fetch: f, env}); } catch (e) { packagesError = String((e && e.message) || '查询失败').split(key).join('***').slice(0, 60); }
+    try { packages = await zhipuPackages({key, fetch: f, env, now}); } catch (e) { packagesError = String((e && e.message) || '查询失败').split(key).join('***').slice(0, 200); }
     return {balance, currency: 'CNY', unit: '元', totalGranted: recharge != null || give != null ? num((recharge || 0) + (give || 0)) : null, used: num(d.totalSpendAmount),
-      resourcePackages: packages || [], packageTokens: packages ? packages.reduce((a, x) => a + (x.remaining || 0), 0) : null, packagesError,
+      resourcePackages: packages || [], packageTokens: packages ? packages.filter(x => x.unit === 'token').reduce((a, x) => a + (x.remaining || 0), 0) : null, packagesError,
       detail: {totalBalance: num(d.balance), frozen: num(d.frozenBalance), recharged: recharge, granted: give}};
   },
   async deepseek({base, key, fetch: f}) {
@@ -249,7 +294,7 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
     if (inflight.has(ck)) return inflight.get(ck);
     const job = (async () => {
       let value;
-      try { value = {...(await adapter({base: p.base, key: p.key, fetch: doFetch, env})), fetchedAt: now()}; }
+      try { value = {...(await adapter({base: p.base, key: p.key, fetch: doFetch, env, now})), fetchedAt: now()}; }
       catch (e) {
         const msg = String((e && e.message) || '查询失败').split(p.key).join('***').slice(0, 80);
         value = {error: msg, fetchedAt: now(), stale: hit && !hit.value.error ? hit.value : null};

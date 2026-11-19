@@ -7,13 +7,13 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {createApp} from '../index.mjs';
-import {ZHIPU_BALANCE_URL, ZHIPU_PACKAGES_URL, zhipuPackages, isZhipuFreeModel} from '../ai-quota.mjs';
+import {ZHIPU_BALANCE_URL, ZHIPU_PACKAGES_URL, ZHIPU_PACKAGES_URLS, zhipuPackages, isZhipuFreeModel} from '../ai-quota.mjs';
 
 const ENV_KEY = 'zhipu-env-key-NOT-REAL-0001';
 const PAID_KEY = 'zhipu-paid-key-NOT-REAL-0002';
 const OAI_KEY = 'sk-compat-NOT-REAL-0003';
 let T = Date.parse('2026-11-19T16:20:00+08:00');
-const adv = () => { T += 61e3; };
+const adv = () => { T += 11 * 60e3; }; // 超过资源包失败缓存（10 分钟）
 const json = (o, status = 200) => new Response(JSON.stringify(o), {status, headers: {'content-type': 'application/json'}});
 // 每把密钥一个账户：现金（控制台余额接口）+ 资源包（tokenAccounts 接口）
 const acct = {
@@ -151,4 +151,83 @@ test('启动时清掉以前因“余额低于停用线”留下的已用完标�
 test('不泄露密钥', () => {
   const all = texts.join('\n') + JSON.stringify(srv.db.prepare('SELECT * FROM audit_log').all());
   for (const k of [ENV_KEY, PAID_KEY, OAI_KEY]) assert.ok(!all.includes(k));
+});
+
+// —— 资源包接口候选地址（2.0.7 修复：旧 /tokenAccounts/list 已 404，生产连不上裸域 bigmodel.cn） ——
+const newRow = (extra = {}) => ({resourcePackageName: 'GLM 通用资源包', tokenBalance: 3_000_000, availableBalance: 2_500_000, tokensMagnitude: 5_000_000,
+  consumeType: 'TOKENS', type: 'give', status: 'EFFECTIVE', packageExpirationTime: '2027-08-05T23:59:54', suitableScene: 'GLM-4 全系列', ...extra});
+
+test('资源包候选地址：www 优先，list/my，三个主机', () => {
+  assert.equal(ZHIPU_PACKAGES_URLS.length, 3);
+  assert.equal(ZHIPU_PACKAGES_URL, ZHIPU_PACKAGES_URLS[0]);
+  assert.match(ZHIPU_PACKAGES_URLS[0], /^https:\/\/www\.bigmodel\.cn\/api\/biz\/tokenAccounts\/list\/my\?/);
+  assert.match(ZHIPU_PACKAGES_URLS[1], /^https:\/\/open\.bigmodel\.cn\//);
+  assert.match(ZHIPU_PACKAGES_URLS[2], /^https:\/\/bigmodel\.cn\//);
+  for (const u of ZHIPU_PACKAGES_URLS) assert.match(u, /filterEnabled=false/);
+});
+
+test('新版字段：availableBalance 是剩余、tokensMagnitude 是总量、packageExpirationTime；待使用/失效/退订不算；按次计费单列', async () => {
+  const rows = await zhipuPackages({key: 'k-fields', fetch: async () => json({code: 200, msg: '操作成功', rows: [
+    newRow(), newRow({status: 'NOTUSED'}), newRow({status: 'EXPIRED'}), newRow({status: 'CANCELLED'}),
+    newRow({resourcePackageName: '按次包', consumeType: 'TIMES', availableBalance: 80, tokensMagnitude: 100, type: 'pay'}), null, 'x'], total: 7})});
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(r => [r.remaining, r.total, r.unit, r.kind]), [[2_500_000, 5_000_000, 'token', '赠送'], [80, 100, '次', '购买']]);
+  assert.equal(rows[0].expiresAt, Date.parse('2027-08-05T23:59:54+08:00'));
+  assert.equal(rows[0].scene, 'GLM-4 全系列');
+});
+
+test('候选回退：www 返回 code 404「接口不存在」、open 超时 → 用裸域；记住能用的地址，下次先试它', async () => {
+  const seen = [], auth = [];
+  const f = async (u, init) => {
+    seen.push(new URL(u).hostname); auth.push(init.headers.Authorization);
+    if (u === ZHIPU_PACKAGES_URLS[0]) return json({code: 404, msg: '接口不存在: /tokenAccounts/list/my', success: false});
+    if (u === ZHIPU_PACKAGES_URLS[1]) throw new Error('timeout');
+    return json({code: 200, rows: [newRow()], total: 1});
+  };
+  const rows = await zhipuPackages({key: 'k-fallback', fetch: f});
+  assert.deepEqual(rows.map(r => r.remaining), [2_500_000]);
+  assert.deepEqual(seen, ['www.bigmodel.cn', 'open.bigmodel.cn', 'bigmodel.cn']);
+  assert.ok(auth.every(a => a === 'Bearer k-fallback'));
+  seen.length = 0;
+  await zhipuPackages({key: 'k-fallback', fetch: f});
+  assert.deepEqual(seen, ['bigmodel.cn'], '缓存了能用的地址');
+});
+
+test('全部失败：抛出每个地址的具体原因（不含密钥）；10 分钟内不重复等超时；之后重试', async () => {
+  const KEY = 'zhipu-secret-NOT-REAL-9999';
+  let t = 1_000_000, n = 0;
+  const f = async u => {
+    n++;
+    if (u === ZHIPU_PACKAGES_URLS[0]) return json({code: 404, msg: '接口不存在: /tokenAccounts/list/my ' + KEY, success: false});
+    if (u === ZHIPU_PACKAGES_URLS[1]) return json({error: 'not found'}, 404);
+    throw new Error('TLS handshake timeout');
+  };
+  const err = await zhipuPackages({key: KEY, fetch: f, now: () => t}).then(() => null, e => e);
+  assert.ok(err);
+  assert.match(err.message, /www：code 404 接口不存在/);
+  assert.match(err.message, /open：HTTP 404/);
+  assert.match(err.message, /裸域：连不上\/超时/);
+  assert.ok(!err.message.includes(KEY.slice(0, 8)), '密钥（哪怕一截）不出现在原因里');
+  assert.equal(n, 3);
+  t += 5 * 60e3;
+  await assert.rejects(zhipuPackages({key: KEY, fetch: f, now: () => t}), /候选地址都不通/);
+  assert.equal(n, 3, '10 分钟内用缓存的失败原因');
+  t += 6 * 60e3;
+  await assert.rejects(zhipuPackages({key: KEY, fetch: f, now: () => t}));
+  assert.equal(n, 6);
+});
+
+test('ZHIPU_PACKAGES_URL 环境变量覆盖：只试这一个地址', async () => {
+  const seen = [];
+  const rows = await zhipuPackages({key: 'k-ovr', env: {ZHIPU_PACKAGES_URL: 'https://pkg.example/x'}, fetch: async u => { seen.push(u); return json({code: 200, data: {rows: [newRow({availableBalance: 7})]}}); }});
+  assert.deepEqual(seen, ['https://pkg.example/x']);
+  assert.equal(rows[0].remaining, 7);
+});
+
+test('额度卡片：资源包接口都不可用时显示具体原因并按估算，密钥不出现', async () => {
+  const q = await item('env');
+  assert.ok(q);
+  assert.equal(q.packageSource, 'estimated');
+  assert.equal(q.packagesError, '候选地址都不通：www：HTTP 404 not found；open：HTTP 404 not found；裸域：HTTP 404 not found');
+  assert.ok(!JSON.stringify(q).includes(ENV_KEY));
 });
