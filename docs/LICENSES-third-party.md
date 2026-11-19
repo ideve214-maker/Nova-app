@@ -53,3 +53,9 @@
 | 和风天气图标 | [qwd/Icons](https://github.com/qwd/Icons) | 代码 MIT，图标设计 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 官方图标子集内联在 `src/35_weather_icons.js`。版权所有 © 和风天气。 |
 | ip2region | [lionsoul2014/ip2region](https://github.com/lionsoul2014/ip2region) | Apache-2.0 或 MIT | 服务器离线 IP→城市。查询客户端在 `server/vendor/ip2region/`。xdb 数据文件不进仓库、不进客户端、不进热更新包。 |
 
+## V2EX / Hacker News 导入
+
+| 来源 | 接口 | 说明 |
+| --- | --- | --- |
+| V2EX | 官方公开 API（`/api/topics/hot.json`、`/api/replies/show.json`） | 只导入标题、正文、作者名和头像、评论，并附原帖链接与「来自 V2EX」标记。内容版权仍归原作者。不转载进安装包。 |
+| Hacker News | 官方 Firebase API（`topstories` + `item`） | 标题保持英文。附「来自 HN」标记和 news.ycombinator.com 原帖链接。内容版权仍归原作者。 |
