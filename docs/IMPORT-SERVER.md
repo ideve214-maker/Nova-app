@@ -6,7 +6,8 @@
 
 ## 迁移
 
-- 用户端追加迁移 `059_import_feed.sql`（059 起仍归用户端；057 / 058 是管理端）。
+- 用户端追加迁移 `062_import_feed.sql`。059、060、061 已被管理端占用（`059_ai_auto_ads.sql`、`060_ai_providers_quota.sql`、`061_ai_failover.sql`），所以导入迁移用 062。
+- 迁移运行器按**完整文件名**记在 `schema_migrations`，不是按编号取最大已执行值。因此即使库里已经跑过 057–061，只要还没有 `056_post_repost.sql` 这条记录，056 仍会执行。
 - `posts` 和 `post_comments` 增加：`source`、`source_id`、`source_url`、`ext_author_name`、`ext_author_avatar`。
 - 部分唯一索引 `UNIQUE(source, source_id)`（source 为空的普通帖不受影响），用来去重。
 - 管理端删除或隐藏的帖（`deleted_at` 或 `admin_hidden`）导入任务不会再写入、也不会恢复。
