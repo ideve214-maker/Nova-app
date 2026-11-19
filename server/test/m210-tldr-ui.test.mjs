@@ -82,14 +82,21 @@ test('社区页：命令速查入口和小游戏并排', async () => {
       hasRow: !!(wrap && wrap.contains(games) && wrap.contains(tldr)),
       gamesText: games ? games.innerText.replace(/\s+/g, ' ') : '',
       tldrText: tldr ? tldr.innerText.replace(/\s+/g, ' ') : '',
+      hasIcons: !!(games && games.querySelector('.gicons')),
+      gamesH: gb && Math.round(gb.height),
+      tldrH: tb && Math.round(tb.height),
       sideBySide: !!(gb && tb && Math.abs(gb.top - tb.top) < 20 && tb.left > gb.right - 2),
     };
   });
   await shot('01-community-entry');
   assert.ok(row.hasRow, '应在同一行里：小游戏和命令速查');
   assert.match(row.gamesText, /小游戏/);
+  assert.match(row.gamesText, /点开就能玩/);
+  assert.ok(!/点开就…/.test(row.gamesText), '简介不应被截断: ' + row.gamesText);
+  assert.equal(row.hasIcons, false, '小游戏卡片不应再有一排小图标');
   assert.match(row.tldrText, /命令速查/);
   assert.ok(row.sideBySide, '两个入口应并排 ' + JSON.stringify(row));
+  assert.ok(Math.abs((row.gamesH||0)-(row.tldrH||0))<=4, '两张卡片应大致同高 ' + JSON.stringify(row));
 });
 
 test('打开命令速查，能搜到 ls 并看到署名', async () => {

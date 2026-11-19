@@ -29,7 +29,7 @@ const gcard=c=>{
   const fallback=typeof cove==='function'?cove(c.id):'';const cov=typeof lookCss==='function'?lookCss(c.bg,fallback):(typeof bgCss==='function'?bgCss(c.bg||fallback):'');
   return `<article class="gcard"><button type="button" class="gcover" style="${cov}"${typeof lookMbg==='function'?lookMbg(c.bg):''} data-a="cm" data-v="${c.id}" aria-label="${esc(c.n)}"></button><div class="gbody"><b data-a="cm" data-v="${c.id}">${esc(c.n)}</b><div class="gmeta">${priv?'私密小组':'公开小组'} · ${fmtMembers(c.m)}</div><div class="gintro">${esc(c.d||'')}</div>${btn}</div></article>`;
 };
-const gameCard=()=>{const G=typeof GAMES!=='undefined'?GAMES:[];const ic5=G.slice(0,5).map(g=>`<i>${typeof gameIcon==='function'?gameIcon(g.id):''}</i>`).join('');return `<button type="button" class="gmini" data-a="minigame"><span class="ico">${typeof icLine==='function'?icLine('game'):'▶'}</span><span class="gr"><b>小游戏</b><small>${G.length||11} 款小游戏，不用下载，点开就能玩</small>${ic5?`<span class="gicons">${ic5}</span>`:''}</span></button>`};
+const gameCard=()=>{const G=typeof GAMES!=='undefined'?GAMES:[];return `<button type="button" class="gmini" data-a="minigame"><span class="ico">${typeof icLine==='function'?icLine('game'):'▶'}</span><span class="gr"><b>小游戏</b><small>${G.length||11} 款小游戏，点开就能玩</small></span></button>`};
 
 const cml=()=>{const q=S.cq.trim().toLowerCase(),src=typeof cmSrc==='function'?cmSrc():D.cm;
 let L;
