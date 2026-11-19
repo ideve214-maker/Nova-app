@@ -734,3 +734,12 @@ describe("avatar resolution", () => {
     assert.equal(u!.avatarLetter, "开");
   });
 });
+
+describe("AI 额度用完自动切换接口登记", () => {
+  it("顺序 / 开关 / 重新检查 都以 /api/admin/ai 开头（401 会回登录页）", async () => {
+    const { DEFAULT_ENDPOINT_MAP } = await import("./backend.ts");
+    assert.equal(DEFAULT_ENDPOINT_MAP.adminAiProviderOrder, "/api/admin/ai/providers/order");
+    assert.equal(DEFAULT_ENDPOINT_MAP.adminAiProviderRecheck, "/api/admin/ai/providers/:id/recheck");
+    assert.equal(DEFAULT_ENDPOINT_MAP.adminAiFailover, "/api/admin/ai/failover");
+  });
+});

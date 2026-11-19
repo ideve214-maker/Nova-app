@@ -81,24 +81,38 @@ export type AiQuotaItem = {
   detail: Record<string, unknown> | null; fetchedAt: number | null; error: string | null; stale: boolean;
   budgetTokens: number | null; budgetSince: number | null; usedSinceBudget: number | null; estimatedRemainingTokens: number | null;
   lowBalance: number; low: boolean; empty: boolean; usage: { today: AiUsageStats; week: AiUsageStats };
+  // 额度用完自动切换（服务端 2.0.7 failover；旧服务器没有这些字段）
+  priority?: number; stopBalance?: number; stopTokens?: number; exhausted?: boolean; exhaustedReason?: string | null; exhaustedAt?: number | null;
 };
-export type AiQuotaOverview = { providers: AiQuotaItem[]; activeId: string | null; searchProviderId: string | null; ttlMs: number; at: number };
+export type AiFailoverEvent = { at: number; from: string | null; fromName: string | null; to: string | null; toName: string | null; reason: string; kind?: string };
+export type AiFailoverStatus = { enabled: boolean; lastEvent: AiFailoverEvent | null; effectiveId: string | null };
+/** 服务商切换原因（和服务端 ai-failover.mjs 的 REASON_TEXT 对应）。 */
+export const FAILOVER_REASON: Record<string, string> = {
+  balance: "余额低于停用线", estimated: "估算剩余 token 用完", http_402: "余额不足（402）", zhipu_1113: "智谱欠费或没有可用资源包（1113）",
+  zhipu_1112: "智谱余额不足（1112）", exceeded_current_quota: "Kimi 余额不足", insufficient_quota: "额度不足", arrearage: "通义账号欠费",
+  siliconflow_30001: "硅基流动余额不足", message: "服务商提示余额不足", all_exhausted: "所有接口额度都用完了",
+};
+export const failoverReason = (r: string | null | undefined) => (r ? FAILOVER_REASON[r] || "额度用完" : "额度用完");
+export type AiQuotaOverview = { providers: AiQuotaItem[]; activeId: string | null; searchProviderId: string | null; ttlMs: number; at: number; failover?: AiFailoverStatus | null; order?: string[] };
 export type AiProviderType = { type: string; name: string; baseUrl: string; model: string; searchCapable: boolean; balanceApi: boolean; blocked: boolean; note: string };
 export type AiProvider = {
   id: string; type: string; typeName: string; name: string; baseUrl: string; model: string; keyMasked: string; hasKey: boolean; keyBroken: boolean;
-  search: boolean; searchCapable: boolean; enabled: boolean; builtin: boolean; usable: boolean; balanceApi: boolean; blocked: boolean; active: boolean; selected: boolean;
+  search: boolean; searchCapable: boolean; enabled: boolean; builtin: boolean; usable: boolean; balanceApi: boolean; blocked: boolean; active: boolean; selected: boolean; priority?: number;
 };
-export type AiProvidersOverview = { providers: AiProvider[]; activeId: string | null; selectedId: string; fallback: boolean; searchProviderId: string | null; types: AiProviderType[]; keyStorage: string; savedId?: string };
+export type AiProvidersOverview = { providers: AiProvider[]; activeId: string | null; selectedId: string; fallback: boolean; searchProviderId: string | null; types: AiProviderType[]; keyStorage: string; savedId?: string; order?: string[]; failover?: AiFailoverStatus | null };
 export type AiProviderDraft = { type?: string; name?: string; baseUrl?: string; apiKey?: string; model?: string; search?: boolean; enabled?: boolean };
 
 export const aiQuota = (refresh = false) => call<AiQuotaOverview>("adminAiQuota", { query: refresh ? { refresh: 1 } : {}, timeoutMs: 20000 });
-export const aiQuotaSave = (id: string, patch: { budgetTokens?: number | null; lowBalance?: number | null; resetSince?: boolean }) =>
+export const aiQuotaSave = (id: string, patch: { budgetTokens?: number | null; lowBalance?: number | null; stopBalance?: number; stopTokens?: number; resetSince?: boolean }) =>
   call<AiQuotaOverview>("adminAiQuotaSettings", { params: { id }, body: patch, timeoutMs: 20000 });
 export const aiProviders = () => call<AiProvidersOverview>("adminAiProviders");
 export const aiProviderSave = (d: AiProviderDraft, id?: string) =>
   id ? call<AiProvidersOverview>("adminAiProvider", { params: { id }, body: d }) : call<AiProvidersOverview>("adminAiProviders", { body: d });
 export const aiProviderDelete = (id: string) => call<AiProvidersOverview>("adminAiProviderDelete", { params: { id }, body: {} });
 export const aiProviderActivate = (id: string) => call<AiProvidersOverview>("adminAiProviderActive", { body: { id } });
+export const aiProviderOrder = (ids: string[]) => call<AiProvidersOverview>("adminAiProviderOrder", { body: { ids } });
+export const aiProviderRecheck = (id: string) => call<AiQuotaOverview>("adminAiProviderRecheck", { params: { id }, body: {}, timeoutMs: 20000 });
+export const aiFailoverSet = (enabled: boolean) => call<AiQuotaOverview>("adminAiFailover", { body: { enabled } });
 export const aiProviderTest = (id: string) =>
   call<{ test: { ok: boolean; status?: number; latencyMs?: number; error?: string; model?: string } }>("adminAiProviderTest", { params: { id }, body: {}, timeoutMs: 25000 });
 

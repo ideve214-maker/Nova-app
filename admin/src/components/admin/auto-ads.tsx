@@ -15,12 +15,12 @@ import { AiQuotaCard } from "./ai-quota";
 const TRIGGER: Record<string, string> = { schedule: "每日自动", manual: "立即运行", assistant: "AI 助手" };
 const ACTION: Record<string, string> = {
   "ai.autoads.run_start": "开始运行", "ai.autoads.run": "运行结束", "ai.autoads.searched": "联网搜索", "ai.autoads.published": "已发布",
-  "ai.autoads.rejected": "已拦下", "ai.autoads.skipped": "跳过", "ai.autoads.stopped": "紧急停止", "ai.autoads.error": "出错",
+  "ai.autoads.rejected": "已拦下", "ai.autoads.skipped": "跳过", "ai.autoads.stopped": "已停止", "ai.autoads.error": "出错",
   "admin.ai.autoads.settings": "修改设置", "admin.ai.autoads.switch_on": "打开自动发布", "admin.ai.autoads.switch_off": "关闭自动发布",
   "admin.ai.autoads.takedown": "下架", "admin.ai.autoads.takedown_all": "全部下架", "admin.ai.web_search": "联网搜索（助手）",
 };
 const SKIP: Record<string, string> = {
-  env_off: "服务器还没开启自动发帖", switch_off: "自动发布开关是关着的", no_key: "还没有可用的 AI 接口或联网搜索（智谱）", running: "上一轮还在运行",
+  env_off: "服务器还没开启自动发帖", switch_off: "自动发布开关是关着的", no_key: "还没有可用的 AI 接口或联网搜索（智谱）", running: "上一轮还在运行", quota_exhausted: "AI 额度用完了（智谱用完时联网搜索暂停），没有发帖",
   cap_reached: "今天已达上限", not_due: "还没到时间",
 };
 const REASON: Record<string, string> = {
@@ -78,7 +78,7 @@ export function AutoAdsTab() {
     setBusy(false);
     if (!r.ok) { flash(r.error); return; }
     const x = r.data.result;
-    flash(x.skipped ? "没有运行：" + (SKIP[x.skipped] || x.skipped) : x.error ? "联网搜索失败，请稍后再试" : `已发布 ${x.published?.length || 0} 条，拦下 ${x.rejected || 0} 条`);
+    flash(x.skipped ? "没有运行：" + (SKIP[x.skipped] || x.skipped) : x.stopped === "quota_exhausted" ? `AI 额度都用完了，这一轮已停止（已发布 ${x.published?.length || 0} 条）` : x.error ? "联网搜索失败，请稍后再试" : `已发布 ${x.published?.length || 0} 条，拦下 ${x.rejected || 0} 条`);
     void load();
   };
   const takedown = async (ad: AutoAd) => {

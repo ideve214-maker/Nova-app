@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, Gauge, PlugZap, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronUp, Gauge, PlugZap, Plus, RefreshCw, Shuffle, Trash2 } from "lucide-react";
 import { useAdmin } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import {
-  aiProviderActivate, aiProviderDelete, aiProviderSave, aiProviders, aiProviderTest, aiQuota, aiQuotaSave,
-  type AiProvider, type AiProvidersOverview, type AiQuotaItem, type AiQuotaOverview,
+  aiFailoverSet, aiProviderActivate, aiProviderDelete, aiProviderOrder, aiProviderRecheck, aiProviderSave, aiProviders, aiProviderTest, aiQuota, aiQuotaSave,
+  failoverReason, type AiProvider, type AiProvidersOverview, type AiQuotaItem, type AiQuotaOverview,
 } from "@/lib/admin/ai-api";
 import { cn, EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Sheet } from "./ui";
 import { Card, Toggle } from "./marketing";
@@ -25,7 +25,7 @@ export const fmtTokens = (n: number | null | undefined) => {
   if (n >= 1e4) return trim((n / 1e4).toFixed(n >= 1e6 ? 0 : 1)) + " 万";
   return String(n);
 };
-const money = (v: number | null | undefined, currency: string) => (v == null ? "—" : (currency === "USD" ? "$" : "¥") + v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const money = (v: number | null | undefined, currency: string) => (v == null ? "—" : (v < 0 ? "-" : "") + (currency === "USD" ? "$" : "¥") + Math.abs(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 /** 主数字：实时余额（元 / 美元），否则估算剩余 token，否则“查不到”。 */
 function headline(q: AiQuotaItem): { value: string; note: string } {
@@ -65,15 +65,58 @@ export function useAiQuota(enabled = true) {
   return { data, err, loading, refresh, setData };
 }
 
-function QuotaRow({ q, detailed, onSettings }: { q: AiQuotaItem; detailed?: boolean; onSettings?: () => void }) {
+/** 额度用完的标记：自动切换打开时显示「已用完 · 已跳过」。 */
+function ExhaustedPill({ q, auto }: { q: AiQuotaItem; auto: boolean }) {
+  if (!q.exhausted) return null;
+  return <span className="shrink-0 whitespace-nowrap"><Pill tone="danger">{auto ? "已用完·跳过" : "已用完"}</Pill></span>;
+}
+
+/** 最近一次自动切换（24 小时内）：首页卡片和「AI 接口与额度」顶部都显示。 */
+const standInId = (data: AiQuotaOverview | null) => {
+  if (!data?.failover?.enabled) return null;
+  const first = data.providers.find((p) => p.configured);
+  if (!first?.exhausted) return null;
+  return data.providers.find((p) => p.configured && !p.exhausted)?.id ?? null;
+};
+
+export function FailoverBanner({ data }: { data: AiQuotaOverview | null }) {
+  const ev = data?.failover?.lastEvent;
+  if (!data || !ev || !ev.at || data.at - ev.at > 24 * 3600e3) return null;
+  const usable = data.providers.filter((p) => p.configured);
+  const allNow = usable.length > 0 && usable.every((p) => p.exhausted);
+  let text: string;
+  let danger = false;
+  if (ev.reason === "all_exhausted" || !ev.to) {
+    if (ev.kind === "web_search" && ev.reason !== "all_exhausted") text = `${hm(ev.at)} ${sanitizeText(ev.fromName || "智谱")}额度用完，联网搜索（AI 自动发帖）暂停`;
+    else if (allNow) { text = `${hm(ev.at)} 所有 AI 接口的额度都用完了，已停止调用（防止欠费）。请充值或添加新的接口`; danger = true; }
+    else text = `${hm(ev.at)} 曾经所有接口额度都用完，现在已有可用的接口`;
+  } else {
+    text = `${hm(ev.at)} ${sanitizeText(ev.fromName || "上一家")}${failoverReason(ev.reason)}，已自动切换到「${sanitizeText(ev.toName || "下一家")}」`;
+  }
+  return (
+    <div role="status" data-testid="ai-failover-banner" className={cn("my-2 flex items-start gap-2 rounded-xl px-3 py-2 text-[12px] leading-4", danger ? "nova-danger-soft" : "nova-warn-soft")}>
+      {danger ? <AlertTriangle className="mt-px size-3.5 shrink-0" /> : <Shuffle className="mt-px size-3.5 shrink-0" />}
+      <span>{text}</span>
+    </div>
+  );
+}
+
+/** 排在前面的用完后，实际在用的那一家。 */
+function StandInPill({ show }: { show: boolean }) {
+  return show ? <span className="shrink-0 whitespace-nowrap"><Pill tone="vip">临时使用</Pill></span> : null;
+}
+
+function QuotaRow({ q, detailed, onSettings, auto = true, standIn = false }: { q: AiQuotaItem; detailed?: boolean; onSettings?: () => void; auto?: boolean; standIn?: boolean }) {
   const h = headline(q);
-  const tone = q.empty ? "text-danger" : q.low ? "text-warn" : "";
+  const tone = q.empty || q.exhausted ? "text-danger" : q.low ? "text-warn" : "";
   return (
     <div className="py-2.5" data-testid="ai-quota-row">
       <div className="flex items-center gap-1.5">
         <span className="min-w-0 truncate text-[14px] font-semibold">{sanitizeText(q.name)}</span>
-        {q.active && <Pill tone="ok">当前使用</Pill>}
-        {q.search && !q.active && <Pill tone="muted">联网搜索</Pill>}
+        {q.active && <span className="shrink-0 whitespace-nowrap"><Pill tone="ok">当前使用</Pill></span>}
+        {q.search && !q.active && <span className="shrink-0 whitespace-nowrap"><Pill tone="muted">联网搜索</Pill></span>}
+        <ExhaustedPill q={q} auto={auto} />
+        <StandInPill show={standIn && !q.exhausted} />
         <span className="ml-auto shrink-0"><SourcePill q={q} /></span>
       </div>
       <div className="mt-1 flex items-end justify-between gap-3">
@@ -89,6 +132,7 @@ function QuotaRow({ q, detailed, onSettings }: { q: AiQuotaItem; detailed?: bool
           <div>7 天 {q.usage.week.calls} 次 · {fmtTokens(q.usage.week.tokens)} token</div>
         </div>
       </div>
+      {q.exhausted && <p className="mt-1 text-[12px] leading-4 text-danger">{failoverReason(q.exhaustedReason)}{q.exhaustedAt ? `（${hm(q.exhaustedAt)}）` : ""}{auto ? "，AI 调用会自动跳过它；充值后自动恢复" : "，已停止调用"}</p>}
       {q.error && <p className="mt-1 text-[12px] leading-4 text-warn">{q.source === "provider" ? "刷新失败，显示上次结果：" : "余额查询失败："}{sanitizeText(q.error)}</p>}
       {!q.configured && <p className="mt-1 text-[12px] leading-4 text-warn">{q.builtin ? "服务器上还没有配置智谱密钥" : "密钥不可用或已停用"}</p>}
       {detailed && (
@@ -98,6 +142,7 @@ function QuotaRow({ q, detailed, onSettings }: { q: AiQuotaItem; detailed?: bool
           )}
           {q.source === "provider" && q.budgetTokens != null && <div>资源包估算剩余 {fmtTokens(q.estimatedRemainingTokens)} / {fmtTokens(q.budgetTokens)} token</div>}
           {q.resourcePackages.map((p, i) => <div key={i}>{p.name}：剩 {fmtTokens(p.remaining)} {p.unit}</div>)}
+          {(q.stopBalance || q.stopTokens) ? <div>停用线：{q.stopBalance ? money(q.stopBalance, q.currency) : ""}{q.stopBalance && q.stopTokens ? " / " : ""}{q.stopTokens ? fmtTokens(q.stopTokens) + " token" : ""}（到了就切下一家）</div> : null}
           <div>今天联网搜索 {q.usage.today.searches} 次{q.usage.week.errors ? ` · 7 天失败 ${q.usage.week.errors} 次` : ""} · 模型 {sanitizeText(q.model)}</div>
           <div className="flex items-center gap-2">
             <span>更新于 {hm(q.fetchedAt)}{q.keyMasked ? ` · 密钥 ${q.keyMasked}` : ""}</span>
@@ -126,7 +171,8 @@ export function AiQuotaCard({ className, onOpen }: { className?: string; onOpen?
       {err && <p className="py-2 text-[13px] text-muted">{err}</p>}
       {!err && !data && <p className="py-2 text-[13px] text-muted">加载中…</p>}
       {data && shown.length === 0 && <p className="py-2 text-[13px] text-muted">还没有可用的 AI 服务商</p>}
-      <div className="divide-y divide-line">{shown.map((q) => <QuotaRow key={q.id} q={q} />)}</div>
+      <FailoverBanner data={data} />
+      <div className="divide-y divide-line">{shown.map((q) => <QuotaRow key={q.id} q={q} auto={data?.failover?.enabled !== false} standIn={standInId(data) === q.id} />)}</div>
       {onOpen && (
         <button type="button" onClick={onOpen} className="-mx-4 flex h-11 w-[calc(100%+2rem)] items-center border-t border-line px-4 text-[13px] text-primary">
           管理 AI 接口、设置资源包额度<ChevronRight className="ml-auto size-4" />
@@ -147,7 +193,7 @@ export function AiProvidersScreen() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formErr, setFormErr] = useState("");
   const [busy, setBusy] = useState("");
-  const [qs, setQs] = useState<{ q: AiQuotaItem; budget: string; low: string } | null>(null);
+  const [qs, setQs] = useState<{ q: AiQuotaItem; budget: string; low: string; stop: string; stopTokens: string } | null>(null);
 
   const load = useCallback(async () => { const r = await aiProviders(); if (r.ok) { setProv(r.data); setErr(""); } else setErr(r.error); }, []);
   useEffect(() => { void load(); }, [load]);
@@ -193,12 +239,47 @@ export function AiProvidersScreen() {
     if (!qs) return;
     const budget = qs.budget.trim() === "" ? null : Math.round(Number(qs.budget) * 1e4);
     const low = qs.low.trim() === "" ? null : Number(qs.low);
-    if ((budget != null && !(budget >= 0)) || (low != null && !(low >= 0))) { flash("请填数字"); return; }
-    const r = await aiQuotaSave(qs.q.id, { budgetTokens: budget, lowBalance: low });
+    const stop = qs.stop.trim() === "" ? 0 : Number(qs.stop);
+    const stopTokens = qs.stopTokens.trim() === "" ? 0 : Math.round(Number(qs.stopTokens) * 1e4);
+    if ((budget != null && !(budget >= 0)) || (low != null && !(low >= 0)) || !(stop >= 0) || !(stopTokens >= 0)) { flash("请填数字"); return; }
+    const r = await aiQuotaSave(qs.q.id, { budgetTokens: budget, lowBalance: low, stopBalance: stop, stopTokens });
     if (!r.ok) { flash(r.error); return; }
     quota.setData(r.data); setQs(null); flash("已保存额度设置");
   };
 
+  const auto = quota.data?.failover?.enabled ?? prov?.failover?.enabled ?? true;
+  const setAuto = async (on: boolean) => {
+    if (!on && typeof window !== "undefined" && !window.confirm("关掉后只用排第一的接口，它额度用完就直接停止调用，不会切到别家。确定关掉？")) return;
+    const r = await aiFailoverSet(on);
+    if (!r.ok) { flash(r.error); return; }
+    quota.setData(r.data); flash(on ? "已打开：额度用完自动切换下一家" : "已关闭自动切换");
+    void load();
+  };
+  const move = async (idx: number, dir: -1 | 1) => {
+    if (!prov) return;
+    const ids = prov.providers.map((p) => p.id);
+    const j = idx + dir;
+    if (j < 0 || j >= ids.length) return;
+    [ids[idx], ids[j]] = [ids[j], ids[idx]];
+    const first = prov.providers.find((p) => p.id === ids[0]);
+    if (j === 0 || idx === 0) {
+      if (first && !first.usable) { flash("排第一的接口必须已启用且有可用密钥"); return; }
+      if (typeof window !== "undefined" && !window.confirm(`把「${first?.name}」排到第一？它会成为「当前使用」。`)) return;
+    }
+    setBusy("order");
+    const r = await aiProviderOrder(ids);
+    setBusy("");
+    after(r, "已调整顺序");
+  };
+  const recheck = async (p: AiProvider) => {
+    setBusy("recheck:" + p.id);
+    const r = await aiProviderRecheck(p.id);
+    setBusy("");
+    if (!r.ok) { flash(r.error); return; }
+    quota.setData(r.data);
+    const q = r.data.providers.find((x) => x.id === p.id);
+    flash(q?.exhausted ? "还是没有额度：" + failoverReason(q.exhaustedReason) : "已恢复，可以继续使用");
+  };
   const quotaById = new Map((quota.data?.providers || []).map((q) => [q.id, q]));
   const t = draft ? typeOf(draft.type) : undefined;
 
@@ -217,27 +298,45 @@ export function AiProvidersScreen() {
             <span className="text-[15px] font-semibold">剩余额度</span>
             <span className="ml-auto text-[11px] text-muted">更新于 {hm(quota.data.at)} · 每分钟自动刷新</span>
           </div>
+          <FailoverBanner data={quota.data} />
           <div className="divide-y divide-line">
-            {quota.data.providers.map((q) => <QuotaRow key={q.id} q={q} detailed onSettings={() => setQs({ q, budget: q.budgetTokens != null ? String(q.budgetTokens / 1e4) : "", low: String(q.lowBalance) })} />)}
+            {quota.data.providers.map((q) => <QuotaRow key={q.id} q={q} detailed auto={auto} standIn={standInId(quota.data) === q.id} onSettings={() => setQs({ q, budget: q.budgetTokens != null ? String(q.budgetTokens / 1e4) : "", low: String(q.lowBalance), stop: q.stopBalance ? String(q.stopBalance) : "", stopTokens: q.stopTokens ? String(q.stopTokens / 1e4) : "" })} />)}
           </div>
           <p className="mt-1 text-[12px] leading-4 text-muted">「实时」= 服务商余额接口查到的现金余额；「估算」= 你填的资源包总量减去这台服务器记录的已用 token。智谱的资源包（token 包）余量官方没有开放接口，可在「额度设置」里填总量来估算。</p>
         </Card>
       )}
       {prov && (
         <Card>
-          <div className="text-[15px] font-semibold">AI 接口</div>
-          <p className="text-[12px] leading-4 text-muted">AI 助手、广告文案、AI 自动发帖都用「当前使用」的这一家；联网搜索只有智谱支持，当前这家不支持时自动用智谱。{prov.fallback ? "选中的那家现在不可用，已临时改用服务器默认的智谱。" : ""}</p>
+          <div className="flex items-center justify-between gap-3" data-testid="ai-failover-toggle">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold">额度用完自动切换</div>
+              <p className="text-[12px] leading-4 text-muted">{auto ? "打开：排在前面的额度用完（余额到停用线，或服务商提示余额不足）就按顺序用下一家，避免余额被用成负数；充值后自动恢复。全部用完就停止调用。" : "关闭：只用排第一的接口，它额度用完就直接停止调用。"}</p>
+            </div>
+            <Toggle on={auto} label="额度用完自动切换" onChange={(v) => void setAuto(v)} />
+          </div>
+        </Card>
+      )}
+      {prov && (
+        <Card>
+          <div className="text-[15px] font-semibold">AI 接口（按使用顺序）</div>
+          <p className="text-[12px] leading-4 text-muted">排第一的是「当前使用」，AI 助手、广告文案、AI 自动发帖都先用它；用上下箭头调整顺序。联网搜索只有智谱支持，智谱用完时联网搜索会暂停，不会改用别家。{prov.fallback ? "选中的那家现在不可用，已临时改用服务器默认的智谱。" : ""}</p>
           <ul className="mt-1 divide-y divide-line">
-            {prov.providers.map((p) => {
+            {prov.providers.map((p, idx) => {
               const q = quotaById.get(p.id);
               return (
                 <li key={p.id} className="py-3" data-testid="ai-provider-row">
                   <div className="flex items-center gap-1.5">
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-subtle text-[11px] font-semibold tabular-nums text-muted">{idx + 1}</span>
                     <span className="min-w-0 truncate text-[14px] font-semibold">{sanitizeText(p.name)}</span>
-                    {p.active ? <Pill tone="ok">当前使用</Pill> : p.selected ? <Pill tone="warn">已选但不可用</Pill> : null}
+                    {p.active ? <span className="shrink-0 whitespace-nowrap"><Pill tone="ok">当前使用</Pill></span> : p.selected ? <span className="shrink-0 whitespace-nowrap"><Pill tone="warn">已选但不可用</Pill></span> : null}
+                    <StandInPill show={standInId(quota.data) === p.id} />
                     {!p.enabled && <Pill tone="muted">已停用</Pill>}
                     {p.keyBroken && <Pill tone="danger">密钥需重填</Pill>}
-                    {q && q.low && <Pill tone={q.empty ? "danger" : "warn"}>{q.empty ? "额度用完" : "额度偏低"}</Pill>}
+                    {q && q.exhausted ? <ExhaustedPill q={q} auto={auto} /> : q && q.low && <Pill tone={q.empty ? "danger" : "warn"}>{q.empty ? "额度用完" : "额度偏低"}</Pill>}
+                    <span className="ml-auto flex shrink-0 items-center">
+                      <button type="button" aria-label={"上移 " + p.name} disabled={idx === 0 || busy === "order"} className="grid size-8 place-items-center rounded-full text-muted disabled:opacity-30" onClick={() => void move(idx, -1)}><ChevronUp className="size-4" /></button>
+                      <button type="button" aria-label={"下移 " + p.name} disabled={idx === prov.providers.length - 1 || busy === "order"} className="grid size-8 place-items-center rounded-full text-muted disabled:opacity-30" onClick={() => void move(idx, 1)}><ChevronDown className="size-4" /></button>
+                    </span>
                   </div>
                   <p className="mt-0.5 break-all text-[12px] leading-4 text-muted">
                     {p.typeName} · {sanitizeText(p.model)} · {p.hasKey ? "密钥 " + (p.keyMasked || "已设置") : "未配置密钥"}{p.searchCapable && p.search ? " · 支持联网搜索" : ""}
@@ -246,6 +345,7 @@ export function AiProvidersScreen() {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {!p.active && <button type="button" disabled={!p.usable} className="h-8 rounded-full bg-primary px-3 text-[12px] font-semibold text-on-primary disabled:opacity-40" onClick={() => void activate(p)}><span className="inline-flex items-center gap-1"><Check className="size-3.5" />设为当前</span></button>}
                     <button type="button" disabled={!p.hasKey || busy === "test:" + p.id} className="h-8 rounded-full bg-subtle px-3 text-[12px] font-semibold disabled:opacity-40" onClick={() => void test(p)}><span className="inline-flex items-center gap-1"><PlugZap className="size-3.5" />{busy === "test:" + p.id ? "测试中…" : "测试连接"}</span></button>
+                    {q?.exhausted && <button type="button" disabled={busy === "recheck:" + p.id} className="h-8 rounded-full bg-subtle px-3 text-[12px] font-semibold disabled:opacity-40" onClick={() => void recheck(p)}>{busy === "recheck:" + p.id ? "检查中…" : "已充值，重新检查"}</button>}
                     {!p.builtin && <button type="button" className="h-8 rounded-full bg-subtle px-3 text-[12px] font-semibold" onClick={() => openEdit(p)}>编辑</button>}
                     {!p.builtin && <button type="button" aria-label={"删除 " + p.name} className="ml-auto grid size-8 place-items-center rounded-full nova-danger-soft" onClick={() => void remove(p)}><Trash2 className="size-3.5" /></button>}
                   </div>
@@ -302,6 +402,15 @@ export function AiProvidersScreen() {
             <Field label={`余额提醒线（${qs.q.currency === "USD" ? "美元" : "元"}，低于它标黄）`}>
               <input className={inputClass} inputMode="decimal" value={qs.low} onChange={(e) => setQs({ ...qs, low: e.target.value })} />
             </Field>
+            {qs.q.balanceApi && (
+              <Field label={`停用线（${qs.q.currency === "USD" ? "美元" : "元"}，余额到这里就切下一家，默认 0）`}>
+                <input className={inputClass} inputMode="decimal" value={qs.stop} placeholder="建议 1，留一点余量防欠费" onChange={(e) => setQs({ ...qs, stop: e.target.value })} />
+              </Field>
+            )}
+            <Field label="估算剩余停用线（万 token，剩这么多就切下一家，默认 0）">
+              <input className={inputClass} inputMode="decimal" value={qs.stopTokens} placeholder="0" onChange={(e) => setQs({ ...qs, stopTokens: e.target.value })} />
+            </Field>
+            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">服务商结算有延迟，余额可能被扣成负数（欠费）。停用线留一点余量（例如 1 元）更稳妥。</p>
             <PrimaryButton onClick={() => void saveQuota()}>保存</PrimaryButton>
           </div>
         )}
