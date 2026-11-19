@@ -126,7 +126,6 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
       sdk_provider: b.sdkProvider !== undefined ? str(b.sdkProvider, 20) : cur.sdk_provider,
       sdk_slot: b.sdkSlot !== undefined ? str(b.sdkSlot, 300) : cur.sdk_slot,
       enabled: b.enabled !== undefined ? (b.enabled && b.enabled !== 'false' && b.enabled !== '0' ? 1 : 0) : (cur.enabled == null ? 1 : cur.enabled),
-      weight: b.weight !== undefined ? clampInt(b.weight, 1, 100, 1) : (cur.weight || 1),
       starts_at: b.startsAt !== undefined ? (b.startsAt ? Number(b.startsAt) || null : null) : (cur.starts_at || null),
       ends_at: b.endsAt !== undefined ? (b.endsAt ? Number(b.endsAt) || null : null) : (cur.ends_at || null),
     };
@@ -147,20 +146,84 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     }
     return o;
   }
-  function create(b = {}) {
-    const f = fields(b);
+  // 权重：只在未删除的营销帖之间唯一。新建未指定时取 MAX(weight)+1（不填空位），
+  // 与 INSERT 放在同一个 BEGIN IMMEDIATE 事务里。手动填了已被占用的权重则 409。
+  const WEIGHT_MIN = 1, WEIGHT_MAX = 2147483647;
+  const maxWeight = db.prepare('SELECT COALESCE(MAX(weight), 0) AS m FROM marketing_ads WHERE deleted_at IS NULL');
+  const byWeight = db.prepare('SELECT id FROM marketing_ads WHERE deleted_at IS NULL AND weight=? AND (? IS NULL OR id!=?)');
+  function isWeightConstraint(e) {
+    return e && (e.errcode === 2067 || (e.code === 'ERR_SQLITE_ERROR' && /UNIQUE constraint failed:.*\bweight\b/i.test(String(e.message || ''))));
+  }
+  function parseWeight(v) {
+    if (v === undefined || v === null || v === '') return null;
+    const n = Math.round(Number(v));
+    if (n === 0) return null;
+    if (!Number.isFinite(n) || n < WEIGHT_MIN || n > WEIGHT_MAX) {
+      throw new ApiError(400, 'BAD_WEIGHT', '权重必须是 ' + WEIGHT_MIN + ' 到 ' + WEIGHT_MAX + ' 的整数');
+    }
+    return n;
+  }
+  function nextWeight() {
+    const m = Number(maxWeight.get().m) || 0;
+    const n = m + 1;
+    if (n > WEIGHT_MAX) throw new ApiError(409, 'WEIGHT_EXHAUSTED', '权重已用到上限，请先调整或删除已有营销帖');
+    return n;
+  }
+  function takenError(weight) {
+    throw new ApiError(409, 'WEIGHT_TAKEN', '权重 ' + weight + ' 已被其他营销帖占用，请改用 ' + nextWeight(), {weight, nextWeight: nextWeight()});
+  }
+  function assertFree(weight, excludeId = null) {
+    if (byWeight.get(weight, excludeId, excludeId)) takenError(weight);
+  }
+  function inImmediate(fn) {
+    const started = !db.isTransaction;
+    if (started) db.exec('BEGIN IMMEDIATE');
+    try {
+      const out = fn();
+      if (started) db.exec('COMMIT');
+      return out;
+    } catch (e) {
+      if (started) { try { db.exec('ROLLBACK'); } catch {} }
+      throw e;
+    }
+  }
+  function insertAd(f, weight) {
     const id = nid(), t = now();
-    ins.run(id, f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, f.weight, f.starts_at, f.ends_at, t, t);
+    try {
+      ins.run(id, f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, weight, f.starts_at, f.ends_at, t, t);
+    } catch (e) {
+      if (isWeightConstraint(e)) takenError(weight);
+      throw e;
+    }
     setCard.run(f.avatar, f.domain, f.subtitle, id);
     return {ad: pub(byId.get(id), {admin: true})};
   }
+  function create(b = {}) {
+    return inImmediate(() => {
+      const f = fields(b);
+      const requested = parseWeight(b.weight);
+      const weight = requested == null ? nextWeight() : requested;
+      if (requested != null) assertFree(weight);
+      return insertAd(f, weight);
+    });
+  }
   function update(id, b = {}) {
-    const cur = byId.get(id);
-    if (!cur) throw new ApiError(404, 'NOT_FOUND', '营销帖不存在');
-    const f = fields(b, cur);
-    upd.run(f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, f.weight, f.starts_at, f.ends_at, now(), id);
-    setCard.run(f.avatar, f.domain, f.subtitle, id);
-    return {ad: pub(byId.get(id), {admin: true})};
+    return inImmediate(() => {
+      const cur = byId.get(id);
+      if (!cur) throw new ApiError(404, 'NOT_FOUND', '营销帖不存在');
+      const f = fields(b, cur);
+      const requested = Object.prototype.hasOwnProperty.call(b, 'weight') ? parseWeight(b.weight) : undefined;
+      const weight = requested == null ? cur.weight : requested;
+      if (requested != null && requested !== cur.weight) assertFree(weight, id);
+      try {
+        upd.run(f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, weight, f.starts_at, f.ends_at, now(), id);
+      } catch (e) {
+        if (isWeightConstraint(e)) takenError(weight);
+        throw e;
+      }
+      setCard.run(f.avatar, f.domain, f.subtitle, id);
+      return {ad: pub(byId.get(id), {admin: true})};
+    });
   }
   function remove(id) {
     if (!byId.get(id)) throw new ApiError(404, 'NOT_FOUND', '营销帖不存在');
@@ -168,7 +231,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     return {deleted: id};
   }
   function adminList() {
-    return {ads: listAll.all().map(r => pub(r, {admin: true})), settings: settings(), hideReasons: HIDE_REASONS};
+    return {ads: listAll.all().map(r => pub(r, {admin: true})), settings: settings(), hideReasons: HIDE_REASONS, nextWeight: nextWeight()};
   }
 
   // 按权重随机挑选，不放回；候选不够时重复使用（只有一条也照样按频率出现）。

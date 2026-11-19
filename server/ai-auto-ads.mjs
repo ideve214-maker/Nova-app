@@ -157,10 +157,10 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     if (h.length) throw reject('BLOCKED', '包含禁止的词语：' + h.join('、'), ctx, {...base, words: h});
     const t = now();
     let ad;
-    db.exec('BEGIN');
+    db.exec('BEGIN IMMEDIATE');
     try {
       ad = marketing.create({kind: 'text', advertiser, title, text, linkUrl: url, cta: clip(scrubCopy(b.cta), 6) || '了解详情',
-        subtitle: clip(b.sourceTitle, 60) || null, enabled: true, weight: 1, endsAt: ttlDays() ? t + ttlDays() * 86400e3 : null}).ad;
+        subtitle: clip(b.sourceTitle, 60) || null, enabled: true, endsAt: ttlDays() ? t + ttlDays() * 86400e3 : null}).ad;
       q.mark.run(url, clip(b.sourceTitle, 120) || null, ctx.trigger || 'manual', ctx.runId || null, ad.id);
       db.exec('COMMIT');
     } catch (e) {
