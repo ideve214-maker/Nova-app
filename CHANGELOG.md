@@ -1,5 +1,17 @@
 # 更新日志（最新在上）
 
+## 未发布 · V2EX / Hacker News 热榜（分支 feat/v2ex-hn-hot-v2）
+
+从线上 2.0.5 / b0a6e23 拉出。不改版本号。社区页在小游戏旁边增加「热榜」入口（图标、标题加一句简介，不再在小游戏卡片下显示那排小图标）。点开后用 V2EX / Hacker News 两个标签看热门，只展示标题、热度、作者、时间和原帖链接，不转载正文。Hacker News 标题保持英文。每条都链回原帖，页脚注明来自官方接口，并致谢 MIT 开源项目 [mofish](https://github.com/jiacai2050/mofish)。
+
+- 客户端只请求本服务器 `GET /api/hot?source=v2ex|hn`（需登录）。
+
+- 服务器定时（默认 15 分钟）从 V2EX `https://www.v2ex.com/api/topics/hot.json` 和 Hacker News `https://hacker-news.firebaseio.com/v0/topstories.json` + `/v0/item/{id}.json` 拉取约 20 条，按 `source+source_id` 去重后写入 `hot_items`。不存 content / text。对官方接口使用礼貌限频和明确的 User-Agent。
+
+- 新增用户端迁移 `059_hot_items.sql`。发布时需要先部署服务器并跑迁移，再发热更新。服务器需要能访问 V2EX 和 HN，不需要密钥。
+
+- 新增 `server/test/hot.test.mjs`（假 fetch，不访问外网）和 `server/test/m212-hot-ui.test.mjs`（CDP 真实触摸，390×844）。
+
 ## VEXO 2.0.x · 底部导航栏又能左右拖动了（修 #24 回归，待发布）
 
 只改客户端（`src/79d_tabglass.js`、`src/00_head.html`），不需要升级服务器，也不需要数据库迁移；走热更新。
@@ -175,7 +187,6 @@
 - `npm run bundle`（`scripts/make-bundle.mjs`）把 `dist/` 打成带版本号的 zip，并打印 SHA-256。zip 根目录含 `index.html`。
 - 十一个小游戏宫格图标由单字改为自绘描边 SVG（`currentColor`，与现有图标风格一致），无第三方图标库。
 
-
 ## V7 0.7.0-m7.r6 · 返回恢复滚动、隐藏滚动条、原生手感与手机铺满（2026-11-13）
 
 只改用户端。服务端接口与数据库没有变动，部署时更新前端构建产物即可。
@@ -297,7 +308,6 @@
 - **其他提供商：** 提供商无关的订单层。`mock` 渠道用 `NOVA_PAY_MOCK_SECRET` 校验 `X-Nova-Pay-Signature`（HMAC-SHA256），回调幂等开通。微信/支付宝官方、Stripe、Apple IAP 为未配置桩（501，不接受商户凭证）。价格仍是配置里的「暂定」¥9.9/月、¥99/年。月/年对应 30/365 天。
 - **诚实文案：** 会员中心开通入口说明「管理员核对后生效，不会自动扣款或立刻到账」。不出现「已购买成功」类即时开通。两种方式都关闭时按钮回到「暂未开放」。
 
-
 ## V7 M4.11.3–M4.11.4 · 私聊 Olm（vodozemac）端到端加密（2026-11-12）
 - 负责人选定 vodozemac（Apache-2.0）。使用 vendored `@kinsh/vodozemac-wasm` 0.4.2（官方 vodozemac 的 WASM 绑定），不安装 libsignal，不自写 ratchet。
 - **设备密钥（M4.11.3）：** 客户端生成 Olm Account，私钥只留本机。`POST /api/e2ee/keys` 上传身份公钥与一次性/备用密钥；`POST /api/e2ee/keys/claim` 供好友消耗性领取；`POST /api/e2ee/devices/:id/revoke` 撤销。拒绝上传私钥。
@@ -305,7 +315,6 @@
 - **安全号码：** 双方 Ed25519 指纹编成 12 组 5 位数字，可在私聊中查看并本机标记已核对；密钥变化会提示。
 - **诚实 UI（M4.11.5）：** 横幅为「私聊使用 Olm（vodozemac）加密，服务端只存密文。独立安全审查尚未完成，请核对安全号码。」不得写成「已端到端加密」。演示模式仍为「未加密」。
 - **未实现、留给负责人：** 多设备历史同步、密钥恢复、设备数量产品上限、独立安全审查、群聊 E2EE。Web 客户端完整性（服务器可下发被篡改脚本）是已知限制。附件内容密钥尚未作为默认发送路径。
-
 
 ## V7 M4.8 · 用户端举报与拉黑（2026-11-12）
 - 动态、用户主页、会话和单条消息均可举报；登录后提交到 `POST /api/reports`，进入管理端队列。私聊只提交用户勾选的消息。
