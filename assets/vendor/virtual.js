@@ -5,7 +5,7 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
-  // node_modules/@tanstack/virtual-core/dist/esm/index.js
+  // ../vexo-weather/node_modules/@tanstack/virtual-core/dist/esm/index.js
   var esm_exports = {};
   __export(esm_exports, {
     Virtualizer: () => Virtualizer,
@@ -25,7 +25,7 @@
     windowScroll: () => windowScroll
   });
 
-  // node_modules/@tanstack/virtual-core/dist/esm/lazy-measurements.js
+  // ../vexo-weather/node_modules/@tanstack/virtual-core/dist/esm/lazy-measurements.js
   function getMeasurementKey(item) {
     return typeof item === "object" ? item.key : item;
   }
@@ -60,7 +60,7 @@
     });
   }
 
-  // node_modules/@tanstack/virtual-core/dist/esm/utils.js
+  // ../vexo-weather/node_modules/@tanstack/virtual-core/dist/esm/utils.js
   function memo(getDeps, fn, opts) {
     let deps = opts.initialDeps ?? [];
     let result;
@@ -139,7 +139,7 @@
     );
   };
 
-  // node_modules/@tanstack/virtual-core/dist/esm/scroll-classifier.js
+  // ../vexo-weather/node_modules/@tanstack/virtual-core/dist/esm/scroll-classifier.js
   function classifyScrollEvent({
     offset,
     isScrolling,
@@ -218,7 +218,7 @@
     return Math.abs(last.offset - from.offset) / (last.t - from.t) >= 0.05;
   }
 
-  // node_modules/@tanstack/virtual-core/dist/esm/ios-gesture.js
+  // ../vexo-weather/node_modules/@tanstack/virtual-core/dist/esm/ios-gesture.js
   var _isIOSResult;
   var isIOSWebKit = () => {
     if (_isIOSResult !== void 0) return _isIOSResult;
@@ -343,7 +343,7 @@
     }
   };
 
-  // node_modules/@tanstack/virtual-core/dist/esm/index.js
+  // ../vexo-weather/node_modules/@tanstack/virtual-core/dist/esm/index.js
   var getRect = (element) => {
     const { clientWidth, clientHeight } = element;
     return { width: clientWidth, height: clientHeight };
