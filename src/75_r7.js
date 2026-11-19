@@ -398,7 +398,8 @@ function rpEmbed(p,det){
   const o=findPost(r.id);if(!o)return `<div class="rpc del"><span>原帖已删除</span></div>`;
   const u=P(o.a),tm=typeof fmtTime==='function'&&o.at?fmtTime(o.at):(o.t||'');
   const media=typeof mediaHTML==='function'?mediaHTML(Array.isArray(o.media)?o.media:[],false,o.id):'';
-  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}</small></div>${o.x?`<div class="rpx${det?'':' clamp'}">${esc(o.x)}</div>`:''}${media}</div>`;
+  const srcL=o.sourceLabel||'';
+  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${o.x?`<div class="rpx${det?'':' clamp'}">${esc(o.x)}</div>`:''}${media}</div>`;
 }
 function rpCardWrap(p,det,k){
   const plain=!(p.x||'').trim();
