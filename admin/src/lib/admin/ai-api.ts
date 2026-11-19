@@ -83,12 +83,15 @@ export type AiQuotaItem = {
   lowBalance: number; low: boolean; empty: boolean; usage: { today: AiUsageStats; week: AiUsageStats };
   // 额度用完自动切换（服务端 2.0.7 failover；旧服务器没有这些字段）
   priority?: number; stopBalance?: number; stopTokens?: number; exhausted?: boolean; exhaustedReason?: string | null; exhaustedAt?: number | null;
+  // 先扣资源包 / 免费额度，用完才扣现金（服务端 2.0.8）
+  packageTokens?: number | null; packageSource?: "provider" | "estimated" | null; packagesError?: string | null;
+  cashApplies?: boolean; cashNote?: "exempt" | "free_model" | "resource_package" | "no_cash_history" | null; cashExempt?: boolean; freeModel?: boolean;
 };
 export type AiFailoverEvent = { at: number; from: string | null; fromName: string | null; to: string | null; toName: string | null; reason: string; kind?: string };
 export type AiFailoverStatus = { enabled: boolean; lastEvent: AiFailoverEvent | null; effectiveId: string | null };
 /** 服务商切换原因（和服务端 ai-failover.mjs 的 REASON_TEXT 对应）。 */
 export const FAILOVER_REASON: Record<string, string> = {
-  balance: "余额低于停用线", estimated: "估算剩余 token 用完", http_402: "余额不足（402）", zhipu_1113: "智谱欠费或没有可用资源包（1113）",
+  balance: "余额低于停用线", packages_and_cash: "资源包用完且现金低于停用线", estimated: "估算剩余 token 用完", http_402: "余额不足（402）", zhipu_1113: "智谱欠费或没有可用资源包（1113）",
   zhipu_1112: "智谱余额不足（1112）", exceeded_current_quota: "Kimi 余额不足", insufficient_quota: "额度不足", arrearage: "通义账号欠费",
   siliconflow_30001: "硅基流动余额不足", message: "服务商提示余额不足", all_exhausted: "所有接口额度都用完了",
 };
@@ -103,7 +106,7 @@ export type AiProvidersOverview = { providers: AiProvider[]; activeId: string | 
 export type AiProviderDraft = { type?: string; name?: string; baseUrl?: string; apiKey?: string; model?: string; search?: boolean; enabled?: boolean };
 
 export const aiQuota = (refresh = false) => call<AiQuotaOverview>("adminAiQuota", { query: refresh ? { refresh: 1 } : {}, timeoutMs: 20000 });
-export const aiQuotaSave = (id: string, patch: { budgetTokens?: number | null; lowBalance?: number | null; stopBalance?: number; stopTokens?: number; resetSince?: boolean }) =>
+export const aiQuotaSave = (id: string, patch: { budgetTokens?: number | null; lowBalance?: number | null; stopBalance?: number; stopTokens?: number; cashExempt?: boolean; resetSince?: boolean }) =>
   call<AiQuotaOverview>("adminAiQuotaSettings", { params: { id }, body: patch, timeoutMs: 20000 });
 export const aiProviders = () => call<AiProvidersOverview>("adminAiProviders");
 export const aiProviderSave = (d: AiProviderDraft, id?: string) =>
