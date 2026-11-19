@@ -13,6 +13,7 @@ import {
 import { ANNOUNCEMENT_BODY_MAX, ANNOUNCEMENT_TITLE_MAX, countChars } from "@/lib/admin/backend";
 import { ConfirmSheet, DataHint, DemoBanner, EmptyState, Field, inputClass, NotOpenYet, PendingApi, Pill, PrimaryButton, RowLink, Screen, Seg, Sheet } from "./ui";
 import { ServerPanel } from "./server-panel";
+import { UpdateCheckRow } from "./update-check";
 import { getBugsinkDsn, isBugsinkEnabled, setBugsinkConfig } from "@/lib/admin/bugsink";
 
 export function StatsScreen() {
@@ -164,6 +165,9 @@ export function SettingsScreen() {
         <RowLink icon={<Server className="size-5" />} title="高级设置" desc="服务器地址，已填入默认" onClick={() => setServer(true)} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ShieldCheck className="size-5" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Bell className="size-5" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
+      </div>
+      <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface shadow-card">
+        <UpdateCheckRow />
       </div>
       {detectedVersion && <p className="px-4 pt-3 text-[12px] text-muted">服务器 {detectedVersion}</p>}
       <div className="mx-4 mt-3 overflow-hidden rounded-card bg-surface px-4 shadow-card">
