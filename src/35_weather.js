@@ -110,6 +110,21 @@ function probeWeatherFeed(){
   return st._probing;
 }
 
+
+function wxUpdateLabel(obsTime){
+  if(!obsTime)return '刚刚';
+  const n=typeof obsTime==='number'?obsTime:(typeof obsTime==='string'&&/^\d+$/.test(obsTime)?Number(obsTime):Date.parse(obsTime));
+  if(!Number.isFinite(n))return '刚刚';
+  const dt=new Date(n), now=new Date();
+  const diff=now-dt;
+  if(diff>=0&&diff<60*1000)return '刚刚';
+  const z=x=>String(x).padStart(2,'0');
+  const hm=z(dt.getHours())+':'+z(dt.getMinutes());
+  const same=dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth()&&dt.getDate()===now.getDate();
+  if(same)return '更新于 '+hm;
+  return '更新于 '+(dt.getMonth()+1)+'/'+dt.getDate()+' '+hm;
+}
+
 function weatherFeedCard(){
   if(typeof usingNet==='function'&&!usingNet())return '';
   if(!shouldShowWeatherFeed())return '';
@@ -137,7 +152,7 @@ function weatherFeedCard(){
       body+='\n今天 '+(Number.isFinite(today.tempMin)?today.tempMin+'°':'')+' / '+(Number.isFinite(today.tempMax)?today.tempMax+'°':'')+(today.text?' '+today.text:'');
     }
   }
-  const tm=d.obsTime?((typeof fmtTime==='function'?fmtTime(d.obsTime):'')||'刚刚'):'刚刚';
+  const tm=wxUpdateLabel(d.obsTime);
   return `<article class="fcard wx-fcard" data-wx="1"><div class="fhd"><div class="wx-av" data-a="weather">${wxIcon(d.icon||'100')}</div><div class="gr" data-a="weather"><b class="fn nmb">今日天气</b><small>${esc(tm)}${city?' · '+esc(city):''}</small></div><button type="button" class="ib wx-x" data-a="wxdismiss" aria-label="关闭">✕</button></div><div class="fbd" data-a="weather">${esc(body)}</div><div class="wx-foot"><p class="wx-attr"><a href="${esc(attr.url||'https://www.qweather.com')}" target="_blank" rel="noopener">${esc(attr.text||'天气服务由和风天气提供')}</a></p><button type="button" class="wx-geo" data-a="wxgeo">${st.geoSt==='busy'?'正在定位…':'用我的位置'}</button></div>${st.geoMsg?`<p class="wx-err">${esc(st.geoMsg)}</p>`:''}</article>`;
 }
 

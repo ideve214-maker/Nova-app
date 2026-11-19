@@ -111,6 +111,8 @@ test('当天第一次打开：首页动态流顶部出现今日天气帖', async
   });
   assert.equal(info.title, '今日天气');
   assert.match(info.text, /北京|晴|18/);
+  assert.ok(/更新于 \d{1,2}:\d{2}|刚刚/.test(info.text), '时间应是更新于 HH:MM 或刚刚，不要用相对分钟: '+info.text);
+  assert.ok(!/分钟前/.test(info.text), '天气帖不要显示“分钟前”: '+info.text);
   assert.ok(info.hasAttr, '应署名和风天气: ' + info.text);
   assert.ok(info.hasAttrLink, '应链接到和风天气');
   assert.equal(info.hasLike, false, '不应有点赞评论转帖');

@@ -8,6 +8,7 @@
 - 默认城市：服务器用开源离线库 [ip2region](https://github.com/lionsoul2014/ip2region)（Apache-2.0 / MIT）根据请求 IP 判断城市，再走和风 Geo。IP 取自 nginx 的 `X-Forwarded-For` / `X-Real-IP`（需 `NOVA_TRUST_PROXY=1`）。不记录、不存储原始 IP。没有 xdb 或查不到时回退到北京；用户手动选过的城市（localStorage）优先于 IP。
 - 天气数据来自和风天气官方 API（Geo v2 + Weather v1 current/daily）。图标来自开源库 [qwd/Icons](https://github.com/qwd/Icons)（图标 CC BY 4.0），卡片上标明「天气服务由和风天气提供」。
 - 没有数据库迁移。发布时需要先部署服务器（新接口、密钥、可选 xdb），再发热更新。xdb 不要打进热更新包，见 `docs/WEATHER-SERVER.md`。
+- 天气帖头部时间改为「更新于 14:05」或「刚刚」，不再显示「57 分钟前」这种相对时间。
 - 新增 `server/test/weather.test.mjs`（假 fetch，覆盖 IP 查到 / 查不到 / 无 xdb）和 `server/test/m211-weather-ui.test.mjs`（CDP 真实触摸，390×844），已加入 `npm run test:server` / `test:ui`。
 
 ## 未发布 · 每日天气帖（分支 feat/weather-card-v2，基于和风天气 + ip2region）
