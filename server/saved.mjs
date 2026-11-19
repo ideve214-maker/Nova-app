@@ -19,6 +19,14 @@ export function createSaved(db, {vip, now}) {
   const ins = db.prepare('INSERT INTO saved_items(user_id,kind,target,title,excerpt,created_at) VALUES(?,?,?,?,?,?)');
   const delId = db.prepare('DELETE FROM saved_items WHERE id=? AND user_id=?');
   const pub = r => ({id: r.id, kind: r.kind, target: r.target, title: r.title || '', excerpt: r.excerpt || '', createdAt: r.created_at});
+  // 2.0.3：收藏 / 取消收藏帖子时把这条帖子最新的收藏数一起返回，客户端直接用，不再自己猜
+  const postSaves = db.prepare("SELECT COUNT(*) AS n FROM saved_items WHERE kind='post' AND target=?");
+  const postAdj = (() => { try { return db.prepare('SELECT adj_saves FROM posts WHERE id=?'); } catch { return null; } })();
+  function postCount(kind, target) {
+    if (kind !== 'post') return undefined;
+    let adj = 0; try { const r = postAdj && postAdj.get(String(target)); adj = (r && r.adj_saves) || 0; } catch {}
+    return Math.max(0, postSaves.get(String(target)).n + adj);
+  }
 
   function quota(user) {
     const r = vip.requireEntitlement(user, 'personal_saved_items_plus');
@@ -33,12 +41,12 @@ export function createSaved(db, {vip, now}) {
     const tgt = String(target || '').trim();
     if (!tgt || tgt.length > 80 || !/^[\w.:-]+$/.test(tgt)) throw new VipError(400, 'BAD_TARGET', '收藏对象不正确');
     const exist = getQ.get(user.id, kind, tgt);
-    if (exist) { const q = quota(user); return {item: pub(exist), count: q.count, limit: q.limit, plan: q.plan, existed: true}; }
+    if (exist) { const q = quota(user); return {item: pub(exist), count: q.count, limit: q.limit, plan: q.plan, existed: true, saved: true, bookmarkCount: postCount(kind, tgt)}; }
     const q = quota(user);
     vip.requireQuota(user, 'personal_saved_items_plus', {used: q.count, add: 1});
     const r = ins.run(user.id, kind, tgt, clip(title, 80) || (kindName[kind] || kind), clip(excerpt, 200), now());
     const row = getId.get(Number(r.lastInsertRowid), user.id);
-    return {item: pub(row), count: q.count + 1, limit: q.limit, plan: q.plan, existed: false};
+    return {item: pub(row), count: q.count + 1, limit: q.limit, plan: q.plan, existed: false, saved: true, bookmarkCount: postCount(kind, tgt)};
   }
   function remove(user, {id, kind, target}) {
     let row = null;
@@ -47,7 +55,7 @@ export function createSaved(db, {vip, now}) {
     if (!row) throw new VipError(404, 'NOT_FOUND', '这条收藏不存在');
     delId.run(row.id, user.id);
     const q = quota(user);
-    return {removed: pub(row), count: q.count, limit: q.limit, plan: q.plan};
+    return {removed: pub(row), count: q.count, limit: q.limit, plan: q.plan, saved: false, bookmarkCount: postCount(row.kind, row.target)};
   }
   return {list, add, remove, quota, PUBLIC_PIN_MAX};
 }
