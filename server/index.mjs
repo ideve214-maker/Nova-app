@@ -57,6 +57,7 @@ import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
 import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} from './legal.mjs';
+import {createTldr, TldrError} from './tldr.mjs';
 import {appVersion} from './version.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
@@ -102,6 +103,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   rateLimitMode = process.env.NOVA_RATE_LIMIT || '',
   alertWebhook = process.env.NOVA_ALERT_WEBHOOK || '',
   aiEnv = process.env, aiFetch, adminAiOpts = {},
+  tldrFetch,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -349,6 +351,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     return loadLegal(kind, process.env);
   }
   const verInfo = appVersion();
+  const tldr = createTldr({fetchFn: tldrFetch || globalThis.fetch, now});
   const routes = {
     'POST /api/auth/register'(req, b) {
       if (flags.read().registrationOpen === false) throw bad('REGISTRATION_CLOSED', '暂不开放注册', 403);
@@ -1823,6 +1826,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/version'() {
       return verInfo;
     },
+    async 'GET /api/tldr'(req) {
+      auth(req);
+      try { return await tldr.handle(req.query || {}); }
+      catch (e) {
+        if (e instanceof TldrError) throw bad(e.code, e.message, e.s);
+        throw e;
+      }
+    },
     'GET /api/metrics'(req) {
       const {admin} = adminAuth(req);
       let disk = {};
@@ -2160,7 +2171,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
