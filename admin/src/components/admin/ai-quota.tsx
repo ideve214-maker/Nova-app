@@ -28,12 +28,26 @@ export const fmtTokens = (n: number | null | undefined) => {
 const money = (v: number | null | undefined, currency: string) => (v == null ? "—" : (v < 0 ? "-" : "") + (currency === "USD" ? "$" : "¥") + Math.abs(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 /** 主数字：实时余额（元 / 美元），否则估算剩余 token，否则“查不到”。 */
+const CASH_NOTE: Record<string, string> = { free_model: "免费模型，不扣现金", resource_package: "先用资源包", no_cash_history: "没充过现金，先用免费额度", exempt: "不按现金判断" };
+/** 现金那一行（资源包 / 免费额度是主数字时显示在下面）。 */
+export function cashLine(q: AiQuotaItem): string | null {
+  if (q.source !== "provider" || q.balance == null) return null;
+  const note = q.cashApplies === false && q.cashNote ? `（${CASH_NOTE[q.cashNote] || "先用资源包/免费额度"}）` : "";
+  return `现金 ${money(q.balance, q.currency)}${note}`;
+}
 function headline(q: AiQuotaItem): { value: string; note: string } {
+  // 智谱先扣资源包 / 免费额度，用完才扣现金：资源包剩余是主数字，现金放在下面
+  if (q.packageTokens != null) {
+    const total = q.packageSource === "estimated" && q.budgetTokens != null ? `，共 ${fmtTokens(q.budgetTokens)}` : "";
+    return { value: fmtTokens(q.packageTokens) + " token", note: `资源包 / 免费额度剩余（${q.packageSource === "provider" ? "实时" : "估算"}${total}）` };
+  }
+  if (q.freeModel) return { value: "免费", note: `${q.model} 是免费模型，调用不扣现金` };
   if (q.source === "provider") return { value: money(q.balance, q.currency), note: "可用余额" };
   if (q.source === "estimated") return { value: fmtTokens(q.estimatedRemainingTokens), note: `估算剩余 token（共 ${fmtTokens(q.budgetTokens)}）` };
   return { value: "—", note: q.balanceApi ? "暂时查不到余额" : "这家查不到余额，填资源包总量后可估算" };
 }
 function SourcePill({ q }: { q: AiQuotaItem }) {
+  if (q.packageTokens != null) return q.packageSource === "provider" ? <Pill tone="ok">实时</Pill> : <Pill tone="vip">估算</Pill>;
   if (q.source === "provider") return q.stale ? <Pill tone="warn">实时（上次）</Pill> : <Pill tone="ok">实时</Pill>;
   if (q.source === "estimated") return <Pill tone="vip">估算</Pill>;
   return <Pill tone="muted">未知</Pill>;
@@ -124,8 +138,9 @@ function QuotaRow({ q, detailed, onSettings, auto = true, standIn = false }: { q
           <div className={cn("text-[22px] font-semibold leading-7 tabular-nums", tone)}>{h.value}</div>
           <p className="text-[12px] leading-4 text-muted">
             {h.note}
-            {q.empty ? " · 已用完" : q.low ? (q.source === "provider" ? ` · 低于提醒线 ${money(q.lowBalance, q.currency)}` : " · 剩余不到 10%") : ""}
+            {q.empty ? " · 已用完" : q.low ? (q.source === "provider" && q.cashApplies !== false ? ` · 低于提醒线 ${money(q.lowBalance, q.currency)}` : " · 剩余不到 10%") : ""}
           </p>
+          {(q.packageTokens != null || q.freeModel) && cashLine(q) && <p className="text-[12px] leading-4 text-muted" data-testid="ai-quota-cash">{cashLine(q)}</p>}
         </div>
         <div className="shrink-0 text-right text-[12px] leading-4 text-muted">
           <div>今天 {q.usage.today.calls} 次 · {fmtTokens(q.usage.today.tokens)} token</div>
@@ -140,8 +155,9 @@ function QuotaRow({ q, detailed, onSettings, auto = true, standIn = false }: { q
           {q.source === "provider" && (q.used != null || q.totalGranted != null) && (
             <div>累计已花 {money(q.used, q.currency)}{q.totalGranted != null ? ` · 充值+赠送 ${money(q.totalGranted, q.currency)}` : ""}</div>
           )}
-          {q.source === "provider" && q.budgetTokens != null && <div>资源包估算剩余 {fmtTokens(q.estimatedRemainingTokens)} / {fmtTokens(q.budgetTokens)} token</div>}
-          {q.resourcePackages.map((p, i) => <div key={i}>{p.name}：剩 {fmtTokens(p.remaining)} {p.unit}</div>)}
+          {q.source === "provider" && q.budgetTokens != null && q.packageSource !== "estimated" && <div>资源包估算剩余 {fmtTokens(q.estimatedRemainingTokens)} / {fmtTokens(q.budgetTokens)} token</div>}
+          {q.resourcePackages.map((p, i) => <div key={i}>{sanitizeText(p.name)}：剩 {fmtTokens(p.remaining)} {p.unit}{p.expiresAt ? ` · ${new Date(p.expiresAt + 8 * 3600e3).toISOString().slice(0, 10)} 到期` : ""}</div>)}
+          {q.packagesError && <div>资源包实时余量查不到（{sanitizeText(q.packagesError)}），{q.budgetTokens != null ? "按填的总量估算" : "可在「额度设置」里填总量来估算"}</div>}
           {(q.stopBalance || q.stopTokens) ? <div>停用线：{q.stopBalance ? money(q.stopBalance, q.currency) : ""}{q.stopBalance && q.stopTokens ? " / " : ""}{q.stopTokens ? fmtTokens(q.stopTokens) + " token" : ""}（到了就切下一家）</div> : null}
           <div>今天联网搜索 {q.usage.today.searches} 次{q.usage.week.errors ? ` · 7 天失败 ${q.usage.week.errors} 次` : ""} · 模型 {sanitizeText(q.model)}</div>
           <div className="flex items-center gap-2">
@@ -193,7 +209,7 @@ export function AiProvidersScreen() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formErr, setFormErr] = useState("");
   const [busy, setBusy] = useState("");
-  const [qs, setQs] = useState<{ q: AiQuotaItem; budget: string; low: string; stop: string; stopTokens: string } | null>(null);
+  const [qs, setQs] = useState<{ q: AiQuotaItem; budget: string; low: string; stop: string; stopTokens: string; exempt: boolean } | null>(null);
 
   const load = useCallback(async () => { const r = await aiProviders(); if (r.ok) { setProv(r.data); setErr(""); } else setErr(r.error); }, []);
   useEffect(() => { void load(); }, [load]);
@@ -242,7 +258,7 @@ export function AiProvidersScreen() {
     const stop = qs.stop.trim() === "" ? 0 : Number(qs.stop);
     const stopTokens = qs.stopTokens.trim() === "" ? 0 : Math.round(Number(qs.stopTokens) * 1e4);
     if ((budget != null && !(budget >= 0)) || (low != null && !(low >= 0)) || !(stop >= 0) || !(stopTokens >= 0)) { flash("请填数字"); return; }
-    const r = await aiQuotaSave(qs.q.id, { budgetTokens: budget, lowBalance: low, stopBalance: stop, stopTokens });
+    const r = await aiQuotaSave(qs.q.id, { budgetTokens: budget, lowBalance: low, stopBalance: stop, stopTokens, cashExempt: qs.exempt });
     if (!r.ok) { flash(r.error); return; }
     quota.setData(r.data); setQs(null); flash("已保存额度设置");
   };
@@ -300,9 +316,9 @@ export function AiProvidersScreen() {
           </div>
           <FailoverBanner data={quota.data} />
           <div className="divide-y divide-line">
-            {quota.data.providers.map((q) => <QuotaRow key={q.id} q={q} detailed auto={auto} standIn={standInId(quota.data) === q.id} onSettings={() => setQs({ q, budget: q.budgetTokens != null ? String(q.budgetTokens / 1e4) : "", low: String(q.lowBalance), stop: q.stopBalance ? String(q.stopBalance) : "", stopTokens: q.stopTokens ? String(q.stopTokens / 1e4) : "" })} />)}
+            {quota.data.providers.map((q) => <QuotaRow key={q.id} q={q} detailed auto={auto} standIn={standInId(quota.data) === q.id} onSettings={() => setQs({ q, budget: q.budgetTokens != null ? String(q.budgetTokens / 1e4) : "", low: String(q.lowBalance), stop: q.stopBalance ? String(q.stopBalance) : "", stopTokens: q.stopTokens ? String(q.stopTokens / 1e4) : "", exempt: !!q.cashExempt })} />)}
           </div>
-          <p className="mt-1 text-[12px] leading-4 text-muted">「实时」= 服务商余额接口查到的现金余额；「估算」= 你填的资源包总量减去这台服务器记录的已用 token。智谱的资源包（token 包）余量官方没有开放接口，可在「额度设置」里填总量来估算。</p>
+          <p className="mt-1 text-[12px] leading-4 text-muted">智谱先扣资源包 / 免费额度，用完才扣现金，所以大数字显示资源包剩余，现金在下面。「实时」= 从智谱控制台接口查到；「估算」= 你填的资源包总量减去这台服务器记录的已用 token（资源包实时余量查不到时使用）。</p>
         </Card>
       )}
       {prov && (
@@ -410,7 +426,11 @@ export function AiProvidersScreen() {
             <Field label="估算剩余停用线（万 token，剩这么多就切下一家，默认 0）">
               <input className={inputClass} inputMode="decimal" value={qs.stopTokens} placeholder="0" onChange={(e) => setQs({ ...qs, stopTokens: e.target.value })} />
             </Field>
-            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">服务商结算有延迟，余额可能被扣成负数（欠费）。停用线留一点余量（例如 1 元）更稳妥。</p>
+            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">先扣资源包 / 免费额度，用完才扣现金：资源包用完且现金低于停用线才切下一家。服务商结算有延迟，现金可能被扣成负数（欠费），停用线留一点余量（例如 1 元）更稳妥。</p>
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <span className="text-[14px]">不按现金余额判断（免费模型 / 只用资源包，只在服务商提示余额不足时切换）</span>
+              <Toggle on={qs.exempt} label="不按现金余额判断" onChange={(v) => setQs({ ...qs, exempt: v })} />
+            </div>
             <PrimaryButton onClick={() => void saveQuota()}>保存</PrimaryButton>
           </div>
         )}
