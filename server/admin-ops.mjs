@@ -326,29 +326,57 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
     throw new ApiError(400, 'BAD_TYPE', 'type 须为 post 或 comment');
   }
 
+  // 2.0.6 首页“平台概览”口径（和“用户管理”列表默认口径一致）：
+  // - 总用户 users.total = 没注销的账号（status!='deleted' 且 deleted_at 为空），含封禁；以前把已注销的也算进去了。
+  // - 正常账号 users.normal（兼容旧字段 users.active）= 总用户里 status='active' 的（不含封禁）。
+  // - 活跃：正常账号里，在时间窗口内登录过（users.last_login_at）或在线过（user_presence.last_seen，App 打开时会刷新）的人。
+  //   今日活跃 activeToday = 上海时间今天 0 点到现在；7 日活跃 active7d = 最近 7 天；在线 onlineNow = 最近 5 分钟。
+  function countSafe(sql, ...args) {
+    try { return Number(db.prepare(sql).get(...args).n) || 0; } catch { return 0; }
+  }
+  const VISIBLE_USER = "u.status!='deleted' AND u.deleted_at IS NULL";
+  const activeSince = since => countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.status='active'
+    AND (u.last_login_at>=? OR EXISTS (SELECT 1 FROM user_presence pr WHERE pr.user_id=u.id AND pr.last_seen>=?))`, since, since);
+
   function stats() {
-    const users = db.prepare('SELECT COUNT(*) n FROM users').get().n;
-    const banned = db.prepare("SELECT COUNT(*) n FROM users WHERE status='banned'").get().n;
-    const vipN = db.prepare('SELECT COUNT(*) n FROM users WHERE vip_until IS NOT NULL AND vip_until>?').get(nowFn()).n;
-    const postsVis = db.prepare('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NULL').get().n;
-    const postsHid = db.prepare('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NOT NULL').get().n;
-    const commentsVis = db.prepare('SELECT COUNT(*) n FROM post_comments WHERE deleted_at IS NULL').get().n;
-    const reportsPending = (() => {
-      try { return db.prepare("SELECT COUNT(*) n FROM reports WHERE status='pending'").get().n; }
-      catch { return 0; }
-    })();
+    const t = nowFn();
+    const d8 = new Date(t + 8 * 3600e3);
+    const todayStart = Date.UTC(d8.getUTCFullYear(), d8.getUTCMonth(), d8.getUTCDate()) - 8 * 3600e3;
+    const all = countSafe('SELECT COUNT(*) n FROM users');
+    const users = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER}`);
+    const banned = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.status='banned'`);
+    const normal = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.status='active'`);
+    const vipN = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.vip_until IS NOT NULL AND u.vip_until>?`, t);
+    const activeToday = activeSince(todayStart);
+    const active7d = activeSince(t - 7 * 86400e3);
+    const onlineNow = activeSince(t - 5 * 60e3);
+    const postsVis = countSafe('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NULL');
+    const postsHid = countSafe('SELECT COUNT(*) n FROM posts WHERE deleted_at IS NOT NULL');
+    const commentsVis = countSafe('SELECT COUNT(*) n FROM post_comments WHERE deleted_at IS NULL');
+    const reportsPending = countSafe("SELECT COUNT(*) n FROM reports WHERE status='pending'");
     let payPending = 0, payReview = 0;
     if (pay) {
       pay.expire();
-      payPending = db.prepare("SELECT COUNT(*) n FROM pay_orders WHERE status='pending'").get().n;
-      payReview = db.prepare("SELECT COUNT(*) n FROM pay_orders WHERE status='awaiting_review'").get().n;
+      payPending = countSafe("SELECT COUNT(*) n FROM pay_orders WHERE status='pending'");
+      payReview = countSafe("SELECT COUNT(*) n FROM pay_orders WHERE status='awaiting_review'");
     }
     return {
-      users: {total: users, active: users - banned, banned, vip: vipN},
+      users: {total: users, normal, active: normal, banned, vip: vipN, deleted: all - users, activeToday, active7d, onlineNow},
       posts: {visible: postsVis, removed: postsHid},
       comments: {visible: commentsVis},
       reports: {pending: reportsPending},
       payments: {pending: payPending, awaitingReview: payReview},
+      timezone: 'Asia/Shanghai',
+      field_meanings: {
+        'users.total': '总用户：没注销的账号数（含封禁），和“用户管理”列表默认显示的一致；已注销的不算',
+        'users.normal': '正常账号：总用户里没被封禁的',
+        'users.active': '同 users.normal（旧字段名，不是活跃用户）',
+        'users.banned': '被封禁的账号（不含已注销）',
+        'users.deleted': '已注销的账号（不计入总用户）',
+        'users.activeToday': '今日活跃：上海时间今天 0 点到现在登录过或打开过 App 的正常账号',
+        'users.active7d': '7 日活跃：最近 7 天登录过或打开过 App 的正常账号',
+        'users.onlineNow': '当前在线：最近 5 分钟打开过 App 的正常账号',
+      },
     };
   }
 
