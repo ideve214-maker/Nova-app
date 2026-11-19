@@ -190,7 +190,14 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     try {
       let res;
       try { res = await search(sum.query, {count: 10}); }
-      catch (e) { log(actorId, 'ai.autoads.error', 'run:' + runId, ip, {stage: 'search', error: isApiErr(e) ? e.message : 'search_failed'}); return {...sum, error: 'search_failed'}; }
+      catch (e) {
+        // 额度用完（智谱用完 / 所有接口用完）：这一轮直接停下，不发帖，记日志
+        if (isApiErr(e) && (e.code === 'AI_SEARCH_EXHAUSTED' || e.code === 'AI_ALL_EXHAUSTED')) {
+          log(actorId, 'ai.autoads.skipped', 'run:' + runId, ip, {trigger, reason: 'quota_exhausted', code: e.code, error: e.message});
+          return {...sum, skipped: 'quota_exhausted', error: e.message};
+        }
+        log(actorId, 'ai.autoads.error', 'run:' + runId, ip, {stage: 'search', error: isApiErr(e) ? e.message : 'search_failed'}); return {...sum, error: 'search_failed'};
+      }
       sum.found = res.results.length;
       log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: res.query, count: res.results.length, urls: res.results.map(r => r.url).slice(0, 10)});
       let tries = 0;
@@ -205,7 +212,10 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
         tries++;
         let copy;
         try { copy = await writeCopy(r); }
-        catch { reject('GEN_FAILED', '文案生成失败', ctx, base); sum.rejected++; continue; }
+        catch (e) {
+          if (isApiErr(e) && e.code === 'AI_ALL_EXHAUSTED') { sum.stopped = 'quota_exhausted'; log(actorId, 'ai.autoads.stopped', 'run:' + runId, ip, {reason: 'quota_exhausted', error: e.message}); break; }
+          reject('GEN_FAILED', '文案生成失败', ctx, base); sum.rejected++; continue;
+        }
         if (copy.suitable !== true) { reject('NOT_SUITABLE', '模型判断不适合推广：' + clip(copy.reason, 60), ctx, base); sum.rejected++; continue; }
         try { sum.published.push(publish({...copy, sourceUrl: r.url, sourceTitle: r.title}, ctx)); }
         catch (e) { if (!isApiErr(e)) throw e; sum.rejected++; }

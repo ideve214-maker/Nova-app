@@ -43,6 +43,7 @@ import {createAdminV2} from './admin-v2.mjs';
 import {createAdminAi} from './admin-ai.mjs';
 import {createAiProviders} from './ai-providers.mjs';
 import {createAiUsage, createAiQuota, meterFetch, aiQuotaRoutes} from './ai-quota.mjs';
+import {createAiRouter} from './ai-failover.mjs';
 import {createFeatured} from './featured.mjs';
 import {
   clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
@@ -1914,7 +1915,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   };
 
   // 管理端 AI 助手：新增 /api/admin/ai/*。确认后的写操作通过 invoke 原样重放到上面的管理端接口（同一令牌、同样校验与审计）。
-  const adminAi = createAdminAi(db, {now, env: aiEnv || process.env, fetchImpl: adminAiFetch, audit, providers: aiProviders,
+  // 2.0.7 AI 额度面板 + AI 服务商管理（管理员登录；AI 助手不能代调）。余额查询不经过 meterFetch（不算 AI 调用）。
+  const aiQuota = createAiQuota(db, {providers: aiProviders, usage: aiUsage, env: aiEnv || process.env, now,
+    fetchImpl: adminAiOpts.quotaFetch || adminAiOpts.fetchImpl || rawAiFetch});
+  // 2.0.7 额度用完自动切换下一家（ai-failover.mjs）
+  const aiRouter = createAiRouter(db, {providers: aiProviders, quota: aiQuota, audit, now});
+  const adminAi = createAdminAi(db, {now, env: aiEnv || process.env, fetchImpl: adminAiFetch, audit, providers: aiProviders, router: aiRouter,
     pageFetch: adminAiOpts.pageFetch, lookup: adminAiOpts.lookup, marketing, blockwords,
     invoke: async (src, method, path, body, query) => {
       const found = findRoute(method, path);
@@ -1923,10 +1929,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return await found.fn(r, body || {});
     }});
   Object.assign(routes, adminAi.routes({adminAuth, ip}));
-  // 2.0.7 AI 额度面板 + AI 服务商管理（管理员登录；AI 助手不能代调）。余额查询不经过 meterFetch（不算 AI 调用）。
-  const aiQuota = createAiQuota(db, {providers: aiProviders, usage: aiUsage, env: aiEnv || process.env, now,
-    fetchImpl: adminAiOpts.quotaFetch || adminAiOpts.fetchImpl || rawAiFetch});
-  Object.assign(routes, aiQuotaRoutes({adminAuth, ip, audit, providers: aiProviders, quota: aiQuota, meteredFetch: adminAiFetch, now}));
+  Object.assign(routes, aiQuotaRoutes({adminAuth, ip, audit, providers: aiProviders, quota: aiQuota, router: aiRouter, meteredFetch: adminAiFetch, now}));
 
   function findRoute(method, path) {
     const exact = routes[method + ' ' + path];

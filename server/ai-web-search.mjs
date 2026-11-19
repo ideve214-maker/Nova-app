@@ -2,6 +2,7 @@
 // 只取响应顶层的 web_search 结果（标题 / 原网址 / 摘要 / 来源站点），每条都保留原网址；没有网址的结果直接丢掉。
 // 注意：每次搜索都会调用一次智谱接口（会产生费用），所以有每天的本地上限 ADMIN_AI_SEARCH_RPD（默认 30 次）。
 import {ApiError} from './errors.mjs';
+import {billingReason, BillingError} from './ai-failover.mjs';
 
 const clip = (s, n) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().slice(0, n);
 const dayOf = t => new Date(t + 8 * 3600e3).toISOString().slice(0, 10);
@@ -32,7 +33,8 @@ export function parseSearchResults(j) {
 }
 
 // 2.0.7：可以传 provider()（返回 {base,key,model} 或 null，见 ai-providers.mjs 的 searchProvider），优先于 base/apiKey/model/ready。
-export function createWebSearch({env = process.env, fetchImpl, now = Date.now, base, apiKey, model, ready, provider, unavailable} = {}) {
+// withProvider(fn)：有自动切换路由时由它挑智谱（智谱用完会报 AI_SEARCH_EXHAUSTED），返回 {value} 或 null（没有可用的智谱）。
+export function createWebSearch({env = process.env, fetchImpl, now = Date.now, base, apiKey, model, ready, provider, unavailable, withProvider} = {}) {
   const doFetch = fetchImpl || ((...a) => fetch(...a));
   const engine = () => String(env.ADMIN_AI_SEARCH_ENGINE || 'search_std').trim();
   const perDay = () => { const n = Number(env.ADMIN_AI_SEARCH_RPD); return Number.isInteger(n) && n >= 0 ? n : 30; };
@@ -46,9 +48,20 @@ export function createWebSearch({env = process.env, fetchImpl, now = Date.now, b
   async function search(query, {count = 8} = {}) {
     const q = clip(query, 120);
     if (!q) throw new ApiError(400, 'BAD_QUERY', '请填写搜索关键词');
+    const none = () => new ApiError(503, 'AI_NOT_CONFIGURED', (unavailable && unavailable()) || 'AI 助手还没有配置智谱密钥');
+    if (withProvider) {
+      if (!(provider ? provider() : true)) throw none();
+      budget();
+      const r = await withProvider(p => searchOn(p, q, count));
+      if (!r) throw none();
+      return r.value;
+    }
     const p = provider ? provider() : (ready() ? {base: base(), key: apiKey(), model: model()} : null);
-    if (!p) throw new ApiError(503, 'AI_NOT_CONFIGURED', (unavailable && unavailable()) || 'AI 助手还没有配置智谱密钥');
+    if (!p) throw none();
     budget();
+    return searchOn(p, q, count);
+  }
+  async function searchOn(p, q, count) {
     let res;
     try {
       res = await doFetch(p.base + '/chat/completions', {method: 'POST', signal: AbortSignal.timeout(30000),
@@ -57,7 +70,12 @@ export function createWebSearch({env = process.env, fetchImpl, now = Date.now, b
           messages: [{role: 'user', content: '联网搜索：' + q}],
           tools: [{type: 'web_search', web_search: {enable: true, search_engine: engine(), search_result: true, search_query: q}}]})});
     } catch { throw new ApiError(503, 'SEARCH_UNAVAILABLE', '联网搜索暂时连不上，请稍后再试'); }
-    if (!res.ok) throw new ApiError(503, 'SEARCH_UNAVAILABLE', '联网搜索暂时不可用（' + res.status + '）');
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      const why = billingReason(res.status, body);
+      if (why) throw new BillingError(why, res.status);
+      throw new ApiError(503, 'SEARCH_UNAVAILABLE', '联网搜索暂时不可用（' + res.status + '）');
+    }
     const j = await res.json().catch(() => null);
     return {query: q, results: parseSearchResults(j).slice(0, Math.min(Math.max(count, 1), 15))};
   }

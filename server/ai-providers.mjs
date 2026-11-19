@@ -85,7 +85,7 @@ function checkBase(raw) {
 export function createAiProviders(db, {env = process.env, now = Date.now, dbPath} = {}) {
   const box = createKeyBox({secret: env.ADMIN_AI_KEY_SECRET, dbPath});
   const q = {
-    all: db.prepare('SELECT * FROM ai_providers ORDER BY created_at, id'),
+    all: db.prepare('SELECT * FROM ai_providers ORDER BY created_at, rowid'),
     get: db.prepare('SELECT * FROM ai_providers WHERE id=?'),
     ins: db.prepare('INSERT INTO ai_providers(id,type,name,base_url,key_enc,key_hint,model,search,enabled,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'),
     upd: db.prepare('UPDATE ai_providers SET name=?, base_url=?, key_enc=?, key_hint=?, model=?, search=?, enabled=?, updated_at=? WHERE id=?'),
@@ -114,6 +114,27 @@ export function createAiProviders(db, {env = process.env, now = Date.now, dbPath
   const list = () => [envProvider(), ...q.all.all().map(fromRow)];
   const find = id => (id === ENV_ID ? envProvider() : (r => (r ? fromRow(r) : null))(q.get.get(String(id || ''))));
   const activeId = () => { const r = q.getSet.get('ai.activeProvider'); return r ? r.value : ENV_ID; };
+
+  /** 先后顺序（自动切换用）：排第一的永远是“当前使用”（选中的那家），其余按管理员调整的顺序，没排过的按添加时间排在后面。 */
+  function order() {
+    let ids = [];
+    try { const r = q.getSet.get('ai.providerOrder'); ids = r ? JSON.parse(r.value) : []; } catch { ids = []; }
+    const all = list(), known = new Set(all.map(p => p.id));
+    return [...new Set([activeId(), ...(Array.isArray(ids) ? ids : []), ...all.map(p => p.id)].map(String).filter(id => known.has(id)))];
+  }
+  const ordered = () => { const all = new Map(list().map(p => [p.id, p])); return order().map(id => all.get(id)).filter(Boolean); };
+  /** 调整顺序：第一个就成为“当前使用”。 */
+  function setOrder(ids) {
+    const all = new Map(list().map(p => [p.id, p]));
+    const seq = [...new Set((Array.isArray(ids) ? ids : []).map(String))].filter(id => all.has(id));
+    if (!seq.length) throw new ApiError(400, 'BAD_ORDER', '顺序不对');
+    const first = all.get(seq[0]);
+    if (typeInfo(first.type).blocked || !first.usable) throw new ApiError(400, 'NOT_READY', '排第一的接口必须已启用且有可用密钥');
+    const before = order();
+    q.setSet.run('ai.providerOrder', JSON.stringify(seq), now());
+    if (first.id === ENV_ID) q.delSet.run('ai.activeProvider'); else q.setSet.run('ai.activeProvider', first.id, now());
+    return {before, after: order()};
+  }
 
   /** 当前使用的服务商：选中的那家不可用时退回服务器默认智谱；都不可用返回 null。 */
   function active() {
@@ -151,7 +172,8 @@ export function createAiProviders(db, {env = process.env, now = Date.now, dbPath
     const a = active(), aid = activeId();
     const s = searchProvider();
     return {
-      providers: list().map(p => ({...pub(p), active: !!a && a.id === p.id, selected: p.id === aid})),
+      providers: ordered().map((p, i) => ({...pub(p), active: !!a && a.id === p.id, selected: p.id === aid, priority: i + 1})),
+      order: order(),
       activeId: a ? a.id : null, selectedId: aid, fallback: !!a && a.id !== aid,
       searchProviderId: s ? s.id : null,
       types: PROVIDER_TYPES.map(t => ({type: t.type, name: t.name, baseUrl: t.base, model: t.model, searchCapable: t.search, balanceApi: t.balance, blocked: !!t.blocked, note: t.note})),
@@ -204,8 +226,9 @@ export function createAiProviders(db, {env = process.env, now = Date.now, dbPath
     if (!p.usable) throw new ApiError(400, 'NOT_READY', p.keyBroken ? '这个服务商的密钥无法解密，请重新填写密钥' : '这个服务商还没有可用的密钥');
     const from = activeId();
     if (p.id === ENV_ID) q.delSet.run('ai.activeProvider'); else q.setSet.run('ai.activeProvider', p.id, now());
+    q.setSet.run('ai.providerOrder', JSON.stringify([p.id, ...order().filter(id => id !== p.id)]), now());
     return {from, to: p.id, name: p.name};
   }
 
-  return {list, find, active, activeId, searchProvider, attribute, pub, overview, save, remove, setActive, envProvider};
+  return {list, find, active, activeId, searchProvider, attribute, pub, overview, save, remove, setActive, envProvider, order, ordered, setOrder};
 }

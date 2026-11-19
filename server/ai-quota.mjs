@@ -141,12 +141,40 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
   const ttl = () => { const n = Number(env.ADMIN_AI_QUOTA_TTL_MS); return Number.isFinite(n) && n >= 10e3 ? n : 60e3; };
   const MIN_FORCE_MS = 10e3;
   const cache = new Map(), inflight = new Map();
+  const cooldown = () => { const n = Number(env.ADMIN_AI_EXHAUSTED_COOLDOWN_MS); return Number.isFinite(n) && n >= 60e3 ? n : 30 * 60e3; };
   const q = {
     get: db.prepare('SELECT * FROM ai_quota_settings WHERE provider=?'),
-    put: db.prepare(`INSERT INTO ai_quota_settings(provider,budget_tokens,budget_since,low_balance,updated_at) VALUES(?,?,?,?,?)
-      ON CONFLICT(provider) DO UPDATE SET budget_tokens=excluded.budget_tokens, budget_since=excluded.budget_since, low_balance=excluded.low_balance, updated_at=excluded.updated_at`),
+    put: db.prepare(`INSERT INTO ai_quota_settings(provider,budget_tokens,budget_since,low_balance,stop_balance,stop_tokens,updated_at) VALUES(?,?,?,?,?,?,?)
+      ON CONFLICT(provider) DO UPDATE SET budget_tokens=excluded.budget_tokens, budget_since=excluded.budget_since, low_balance=excluded.low_balance,
+      stop_balance=excluded.stop_balance, stop_tokens=excluded.stop_tokens, updated_at=excluded.updated_at`),
+    mark: db.prepare(`INSERT INTO ai_quota_settings(provider,exhausted_at,exhausted_reason,updated_at) VALUES(?,?,?,?)
+      ON CONFLICT(provider) DO UPDATE SET exhausted_at=excluded.exhausted_at, exhausted_reason=excluded.exhausted_reason, updated_at=excluded.updated_at`),
+    clear: db.prepare('UPDATE ai_quota_settings SET exhausted_at=NULL, exhausted_reason=NULL WHERE provider=?'),
   };
-  const settingsOf = id => { const r = q.get.get(id); return {budgetTokens: r && r.budget_tokens != null ? Number(r.budget_tokens) : null, budgetSince: r ? r.budget_since : null, lowBalance: r && r.low_balance != null ? Number(r.low_balance) : null}; };
+  const settingsOf = id => {
+    const r = q.get.get(id);
+    return {budgetTokens: r && r.budget_tokens != null ? Number(r.budget_tokens) : null, budgetSince: r ? r.budget_since : null, lowBalance: r && r.low_balance != null ? Number(r.low_balance) : null,
+      stopBalance: r && r.stop_balance != null ? Number(r.stop_balance) : 0, stopTokens: r && r.stop_tokens != null ? Number(r.stop_tokens) : 0,
+      exhaustedAt: r && r.exhausted_at ? Number(r.exhausted_at) : null, exhaustedReason: r ? r.exhausted_reason || null : null};
+  };
+  const dropCache = id => { for (const k of [...cache.keys()]) if (k.startsWith(id + '|')) cache.delete(k); };
+
+  /** 这家现在算不算“用完”（自动切换用）。只用 60 秒内的余额缓存；被标记用完的会强制重查（10 秒一次）看是否已充值。 */
+  async function exhaustion(p) {
+    const st = settingsOf(p.id);
+    const live = await liveBalance(p, !!st.exhaustedAt);
+    const ok = !!live && !live.error && live.balance != null;
+    if (st.exhaustedAt) {
+      if (ok && live.fetchedAt > st.exhaustedAt && live.balance > st.stopBalance) q.clear.run(p.id);
+      else if (!ok && now() - st.exhaustedAt >= cooldown()) q.clear.run(p.id);
+      else return {exhausted: true, reason: st.exhaustedReason || 'balance', since: st.exhaustedAt};
+    }
+    if (ok && live.balance <= st.stopBalance) return {exhausted: true, reason: 'balance', since: null};
+    if (st.budgetTokens != null && st.budgetTokens - usage.stats(p.id, st.budgetSince || 0).tokens <= st.stopTokens) return {exhausted: true, reason: 'estimated', since: null};
+    return {exhausted: false, reason: null, since: null};
+  }
+  function markExhausted(p, reason) { q.mark.run(p.id, now(), String(reason || 'balance').slice(0, 40), now()); dropCache(p.id); }
+  function clearExhausted(id) { q.clear.run(String(id)); dropCache(String(id)); }
 
   async function liveBalance(p, force) {
     const adapter = BALANCE_ADAPTERS[p.type];
@@ -170,10 +198,12 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
     return job;
   }
 
-  async function item(p, force, activeId, searchId) {
-    const t = typeInfo(p.type), st = settingsOf(p.id), t0 = now();
+  async function item(p, force, activeId, searchId, priority) {
+    const t = typeInfo(p.type), t0 = now();
     const today = usage.stats(p.id, dayStart(t0)), week = usage.stats(p.id, t0 - 7 * DAY);
     const live = await liveBalance(p, force);
+    const ex = p.usable ? await exhaustion(p) : {exhausted: false, reason: null, since: null};
+    const st = settingsOf(p.id);
     const lb = live && !live.error ? live : (live && live.stale) || null;
     let source = 'none', balance = null, currency = t.currency, unit = t.currency === 'USD' ? '美元' : '元';
     if (lb) { source = 'provider'; balance = lb.balance; currency = lb.currency || currency; unit = lb.unit || unit; }
@@ -197,13 +227,16 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
       budgetTokens: st.budgetTokens, budgetSince: st.budgetSince, usedSinceBudget, estimatedRemainingTokens,
       lowBalance: lowLine, low, empty: source === 'provider' ? balance != null && balance <= 0 : estimatedRemainingTokens === 0,
       usage: {today, week},
+      priority, stopBalance: st.stopBalance, stopTokens: st.stopTokens,
+      exhausted: ex.exhausted, exhaustedReason: ex.reason, exhaustedAt: ex.since,
     };
   }
 
   async function overview({refresh = false} = {}) {
     const a = providers.active(), s = providers.searchProvider();
-    const list = providers.list().filter(p => p.builtin ? true : p.enabled || p.id === providers.activeId());
-    const items = await Promise.all(list.map(p => item(p, !!refresh, a ? a.id : null, s ? s.id : null)));
+    const list = providers.ordered().filter(p => p.builtin ? true : p.enabled || p.id === providers.activeId());
+    const items = [];
+    for (const [i, p] of list.entries()) items.push(await item(p, !!refresh, a ? a.id : null, s ? s.id : null, i + 1));
     return {providers: items, activeId: a ? a.id : null, searchProviderId: s ? s.id : null, ttlMs: ttl(), at: now()};
   }
 
@@ -214,13 +247,16 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
     const budget = body.budgetTokens !== undefined ? toInt(body.budgetTokens, 1e12) : old.budgetTokens;
     let low = old.lowBalance;
     if (body.lowBalance !== undefined) { low = body.lowBalance === null || body.lowBalance === '' ? null : Number(body.lowBalance); if (low != null && (!Number.isFinite(low) || low < 0 || low > 1e7)) throw new ApiError(400, 'BAD_NUMBER', '提醒线不对'); }
+    let stop = old.stopBalance;
+    if (body.stopBalance !== undefined) { stop = body.stopBalance === null || body.stopBalance === '' ? 0 : Number(body.stopBalance); if (!Number.isFinite(stop) || stop < 0 || stop > 1e6) throw new ApiError(400, 'BAD_NUMBER', '停用线不对'); }
+    const stopTokens = body.stopTokens !== undefined ? (toInt(body.stopTokens, 1e12) || 0) : old.stopTokens;
     // 改了额度总量（或要求重新开始算）时，从现在起重新累计已用
     const since = budget == null ? null : (budget !== old.budgetTokens || body.resetSince ? now() : (old.budgetSince || now()));
-    q.put.run(id, budget, since, low, now());
+    q.put.run(id, budget, since, low, stop, stopTokens, now());
     return {before: old, after: settingsOf(id)};
   }
 
-  return {overview, saveSettings, liveBalance, clearCache: () => cache.clear()};
+  return {overview, saveSettings, liveBalance, exhaustion, markExhausted, clearExhausted, clearCache: () => cache.clear()};
 }
 
 /** 测试连接：发一个最小的对话请求（max_tokens=1），只回结果，不回密钥。 */
@@ -244,18 +280,37 @@ export async function testProvider(p, {fetchImpl, now = Date.now} = {}) {
 }
 
 /** 路由：都要求管理员登录；AI 助手不能代调（req._aiInternal）。 */
-export function aiQuotaRoutes({adminAuth, ip, audit, providers, quota, meteredFetch, now = Date.now}) {
+export function aiQuotaRoutes({adminAuth, ip, audit, providers, quota, router, meteredFetch, now = Date.now}) {
   const A = req => {
     if (req._aiInternal) throw new ApiError(403, 'AI_FORBIDDEN', 'AI 服务商和额度设置不允许 AI 代办');
     return adminAuth(req).admin;
   };
-  const view = () => providers.overview();
+  const view = () => ({...providers.overview(), failover: router ? router.status() : null});
+  const qview = async (o = {}) => ({...(await quota.overview(o)), failover: router ? router.status() : null, order: providers.order()});
   return {
-    async 'GET /api/admin/ai/quota'(req) { A(req); const qq = req.query || {}; return quota.overview({refresh: qq.refresh === '1' || qq.refresh === 'true'}); },
+    async 'GET /api/admin/ai/quota'(req) { A(req); const qq = req.query || {}; return qview({refresh: qq.refresh === '1' || qq.refresh === 'true'}); },
+    async 'POST /api/admin/ai/failover'(req, b) {
+      const admin = A(req); const on = !!(b || {}).enabled;
+      if (router) router.setEnabled(on);
+      audit(admin.id, on ? 'admin.ai.failover.on' : 'admin.ai.failover.off', 'ai_failover', ip(req), {enabled: on});
+      return qview();
+    },
+    'POST /api/admin/ai/providers/order'(req, b) {
+      const admin = A(req); const r = providers.setOrder((b || {}).ids);
+      audit(admin.id, 'admin.ai.provider.reordered', 'ai_provider:' + r.after[0], ip(req), {before: r.before, after: r.after});
+      return view();
+    },
+    async 'POST /api/admin/ai/providers/:id/recheck'(req) {
+      const admin = A(req); const p = providers.find(req.params.id);
+      if (!p) throw new ApiError(404, 'NOT_FOUND', '没有找到这个服务商');
+      quota.clearExhausted(p.id);
+      audit(admin.id, 'admin.ai.provider.rechecked', 'ai_provider:' + p.id, ip(req), {name: p.name});
+      return qview({refresh: true});
+    },
     async 'POST /api/admin/ai/quota/:id/settings'(req, b) {
       const admin = A(req); const r = quota.saveSettings(req.params.id, b || {});
       audit(admin.id, 'admin.ai.quota.settings', 'ai_provider:' + req.params.id, ip(req), {before: r.before, after: r.after});
-      return quota.overview();
+      return qview();
     },
     'GET /api/admin/ai/providers'(req) { A(req); return view(); },
     'POST /api/admin/ai/providers'(req, b) {
