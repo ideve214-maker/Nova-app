@@ -12,6 +12,30 @@
 import {ApiError} from './errors.mjs';
 import {ENV_ID, maskKey, typeInfo} from './ai-providers.mjs';
 
+/** 智谱免费模型（调用不扣现金，见 bigmodel.cn 定价页“免费模型”）：不按现金余额判断是否用完。 */
+export const ZHIPU_FREE_MODELS = ['glm-4-flash', 'glm-4-flash-250414', 'glm-4.5-flash', 'glm-4v-flash', 'glm-z1-flash', 'glm-4.1v-thinking-flash', 'cogview-3-flash', 'cogvideox-flash'];
+export const isZhipuFreeModel = m => ZHIPU_FREE_MODELS.includes(String(m || '').trim().toLowerCase());
+export const ZHIPU_PACKAGES_URL = 'https://bigmodel.cn/api/biz/tokenAccounts/list?filterEnabled=true&pageNum=1&pageSize=50';
+/** 智谱资源包余量（控制台“资源包管理”用的接口；rows[].tokenBalance = 剩余 token，status=EFFECTIVE 为有效）。 */
+export async function zhipuPackages({key, fetch: f, env = {}}) {
+  const url = String(env.ZHIPU_PACKAGES_URL || '').trim() || ZHIPU_PACKAGES_URL;
+  const r = await getJson(f, url, key);
+  if (!r.ok) throw new Error(httpError(r.status));
+  const j = r.j || {};
+  if (j.success === false || (j.code != null && Number(j.code) !== 200)) throw new Error('智谱返回：' + String(j.msg || '查询失败').slice(0, 40));
+  const rows = Array.isArray(j.rows) ? j.rows : Array.isArray(j.data && j.data.rows) ? j.data.rows : Array.isArray(j.data) ? j.data : [];
+  const out = [];
+  for (const x of rows) {
+    if (!x || typeof x !== 'object') continue;
+    if (x.status && String(x.status).toUpperCase() !== 'EFFECTIVE') continue;
+    const exp = x.expirationTime ? Date.parse(String(x.expirationTime).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(x.expirationTime)) ? '' : '+08:00')) : null;
+    const remaining = num(x.tokenBalance);
+    if (remaining == null) continue;
+    out.push({name: String(x.resourcePackageName || x.packageName || '资源包').slice(0, 40), remaining, total: num(x.tokenTotal != null ? x.tokenTotal : x.totalToken), unit: 'token',
+      expiresAt: Number.isFinite(exp) ? exp : undefined, models: x.suitableModel ? String(x.suitableModel).slice(0, 80) : undefined});
+  }
+  return out;
+}
 export const ZHIPU_BALANCE_URL = 'https://www.bigmodel.cn/api/biz/account/query-customer-account-report';
 const DAY = 86400e3;
 const num = v => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 100) / 100);
@@ -50,7 +74,11 @@ export const BALANCE_ADAPTERS = {
     const balance = num(d.availableBalance != null ? d.availableBalance : d.balance);
     if (balance == null) throw new Error('智谱返回的数据里没有余额');
     const recharge = num(d.rechargeAmount), give = num(d.giveAmount);
+    // 资源包（token 包，含赠送的免费额度）：智谱先扣资源包，用完才扣现金。控制台用的接口，没写进公开文档，查不到不影响现金余额。
+    let packages = null, packagesError = null;
+    try { packages = await zhipuPackages({key, fetch: f, env}); } catch (e) { packagesError = String((e && e.message) || '查询失败').split(key).join('***').slice(0, 60); }
     return {balance, currency: 'CNY', unit: '元', totalGranted: recharge != null || give != null ? num((recharge || 0) + (give || 0)) : null, used: num(d.totalSpendAmount),
+      resourcePackages: packages || [], packageTokens: packages ? packages.reduce((a, x) => a + (x.remaining || 0), 0) : null, packagesError,
       detail: {totalBalance: num(d.balance), frozen: num(d.frozenBalance), recharged: recharge, granted: give}};
   },
   async deepseek({base, key, fetch: f}) {
@@ -157,20 +185,55 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
       stopBalance: r && r.stop_balance != null ? Number(r.stop_balance) : 0, stopTokens: r && r.stop_tokens != null ? Number(r.stop_tokens) : 0,
       exhaustedAt: r && r.exhausted_at ? Number(r.exhausted_at) : null, exhaustedReason: r ? r.exhausted_reason || null : null};
   };
+  // 2.0.8：现金余额不是计费来源时（免费模型 / 用资源包 / 从没充过钱 / 管理员标记），不按现金余额提前跳过，只认服务商报错（1113 等）。
+  const setQ = {
+    get: db.prepare('SELECT value FROM admin_ai_settings WHERE key=?'),
+    set: db.prepare('INSERT INTO admin_ai_settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at'),
+  };
+  const exemptIds = () => { try { const r = setQ.get.get('ai.cashExempt'); const a = r ? JSON.parse(r.value) : []; return Array.isArray(a) ? a.map(String) : []; } catch { return []; } };
+  function setExempt(id, on) {
+    const ids = new Set(exemptIds()); if (on) ids.add(String(id)); else ids.delete(String(id));
+    setQ.set.run('ai.cashExempt', JSON.stringify([...ids]), now());
+  }
+  /** 先扣资源包 / 免费额度，用完才扣现金。返回 {applies: 现金是否已经是计费来源, why, packageTokens, packageSource}。
+   *  - 免费模型 / 管理员标记“不按现金判断” → 现金不适用（只认服务商报错）
+   *  - 资源包剩余（实时优先，否则按填的总量估算）> token 停用线 → 还在用资源包，现金不适用
+   *  - 资源包查不到、也没填总量、而且从没充过钱 → 判断不了，不提前跳过（只认报错）
+   *  - 其余情况（资源包用完 / 没有资源包，靠现金）→ 现金适用，余额 ≤ 停用线才跳过 */
+  function cashInfo(p, live, st) {
+    const okLive = live && !live.error ? live : null;
+    const pkgLive = okLive && okLive.packageTokens != null ? okLive.packageTokens : null;
+    const est = st.budgetTokens != null ? Math.max(0, st.budgetTokens - usage.stats(p.id, st.budgetSince || 0).tokens) : null;
+    const packageTokens = pkgLive != null ? pkgLive : est;
+    const packageSource = pkgLive != null ? 'provider' : est != null ? 'estimated' : null;
+    const base = {packageTokens, packageSource};
+    if (exemptIds().includes(p.id)) return {...base, applies: false, why: 'exempt'};
+    if (p.type === 'zhipu' && isZhipuFreeModel(p.model)) return {...base, applies: false, why: 'free_model'};
+    if (packageTokens != null && packageTokens > st.stopTokens) return {...base, applies: false, why: 'resource_package'};
+    if (packageTokens == null && okLive && okLive.totalGranted === 0 && okLive.used === 0 && okLive.balance === 0) return {...base, applies: false, why: 'no_cash_history'};
+    return {...base, applies: true, why: null};
+  }
+  // 启动时清掉以前因为“余额低于停用线 / 估算用完”留下的标记（这类判断每次都会重新算，不需要保存）
+  try { db.prepare("UPDATE ai_quota_settings SET exhausted_at=NULL, exhausted_reason=NULL WHERE exhausted_reason IN ('balance','estimated','packages_and_cash')").run(); } catch {}
   const dropCache = id => { for (const k of [...cache.keys()]) if (k.startsWith(id + '|')) cache.delete(k); };
 
   /** 这家现在算不算“用完”（自动切换用）。只用 60 秒内的余额缓存；被标记用完的会强制重查（10 秒一次）看是否已充值。 */
   async function exhaustion(p) {
     const st = settingsOf(p.id);
     const live = await liveBalance(p, !!st.exhaustedAt);
-    const ok = !!live && !live.error && live.balance != null;
+    const cash = cashInfo(p, live, st);
+    const ok = !!live && !live.error && live.balance != null && cash.applies;
     if (st.exhaustedAt) {
       if (ok && live.fetchedAt > st.exhaustedAt && live.balance > st.stopBalance) q.clear.run(p.id);
+      else if (cash.packageSource === 'provider' && cash.packageTokens > st.stopTokens && live.fetchedAt > st.exhaustedAt) q.clear.run(p.id); // 资源包补上了
       else if (!ok && now() - st.exhaustedAt >= cooldown()) q.clear.run(p.id);
       else return {exhausted: true, reason: st.exhaustedReason || 'balance', since: st.exhaustedAt};
     }
-    if (ok && live.balance <= st.stopBalance) return {exhausted: true, reason: 'balance', since: null};
-    if (st.budgetTokens != null && st.budgetTokens - usage.stats(p.id, st.budgetSince || 0).tokens <= st.stopTokens) return {exhausted: true, reason: 'estimated', since: null};
+    if (cash.applies) {
+      // 资源包用完（或没有资源包）且现金 ≤ 停用线才算用完；查不到现金余额时，按估算的资源包用完算
+      if (ok && live.balance <= st.stopBalance) return {exhausted: true, reason: cash.packageTokens != null ? 'packages_and_cash' : 'balance', since: null};
+      if (!(live && !live.error && live.balance != null) && cash.packageSource === 'estimated' && cash.packageTokens <= st.stopTokens) return {exhausted: true, reason: 'estimated', since: null};
+    }
     return {exhausted: false, reason: null, since: null};
   }
   function markExhausted(p, reason) { q.mark.run(p.id, now(), String(reason || 'balance').slice(0, 40), now()); dropCache(p.id); }
@@ -213,8 +276,10 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
       estimatedRemainingTokens = Math.max(0, st.budgetTokens - usedSinceBudget);
       if (source === 'none') source = 'estimated';
     }
+    const cash = cashInfo(p, live, st);
     const lowLine = st.lowBalance != null ? st.lowBalance : (currency === 'USD' ? 2 : 10);
-    const low = source === 'provider' ? balance != null && balance <= lowLine
+    const byCash = source === 'provider' && cash.applies;
+    const low = byCash ? balance != null && balance <= lowLine
       : (estimatedRemainingTokens != null && st.budgetTokens > 0 ? estimatedRemainingTokens <= st.budgetTokens * 0.1 : false);
     return {
       id: p.id, name: p.name, type: p.type, typeName: t.name, model: p.model, builtin: !!p.builtin,
@@ -225,7 +290,8 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
       resourcePackages: lb && Array.isArray(lb.resourcePackages) ? lb.resourcePackages : [], detail: lb ? lb.detail || null : null,
       fetchedAt: live ? live.fetchedAt : null, error: live && live.error ? live.error : null, stale: !!(live && live.error && live.stale),
       budgetTokens: st.budgetTokens, budgetSince: st.budgetSince, usedSinceBudget, estimatedRemainingTokens,
-      lowBalance: lowLine, low, empty: source === 'provider' ? balance != null && balance <= 0 : estimatedRemainingTokens === 0,
+      lowBalance: lowLine, low, empty: byCash ? balance != null && balance <= 0 : estimatedRemainingTokens === 0,
+      cashApplies: cash.applies, cashNote: cash.why, packageTokens: cash.packageTokens, packageSource: cash.packageSource, packagesError: lb && lb.packagesError ? lb.packagesError : null, cashExempt: exemptIds().includes(p.id), freeModel: p.type === 'zhipu' && isZhipuFreeModel(p.model),
       usage: {today, week},
       priority, stopBalance: st.stopBalance, stopTokens: st.stopTokens,
       exhausted: ex.exhausted, exhaustedReason: ex.reason, exhaustedAt: ex.since,
@@ -249,6 +315,7 @@ export function createAiQuota(db, {providers, usage, fetchImpl, env = process.en
     if (body.lowBalance !== undefined) { low = body.lowBalance === null || body.lowBalance === '' ? null : Number(body.lowBalance); if (low != null && (!Number.isFinite(low) || low < 0 || low > 1e7)) throw new ApiError(400, 'BAD_NUMBER', '提醒线不对'); }
     let stop = old.stopBalance;
     if (body.stopBalance !== undefined) { stop = body.stopBalance === null || body.stopBalance === '' ? 0 : Number(body.stopBalance); if (!Number.isFinite(stop) || stop < 0 || stop > 1e6) throw new ApiError(400, 'BAD_NUMBER', '停用线不对'); }
+    if (body.cashExempt !== undefined) setExempt(id, !!body.cashExempt);
     const stopTokens = body.stopTokens !== undefined ? (toInt(body.stopTokens, 1e12) || 0) : old.stopTokens;
     // 改了额度总量（或要求重新开始算）时，从现在起重新累计已用
     const since = budget == null ? null : (budget !== old.budgetTokens || body.resetSince ? now() : (old.budgetSince || now()));

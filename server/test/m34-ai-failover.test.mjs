@@ -11,7 +11,7 @@ const MOON_KEY = 'sk-moonshot-NOT-REAL-efgh';
 const OAI_KEY = 'sk-compat-NOT-REAL-ijkl';
 let T = Date.parse('2026-11-19T16:00:00+08:00');
 const adv = (ms = 61e3) => { T += ms; };
-const env = {AI_API_KEY: ENV_KEY, AI_API_BASE: 'https://open.bigmodel.cn/api/paas/v4', ADMIN_AI_KEY_SECRET: 'unit-test-secret'};
+const env = {AI_API_KEY: ENV_KEY, AI_API_BASE: 'https://open.bigmodel.cn/api/paas/v4', ADMIN_AI_KEY_SECRET: 'unit-test-secret', ADMIN_AI_MODEL: 'glm-4-plus'}; // 付费模型（glm-4-flash 是免费模型，不按现金判断）
 const json = (o, status = 200) => new Response(JSON.stringify(o), {status, headers: {'content-type': 'application/json'}});
 const net = {zhipuBalance: 30, kimiBalance: 8, mode: {zhipu: 'ok', kimi: 'ok', compat: 'ok'}, hits: [], search: []};
 const who = auth => auth === 'Bearer ' + ENV_KEY ? 'zhipu' : auth === 'Bearer ' + MOON_KEY ? 'kimi' : auth === 'Bearer ' + OAI_KEY ? 'compat' : '?';
@@ -87,7 +87,7 @@ test('余额不足类错误识别：智谱 1113/1112、Kimi、OpenAI、402、通
 test('默认按顺序用第一家（智谱）；顺序里当前使用排第一', async () => {
   const r = await chat();
   assert.equal(r.s, 200, r.text);
-  assert.match(r.j.reply, /glm-4-flash/);
+  assert.match(r.j.reply, /glm-4-plus/);
   const ov = await quota();
   assert.deepEqual(ov.order.slice(0, 3), ['env', kimiId, compatId]);
   assert.equal(ov.failover.enabled, true, '默认打开自动切换');
@@ -120,7 +120,7 @@ test('停用线：设为 ¥1 时余额 0.5 也算用完；改回 0 又用回智�
   assert.equal(item(s.j, 'env').stopBalance, 1);
   assert.match((await chat()).j.reply, /moonshot/);
   await call('POST', '/api/admin/ai/quota/env/settings', {stopBalance: 0});
-  assert.match((await chat()).j.reply, /glm-4-flash/);
+  assert.match((await chat()).j.reply, /glm-4-plus/);
   assert.equal((await call('POST', '/api/admin/ai/quota/env/settings', {stopBalance: -1})).s, 400);
 });
 
@@ -143,7 +143,7 @@ test('按报错切换：智谱返回 1113（HTTP 429 欠费）→ 标记用完�
   // 充值后（余额接口显示有钱、且是标记之后查到的）自动恢复
   net.mode.zhipu = 'ok'; adv();
   net.hits.length = 0;
-  assert.match((await chat()).j.reply, /glm-4-flash/);
+  assert.match((await chat()).j.reply, /glm-4-plus/);
   assert.deepEqual(net.hits, ['zhipu']);
 });
 

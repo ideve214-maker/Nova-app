@@ -35,7 +35,7 @@ export class BillingError extends Error {
 }
 
 export const REASON_TEXT = {
-  balance: '余额低于停用线', estimated: '估算剩余 token 用完', http_402: '服务商返回 402（余额不足）', zhipu_1113: '智谱 1113：欠费或没有可用资源包',
+  balance: '余额低于停用线', packages_and_cash: '资源包用完且现金低于停用线', estimated: '估算剩余 token 用完', http_402: '服务商返回 402（余额不足）', zhipu_1113: '智谱 1113：欠费或没有可用资源包',
   zhipu_1112: '智谱 1112：余额不足', exceeded_current_quota: 'Kimi：余额不足', insufficient_quota: '额度不足（insufficient_quota）',
   arrearage: '通义：账号欠费', siliconflow_30001: '硅基流动：余额不足', message: '服务商提示余额不足', manual: '管理员恢复', all_exhausted: '所有接口额度都用完了',
 };
