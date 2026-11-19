@@ -41,6 +41,7 @@ import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
 import {createAdminV2} from './admin-v2.mjs';
 import {createAdminAi} from './admin-ai.mjs';
+import {createHot, HotError} from './hot.mjs';
 import {createFeatured} from './featured.mjs';
 import {
   clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
@@ -102,6 +103,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   rateLimitMode = process.env.NOVA_RATE_LIMIT || '',
   alertWebhook = process.env.NOVA_ALERT_WEBHOOK || '',
   aiEnv = process.env, aiFetch, adminAiOpts = {},
+  hotFetch, hotInterval, hotLimit, hotItemDelay, hotAuto,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -349,6 +351,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     return loadLegal(kind, process.env);
   }
   const verInfo = appVersion();
+  const hot = createHot({db, now, fetchFn: hotFetch || globalThis.fetch, intervalMs: hotInterval, limit: hotLimit, itemDelayMs: hotItemDelay == null ? 80 : hotItemDelay});
   const routes = {
     'POST /api/auth/register'(req, b) {
       if (flags.read().registrationOpen === false) throw bad('REGISTRATION_CLOSED', '暂不开放注册', 403);
@@ -1823,6 +1826,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/version'() {
       return verInfo;
     },
+    async 'GET /api/hot'(req) {
+      auth(req);
+      try { return await hot.handle(req.query || {}); }
+      catch (e) {
+        if (e instanceof HotError) throw bad(e.code, e.message, e.s);
+        throw e;
+      }
+    },
     'GET /api/metrics'(req) {
       const {admin} = adminAuth(req);
       let disk = {};
@@ -2164,6 +2175,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
+  // 测试跑在文件库上也会打开 scheduleAuto；热榜默认在 NODE_TEST_CONTEXT 里不自动拉外网。
+  const autoHot = hotAuto != null ? !!hotAuto : (autoSched && !process.env.NODE_TEST_CONTEXT);
+  if (autoHot) hot.start();
   if (autoSched && process.env.ADMIN_AI_ADS_DAILY !== '0') adminAi.ads.start();
   const _close = server.close.bind(server);
   server.close = function(cb) {
@@ -2173,6 +2187,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     return _close(cb);
   };
 
+  server.hot = hot;
   return server;
 }
 
