@@ -49,6 +49,28 @@ export const adsSaveCampaign = (c: { id?: number; name: string; url: string; inf
 export const adsDeleteCampaign = (id: number) => call<AdsOverview>("adminAdsCampaignDelete", { params: { id: String(id) }, body: {} });
 export const adsGenerate = (campaignId?: number) => call<AdsOverview & { generated: AdCopy[] }>("adminAdsGenerate", { body: campaignId ? { campaignId } : {}, timeoutMs: 90000 });
 
+// ---- 2.0.6 AI 自动找广告并发布营销帖（服务器默认关闭）
+export type AutoAd = {
+  id: string; advertiser: string; title: string; text: string; linkUrl: string; cta: string; enabled: boolean;
+  impressions: number; clicks: number; createdAt: number; endsAt: number | null;
+  source: "ai"; sourceUrl: string; sourceTitle: string; trigger: "schedule" | "manual" | "assistant" | null; takenDownAt: number | null; live: boolean;
+};
+export type AutoAdsSettings = { enabled: boolean; dailyCap: number; query: string; blockwords: string[] };
+export type AutoAdsStatus = {
+  envEnabled: boolean; switchOn: boolean; configured: boolean; active: boolean; hour: number; timezone: string; lastRunDay: string | null;
+  todayPublished: number; dailyCap: number; capMax: number; ttlDays: number; running: boolean; defaultBlockwords: number;
+};
+export type AutoAdsOverview = { settings: AutoAdsSettings; status: AutoAdsStatus; ads: AutoAd[] };
+export type AutoAdsLogRow = { id: number; at: number; actorId: number | null; action: string; target: string | null; detail: Record<string, unknown> | null };
+export type AutoAdsRunResult = { skipped?: string; error?: string; found?: number; published?: AutoAd[]; rejected?: number; stopped?: string | null };
+
+export const autoAdsOverview = (status: "all" | "live" | "down" = "all") => call<AutoAdsOverview>("adminAutoAds", { query: { status, limit: 200 } });
+export const autoAdsSave = (patch: Partial<{ enabled: boolean; dailyCap: number; query: string; blockwords: string }>) => call<AutoAdsOverview>("adminAutoAdsSettings", { body: patch });
+export const autoAdsRun = () => call<AutoAdsOverview & { result: AutoAdsRunResult }>("adminAutoAdsRun", { body: {}, timeoutMs: 180000 });
+export const autoAdsTakedown = (id: string) => call<AutoAdsOverview>("adminAutoAdsTakedown", { params: { id }, body: {} });
+export const autoAdsTakedownAll = () => call<AutoAdsOverview & { count: number }>("adminAutoAdsTakedownAll", { body: {} });
+export const autoAdsLog = () => call<{ log: AutoAdsLogRow[] }>("adminAutoAdsLog", { query: { limit: 100 } });
+
 // ---- 管理端 2.0
 export type TagCount = { tag: string; count: number };
 export const listTags = () => call<{ tags: TagCount[]; presets?: string[] }>("adminTags");

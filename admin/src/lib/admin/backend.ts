@@ -121,6 +121,13 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminAdsCampaign: "/api/admin/ai/ads/campaigns/:id",
   adminAdsCampaignDelete: "/api/admin/ai/ads/campaigns/:id/delete",
   adminAdsGenerate: "/api/admin/ai/ads/generate",
+  // 2.0.6 AI 自动找广告并发布营销帖
+  adminAutoAds: "/api/admin/ai/auto-ads",
+  adminAutoAdsSettings: "/api/admin/ai/auto-ads/settings",
+  adminAutoAdsRun: "/api/admin/ai/auto-ads/run",
+  adminAutoAdsTakedown: "/api/admin/ai/auto-ads/:id/takedown",
+  adminAutoAdsTakedownAll: "/api/admin/ai/auto-ads/takedown-all",
+  adminAutoAdsLog: "/api/admin/ai/auto-ads/log",
   posts: "/api/posts",
   communities: "/api/communities",
   notifications: "/api/notifications",
