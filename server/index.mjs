@@ -41,6 +41,8 @@ import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
 import {createAdminV2} from './admin-v2.mjs';
 import {createAdminAi} from './admin-ai.mjs';
+import {createAiProviders} from './ai-providers.mjs';
+import {createAiUsage, createAiQuota, meterFetch, aiQuotaRoutes} from './ai-quota.mjs';
 import {createFeatured} from './featured.mjs';
 import {
   clientIp, forwardedProto, securityHeaders, cookieAuth, assertCsrf, needsCsrf,
@@ -133,6 +135,13 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   }
 
   const db = openDb(dbPath);
+  // 2.0.7 AI 服务商 + 用量统计：所有 AI 对话 / 联网搜索请求都经过 meterFetch 记一行 ai_usage（只记服务商、模型、token 数）。
+  const aiProviders = createAiProviders(db, {env: aiEnv || process.env, now: () => clock(), dbPath});
+  const aiUsage = createAiUsage(db, {now: () => clock()});
+  const meterOpts = {record: r => aiUsage.record(r), attribute: u => aiProviders.attribute(u)};
+  const rawAiFetch = aiFetch;
+  aiFetch = meterFetch(rawAiFetch, meterOpts);
+  const adminAiFetch = meterFetch(adminAiOpts.fetchImpl || rawAiFetch, meterOpts);
   const flags = createFlags(db, {now});
   const vip = createVip(db, {clock});
   const saved = createSaved(db, {vip, now});
@@ -1905,7 +1914,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   };
 
   // 管理端 AI 助手：新增 /api/admin/ai/*。确认后的写操作通过 invoke 原样重放到上面的管理端接口（同一令牌、同样校验与审计）。
-  const adminAi = createAdminAi(db, {now, env: aiEnv || process.env, fetchImpl: adminAiOpts.fetchImpl || aiFetch, audit,
+  const adminAi = createAdminAi(db, {now, env: aiEnv || process.env, fetchImpl: adminAiFetch, audit, providers: aiProviders,
     pageFetch: adminAiOpts.pageFetch, lookup: adminAiOpts.lookup, marketing, blockwords,
     invoke: async (src, method, path, body, query) => {
       const found = findRoute(method, path);
@@ -1914,6 +1923,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return await found.fn(r, body || {});
     }});
   Object.assign(routes, adminAi.routes({adminAuth, ip}));
+  // 2.0.7 AI 额度面板 + AI 服务商管理（管理员登录；AI 助手不能代调）。余额查询不经过 meterFetch（不算 AI 调用）。
+  const aiQuota = createAiQuota(db, {providers: aiProviders, usage: aiUsage, env: aiEnv || process.env, now,
+    fetchImpl: adminAiOpts.quotaFetch || adminAiOpts.fetchImpl || rawAiFetch});
+  Object.assign(routes, aiQuotaRoutes({adminAuth, ip, audit, providers: aiProviders, quota: aiQuota, meteredFetch: adminAiFetch, now}));
 
   function findRoute(method, path) {
     const exact = routes[method + ' ' + path];

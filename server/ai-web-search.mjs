@@ -31,7 +31,8 @@ export function parseSearchResults(j) {
   return out;
 }
 
-export function createWebSearch({env = process.env, fetchImpl, now = Date.now, base, apiKey, model, ready} = {}) {
+// 2.0.7：可以传 provider()（返回 {base,key,model} 或 null，见 ai-providers.mjs 的 searchProvider），优先于 base/apiKey/model/ready。
+export function createWebSearch({env = process.env, fetchImpl, now = Date.now, base, apiKey, model, ready, provider, unavailable} = {}) {
   const doFetch = fetchImpl || ((...a) => fetch(...a));
   const engine = () => String(env.ADMIN_AI_SEARCH_ENGINE || 'search_std').trim();
   const perDay = () => { const n = Number(env.ADMIN_AI_SEARCH_RPD); return Number.isInteger(n) && n >= 0 ? n : 30; };
@@ -45,13 +46,14 @@ export function createWebSearch({env = process.env, fetchImpl, now = Date.now, b
   async function search(query, {count = 8} = {}) {
     const q = clip(query, 120);
     if (!q) throw new ApiError(400, 'BAD_QUERY', '请填写搜索关键词');
-    if (!ready()) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'AI 助手还没有配置智谱密钥');
+    const p = provider ? provider() : (ready() ? {base: base(), key: apiKey(), model: model()} : null);
+    if (!p) throw new ApiError(503, 'AI_NOT_CONFIGURED', (unavailable && unavailable()) || 'AI 助手还没有配置智谱密钥');
     budget();
     let res;
     try {
-      res = await doFetch(base() + '/chat/completions', {method: 'POST', signal: AbortSignal.timeout(30000),
-        headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey()},
-        body: JSON.stringify({model: model(), temperature: 0.1, max_tokens: 300,
+      res = await doFetch(p.base + '/chat/completions', {method: 'POST', signal: AbortSignal.timeout(30000),
+        headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + p.key},
+        body: JSON.stringify({model: p.model, temperature: 0.1, max_tokens: 300,
           messages: [{role: 'user', content: '联网搜索：' + q}],
           tools: [{type: 'web_search', web_search: {enable: true, search_engine: engine(), search_result: true, search_query: q}}]})});
     } catch { throw new ApiError(503, 'SEARCH_UNAVAILABLE', '联网搜索暂时连不上，请稍后再试'); }
