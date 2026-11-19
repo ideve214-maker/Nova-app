@@ -38,3 +38,10 @@
 | mines | 扫雷 | kereszteszsolt/clear-field | edd9b1a | MIT |
 | sudoku | 数独 | theabbie/sudoku | 46c55b9 | MIT |
 | c4 | 四子棋 | kenrick95/c4 | 5f0b141 | MIT |
+
+## 命令速查
+
+| 名称 | 上游 | 许可 | 说明 |
+| --- | --- | --- | --- |
+| tldr-pages | [tldr-pages/tldr](https://github.com/tldr-pages/tldr) | CC BY 4.0 | 命令说明文案由服务器按需拉取并缓存，不打进热更新包。界面须显示「内容来自 tldr-pages，按 CC BY 4.0 许可使用。」并链接到 https://github.com/tldr-pages/tldr 与对应原文。项目站点 https://tldr.sh 。 |
+
