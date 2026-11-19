@@ -1,5 +1,25 @@
 # 更新日志（最新在上）
 
+## 未发布 · 每日天气帖（分支 feat/weather-card-v2，基于和风天气 + ip2region）
+
+从线上 2.0.5 / b0a6e23 拉出。不改版本号。用户每天第一次打开 App 时，首页动态流最上面出现一条「今日天气」卡片，样子跟普通帖子一样，但不是数据库里的帖子，没有点赞、评论、转帖，可以关掉。当天再打开就不会再出现，第二天会再出现。点卡片能看详细天气、搜城市；点「用我的位置」才申请定位权限。服务器没配和风密钥时整张卡片不显示。社区页不放天气入口。
+
+- 客户端只请求本服务器 `GET /api/weather`（`loc` / `q` 可选）。密钥只放在服务器，不进 App、不进仓库。
+- 默认城市：服务器用开源离线库 [ip2region](https://github.com/lionsoul2014/ip2region)（Apache-2.0 / MIT）根据请求 IP 判断城市，再走和风 Geo。IP 取自 nginx 的 `X-Forwarded-For` / `X-Real-IP`（需 `NOVA_TRUST_PROXY=1`）。不记录、不存储原始 IP。没有 xdb 或查不到时回退到北京；用户手动选过的城市（localStorage）优先于 IP。
+- 天气数据来自和风天气官方 API（Geo v2 + Weather v1 current/daily）。图标来自开源库 [qwd/Icons](https://github.com/qwd/Icons)（图标 CC BY 4.0），卡片上标明「天气服务由和风天气提供」。
+- 没有数据库迁移。发布时需要先部署服务器（新接口、密钥、可选 xdb），再发热更新。xdb 不要打进热更新包，见 `docs/WEATHER-SERVER.md`。
+- 新增 `server/test/weather.test.mjs`（假 fetch，覆盖 IP 查到 / 查不到 / 无 xdb）和 `server/test/m211-weather-ui.test.mjs`（CDP 真实触摸，390×844），已加入 `npm run test:server` / `test:ui`。
+
+## 未发布 · 每日天气帖（分支 feat/weather-card-v2，基于和风天气 + ip2region）
+
+从线上 2.0.5 / b0a6e23 拉出。不改版本号。用户每天第一次打开 App 时，首页动态流最上面出现一条「今日天气」卡片，样子跟普通帖子一样，但不是数据库里的帖子，没有点赞、评论、转帖，可以关掉。当天再打开就不会再出现，第二天会再出现。点卡片能看详细天气、搜城市；点「用我的位置」才申请定位权限。服务器没配和风密钥时整张卡片不显示。社区页不放天气入口。
+
+- 客户端只请求本服务器 `GET /api/weather`（`loc` / `q` 可选）。密钥只放在服务器，不进 App、不进仓库。
+- 默认城市：服务器用开源离线库 [ip2region](https://github.com/lionsoul2014/ip2region)（Apache-2.0 / MIT）根据请求 IP 判断城市，再走和风 Geo。IP 取自 nginx 的 `X-Forwarded-For` / `X-Real-IP`（需 `NOVA_TRUST_PROXY=1`）。不记录、不存储原始 IP。没有 xdb 或查不到时回退到北京；用户手动选过的城市（localStorage）优先于 IP。
+- 天气数据来自和风天气官方 API（Geo v2 + Weather v1 current/daily）。图标来自开源库 [qwd/Icons](https://github.com/qwd/Icons)（图标 CC BY 4.0），卡片上标明「天气服务由和风天气提供」。
+- 没有数据库迁移。发布时需要先部署服务器（新接口、密钥、可选 xdb），再发热更新。xdb 不要打进热更新包，见 `docs/WEATHER-SERVER.md`。
+- 新增 `server/test/weather.test.mjs`（假 fetch，覆盖 IP 查到 / 查不到 / 无 xdb）和 `server/test/m211-weather-ui.test.mjs`（CDP 真实触摸，390×844），已加入 `npm run test:server` / `test:ui`。
+
 ## VEXO 2.0.x · 底部导航栏又能左右拖动了（修 #24 回归，待发布）
 
 只改客户端（`src/79d_tabglass.js`、`src/00_head.html`），不需要升级服务器，也不需要数据库迁移；走热更新。

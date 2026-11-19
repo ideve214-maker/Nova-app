@@ -38,3 +38,12 @@
 | mines | 扫雷 | kereszteszsolt/clear-field | edd9b1a | MIT |
 | sudoku | 数独 | theabbie/sudoku | 46c55b9 | MIT |
 | c4 | 四子棋 | kenrick95/c4 | 5f0b141 | MIT |
+
+## 天气
+
+| 组件 | 来源 | 许可 | 说明 |
+| --- | --- | --- | --- |
+| 和风天气 API | [dev.qweather.com](https://dev.qweather.com) | 和风天气开发者服务条款 | 仅服务器调用。卡片署名「天气服务由和风天气提供」，并链接到 [qweather.com](https://www.qweather.com)。 |
+| 和风天气图标 | [qwd/Icons](https://github.com/qwd/Icons) | 代码 MIT，图标设计 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 官方图标子集内联在 `src/35_weather_icons.js`。版权所有 © 和风天气。 |
+| ip2region | [lionsoul2014/ip2region](https://github.com/lionsoul2014/ip2region) | Apache-2.0 或 MIT | 服务器离线 IP→城市。查询客户端在 `server/vendor/ip2region/`。xdb 数据文件不进仓库、不进客户端、不进热更新包。 |
+
