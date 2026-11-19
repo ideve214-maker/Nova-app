@@ -1,0 +1,5 @@
+ip2region (https://github.com/lionsoul2014/ip2region)
+Copyright The Ip2Region Authors
+Licensed under Apache License 2.0 or MIT, at your option.
+This directory vendors only the official JavaScript xdb searcher (binding/javascript).
+The xdb database file is NOT included; place it on the server and set NOVA_IP2REGION_XDB.
