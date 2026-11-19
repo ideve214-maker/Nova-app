@@ -33,15 +33,23 @@ const fmt = (t: number | null | undefined) => {
   const d = new Date(t + 8 * 3600e3);
   return `${d.getUTCMonth() + 1}-${String(d.getUTCDate()).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 };
+/** 旧版的空格串（超过 3 个词）显示成每行一个方向，和服务器的拆分规则一致。 */
+export const toLines = (q: string) => {
+  const s = String(q || "");
+  if (/[\n\r,，、;；]/.test(s)) return s.split(/[\n\r,，、;；]+/).map((x) => x.trim()).filter(Boolean).join("\n");
+  const w = s.trim().split(/\s+/).filter(Boolean);
+  return w.length > 3 ? w.join("\n") : s.trim();
+};
 function logLine(r: AutoAdsLogRow): string {
   const d = (r.detail || {}) as Record<string, unknown>;
   const parts: string[] = [];
-  if (typeof d.code === "string") parts.push(REASON[d.code] || d.code);
-  if (typeof d.reason === "string" && !d.code) parts.push(SKIP[d.reason] || d.reason);
+  if (typeof d.code === "string" && (REASON[d.code] || typeof d.error !== "string")) parts.push(REASON[d.code] || d.code);
+  if (typeof d.reason === "string" && d.reason && !d.code) parts.push(SKIP[d.reason] || ((r.action === "ai.autoads.error" || r.action === "ai.autoads.run") ? "原因：" + d.reason : d.reason));
   if (typeof d.title === "string" && d.title) parts.push("「" + d.title + "」");
-  if (typeof d.query === "string") parts.push("关键词：" + d.query);
+  if (typeof d.query === "string" && d.query) parts.push((r.action === "ai.autoads.searched" ? "方向：" : "关键词：") + d.query.replace(/\n/g, "、"));
   if (typeof d.published === "number") parts.push(`发布 ${d.published} 条，拦下 ${Number(d.rejected) || 0} 条`);
-  if (typeof d.count === "number" && r.action !== "ai.autoads.run") parts.push(`${d.count} 条`);
+  if (typeof d.count === "number" && r.action !== "ai.autoads.run" && !(d.count === 0 && typeof d.error === "string")) parts.push(`${d.count} 条`);
+  if (typeof d.error === "string" && d.error) parts.push(d.error);
   if (typeof d.sourceUrl === "string" && d.sourceUrl) parts.push(hostOf(d.sourceUrl));
   return parts.join(" · ");
 }
@@ -60,7 +68,7 @@ export function AutoAdsTab() {
   const [log, setLog] = useState<AutoAdsLogRow[] | null>(null);
   const [logErr, setLogErr] = useState("");
 
-  const fill = (d: AutoAdsOverview) => { setData(d); setCap(String(d.settings.dailyCap)); setQuery(d.settings.query); setWords(d.settings.blockwords.join("\n")); };
+  const fill = (d: AutoAdsOverview) => { setData(d); setCap(String(d.settings.dailyCap)); setQuery(toLines(d.settings.query)); setWords(d.settings.blockwords.join("\n")); };
   const load = useCallback(async (f = filter) => {
     const r = await autoAdsOverview(f);
     if (r.ok) { fill(r.data); setErr(""); } else setErr(r.error);
@@ -78,7 +86,7 @@ export function AutoAdsTab() {
     setBusy(false);
     if (!r.ok) { flash(r.error); return; }
     const x = r.data.result;
-    flash(x.skipped ? "没有运行：" + (SKIP[x.skipped] || x.skipped) : x.stopped === "quota_exhausted" ? `AI 额度都用完了，这一轮已停止（已发布 ${x.published?.length || 0} 条）` : x.error ? "联网搜索失败，请稍后再试" : `已发布 ${x.published?.length || 0} 条，拦下 ${x.rejected || 0} 条`);
+    flash(x.skipped ? "没有运行：" + (SKIP[x.skipped] || x.skipped) : x.stopped === "quota_exhausted" ? `AI 额度都用完了，这一轮已停止（已发布 ${x.published?.length || 0} 条）` : x.reason ? "没有发帖：" + x.reason : x.error ? (x.error === "search_failed" ? "联网搜索失败，请稍后再试" : x.error) : `已发布 ${x.published?.length || 0} 条，拦下 ${x.rejected || 0} 条`);
     void load();
   };
   const takedown = async (ad: AutoAd) => {
@@ -129,9 +137,10 @@ export function AutoAdsTab() {
               </Field>
               <button type="button" className="mb-2.5 h-11 rounded-full bg-subtle px-4 text-[13px] font-semibold" onClick={() => void save({ dailyCap: Math.min(st.capMax, Math.max(0, Number(cap) || 0)) })}>保存</button>
             </div>
-            <Field label="搜索方向（关键词）">
-              <input className={inputClass} value={query} maxLength={120} placeholder="例如：济南 新店开业 优惠活动" onChange={(e) => setQuery(e.target.value)} />
+            <Field label="搜索方向（每行一个方向）">
+              <textarea className={textareaClass} rows={5} value={query} maxLength={600} placeholder={"例如：\n济南 新店开业 优惠活动\n济南 知识培训\n科研教育 机构"} onChange={(e) => setQuery(e.target.value)} />
             </Field>
+            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">每个方向单独联网搜索一次（每轮最多 5 个，轮流搜），结果合并去重。不相关的方向不要写在同一行，否则容易一条都搜不到。</p>
             <Field label={`额外屏蔽词（每行一个；已内置 ${st.defaultBlockwords} 个高风险词和平台屏蔽词）`}>
               <textarea className={textareaClass} rows={3} value={words} placeholder={"例如：\n加盟\n代理"} onChange={(e) => setWords(e.target.value)} />
             </Field>
