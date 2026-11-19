@@ -34,6 +34,7 @@ import { getStoredTheme, setSkin, setTheme, SKIN_DEFAULT_MODE, SKINS, type SkinI
 import { AppIcon, DataHint, DemoBanner, EmptyState, Pill, RowLink, Seg, useAppearance } from "./ui";
 import { ConnectionBadge } from "./server-panel";
 import { AiQuotaCard } from "./ai-quota";
+import { UpdateCheckRow } from "./update-check";
 
 const modules: { name: PageName; label: string; desc: string; icon: typeof Users }[] = [
   { name: "users", label: "用户", desc: "查看、封禁、资料与标签", icon: Users },
@@ -542,6 +543,9 @@ export function MeScreen() {
             </button>
           ))}
         </div>
+      </div>
+      <div className="mx-5 mt-3 overflow-hidden rounded-card bg-surface shadow-card">
+        <UpdateCheckRow />
       </div>
       {detectedVersion && (
         <p className="mt-3 px-4 text-center text-[12px] text-muted">服务器 {detectedVersion}</p>

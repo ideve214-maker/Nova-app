@@ -1,4 +1,4 @@
-import { rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv, type Plugin } from "vite";
@@ -8,6 +8,15 @@ import tailwindcss from "@tailwindcss/vite";
 const root = dirname(fileURLToPath(import.meta.url));
 
 const LIVE_UPDATE_FILE = resolve(root, ".nova-live-update.json");
+
+function adminAppVersion(): string {
+  try {
+    const version = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).version;
+    return String(version || "").trim();
+  } catch {
+    return "";
+  }
+}
 
 function truthy(v: string | undefined): boolean {
   return ["1", "true", "yes", "on"].includes(
@@ -71,6 +80,8 @@ function liveUpdateHandoff(live: { url: string; version: string }): Plugin {
 }
 
 export default defineConfig(({ mode, command }) => {
+  const appVersion = adminAppVersion();
+  if (appVersion) process.env.VITE_NOVA_APP_VERSION = appVersion;
   // 每次构建先删掉上一次写下的地址文件：构建失败或这次没地址时，都不会留下旧地址给 cap sync。
   if (command === "build") rmSync(LIVE_UPDATE_FILE, { force: true });
   const live = resolveLiveUpdate(mode);

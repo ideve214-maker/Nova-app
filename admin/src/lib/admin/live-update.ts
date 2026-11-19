@@ -139,3 +139,143 @@ export function isNewerVersion(a: string, b: string): boolean {
   }
   return false;
 }
+
+export const MISSING_UPDATE_URL_MESSAGE = "未配置更新地址";
+
+/** Result of a user-initiated update check. Always has a message to show. */
+export type LiveUpdateFeedback =
+  | { status: "up_to_date"; version: string; message: string }
+  | {
+      status: "available";
+      version: string;
+      currentVersion: string;
+      options: NonNullable<ReturnType<typeof toDownloadOptions>>;
+      message: string;
+    }
+  | { status: "error"; message: string };
+
+/** App version baked in at build time from package.json (empty in unit tests). */
+export function getBuiltinAppVersion(): string {
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env;
+    return String(env?.VITE_NOVA_APP_VERSION || env?.VITE_NOVA_UPDATE_VERSION || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+/** The self-hosted manifest uses error + kind:"up_to_date" to mean "already latest", not a failure. */
+export function isUpToDateManifest(latest: UpdateCheck | null | undefined): boolean {
+  if (!latest) return false;
+  if (latest.kind === "up_to_date") return true;
+  const err = String(latest.error ?? "").trim().toLowerCase();
+  return err === "no_new_version_available" || err === "up_to_date";
+}
+
+export function formatUpToDateMessage(version: string): string {
+  const v = String(version || "").trim();
+  return v ? `已是最新版本 ${v}` : "已是最新版本";
+}
+
+export function formatAvailableMessage(version: string): string {
+  const v = String(version || "").trim();
+  return v ? `发现新版本 ${v}` : "发现新版本";
+}
+
+export function readRunningVersion(
+  current?: { bundle?: { version?: string }; native?: string } | null,
+  fallback = "",
+): string {
+  const bundle = current?.bundle?.version;
+  if (bundle && bundle !== "builtin") return String(bundle);
+  if (current?.native) return String(current.native);
+  return fallback || getBuiltinAppVersion();
+}
+
+/**
+ * Turn a getLatest() payload into UI feedback.
+ * kind:"up_to_date" (even when error is set) is "already latest", not a failed check.
+ */
+export function feedbackForLatest(
+  latest: UpdateCheck | null | undefined,
+  currentVersion: string,
+): LiveUpdateFeedback {
+  const current = String(currentVersion || "").trim();
+  if (isUpToDateManifest(latest)) {
+    const version = String(latest?.version || current || "").trim();
+    return { status: "up_to_date", version, message: formatUpToDateMessage(version) };
+  }
+  const options = toDownloadOptions(latest);
+  if (options) {
+    if (current && !isNewerVersion(options.version, current)) {
+      return { status: "up_to_date", version: current, message: formatUpToDateMessage(current) };
+    }
+    return {
+      status: "available",
+      version: options.version,
+      currentVersion: current,
+      options,
+      message: formatAvailableMessage(options.version),
+    };
+  }
+  if (!latest) {
+    return { status: "error", message: "检查更新失败，请稍后重试" };
+  }
+  if (latest.error) {
+    return { status: "error", message: String(latest.error) };
+  }
+  const url = String(latest.url ?? "").trim();
+  const version = String(latest.version ?? "").trim();
+  if (!url || !version) {
+    return { status: "error", message: "更新信息无效，请稍后重试" };
+  }
+  const rawChecksum = String(latest.checksum || latest.sha256 || "").trim();
+  if (!SHA256_HEX.test(rawChecksum)) {
+    return { status: "error", message: "更新包校验信息不完整，已取消下载" };
+  }
+  return { status: "error", message: "检查更新失败，请稍后重试" };
+}
+
+/**
+ * Manual "检查更新": always returns something the UI can show.
+ * Missing build-time manifest URL becomes "未配置更新地址".
+ */
+export async function checkLiveUpdate(
+  updater: UpdaterLike,
+  deps: { getUrl?: () => string; builtinVersion?: string } = {},
+): Promise<LiveUpdateFeedback> {
+  const url = (deps.getUrl ?? getUpdateUrl)();
+  if (!url) {
+    return { status: "error", message: MISSING_UPDATE_URL_MESSAGE };
+  }
+  let currentVersion = deps.builtinVersion ?? getBuiltinAppVersion();
+  if (typeof updater.current === "function") {
+    try {
+      currentVersion = readRunningVersion(await updater.current(), currentVersion);
+    } catch {
+      /* keep fallback */
+    }
+  }
+  try {
+    const latest = await updater.getLatest();
+    return feedbackForLatest(latest, currentVersion);
+  } catch (err) {
+    const msg = err instanceof Error && err.message.trim() ? err.message.trim() : "检查更新失败，请稍后重试";
+    return { status: "error", message: msg };
+  }
+}
+
+export async function applyCheckedUpdate(
+  updater: UpdaterLike,
+  options: NonNullable<ReturnType<typeof toDownloadOptions>>,
+): Promise<{ ok: true; id: string } | { ok: false; message: string }> {
+  try {
+    const bundle = await updater.download(options);
+    if (!bundle?.id) return { ok: false, message: "下载更新失败，请稍后重试" };
+    await updater.next({ id: bundle.id });
+    return { ok: true, id: bundle.id };
+  } catch (err) {
+    const msg = err instanceof Error && err.message.trim() ? err.message.trim() : "下载更新失败，请稍后重试";
+    return { ok: false, message: msg };
+  }
+}
