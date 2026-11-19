@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../index.mjs';
-import {BALANCE_ADAPTERS, meterFetch, testProvider, ZHIPU_BALANCE_URL} from '../ai-quota.mjs';
+import {BALANCE_ADAPTERS, meterFetch, testProvider, ZHIPU_BALANCE_URL, ZHIPU_PACKAGES_URLS} from '../ai-quota.mjs';
 import {createKeyBox, maskKey, PROVIDER_TYPES} from '../ai-providers.mjs';
 
 const ENV_KEY = 'zhipu-env-key-NOT-REAL-1234';
@@ -67,7 +67,7 @@ test('智谱适配器：控制台余额接口 → 可用余额 / 已用 / 充值
   await assert.rejects(BALANCE_ADAPTERS.zhipu({base: 'http://zhipu.mock/api', key: 'k', fetch: f1(200, {})}), /不是智谱官方/);
   const seen = [];
   await BALANCE_ADAPTERS.zhipu({base: 'http://zhipu.mock/api', key: 'k', env: {ZHIPU_BALANCE_URL: 'https://bal.example/x'}, fetch: async u => { seen.push(u); return json({code: 200, data: {availableBalance: 1}}); }});
-  assert.deepEqual(seen, ['https://bal.example/x', 'https://bigmodel.cn/api/biz/tokenAccounts/list?filterEnabled=true&pageNum=1&pageSize=50']);
+  assert.deepEqual(seen, ['https://bal.example/x', ...ZHIPU_PACKAGES_URLS], '余额 + 资源包候选地址（都不是有效列表时按顺序试完）');
 });
 test('DeepSeek / Kimi / 硅基流动 / OpenRouter 适配器', async () => {
   const urls = [];
