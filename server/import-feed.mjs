@@ -87,23 +87,70 @@ export function proxyAvatarPath(origin) {
 
 function sourceLabelOf(src) { return SOURCE_LABEL[src] || ('来自 ' + src); }
 
-async function fetchJson(fetchFn, url, {timeoutMs = 15000, headers} = {}) {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    const res = await fetchFn(url, {
-      method: 'GET',
-      headers: {'User-Agent': IMPORT_UA, Accept: 'application/json', ...(headers || {})},
-      signal: ac.signal,
-      redirect: 'follow',
-    });
-    if (!res || !res.ok) {
-      const err = new Error('fetch ' + url + ' -> ' + (res && res.status));
-      err.status = res && res.status;
-      throw err;
-    }
-    return await res.json();
-  } finally { clearTimeout(t); }
+export const IMPORT_DELAY_MS = 800;
+export const FETCH_TIMEOUT_MS = 20_000;
+export const REPLIES_TIMEOUT_MS = 45_000;
+export const FETCH_RETRIES = 3;
+export const RETRY_BASE_MS = 1000;
+
+export function isAbortError(e) {
+  if (!e) return false;
+  if (e.aborted || e.name === 'AbortError' || e.code === 'ABORT_ERR') return true;
+  return /aborted/i.test(String(e.message || e));
+}
+
+export function describeFetchError(e, url, timeoutMs) {
+  if (isAbortError(e)) return 'timeout/aborted after ' + timeoutMs + 'ms fetching ' + url;
+  if (e && e.status) return 'HTTP ' + e.status + ' fetching ' + url;
+  return String((e && e.message) || e || 'fetch failed') + ' fetching ' + url;
+}
+
+function isRetryable(e) {
+  if (!e) return false;
+  if (isAbortError(e)) return true;
+  if (e.status && [429, 500, 502, 503, 504].includes(Number(e.status))) return true;
+  return /timeout|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|fetch failed/i.test(String(e.message || e));
+}
+
+async function fetchJson(fetchFn, url, {
+  timeoutMs = FETCH_TIMEOUT_MS, headers, retries = FETCH_RETRIES, retryDelayMs = RETRY_BASE_MS, log,
+} = {}) {
+  const attempts = Math.max(1, Number(retries) || 1);
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      const res = await fetchFn(url, {
+        method: 'GET',
+        headers: {'User-Agent': IMPORT_UA, Accept: 'application/json', ...(headers || {})},
+        signal: ac.signal,
+        redirect: 'follow',
+      });
+      if (!res || !res.ok) {
+        const err = new Error('fetch ' + url + ' -> ' + (res && res.status));
+        err.status = res && res.status;
+        throw err;
+      }
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (isRetryable(e) && attempt < attempts) {
+        const wait = Math.max(0, Number(retryDelayMs) || 0) * Math.pow(2, attempt - 1);
+        if (log) log('import fetch retry', describeFetchError(e, url, timeoutMs), 'attempt', attempt + '/' + attempts, 'waitMs', wait);
+        if (wait) await sleep(wait);
+        continue;
+      }
+      if (isAbortError(e)) {
+        const err = new Error(describeFetchError(e, url, timeoutMs));
+        err.aborted = true;
+        err.timeoutMs = timeoutMs;
+        throw err;
+      }
+      throw e;
+    } finally { clearTimeout(t); }
+  }
+  throw lastErr;
 }
 
 export function ensureImportUser(db, {now}) {
@@ -132,12 +179,19 @@ export function isReservedImportIdentity(username, email) {
 export function createImportFeed(db, {
   fetchFn = globalThis.fetch,
   now = Date.now,
-  delayMs = 250,
+  delayMs = IMPORT_DELAY_MS,
   sourceLimit = 20,
   commentLimit = 10,
   intervalMs = 15 * 60 * 1000,
+  timeoutMs = FETCH_TIMEOUT_MS,
+  repliesTimeoutMs = REPLIES_TIMEOUT_MS,
+  retries = FETCH_RETRIES,
+  retryDelayMs,
   log = (...a) => console.error(...a),
 } = {}) {
+  const backoffMs = retryDelayMs != null ? retryDelayMs : (delayMs > 0 ? RETRY_BASE_MS : 0);
+  const jsonOpts = {timeoutMs, retries, retryDelayMs: backoffMs, log};
+  const repliesOpts = {timeoutMs: repliesTimeoutMs, retries, retryDelayMs: backoffMs, log};
   const selPost = db.prepare('SELECT * FROM posts WHERE source=? AND source_id=?');
   const selCmt = db.prepare('SELECT * FROM post_comments WHERE source=? AND source_id=?');
   const insPost = db.prepare(`INSERT INTO posts(id,author_id,text,created_at,updated_at,client_id,audience,source,source_id,source_url,ext_author_name,ext_author_avatar)
@@ -155,6 +209,14 @@ export function createImportFeed(db, {
 
   function blocked(row) {
     return !!(row && (row.deleted_at || row.admin_hidden));
+  }
+
+  const countImportedComments = db.prepare(
+    "SELECT COUNT(*) n FROM post_comments WHERE post_id=? AND source IS NOT NULL AND IFNULL(deleted_at,0)=0",
+  );
+  function needsCommentBackfill(postId) {
+    if (!postId || !commentLimit) return false;
+    return Number(countImportedComments.get(postId).n) < commentLimit;
   }
 
   function upsertPost({source, sourceId, sourceUrl, authorName, authorAvatar, text, createdAt}) {
@@ -205,7 +267,7 @@ export function createImportFeed(db, {
     const out = {ok: true, fetched: 0, imported: 0, comments: 0, skipped: 0, deletedKept: 0, error: null};
     let list;
     try {
-      list = await fetchJson(fetchFn, V2EX_HOT);
+      list = await fetchJson(fetchFn, V2EX_HOT, jsonOpts);
     } catch (e) {
       out.ok = false;
       out.error = e.message || String(e);
@@ -238,13 +300,15 @@ export function createImportFeed(db, {
       else out.imported++;
       const postId = up.row && up.row.id;
       if (!postId || !commentLimit) continue;
+      if (!needsCommentBackfill(postId)) continue;
+      const backfill = !up.imported;
       await sleep(delayMs);
       let replies = [];
       try {
-        const raw = await fetchJson(fetchFn, v2exRepliesUrl(sid));
+        const raw = await fetchJson(fetchFn, v2exRepliesUrl(sid), repliesOpts);
         if (Array.isArray(raw)) replies = raw.slice(0, commentLimit);
       } catch (e) {
-        log('import v2ex replies', sid, e.message || e);
+        log('import v2ex replies topic=' + sid + (backfill ? ' backfill' : '') + ' failed: ' + describeFetchError(e, v2exRepliesUrl(sid), repliesTimeoutMs) + '; will retry on next run');
         continue;
       }
       for (const r of replies) {
@@ -266,14 +330,14 @@ export function createImportFeed(db, {
   }
 
   async function hnItem(id) {
-    return fetchJson(fetchFn, hnItemUrl(id));
+    return fetchJson(fetchFn, hnItemUrl(id), jsonOpts);
   }
 
   async function importHn() {
     const out = {ok: true, fetched: 0, imported: 0, comments: 0, skipped: 0, deletedKept: 0, error: null};
     let ids;
     try {
-      ids = await fetchJson(fetchFn, HN_TOP);
+      ids = await fetchJson(fetchFn, HN_TOP, jsonOpts);
     } catch (e) {
       out.ok = false;
       out.error = e.message || String(e);
@@ -316,6 +380,7 @@ export function createImportFeed(db, {
       else out.imported++;
       const postId = up.row && up.row.id;
       if (!postId || !commentLimit) continue;
+      if (!needsCommentBackfill(postId)) continue;
       const idMap = new Map(); // hn id -> our comment id
       const queue = Array.isArray(story.kids) ? story.kids.slice() : [];
       let taken = 0;

@@ -21,7 +21,7 @@
 - 默认每 15 分钟跑一轮。启动后大约 20 秒开始第一次（避免和别的启动任务挤在一起）。
 - 测试或临时关掉：`NOVA_IMPORT_AUTO=0`。
 - 间隔：`NOVA_IMPORT_INTERVAL_MS`（毫秒，默认 `900000`）。
-- 每一轮每个来源最多约 20 条，每条最多导入约 10 条评论。请求带固定 UA（`VEXO/2.0.6 (feed-import; …)`），条目之间间隔约 250ms。
+- 每一轮每个来源最多约 20 条，每条最多导入约 10 条评论。请求带固定 UA（`VEXO/2.0.6 (feed-import; …)`），条目之间间隔约 800ms。V2EX 评论接口单独用 45 秒超时，失败（含超时中断）会在当轮按 1s/2s 退避重试最多 3 次；仍失败则留下帖子、记下日志，下一轮会给还缺评论的已导入帖补评论。
 - 接口：
   - V2EX：`https://www.v2ex.com/api/topics/hot.json`，评论 `https://www.v2ex.com/api/replies/show.json?topic_id=`
   - HN：`https://hacker-news.firebaseio.com/v0/topstories.json`，条目 `https://hacker-news.firebaseio.com/v0/item/{id}.json`（含 kids）
