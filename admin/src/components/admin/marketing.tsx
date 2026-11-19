@@ -3,6 +3,7 @@ import { useAdmin } from "@/lib/admin/store";
 import { apiRequest, loadConfig, readErrorMessage, resolveBase, joinUrl, type EndpointName } from "@/lib/admin/backend";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
+import { AutoAdsTab } from "./auto-ads";
 
 /* r10 营销管理：营销帖 / 数据调整 / 推流加热 / AI 审查。 */
 
@@ -44,8 +45,9 @@ const TABS = [
   { id: "stats", label: "数据调整" },
   { id: "boost", label: "推流加热" },
   { id: "ai", label: "AI 审查" },
+  { id: "auto", label: "AI 发帖" },
 ];
-const READY = new Set(["ads", "stats", "boost", "ai"]);
+const READY = new Set(["ads", "stats", "boost", "ai", "auto"]);
 
 export function MarketingScreen() {
   const back = useAdmin((s) => s.back);
@@ -58,6 +60,7 @@ export function MarketingScreen() {
       {tab === "stats" && <StatsTab />}
       {tab === "boost" && <BoostTab />}
       {tab === "ai" && <AiTab />}
+      {tab === "auto" && <AutoAdsTab />}
     </Screen>
   );
 }
@@ -66,6 +69,7 @@ type Ad = {
   id: string; kind: "text" | "image" | "video" | "sdk"; advertiser: string; title: string; text: string;
   media: { url: string; kind: string }[]; linkUrl: string; cta: string; sdk: { provider: string; slot: string } | null;
   enabled: boolean; weight: number; impressions: number; clicks: number; hides: number; ctr: number;
+  source?: "manual" | "ai"; sourceUrl?: string; takenDownAt?: number | null;
 };
 type AdSettings = { enabled: boolean; every: number; perFeed: number; dailyCap: number };
 const KIND_LABEL: Record<string, string> = { text: "文字", image: "图片", video: "视频", sdk: "广告位 SDK" };
@@ -153,7 +157,8 @@ function AdsTab() {
             <div className="flex items-center gap-2">
               <Pill tone="vip">推广</Pill>
               <Pill tone="muted">{KIND_LABEL[ad.kind] || ad.kind}</Pill>
-              {!ad.enabled && <Pill tone="warn">已停用</Pill>}
+              {ad.source === "ai" && <Pill tone="ok">AI 发布</Pill>}
+              {!ad.enabled && <Pill tone="warn">{ad.takenDownAt ? "已下架" : "已停用"}</Pill>}
               <span className="ml-auto text-[11px] text-muted">权重 {ad.weight}</span>
             </div>
             {ad.title && <div className="mt-2 text-[15px] font-semibold">{sanitizeText(ad.title)}</div>}
@@ -162,6 +167,7 @@ function AdsTab() {
               ? <video className="mt-2 max-h-40 w-full rounded-xl bg-black" src={mediaUrl(ad.media[0].url)} muted controls />
               : <img className="mt-2 max-h-40 w-full rounded-xl object-cover" src={mediaUrl(ad.media[0].url)} alt="" />)}
             {ad.sdk && <p className="mt-1 break-all text-[12px] text-muted">{ad.sdk.provider} · {ad.sdk.slot}</p>}
+            {ad.source === "ai" && ad.sourceUrl && <a className="mt-1 block truncate text-[12px] text-primary" href={ad.sourceUrl} target="_blank" rel="noopener noreferrer">原网址：{ad.sourceUrl}</a>}
             <div className="mt-2 grid grid-cols-4 gap-1 text-center text-[12px]">
               <Stat n={ad.impressions} l="曝光" /><Stat n={ad.clicks} l="点击" /><Stat n={ad.ctr + "%"} l="点击率" /><Stat n={ad.hides} l="不感兴趣" />
             </div>
