@@ -29,6 +29,7 @@ export const PAGE_NAMES = [
   "tags",
   "notify",
   "aireport",
+  "aiquota",
   "v2",
 ] as const;
 

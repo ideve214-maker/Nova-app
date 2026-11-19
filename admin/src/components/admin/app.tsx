@@ -18,6 +18,7 @@ import { MarketingScreen } from "./marketing";
 import { AppealsScreen, EventsScreen } from "./appeals";
 import { AssistantScreen } from "./assistant";
 import { AdsScreen } from "./ads";
+import { AiProvidersScreen } from "./ai-quota";
 import { AiReportScreen, NotifyScreen, TagsScreen, V2Screen } from "./ops2";
 import { Sparkles } from "lucide-react";
 import { ChannelMessagesScreen, CommunitiesScreen, CommunityDetailScreen } from "./communities";
@@ -156,6 +157,7 @@ export function AdminApp() {
       {name === "admins" && <AdminsScreen />}
       {name === "ai" && <AssistantScreen />}
       {name === "ads" && <AdsScreen />}
+      {name === "aiquota" && <AiProvidersScreen />}
       {name === "tags" && <TagsScreen />}
       {name === "notify" && <NotifyScreen />}
       {name === "aireport" && <AiReportScreen />}

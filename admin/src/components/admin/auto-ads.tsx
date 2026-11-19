@@ -8,6 +8,7 @@ import {
 } from "@/lib/admin/ai-api";
 import { EmptyState, Field, inputClass, Pill, PrimaryButton, Seg, Sheet } from "./ui";
 import { Card, textareaClass, Toggle } from "./marketing";
+import { AiQuotaCard } from "./ai-quota";
 
 /* 2.0.6 营销管理 → AI 发帖：AI 每天联网找商家 / 活动并自动发布营销帖（服务器默认关闭）。 */
 
@@ -19,7 +20,7 @@ const ACTION: Record<string, string> = {
   "admin.ai.autoads.takedown": "下架", "admin.ai.autoads.takedown_all": "全部下架", "admin.ai.web_search": "联网搜索（助手）",
 };
 const SKIP: Record<string, string> = {
-  env_off: "服务器还没开启自动发帖", switch_off: "自动发布开关是关着的", no_key: "还没有配置智谱密钥", running: "上一轮还在运行",
+  env_off: "服务器还没开启自动发帖", switch_off: "自动发布开关是关着的", no_key: "还没有可用的 AI 接口或联网搜索（智谱）", running: "上一轮还在运行",
   cap_reached: "今天已达上限", not_due: "还没到时间",
 };
 const REASON: Record<string, string> = {
@@ -47,6 +48,7 @@ function logLine(r: AutoAdsLogRow): string {
 
 export function AutoAdsTab() {
   const flash = useAdmin((s) => s.flash);
+  const go = useAdmin((s) => s.go);
   const [data, setData] = useState<AutoAdsOverview | null>(null);
   const [err, setErr] = useState("");
   const [filter, setFilter] = useState<"all" | "live" | "down">("all");
@@ -101,6 +103,7 @@ export function AutoAdsTab() {
       {err && <EmptyState title="暂时打不开" hint={err} />}
       {data && st && (
         <>
+          <AiQuotaCard className="mx-4 mt-3" onOpen={() => go("aiquota")} />
           <Card>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -112,7 +115,7 @@ export function AutoAdsTab() {
             <div className="mt-2 flex flex-wrap gap-1.5">
               {st.active ? <Pill tone="ok">运行中</Pill> : <Pill tone="muted">未运行</Pill>}
               {!st.envEnabled && <Pill tone="warn">服务器未开启</Pill>}
-              {!st.configured && <Pill tone="warn">未配置智谱密钥</Pill>}
+              {!st.configured && <Pill tone="warn">未配置 AI 接口或联网搜索</Pill>}
               <Pill tone="muted">今天 {st.todayPublished} / {st.dailyCap} 条</Pill>
               {st.lastRunDay && <Pill tone="muted">上次 {st.lastRunDay}</Pill>}
             </div>

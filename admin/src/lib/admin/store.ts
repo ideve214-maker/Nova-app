@@ -76,6 +76,7 @@ export type PageName =
   | "tags"
   | "notify"
   | "aireport"
+  | "aiquota"
   | "v2";
 
 export type Nav = { name: PageName; userId?: string; channelId?: string };

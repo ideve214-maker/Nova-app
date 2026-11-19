@@ -24,6 +24,7 @@ import {
   PenLine,
   FileText,
   Sparkles,
+  Gauge,
 } from "lucide-react";
 import { useAdmin, type NoticeItem, type PageName } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
@@ -32,6 +33,7 @@ import { hapticLight } from "@/lib/admin/native";
 import { getStoredTheme, setSkin, setTheme, SKIN_DEFAULT_MODE, SKINS, type SkinId, type ThemeMode } from "@/lib/admin/theme";
 import { AppIcon, DataHint, DemoBanner, EmptyState, Pill, RowLink, Seg, useAppearance } from "./ui";
 import { ConnectionBadge } from "./server-panel";
+import { AiQuotaCard } from "./ai-quota";
 
 const modules: { name: PageName; label: string; desc: string; icon: typeof Users }[] = [
   { name: "users", label: "用户", desc: "查看、封禁、资料与标签", icon: Users },
@@ -53,6 +55,7 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
   { name: "ads", label: "广告文案", desc: "每日 AI 文案与原网址", icon: PenLine },
   { name: "stats", label: "数据统计", desc: "用户与内容", icon: BarChart3 },
   { name: "aireport", label: "AI 日报", desc: "每天的运营汇总", icon: FileText },
+  { name: "aiquota", label: "AI 接口", desc: "剩余额度、切换 AI 服务商", icon: Gauge },
   { name: "audit", label: "操作日志", desc: "操作可追溯", icon: ScrollText },
   { name: "settings", label: "系统设置", desc: "开关与服务器", icon: Settings },
 ];
@@ -63,7 +66,7 @@ const groups: { title: string; names: PageName[] }[] = [
   { title: "内容与社区", names: ["content", "communities", "hot", "v2", "announce"] },
   { title: "审核与安全", names: ["reports", "appeals", "payments", "blockwords", "events", "security"] },
   { title: "运营营销", names: ["marketing", "ads"] },
-  { title: "系统", names: ["stats", "aireport", "audit", "settings"] },
+  { title: "系统", names: ["stats", "aireport", "aiquota", "audit", "settings"] },
 ];
 
 const moduleByName = new Map(modules.map((item) => [item.name, item]));
@@ -127,6 +130,8 @@ export function HomeScreen() {
           <Metric value={statsOk && liveStats ? liveStats.postsVisible.toLocaleString("zh-CN") : dash} label="发帖数" />
         </div>
       </div>
+
+      <AiQuotaCard className="mx-5 mt-3" onOpen={() => go("aiquota")} />
 
       <div className="mx-5 mt-3 grid grid-cols-2 gap-3">
         <Shortcut label="用户管理" onClick={() => go("users")} icon={<Users className="size-6" />} />

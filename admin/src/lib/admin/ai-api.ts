@@ -19,7 +19,7 @@ export async function call<T = Record<string, unknown>>(
     ok: false,
     status: res.status,
     code: j && j.error ? j.error.code : undefined,
-    error: missing && name.startsWith("adminAi") ? "服务器还没有更新到带 AI 助手的版本" : readErrorMessage(res.json, res.error || "请求失败"),
+    error: missing && /^adminAi(Quota|Provider)/.test(name) ? "服务器还没有更新到支持 AI 额度和服务商切换的版本" : missing && name.startsWith("adminAi") ? "服务器还没有更新到带 AI 助手的版本" : readErrorMessage(res.json, res.error || "请求失败"),
   };
 }
 
@@ -70,6 +70,37 @@ export const autoAdsRun = () => call<AutoAdsOverview & { result: AutoAdsRunResul
 export const autoAdsTakedown = (id: string) => call<AutoAdsOverview>("adminAutoAdsTakedown", { params: { id }, body: {} });
 export const autoAdsTakedownAll = () => call<AutoAdsOverview & { count: number }>("adminAutoAdsTakedownAll", { body: {} });
 export const autoAdsLog = () => call<{ log: AutoAdsLogRow[] }>("adminAutoAdsLog", { query: { limit: 100 } });
+
+// ---- AI 额度 + AI 服务商切换（服务端 2.0.7 接口；管理端 2.0.6 热更新）
+export type AiUsageStats = { calls: number; searches: number; errors: number; promptTokens: number; completionTokens: number; tokens: number };
+export type AiQuotaItem = {
+  id: string; name: string; type: string; typeName: string; model: string; builtin: boolean; keyMasked: string; configured: boolean;
+  active: boolean; search: boolean; source: "provider" | "estimated" | "none"; balanceApi: boolean;
+  balance: number | null; currency: string; unit: string; totalGranted: number | null; used: number | null;
+  resourcePackages: { name: string; remaining: number; total?: number; unit: string; expiresAt?: number }[];
+  detail: Record<string, unknown> | null; fetchedAt: number | null; error: string | null; stale: boolean;
+  budgetTokens: number | null; budgetSince: number | null; usedSinceBudget: number | null; estimatedRemainingTokens: number | null;
+  lowBalance: number; low: boolean; empty: boolean; usage: { today: AiUsageStats; week: AiUsageStats };
+};
+export type AiQuotaOverview = { providers: AiQuotaItem[]; activeId: string | null; searchProviderId: string | null; ttlMs: number; at: number };
+export type AiProviderType = { type: string; name: string; baseUrl: string; model: string; searchCapable: boolean; balanceApi: boolean; blocked: boolean; note: string };
+export type AiProvider = {
+  id: string; type: string; typeName: string; name: string; baseUrl: string; model: string; keyMasked: string; hasKey: boolean; keyBroken: boolean;
+  search: boolean; searchCapable: boolean; enabled: boolean; builtin: boolean; usable: boolean; balanceApi: boolean; blocked: boolean; active: boolean; selected: boolean;
+};
+export type AiProvidersOverview = { providers: AiProvider[]; activeId: string | null; selectedId: string; fallback: boolean; searchProviderId: string | null; types: AiProviderType[]; keyStorage: string; savedId?: string };
+export type AiProviderDraft = { type?: string; name?: string; baseUrl?: string; apiKey?: string; model?: string; search?: boolean; enabled?: boolean };
+
+export const aiQuota = (refresh = false) => call<AiQuotaOverview>("adminAiQuota", { query: refresh ? { refresh: 1 } : {}, timeoutMs: 20000 });
+export const aiQuotaSave = (id: string, patch: { budgetTokens?: number | null; lowBalance?: number | null; resetSince?: boolean }) =>
+  call<AiQuotaOverview>("adminAiQuotaSettings", { params: { id }, body: patch, timeoutMs: 20000 });
+export const aiProviders = () => call<AiProvidersOverview>("adminAiProviders");
+export const aiProviderSave = (d: AiProviderDraft, id?: string) =>
+  id ? call<AiProvidersOverview>("adminAiProvider", { params: { id }, body: d }) : call<AiProvidersOverview>("adminAiProviders", { body: d });
+export const aiProviderDelete = (id: string) => call<AiProvidersOverview>("adminAiProviderDelete", { params: { id }, body: {} });
+export const aiProviderActivate = (id: string) => call<AiProvidersOverview>("adminAiProviderActive", { body: { id } });
+export const aiProviderTest = (id: string) =>
+  call<{ test: { ok: boolean; status?: number; latencyMs?: number; error?: string; model?: string } }>("adminAiProviderTest", { params: { id }, body: {}, timeoutMs: 25000 });
 
 // ---- 管理端 2.0
 export type TagCount = { tag: string; count: number };
