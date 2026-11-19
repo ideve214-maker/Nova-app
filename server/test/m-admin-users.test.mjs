@@ -111,6 +111,14 @@ test('GET /api/admin/stats 与 announcements 可用', async () => {
   assert.equal(s.s, 200, JSON.stringify(s.j));
   assert.ok(s.j.users.total >= 0);
   assert.ok('payments' in s.j);
+  assert.equal(s.j.users_total, s.j.users.total);
+  assert.equal(typeof s.j.new_users_today, 'number');
+  assert.equal(typeof s.j.new_users_24h, 'number');
+  assert.equal(typeof s.j.new_users_7d, 'number');
+  assert.equal(typeof s.j.new_reports_today, 'number');
+  assert.equal(typeof s.j.new_reports_24h, 'number');
+  assert.equal(typeof s.j.new_reports_7d, 'number');
+  assert.equal(s.j.timezone, 'Asia/Shanghai');
   const a = await call('GET', '/api/admin/announcements', null, AH());
   assert.equal(a.s, 200);
   assert.ok(Array.isArray(a.j.announcements));
