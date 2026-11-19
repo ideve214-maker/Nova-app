@@ -2440,7 +2440,7 @@ async function saveItem(kind,target,title,excerpt){
     const r=await api('POST','/api/me/saved',{kind,target,title,excerpt});
     if(r.s!==200){T(errMsg(r,'收藏失败'));return false}
     if(!S.saved)S.saved={items:[],count:0,limit:savedLimit()};
-    if(!r.j.existed){S.saved.items.unshift(r.j.item);S.saved.count=r.j.count;S.saved.limit=r.j.limit}
+    if(!r.j.existed){S.saved.items.unshift(r.j.item);S.saved.count=r.j.count;S.saved.limit=r.j.limit}if(kind==='post'&&typeof r.j.bookmarkCount==='number'&&typeof savSetCount==='function')savSetCount(target,r.j.bookmarkCount);
     T(r.j.existed?'已在收藏中':'已收藏');return true}
   const a=localSaved();
   if(a.some(i=>i.kind===kind&&i.target===target)){T('已在收藏中');return true}
@@ -2450,10 +2450,39 @@ async function unsaveItem(kind,target,id){
   if(MODE==='account'&&NET&&SESSION){
     const r=await api('POST','/api/me/saved/remove',id?{id}:{kind,target});
     if(r.s!==200){T(errMsg(r,'取消收藏失败'));return}
-    if(S.saved){S.saved.items=S.saved.items.filter(i=>i.id!==r.j.removed.id);S.saved.count=r.j.count}
+    if(S.saved){S.saved.items=S.saved.items.filter(i=>i.id!==r.j.removed.id);S.saved.count=r.j.count}if(r.j.removed&&r.j.removed.kind==='post'&&typeof r.j.bookmarkCount==='number'&&typeof savSetCount==='function')savSetCount(r.j.removed.target,r.j.bookmarkCount);
     T('已取消收藏');return}
   D.sv=localSaved().filter(i=>id!=null&&id!==''?String(i.id)!==String(id):!(i.kind===kind&&i.target===target));T('已取消收藏')}
-function savp(v){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==v)||D.p.find(x=>x.id==v);S.sh=null;if(!p)return;if(isSaved('post',v))return unsaveItem('post',v);return saveItem('post',v,(typeof P==='function'?P(p.a).n:''),p.x)}
+/* 2.0.3 帖子收藏（首页 / 详情 / 推流帖 / 从通知或链接打开的帖子都走这里）：
+   - 以前只在首页列表和演示数据里找帖子，推流帖、postCache 里的帖子找不到就直接 return，点了没反应；
+   - 以前收藏成功后不更新帖子上的 bookmarkCount，数字一直是加载时的旧值；
+   现在：先在本机立即切换（亮 / 灭、±1），再以服务器返回的 bookmarkCount 为准；失败就改回去。连点时忽略进行中的那次。 */
+function savPosts(v){v=String(v);const seen=new Set(),out=[];[].concat(typeof feedSrc==='function'?feedSrc():[],Array.isArray(S.posts)?S.posts:[],Array.isArray(S.boosts)?S.boosts:[],D.p||[],S.postCache?Object.values(S.postCache):[]).forEach(x=>{if(x&&String(x.id)===v&&!seen.has(x)){seen.add(x);out.push(x)}});return out}
+function savSetCount(v,n){savPosts(v).forEach(x=>{x.bookmarkCount=Math.max(0,n)})}
+async function savp(v){v=String(v);S.sh=null;S.savBusy=S.savBusy||{};if(S.savBusy[v])return;
+  const ps=savPosts(v),p=ps[0];
+  const was=isSaved('post',v),before=p?postBookmarks(p):0;
+  const net=MODE==='account'&&NET&&SESSION;
+  if(!net){if(!p)return;if(was)return unsaveItem('post',v);return saveItem('post',v,(typeof P==='function'?P(p.a).n:''),p.x)}
+  S.savBusy[v]=1;
+  if(!S.saved)S.saved={items:[],count:0,limit:savedLimit()};
+  const fake={id:'tmp-'+v,kind:'post',target:v,title:'',excerpt:''};
+  if(was)S.saved.items=S.saved.items.filter(i=>!(i.kind==='post'&&i.target===v));else S.saved.items.unshift(fake);
+  savSetCount(v,before+(was?-1:1));if(typeof render==='function')render();
+  try{
+    const r=was?await api('POST','/api/me/saved/remove',{kind:'post',target:v}):await api('POST','/api/me/saved',{kind:'post',target:v,title:p&&typeof P==='function'?P(p.a).n:'',excerpt:p?String(p.x||'').slice(0,200):''});
+    S.saved.items=S.saved.items.filter(i=>i!==fake);
+    if(r.s===200||(was&&r.s===404)){
+      if(!was&&r.j&&r.j.item&&!S.saved.items.some(i=>i.kind==='post'&&i.target===v))S.saved.items.unshift(r.j.item);
+      if(r.j&&typeof r.j.count==='number')S.saved.count=r.j.count;
+      if(r.j&&typeof r.j.bookmarkCount==='number')savSetCount(v,r.j.bookmarkCount);
+      T(was?'已取消收藏':'已收藏');
+    }else{
+      if(was&&!S.saved.items.some(i=>i.kind==='post'&&i.target===v))S.saved.items.unshift({id:'tmp-'+v,kind:'post',target:v});
+      savSetCount(v,before);T(errMsg(r,was?'取消收藏失败':'收藏失败'));
+    }
+  }finally{delete S.savBusy[v];if(typeof render==='function')render()}
+}
 function savm(v){const[k,cid,id]=v.split('|'),m=msgs(k,cid).find(x=>mid(k,x)==id);S.sh=null;if(!m)return;const tgt=cid+':'+id;if(isSaved('message',tgt))return unsaveItem('message',tgt);return saveItem('message',tgt,P(m[0]).n,String(mtext(k,m)||'').slice(0,80))}
 function unsav(v){const it=savedItems().find(i=>String(i.id)===String(v));if(it)return unsaveItem(it.kind,it.target,it.id);const i=String(v).indexOf('|');if(i<0)return;return unsaveItem(v.slice(0,i),v.slice(i+1))}
 const savedOpen=()=>{S.sh=null;S.st.push('saved');return MODE==='account'?loadSaved():Promise.resolve()};
@@ -6084,7 +6113,7 @@ function repostForget(id){id=String(id);const m=repostMap();let ch=0;for(const k
 /* 打开转帖面板时向服务器确认那条转帖还在（在别的设备上删掉的也能清掉） */
 async function repostVerify(id){const m=repostMap(),nid=m[id];if(!nid||!(typeof usingNet==='function'&&usingNet())||typeof api!=='function')return;try{const r=await api('GET','/api/posts/'+encodeURIComponent(nid));if(r&&(r.s===404||r.s===410)){repostForget(nid);if(typeof render==='function')render()}}catch(e){}}
 function postReposts(p){return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
-function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Number.isFinite(s)&&s>0?s:(mine?1:0)}
+function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Math.max(Number.isFinite(s)&&p.bookmarkCount!=null?s:0,mine?1:0)}
 function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[],S.postCache?Object.values(S.postCache):[]);return a.find(x=>String(x.id)===String(id))}
 function xbar(p,nLike,nC){
   const id=esc(String(p.id)),liked=p.m>=0,rt=!!repostMap()[p.id],bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
