@@ -21,6 +21,19 @@ export const DEFAULT_BLOCKWORDS = ['赌博', '博彩', '赌场', '彩票', '六�
 const DEFAULT_QUERY = '本地商家 新店开业 优惠活动';
 const SETTING_KEYS = ['autoads.enabled', 'autoads.dailyCap', 'autoads.query', 'autoads.blockwords'];
 
+/** 搜索方向：每行一个（也接受 , ， 、 ; ；）；旧版只用空格连在一起的，每个词算一个方向。
+ *  只用空格分隔、超过 3 个词时，每个词算一个方向。
+ *  2.0.6 线上问题：5 个不相关的方向拼成一条查询，智谱搜索返回 0 条；只搜其中一个方向就有结果。所以每个方向单独搜。 */
+export function splitDirections(raw) {
+  const s = String(raw == null ? '' : raw);
+  // 只用空格分隔时：3 个词以内当成一个方向（例如默认的“本地商家 新店开业 优惠活动”，线上验证能搜到 10 条），更多就每个词一个方向
+  const words = s.trim().split(/\s+/).filter(Boolean);
+  const parts = /[\n\r,，、;；]/.test(s) ? s.split(/[\n\r,，、;；]+/) : words.length <= 3 ? [s] : words;
+  const out = [];
+  for (const x of parts) { const t = [...x.replace(/\s+/g, ' ').trim()].slice(0, 70).join(''); if (t && !out.includes(t)) out.push(t); }
+  return out.slice(0, 20);
+}
+const normQuery = raw => splitDirections(raw).join('\n');
 const clip = (s, n) => [...String(s == null ? '' : s).replace(/\s+/g, ' ').trim()].slice(0, n).join('');
 const dayOf = t => new Date(t + 8 * 3600e3).toISOString().slice(0, 10);
 const hourOf = t => new Date(t + 8 * 3600e3).getUTCHours();
@@ -44,7 +57,7 @@ const GEN_SYSTEM = `你是 VEXO 的营销运营。下面给你一条联网搜索
 - 赌博、贷款、理财、医疗药品、成人、政治、新闻事件、招聘、个人信息、看不出是商家或活动的，一律判为不适合。
 只输出 JSON：{"suitable":true或false,"reason":"一句话","advertiser":"商家名，不超过20字","title":"不超过30字","text":"不超过120字","cta":"按钮文字，不超过6字"}`;
 
-export function createAutoAds(db, {now = Date.now, env = process.env, audit, marketing, blockwords, search, chatJson, configured = () => false} = {}) {
+export function createAutoAds(db, {now = Date.now, env = process.env, audit, marketing, blockwords, search, searchLeft = () => Infinity, chatJson, configured = () => false} = {}) {
   const q = {
     getSet: db.prepare('SELECT value FROM admin_ai_settings WHERE key=?'),
     setSet: db.prepare('INSERT INTO admin_ai_settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at'),
@@ -65,6 +78,7 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
   const envOn = () => String(env.ADMIN_AI_AUTO_ADS || '').trim() === '1';
   const capMax = () => envInt(env.ADMIN_AI_AUTO_ADS_CAP_MAX, 1, 50, 10);
   const hour = () => envInt(env.ADMIN_AI_AUTO_ADS_HOUR, 0, 23, 10);
+  const perRun = () => envInt(env.ADMIN_AI_AUTO_ADS_QUERIES, 1, 20, 5); // 每轮最多搜几个方向（每个方向算一次联网搜索）
   const ttlDays = () => envInt(env.ADMIN_AI_AUTO_ADS_TTL_DAYS, 0, 90, 7);
   const switchOn = () => setting('autoads.enabled', '0') === '1';
   const dailyCap = () => Math.min(capMax(), envInt(setting('autoads.dailyCap'), 0, 50, 3));
@@ -102,7 +116,7 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
       if (!Number.isInteger(n) || n < 0 || n > capMax()) throw new ApiError(400, 'BAD_CAP', `每天上限需在 0–${capMax()} 之间`);
       setSetting('autoads.dailyCap', n);
     }
-    if (body.query != null) setSetting('autoads.query', clip(body.query, 120));
+    if (body.query != null) setSetting('autoads.query', normQuery(body.query));
     if (body.blockwords != null) {
       const arr = (Array.isArray(body.blockwords) ? body.blockwords : String(body.blockwords).split(/[\n,，、]/)).map(w => clip(w, 20)).filter(Boolean);
       setSetting('autoads.blockwords', JSON.stringify([...new Set(arr)].slice(0, 100)));
@@ -185,21 +199,53 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     running = true;
     const runId = 'aar_' + randomBytes(8).toString('hex');
     const ctx = {trigger, runId, actorId, ip};
-    const sum = {runId, trigger, day, query: query(), found: 0, published: [], rejected: 0, stopped: null};
+    // 这一轮搜哪些方向：轮流（每轮从上次停下的地方接着），不超过每轮上限和今天剩下的联网搜索次数
+    const dirs = splitDirections(query());
+    const take = Math.max(0, Math.min(dirs.length, perRun(), searchLeft()));
+    const cur = (Number(setting('autoads.dirCursor', '0')) || 0) % Math.max(dirs.length, 1);
+    const picked = Array.from({length: take}, (_, i) => dirs[(cur + i) % dirs.length]);
+    if (dirs.length) setSetting('autoads.dirCursor', String((cur + take) % dirs.length));
+    const sum = {runId, trigger, day, query: picked.join('、'), directions: [], found: 0, published: [], rejected: 0, stopped: null, reason: null};
     log(actorId, 'ai.autoads.run_start', 'run:' + runId, ip, {trigger, query: sum.query, remaining});
     try {
-      let res;
-      try { res = await search(sum.query, {count: 10}); }
-      catch (e) {
-        // 额度用完（智谱用完 / 所有接口用完）：这一轮直接停下，不发帖，记日志
-        if (isApiErr(e) && (e.code === 'AI_SEARCH_EXHAUSTED' || e.code === 'AI_ALL_EXHAUSTED')) {
-          log(actorId, 'ai.autoads.skipped', 'run:' + runId, ip, {trigger, reason: 'quota_exhausted', code: e.code, error: e.message});
-          return {...sum, skipped: 'quota_exhausted', error: e.message};
+      const results = [], seen = new Set(), errors = [];
+      if (!picked.length) errors.push({code: 'SEARCH_LIMIT', message: dirs.length ? '今天的联网搜索次数已用完' : '没有填写搜索方向'});
+      for (const dir of picked) {
+        let res;
+        try { res = await search(dir, {count: 10}); }
+        catch (e) {
+          const code = isApiErr(e) ? e.code : 'SEARCH_FAILED', message = isApiErr(e) ? e.message : '联网搜索失败';
+          // 额度用完（智谱用完 / 所有接口用完）：停止搜索；一条都没有就这一轮直接停下，不发帖
+          if (code === 'AI_SEARCH_EXHAUSTED' || code === 'AI_ALL_EXHAUSTED') {
+            log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: dir, count: 0, code, error: message});
+            if (!results.length) {
+              log(actorId, 'ai.autoads.skipped', 'run:' + runId, ip, {trigger, reason: 'quota_exhausted', code, error: message});
+              log(actorId, 'ai.autoads.run', 'run:' + runId, ip, {trigger, query: sum.query, found: 0, published: 0, rejected: 0, stopped: 'quota_exhausted', reason: message, adIds: []});
+              return {...sum, skipped: 'quota_exhausted', error: message};
+            }
+            break;
+          }
+          errors.push({query: dir, code, message});
+          sum.directions.push({query: dir, count: 0, error: message});
+          log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: dir, count: 0, code, error: message});
+          if (code === 'SEARCH_LIMIT') break;
+          continue;
         }
-        log(actorId, 'ai.autoads.error', 'run:' + runId, ip, {stage: 'search', error: isApiErr(e) ? e.message : 'search_failed'}); return {...sum, error: 'search_failed'};
+        let fresh = 0;
+        for (const r of res.results) if (!seen.has(r.url)) { seen.add(r.url); results.push(r); fresh++; }
+        sum.directions.push({query: dir, count: res.results.length, new: fresh});
+        log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: res.query, count: res.results.length, new: fresh, urls: res.results.map(r => r.url).slice(0, 10)});
       }
-      sum.found = res.results.length;
-      log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: res.query, count: res.results.length, urls: res.results.map(r => r.url).slice(0, 10)});
+      sum.found = results.length;
+      if (!results.length) {
+        // 一条都没搜到：写清楚原因（管理端日志里显示）
+        sum.reason = errors.length && errors.length === picked.length && picked.length ? '搜索失败：' + errors[0].message
+          : errors.length && !picked.length ? errors[0].message
+          : `${picked.length} 个方向都没有搜到结果，请把方向改得更具体（每行一个，例如“济南 新店开业”）` + (errors.length ? '；部分方向搜索失败：' + errors[0].message : '');
+        log(actorId, 'ai.autoads.error', 'run:' + runId, ip, {stage: 'search', reason: sum.reason, directions: sum.directions});
+        if (errors.length) sum.error = sum.reason;
+      }
+      const res = {results};
       let tries = 0;
       for (const r of res.results) {
         if (sum.published.length >= remaining) break;
@@ -221,7 +267,7 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
         catch (e) { if (!isApiErr(e)) throw e; sum.rejected++; }
       }
     } finally { running = false; }
-    log(actorId, 'ai.autoads.run', 'run:' + runId, ip, {trigger, found: sum.found, published: sum.published.length, rejected: sum.rejected, stopped: sum.stopped, adIds: sum.published.map(a => a.id)});
+    log(actorId, 'ai.autoads.run', 'run:' + runId, ip, {trigger, query: sum.query, reason: sum.reason, found: sum.found, published: sum.published.length, rejected: sum.rejected, stopped: sum.stopped, adIds: sum.published.map(a => a.id)});
     return sum;
   }
 

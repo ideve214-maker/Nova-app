@@ -18,6 +18,15 @@ export function cleanSourceUrl(raw) {
   return u.href;
 }
 
+/** 错误说明：HTTP 状态 + 智谱错误码 + 简短原因（去掉密钥）。 */
+function errText(status, body, key) {
+  const e = (body && typeof body === 'object' && (body.error && typeof body.error === 'object' ? body.error : body)) || {};
+  const code = e.code != null ? String(e.code) : '';
+  let msg = String(e.message || e.msg || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (key && key.length > 6) msg = msg.split(key).join('***');
+  return [code ? '错误码 ' + code : 'HTTP ' + status, msg].filter(Boolean).join('：');
+}
+
 /** 把智谱返回的 web_search 数组整理成统一格式。 */
 export function parseSearchResults(j) {
   const arr = (j && (Array.isArray(j.web_search) ? j.web_search : Array.isArray(j.search_result) ? j.search_result : [])) || [];
@@ -74,9 +83,15 @@ export function createWebSearch({env = process.env, fetchImpl, now = Date.now, b
       const body = await res.json().catch(() => null);
       const why = billingReason(res.status, body);
       if (why) throw new BillingError(why, res.status);
-      throw new ApiError(503, 'SEARCH_UNAVAILABLE', '联网搜索暂时不可用（' + res.status + '）');
+      throw new ApiError(503, 'SEARCH_UNAVAILABLE', '联网搜索暂时不可用（' + errText(res.status, body, p.key) + '）');
     }
     const j = await res.json().catch(() => null);
+    // HTTP 200 但带错误（智谱偶尔这样返回）：当错误报出来，不要当成“0 条”
+    if (j && typeof j === 'object' && (j.error || j.success === false) && !Array.isArray(j.web_search) && !Array.isArray(j.search_result)) {
+      const why = billingReason(402 === res.status ? 402 : 200, j);
+      if (why) throw new BillingError(why, res.status);
+      throw new ApiError(503, 'SEARCH_UNAVAILABLE', '联网搜索失败（' + errText(res.status, j, p.key) + '）');
+    }
     return {query: q, results: parseSearchResults(j).slice(0, Math.min(Math.max(count, 1), 15))};
   }
   return {search, status: () => ({engine: engine(), perDay: perDay(), usedToday: day === dayOf(now()) ? used : 0})};
