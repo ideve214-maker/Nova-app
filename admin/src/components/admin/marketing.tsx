@@ -7,13 +7,17 @@ import { AutoAdsTab } from "./auto-ads";
 
 /* r10 营销管理：营销帖 / 数据调整 / 推流加热 / AI 审查。 */
 
-type Res<T> = { ok: true; data: T } | { ok: false; error: string };
+type Res<T> = { ok: true; data: T } | { ok: false; error: string; nextWeight?: number };
 export async function mk<T = Record<string, unknown>>(
   name: EndpointName,
   opts: { method?: string; body?: unknown; params?: Record<string, string>; query?: Record<string, string | number | undefined>; timeoutMs?: number } = {},
 ): Promise<Res<T>> {
   const r = await apiRequest(name, opts);
-  if (!r.ok) return { ok: false, error: r.error || readErrorMessage(r.json, "操作失败，请稍后再试") };
+  if (!r.ok) {
+    const err = r.json && typeof r.json === "object" ? (r.json as { error?: { nextWeight?: unknown } }).error : undefined;
+    const nextWeight = err && typeof err.nextWeight === "number" ? err.nextWeight : undefined;
+    return { ok: false, error: r.error || readErrorMessage(r.json, "操作失败，请稍后再试"), nextWeight };
+  }
   return { ok: true, data: r.json as T };
 }
 export function mediaUrl(u: string): string {
@@ -73,20 +77,30 @@ type Ad = {
 };
 type AdSettings = { enabled: boolean; every: number; perFeed: number; dailyCap: number };
 const KIND_LABEL: Record<string, string> = { text: "文字", image: "图片", video: "视频", sdk: "广告位 SDK" };
-const emptyAd = { kind: "text", advertiser: "", title: "", text: "", media: [] as { url: string; kind: string }[], linkUrl: "", cta: "", sdkProvider: "revive", sdkSlot: "", weight: 1, enabled: true };
+type AdForm = {
+  kind: "text" | "image" | "video" | "sdk";
+  advertiser: string; title: string; text: string;
+  media: { url: string; kind: string }[];
+  linkUrl: string; cta: string; sdkProvider: string; sdkSlot: string;
+  weight: number; enabled: boolean;
+};
+const emptyAd: AdForm = { kind: "text", advertiser: "", title: "", text: "", media: [], linkUrl: "", cta: "", sdkProvider: "revive", sdkSlot: "", weight: 0, enabled: true };
 
 function AdsTab() {
   const flash = useAdmin((s) => s.flash);
   const [ads, setAds] = useState<Ad[]>([]);
   const [st, setSt] = useState<AdSettings | null>(null);
   const [err, setErr] = useState("");
-  const [edit, setEdit] = useState<null | { id?: string; f: typeof emptyAd }>(null);
+  const [edit, setEdit] = useState<null | { id?: string; f: AdForm }>(null);
   const [busy, setBusy] = useState(false);
   const [formErr, setFormErr] = useState("");
+  const [nextWeight, setNextWeight] = useState(1);
+  const [suggestWeight, setSuggestWeight] = useState<number | undefined>(undefined);
   const load = useCallback(async () => {
-    const r = await mk<{ ads: Ad[]; settings: AdSettings }>("adminMarketingAds");
+    const r = await mk<{ ads: Ad[]; settings: AdSettings; nextWeight?: number }>("adminMarketingAds");
     if (!r.ok) { setErr(r.error); return; }
     setErr(""); setAds(r.data.ads || []); setSt(r.data.settings);
+    if (typeof r.data.nextWeight === "number" && r.data.nextWeight >= 1) setNextWeight(r.data.nextWeight);
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -106,14 +120,15 @@ function AdsTab() {
   };
   const submit = async () => {
     if (!edit) return;
-    setBusy(true); setFormErr("");
+    setBusy(true); setFormErr(""); setSuggestWeight(undefined);
     const f = edit.f;
-    const body = { kind: f.kind, advertiser: f.advertiser, title: f.title, text: f.text, media: f.media, linkUrl: f.linkUrl, cta: f.cta, sdkProvider: f.sdkProvider, sdkSlot: f.sdkSlot, weight: f.weight, enabled: f.enabled };
+    const body: Record<string, unknown> = { kind: f.kind, advertiser: f.advertiser, title: f.title, text: f.text, media: f.media, linkUrl: f.linkUrl, cta: f.cta, sdkProvider: f.sdkProvider, sdkSlot: f.sdkSlot, enabled: f.enabled };
+    if (f.weight >= 1) body.weight = f.weight;
     const r = edit.id
       ? await mk("adminMarketingAd", { method: "POST", params: { id: edit.id }, body })
       : await mk("adminMarketingAds", { method: "POST", body });
     setBusy(false);
-    if (!r.ok) { setFormErr(r.error); return; }
+    if (!r.ok) { setFormErr(r.error); setSuggestWeight(r.nextWeight); return; }
     setEdit(null); flash(edit.id ? "已保存" : "已发布营销帖"); void load();
   };
   const toggle = async (ad: Ad) => {
@@ -125,7 +140,6 @@ function AdsTab() {
     const r = await mk("adminMarketingAdDelete", { method: "POST", params: { id: ad.id } });
     if (!r.ok) flash(r.error); else { flash("已删除"); void load(); }
   };
-  const num = (v: string) => Math.max(0, Math.round(Number(v) || 0));
 
   return (
     <div className="pb-6">
@@ -148,7 +162,7 @@ function AdsTab() {
         </Card>
       )}
       <div className="px-4 pt-4">
-        <PrimaryButton onClick={() => { setFormErr(""); setEdit({ f: { ...emptyAd } }); }}>发布营销帖</PrimaryButton>
+        <PrimaryButton onClick={() => { setFormErr(""); setSuggestWeight(undefined); setEdit({ f: { ...emptyAd, weight: nextWeight } }); }}>发布营销帖</PrimaryButton>
       </div>
       {ads.length === 0 && !err && <EmptyState title="还没有营销帖" hint="发布后按上面的频率出现在用户的信息流里，带「推广」标记。" />}
       <ul className="mt-3 space-y-3 px-4">
@@ -172,7 +186,7 @@ function AdsTab() {
               <Stat n={ad.impressions} l="曝光" /><Stat n={ad.clicks} l="点击" /><Stat n={ad.ctr + "%"} l="点击率" /><Stat n={ad.hides} l="不感兴趣" />
             </div>
             <div className="mt-2 flex gap-2">
-              <button type="button" className="h-9 flex-1 rounded-full bg-subtle text-[13px] font-semibold" onClick={() => { setFormErr(""); setEdit({ id: ad.id, f: { kind: ad.kind, advertiser: ad.advertiser, title: ad.title, text: ad.text, media: ad.media, linkUrl: ad.linkUrl, cta: ad.cta, sdkProvider: ad.sdk?.provider || "revive", sdkSlot: ad.sdk?.slot || "", weight: ad.weight, enabled: ad.enabled } }); }}>编辑</button>
+              <button type="button" className="h-9 flex-1 rounded-full bg-subtle text-[13px] font-semibold" onClick={() => { setFormErr(""); setSuggestWeight(undefined); setEdit({ id: ad.id, f: { kind: ad.kind, advertiser: ad.advertiser, title: ad.title, text: ad.text, media: ad.media, linkUrl: ad.linkUrl, cta: ad.cta, sdkProvider: ad.sdk?.provider || "revive", sdkSlot: ad.sdk?.slot || "", weight: ad.weight, enabled: ad.enabled } }); }}>编辑</button>
               <button type="button" className="h-9 flex-1 rounded-full bg-subtle text-[13px] font-semibold" onClick={() => void toggle(ad)}>{ad.enabled ? "停用" : "启用"}</button>
               <button type="button" className="h-9 flex-1 rounded-full nova-danger-soft text-[13px] font-semibold" onClick={() => void remove(ad)}>删除</button>
             </div>
@@ -183,7 +197,7 @@ function AdsTab() {
         {edit && (
           <div className="max-h-[70dvh] overflow-y-auto px-4 pb-4">
             <Field label="类型">
-              <select className={inputClass} value={edit.f.kind} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, kind: e.target.value, media: [] } })}>
+              <select className={inputClass} value={edit.f.kind} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, kind: e.target.value as AdForm["kind"], media: [] } })}>
                 <option value="text">文字</option><option value="image">图片</option><option value="video">视频</option><option value="sdk">广告位 SDK（Revive 等）</option>
               </select>
             </Field>
@@ -229,9 +243,28 @@ function AdsTab() {
             )}
             <div className="grid grid-cols-2 gap-2">
               <Field label="广告主（仅后台可见）"><input className={inputClass} value={edit.f.advertiser} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, advertiser: e.target.value } })} /></Field>
-              <Field label="权重（1–100）"><input className={inputClass} inputMode="numeric" value={String(edit.f.weight)} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, weight: Math.min(100, Math.max(1, num(e.target.value) || 1)) } })} /></Field>
+              <Field label="权重">
+                <input
+                  className={inputClass}
+                  inputMode="numeric"
+                  placeholder={"自动（" + nextWeight + "）"}
+                  value={edit.f.weight >= 1 ? String(edit.f.weight) : ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    setEdit({ ...edit, f: { ...edit.f, weight: raw === "" ? 0 : Math.max(1, Math.round(Number(raw))) } });
+                  }}
+                />
+              </Field>
             </div>
-            {formErr && <p className="mb-2 text-sm text-danger">{formErr}</p>}
+            <p className="mb-2 text-[11px] leading-4 text-muted">不填则自动设为当前最大权重 + 1（现在是 {nextWeight}）。数字越大，信息流里被抽到的机会越高。已有营销帖不能用同一个权重。</p>
+            {formErr && (
+              <p className="mb-2 text-sm text-danger">
+                {formErr}
+                {suggestWeight != null && suggestWeight >= 1 && (
+                  <button type="button" className="ml-2 font-semibold underline" onClick={() => { setEdit({ ...edit, f: { ...edit.f, weight: suggestWeight } }); setFormErr(""); setSuggestWeight(undefined); }}>改用 {suggestWeight}</button>
+                )}
+              </p>
+            )}
             <PrimaryButton disabled={busy} onClick={() => void submit()}>{busy ? "正在处理…" : edit.id ? "保存" : "发布"}</PrimaryButton>
           </div>
         )}
