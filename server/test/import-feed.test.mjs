@@ -229,3 +229,51 @@ test('系统账号不能注册也不能登录', async () => {
     assert.equal(e.s, 409);
   } finally { await b.close(); }
 });
+
+test('迁移按完整文件名记账：已执行 057–061 的库仍会跑 056 和 062', async () => {
+  const {mkdtempSync, mkdirSync, writeFileSync, rmSync} = await import('node:fs');
+  const {join} = await import('node:path');
+  const {tmpdir} = await import('node:os');
+  const {openDb} = await import('../db.mjs');
+
+  const dir = mkdtempSync(join(tmpdir(), 'nova-mig-'));
+  const first = join(dir, 'first');
+  const second = join(dir, 'all');
+  const dbPath = join(dir, 't.db');
+  mkdirSync(first);
+  mkdirSync(second);
+  const init = `CREATE TABLE IF NOT EXISTS posts(id TEXT PRIMARY KEY, author_id INTEGER, text TEXT, created_at INTEGER, updated_at INTEGER);
+CREATE TABLE IF NOT EXISTS post_comments(id TEXT PRIMARY KEY, post_id TEXT, author_id INTEGER, text TEXT, created_at INTEGER);
+`;
+  const applied = [
+    '057_admin_ai.sql',
+    '058_admin_ads.sql',
+    '059_ai_auto_ads.sql',
+    '060_ai_providers_quota.sql',
+    '061_ai_failover.sql',
+  ];
+  writeFileSync(join(first, '001_init.sql'), init);
+  for (const n of applied) writeFileSync(join(first, n), '-- applied\n');
+
+  const db1 = openDb(dbPath, {migrationsDir: first});
+  const done1 = db1.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map(r => r.name);
+  db1.close();
+  assert.deepEqual(done1, ['001_init.sql', ...applied]);
+
+  writeFileSync(join(second, '001_init.sql'), init);
+  writeFileSync(join(second, '056_post_repost.sql'), 'ALTER TABLE posts ADD COLUMN repost_of TEXT;\n');
+  for (const n of applied) writeFileSync(join(second, n), '-- already applied\n');
+  writeFileSync(join(second, '062_import_feed.sql'), 'ALTER TABLE posts ADD COLUMN source TEXT;\nALTER TABLE post_comments ADD COLUMN source TEXT;\n');
+
+  const db2 = openDb(dbPath, {migrationsDir: second});
+  const done2 = new Set(db2.prepare('SELECT name FROM schema_migrations').all().map(r => r.name));
+  const cols = db2.prepare('PRAGMA table_info(posts)').all().map(r => r.name);
+  const ccols = db2.prepare('PRAGMA table_info(post_comments)').all().map(r => r.name);
+  db2.close();
+  rmSync(dir, {recursive: true, force: true});
+  assert.ok(done2.has('056_post_repost.sql'), '056 should still apply by filename');
+  assert.ok(done2.has('062_import_feed.sql'), '062 should apply');
+  assert.ok(cols.includes('repost_of'));
+  assert.ok(cols.includes('source'));
+  assert.ok(ccols.includes('source'));
+});
