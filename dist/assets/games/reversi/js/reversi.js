@@ -253,7 +253,7 @@ const newGame = () => {
 }
 
 const registerServiceWorker = () => {
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+    /* service-worker.js 未打包进 App，跳过注册，避免控制台 404 */
 }
 
 const init = () => {
