@@ -400,7 +400,7 @@ html.has-safe-area .ios-sb{display:none}@media (max-width:599px),(hover:none),(p
 .gmini-row .gmini .ico .ic-line{width:24px;height:24px}
 .gmini-row .gmini b{font-size:15px}
 .gmini-row .gmini small{font-size:12px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.gmini-row .gicons{margin-top:4px;flex-wrap:wrap}
+.gmini-row .gicons{display:none}
 .gmini-row .gicons i{width:20px;height:20px}
 .tldr-search{padding:8px 16px 0}
 .tldr-list{display:flex;flex-direction:column;padding:8px 16px 16px;gap:8px}
@@ -4432,7 +4432,7 @@ const gcard=c=>{
   const fallback=typeof cove==='function'?cove(c.id):'';const cov=typeof lookCss==='function'?lookCss(c.bg,fallback):(typeof bgCss==='function'?bgCss(c.bg||fallback):'');
   return `<article class="gcard"><button type="button" class="gcover" style="${cov}"${typeof lookMbg==='function'?lookMbg(c.bg):''} data-a="cm" data-v="${c.id}" aria-label="${esc(c.n)}"></button><div class="gbody"><b data-a="cm" data-v="${c.id}">${esc(c.n)}</b><div class="gmeta">${priv?'私密小组':'公开小组'} · ${fmtMembers(c.m)}</div><div class="gintro">${esc(c.d||'')}</div>${btn}</div></article>`;
 };
-const gameCard=()=>{const G=typeof GAMES!=='undefined'?GAMES:[];const ic5=G.slice(0,5).map(g=>`<i>${typeof gameIcon==='function'?gameIcon(g.id):''}</i>`).join('');return `<button type="button" class="gmini" data-a="minigame"><span class="ico">${typeof icLine==='function'?icLine('game'):'▶'}</span><span class="gr"><b>小游戏</b><small>${G.length||11} 款小游戏，不用下载，点开就能玩</small>${ic5?`<span class="gicons">${ic5}</span>`:''}</span></button>`};
+const gameCard=()=>{const G=typeof GAMES!=='undefined'?GAMES:[];return `<button type="button" class="gmini" data-a="minigame"><span class="ico">${typeof icLine==='function'?icLine('game'):'▶'}</span><span class="gr"><b>小游戏</b><small>${G.length||11} 款小游戏，点开就能玩</small></span></button>`};
 
 const cml=()=>{const q=S.cq.trim().toLowerCase(),src=typeof cmSrc==='function'?cmSrc():D.cm;
 let L;
