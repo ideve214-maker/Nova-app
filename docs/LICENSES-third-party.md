@@ -21,6 +21,17 @@
 | Dexie | 4.4.7 | Apache-2.0 |
 | @sentry/browser（Bugsink 兼容） | 11.12.0 | MIT |
 
+
+## 热榜
+
+热榜只展示标题、热度、作者、时间和原帖链接，不转载正文。数据来自 V2EX、Hacker News 官方接口。
+
+| 组件 | 来源 | 许可 | 说明 |
+| --- | --- | --- | --- |
+| mofish（列表结构参考） | [jiacai2050/mofish](https://github.com/jiacai2050/mofish) | MIT | 界面注明出处并链到原站与该项目。 |
+| V2EX 官方热帖接口 | [www.v2ex.com/api/topics/hot.json](https://www.v2ex.com/api/topics/hot.json) | V2EX 服务条款 | 服务器定时拉取标题等信息。 |
+| Hacker News 官方接口 | [github.com/HackerNews/API](https://github.com/HackerNews/API) | 官方公开 API | 服务器定时拉取标题等信息。标题保持英文。 |
+
 ## 小游戏
 
 各游戏的 LICENSE 文件在 `assets/games/<id>/`。
