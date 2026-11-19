@@ -104,6 +104,8 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
       impressions: row.impressions, clicks: row.clicks, hides: row.hides,
       ctr: row.impressions ? Math.round(row.clicks / row.impressions * 10000) / 100 : 0,
       createdAt: row.created_at, updatedAt: row.updated_at,
+      // 2.0.6：AI 发布的广告带来源标记和原网址
+      source: row.source || 'manual', sourceUrl: row.source_url || '', takenDownAt: row.taken_down_at || null,
     });
     return out;
   }

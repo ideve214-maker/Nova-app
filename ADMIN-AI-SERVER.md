@@ -24,3 +24,22 @@
 
 ## 测试
 `server/test/m30-admin-ai.test.mjs`（已加进 `npm run test:server`），用假的 LLM 测试，不调用真实智谱。
+
+## 2.0.6 AI 自动找广告并发布营销帖（默认关闭）
+迁移：`059_ai_auto_ads.sql`（marketing_ads 加 source / source_url / source_title / ai_trigger / ai_run_id / taken_down_at / taken_down_by，只加列）。
+模块：`server/ai-web-search.mjs`（智谱对话接口自带的 web_search 工具，只取带原网址的结果）、`server/ai-auto-ads.mjs`（过滤、生成、发布、定时、下架）。
+
+**默认不会花钱也不会发帖**：要同时满足 `ADMIN_AI_AUTO_ADS=1`、管理端开关打开（admin_ai_settings 的 autoads.enabled，默认没有这一行 = 关）、配置了智谱密钥。环境变量不是 1 时定时器不启动。
+
+接口（都要管理员 Bearer token）：
+- `GET /api/admin/ai/web-search?q=`：联网搜索（AI 助手的 web_search 工具也走这里），每天上限 ADMIN_AI_SEARCH_RPD。
+- `GET /api/admin/ai/auto-ads?status=all|live|down`：设置、状态、AI 发布的营销帖列表。
+- `POST /api/admin/ai/auto-ads/settings`：`{enabled, dailyCap, query, blockwords}`。
+- `POST /api/admin/ai/auto-ads/run`：立即跑一轮（同样受开关和上限限制）。
+- `POST /api/admin/ai/auto-ads/publish`：发布一条（AI 助手的 publish_marketing_ad 工具经管理员确认后走这里），必须带 sourceUrl。
+- `GET /api/admin/ai/auto-ads/precheck`：发布前预检（助手提议时用）。
+- `POST /api/admin/ai/auto-ads/:id/takedown`、`POST /api/admin/ai/auto-ads/takedown-all`：一键下架。
+- `GET /api/admin/ai/auto-ads/log`：自动动作审计日志（audit_log 里的 ai.autoads.* / admin.ai.autoads.* / admin.ai.web_search）。
+
+保护：每日上限（默认 3，最大 ADMIN_AI_AUTO_ADS_CAP_MAX）；内置高风险屏蔽词 + 平台屏蔽词 + 自定义词；没有原网址拒绝；同一原网址只发一次；模型写的网址、电话、微信号会被去掉，链接一律是原网址；开关关掉后正在跑的一轮也会停；默认 7 天到期；每个动作写审计。付款、退款、推流订单仍然不开放给 AI。
+测试：`server/test/m31-ai-auto-ads.test.mjs`（假的智谱接口 + 假时钟）。
