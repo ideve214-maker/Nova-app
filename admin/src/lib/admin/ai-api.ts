@@ -62,7 +62,7 @@ export type AutoAdsStatus = {
 };
 export type AutoAdsOverview = { settings: AutoAdsSettings; status: AutoAdsStatus; ads: AutoAd[] };
 export type AutoAdsLogRow = { id: number; at: number; actorId: number | null; action: string; target: string | null; detail: Record<string, unknown> | null };
-export type AutoAdsRunResult = { skipped?: string; error?: string; found?: number; published?: AutoAd[]; rejected?: number; stopped?: string | null };
+export type AutoAdsRunResult = { skipped?: string; error?: string; reason?: string | null; directions?: { query: string; count: number; new?: number; error?: string }[]; found?: number; published?: AutoAd[]; rejected?: number; stopped?: string | null };
 
 export const autoAdsOverview = (status: "all" | "live" | "down" = "all") => call<AutoAdsOverview>("adminAutoAds", { query: { status, limit: 200 } });
 export const autoAdsSave = (patch: Partial<{ enabled: boolean; dailyCap: number; query: string; blockwords: string }>) => call<AutoAdsOverview>("adminAutoAdsSettings", { body: patch });
