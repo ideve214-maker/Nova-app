@@ -556,6 +556,25 @@ html.kb-open .pn{padding-bottom:12px}
 .prof-ph .mfail{min-height:0;aspect-ratio:1/1;font-size:11px;padding:4px}
 .fmore{display:none}
 .xbar{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 4px;margin-top:4px}
+/* 2.0.3 转帖卡片（X 式）：原帖嵌在细边框圆角卡片里；直接转帖时上方一行「xx 转帖了」 */
+.rptop{display:flex;align-items:center;gap:6px;padding:10px 8px 2px 16px;color:var(--t2);font-size:13px;line-height:1.2}
+.rptop>span{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rptop svg{width:16px;height:16px;flex:none}
+.rptop b{color:var(--t2);font-weight:700}
+.rptop small{color:var(--t3);font-size:12px;flex:none}
+.rptop .ib{margin-left:auto}
+.rpc{display:block;margin:8px 16px 6px;border:1px solid var(--ln);border-radius:16px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rpc:active{background:var(--s2)}
+.rpc .rph{display:flex;align-items:center;gap:6px;padding:10px 12px 0;min-width:0}
+.rpc .rph b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rpc .rph small{color:var(--t3);font-size:12px;flex:none}
+.rpc .rph small::before{content:'· ';}
+.rpc .rpx{padding:4px 12px 10px;font-size:15px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.rpc .rpx.clamp{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.rpc .fmedia{margin:0;border-radius:0}
+.rpc .rph+.fmedia{margin-top:8px}
+.rpc.del{cursor:default;padding:14px 12px;color:var(--t3);font-size:14px;background:var(--s2)}
+.fcard.rp.plain .rpc{margin-top:6px}
 .xbar button{flex:1;min-width:0;height:40px;display:flex;align-items:center;justify-content:center;gap:4px;color:var(--t2);font-size:13px;font-variant-numeric:tabular-nums;border-radius:20px;-webkit-tap-highlight-color:transparent}
 .xbar button span{min-width:1ch;text-align:left}
 .xbar button.xs{flex:0 0 44px}
@@ -2715,7 +2734,10 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;
+  /* 2.0.3 转帖：原帖整条带回来（已删除时只有 id + deleted），放进 postCache，点卡片能直接打开详情 */
+  if(p.repostOf){const q=p.repostOf;if(q.deleted||!q.author)o.rp={id:String(q.id),deleted:true};else{const oo=adoptPost(q);o.rp={id:String(oo.id),deleted:false};S.postCache=S.postCache||{};S.postCache[String(oo.id)]=oo}}
+  return o;
 }
 /* 帖子已被删除（作者删帖或管理员处理举报）：从内存列表和离线缓存里去掉，避免继续显示旧帖子 */
 function dropPost(id,toast){
@@ -2785,7 +2807,7 @@ async function loadFeed(){
 }
 async function publishPost(text,meta){
   const body={text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)};
-  if(meta){if(meta.audience)body.audience=meta.audience;if(meta.mood)body.mood=meta.mood;if(meta.location)body.location=meta.location;if(meta.tagged&&meta.tagged.length)body.tagged=meta.tagged.map(Number).filter(n=>n);if(meta.media&&meta.media.length)body.media=meta.media;if(meta.kind)body.kind=meta.kind;if(meta.poll)body.poll=meta.poll;if(meta.activity)body.activity=meta.activity;}
+  if(meta){if(meta.audience)body.audience=meta.audience;if(meta.mood)body.mood=meta.mood;if(meta.location)body.location=meta.location;if(meta.tagged&&meta.tagged.length)body.tagged=meta.tagged.map(Number).filter(n=>n);if(meta.media&&meta.media.length)body.media=meta.media;if(meta.kind)body.kind=meta.kind;if(meta.poll)body.poll=meta.poll;if(meta.activity)body.activity=meta.activity;if(meta.repostOf)body.repostOf=meta.repostOf;}
   const r=await api('POST','/api/posts',body);
   if(r.s!==200){T(errMsg(r,'发布失败'));return null}
   const p=adoptPost(r.j.post);
@@ -2896,6 +2918,7 @@ const media=Array.isArray(p.media)?p.media:[];
 const mediaH=typeof mediaHTML==='function'?mediaHTML(media,det,p.id):'';
 const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:'';
 const chips=[p.boost?(p.boost.label==='推流中'?`🚀 推流中 · 已曝光 ${Number(p.boost.delivered)||0}/${Number(p.boost.impressions)||0}`:'🔥 曝光中'):'',S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
+if(p.rp&&typeof rpCardWrap==='function')return rpCardWrap(p,det,{u,tm,aud,chips,mediaH,nLike,nC});
 return `<article class="fcard" data-pid="${p.id}"><div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['co','共创','spark'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
 function riskNoticeText(id){
@@ -5137,7 +5160,7 @@ const pLegal=k=>{const d=(S.legal&&S.legal[k])||{};const title=d.title||(k==='te
 const MOODS=['开心','兴奋','幸福','感恩','放松','思考','想旅行','在工作','想吃饭','运动中','难过','疲惫'];
 function compState(){S.comp=S.comp||{media:[],aud:'public',mood:'',loc:'',tags:[]};return S.comp}
 function saveComposeDraft(){try{const c=compState();localStorage.setItem('nova_compose_draft',JSON.stringify({text:S.d.pin||'',aud:c.aud,mood:c.mood,loc:c.loc,tags:c.tags}))}catch(e){}}
-function loadComposeDraft(){try{const d=JSON.parse(localStorage.getItem('nova_compose_draft')||'null');if(!d)return;S.d.pin=S.d.pin||d.text||'';const c=compState();if(!c._inited){c.aud=d.aud||'public';c.mood=d.mood||'';c.loc=d.loc||'';c.tags=d.tags||[];c._inited=1}}catch(e){}}
+function loadComposeDraft(){try{const d=JSON.parse(localStorage.getItem('nova_compose_draft')||'null');if(!d)return;if(d.text&&/🔁 转帖 @[^\n]*\n\S*(#\/post\/|:\/\/post\/)/.test(d.text)){d.text='';localStorage.removeItem('nova_compose_draft')}/* 2.0.3：旧版「引用转帖」把转帖链接写进了发帖草稿，这里清掉 */S.d.pin=S.d.pin||d.text||'';const c=compState();if(!c._inited){c.aud=d.aud||'public';c.mood=d.mood||'';c.loc=d.loc||'';c.tags=d.tags||[];c._inited=1}}catch(e){}}
 function clearComposeDraft(){try{localStorage.removeItem('nova_compose_draft')}catch(e){}S.comp={media:[],aud:'public',mood:'',loc:'',tags:[]};S.d.pin=''}
 const pCompose=()=>{loadComposeDraft();const c=compState(),mx=typeof textLimit==='function'?textLimit('post'):500,aud=AUD_L[c.aud]||'公开',me=P('me');
 const media=c.media||[];
@@ -5146,7 +5169,7 @@ const chips=[c.mood?`<span class="chip">😊 ${esc(c.mood)}<button data-a="clrmo
 /* r7：只有照片/视频、没有文字也能发 */
 const canPub=typeof ok==='function'?(ok(S.d.pin||'',mx)||((media.length>0||c.poll||c.act)&&len(S.d.pin||'')<=mx)):!!(S.d.pin||'').trim()||media.length;
 return `<div class="pg compose-pg"><div class="top sub"><button class="ib tx" data-a="compx">取消</button><h1>创建帖子</h1><button class="pb${canPub?'':' off'}" data-a="pub" data-for="pin" ${canPub?'':'disabled'}>发布</button></div><div class="sc compose"><div class="cwho">${av('me',48)}<div class="gr"><b>${esc(me.n||'我的账号')}</b><button type="button" class="aud" data-a="audpick">${aud} ▾</button></div></div><textarea class="cta" data-d="pin" data-max="${mx}" data-af rows="6" placeholder="你现在有什么想分享的？"></textarea><div class="cchips">${chips.join('')}</div>${typeof v2ComposeAtt==='function'?v2ComposeAtt(c):''}${grid}<div class="ctools"><button data-a="addimg">${icLine('photo')}<span>照片 / 视频</span></button><button data-a="tagfr">${icLine('tag')}<span>标记好友</span></button><button data-a="addmood">${icLine('mood')}<span>添加心情</span></button><button data-a="addloc">${icLine('loc')}<span>添加位置</span></button>${typeof v2ComposeTools==='function'?v2ComposeTools(c):''}</div><p class="lab" style="text-align:right" data-cnt="pin"></p></div></div>`};
-const page=cur=>{const[t,a,b]=cur.split(':');if(typeof V2P!=='undefined'&&V2P[t])return V2P[t](a,b);return t=='story'?pStory(a,b):t=='storynew'?pStoryNew():t=='games'?pGames():t=='game'?pGame(a):t=='compose'?pCompose():t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='vip'?pVip():t=='saved'?pSaved():t=='priv'?pPriv():t=='sec'?pSec():t=='set'?pSet():t=='friends'?pFriends():t=='legal'?pLegal(a):pInfo(a)};
+const page=cur=>{const[t,a,b]=cur.split(':');if(typeof V2P!=='undefined'&&V2P[t])return V2P[t](a,b);return t=='story'?pStory(a,b):t=='storynew'?pStoryNew():t=='games'?pGames():t=='game'?pGame(a):t=='compose'?pCompose():t=='quote'&&typeof pQuote==='function'?pQuote(a):t=='post'?pPost(a):t=='user'?pUser(a):t=='fl'?pFl(a,b):t=='cm'?pCm(a):t=='chat'?pChat(a):t=='gi'?pGi(a):t=='cmm'?pCmm(a):t=='edit'?pEdit():t=='vip'?pVip():t=='saved'?pSaved():t=='priv'?pPriv():t=='sec'?pSec():t=='set'?pSet():t=='friends'?pFriends():t=='legal'?pLegal(a):pInfo(a)};
 
 /* ===== 50_sheets.js ===== */
 function pickPeople(exclude){
@@ -6080,14 +6103,44 @@ function postViews(p){const s=Number(p.viewCount!=null?p.viewCount:p.views);retu
 function repostMap(){const k=acctKey('nova_reposted');if(!k)return {};try{return JSON.parse(localStorage.getItem(k)||'{}')||{}}catch(e){return {}}}
 function repostSave(m){const k=acctKey('nova_reposted');if(!k)return;try{localStorage.setItem(k,JSON.stringify(m))}catch(e){}}
 /* 删除帖子时：删的是转帖本身，或者删的是原帖，都把转帖记录清掉 */
-function repostForget(id){id=String(id);const m=repostMap();let ch=0;for(const k of Object.keys(m))if(k===id||String(m[k])===id){delete m[k];ch=1}if(ch)repostSave(m);return ch}
+function repostForget(id){id=String(id);try{const dp=typeof findPost==='function'&&findPost(id);if(dp&&dp.rp&&typeof rpPatch==='function')rpPatch(dp.rp.id,x=>{if(String(x.myRepost)===id)x.myRepost=null;x.repostCount=Math.max(0,(Number(x.repostCount)||0)-1)})}catch(e){}const m=repostMap();let ch=0;for(const k of Object.keys(m))if(k===id||String(m[k])===id){delete m[k];ch=1}if(ch)repostSave(m);return ch}
 /* 打开转帖面板时向服务器确认那条转帖还在（在别的设备上删掉的也能清掉） */
 async function repostVerify(id){const m=repostMap(),nid=m[id];if(!nid||!(typeof usingNet==='function'&&usingNet())||typeof api!=='function')return;try{const r=await api('GET','/api/posts/'+encodeURIComponent(nid));if(r&&(r.s===404||r.s===410)){repostForget(nid);if(typeof render==='function')render()}}catch(e){}}
-function postReposts(p){return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
+/* 2.0.3：登录后转帖由服务器记录（posts.repost_of）。帖子自带 repostCount 和 myRepost（我那条直接转帖的 id），
+   不再用本机记录判断「转过没有」；本机记录只留给演示模式。 */
+function rpNet(){return typeof usingNet==='function'&&usingNet()}
+function myRepostOf(p){if(!p)return null;if(rpNet()&&('myRepost' in p))return p.myRepost||null;return repostMap()[p.id]||null}
+function postReposts(p){if(rpNet()&&p.repostCount!=null)return Number(p.repostCount)||0;return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
+/* 同一条原帖可能同时出现在首页、详情缓存、别人的转帖卡片里：一起改 */
+function rpPatch(id,fn){id=String(id);[].concat(Array.isArray(S.posts)?S.posts:[],S.postCache?Object.values(S.postCache):[],Array.isArray(S.boosts)?S.boosts:[]).forEach(x=>{if(x&&String(x.id)===id)fn(x)})}
+/* 转帖卡片（X 式）：原帖作者头像、名字、正文、图片；点卡片打开原帖详情 */
+function rpEmbed(p,det){
+  const r=p.rp;if(!r)return '';
+  if(r.deleted)return `<div class="rpc del"><span>原帖已删除</span></div>`;
+  const o=findPost(r.id);if(!o)return `<div class="rpc del"><span>原帖已删除</span></div>`;
+  const u=P(o.a),tm=typeof fmtTime==='function'&&o.at?fmtTime(o.at):(o.t||'');
+  const media=typeof mediaHTML==='function'?mediaHTML(Array.isArray(o.media)?o.media:[],false,o.id):'';
+  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}</small></div>${o.x?`<div class="rpx${det?'':' clamp'}">${esc(o.x)}</div>`:''}${media}</div>`;
+}
+function rpCardWrap(p,det,k){
+  const plain=!(p.x||'').trim();
+  const body=plain?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
+  const head=plain
+    ?`<div class="rptop"><span data-a="user" data-v="${p.a}">${xic('rt')}<b>${esc(p.a==='me'?'你':k.u.n)}</b> 转帖了</span><small>${esc(k.tm)}</small><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`
+    :`<div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(k.u)}</b><small>${esc(k.tm)}${k.tm?' · ':''}${k.aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`;
+  return `<article class="fcard rp${plain?' plain':''}" data-pid="${p.id}">${head}${body}${k.chips.length?`<div class="fmeta">${k.chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${k.mediaH}${rpEmbed(p,det)}${typeof xbar==='function'?xbar(p,k.nLike,k.nC):''}</article>`;
+}
+/* 引用转帖：单独的编辑页，草稿只放在 S.d.qin，取消或发出后清空；永远不碰普通发帖草稿（S.d.pin / nova_compose_draft） */
+function rpReset(){S.d.qin='';S.quoteOf=null;S.rtBusy=0}
+function pQuote(id){
+  const o=findPost(id);if(!o)return sub('引用转帖')+'<p class="em">原帖不存在或已删除</p>';
+  const mx=typeof textLimit==='function'?textLimit('post'):500,can=ok(S.d.qin||'',mx);
+  return `<div class="pg compose-pg"><div class="top sub"><button class="ib tx" data-a="quotex">取消</button><h1>引用转帖</h1><button class="pb${can?'':' off'}" data-a="quotego" data-v="${esc(String(id))}" data-for="qin" ${can?'':'disabled'}>发布</button></div><div class="sc compose"><div class="cwho">${av('me',48)}<div class="gr"><b>${esc(P('me').n||'我的账号')}</b></div></div><textarea class="cta" data-d="qin" data-max="${mx}" data-af rows="4" placeholder="说点什么…"></textarea>${rpEmbed({rp:{id:String(id),deleted:false}},false).replace(' data-a="rpopen"',' ')}<p class="lab" style="text-align:right" data-cnt="qin"></p></div></div>`;
+}
 function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Number.isFinite(s)&&s>0?s:(mine?1:0)}
 function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[],S.postCache?Object.values(S.postCache):[]);return a.find(x=>String(x.id)===String(id))}
 function xbar(p,nLike,nC){
-  const id=esc(String(p.id)),liked=p.m>=0,rt=!!repostMap()[p.id],bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
+  const id=esc(String(p.id)),liked=p.m>=0,rt=!!myRepostOf(p),bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
   const likeIc=liked&&p.m!==0&&typeof E!=='undefined'&&E[p.m]?`<span class="xemo">${E[p.m]}</span>`:xic('lk',liked);
   const b=(a,cls,ic,n,label)=>`<button data-a="${a}" data-v="${id}" class="${cls}" aria-label="${label}${n?' '+n:''}">${ic}<span>${fmtN(n)}</span></button>`;
   return `<div class="xbar">${b('post','xc',xic('cm'),nC,'评论')}${b('xrt','xr'+(rt?' on':''),xic('rt'),postReposts(p),'转帖')}${b('xlike','xl'+(liked?' on':''),likeIc,nLike,'点赞')}${b('xviews','xv',xic('vw'),postViews(p),'阅读')}${b('xbm','xb'+(bm?' on':''),xic('bm',bm),postBookmarks(p),'收藏')}<button data-a="xshare" data-v="${id}" class="xs" aria-label="分享">${xic('sh')}</button></div>`;
@@ -6120,8 +6173,8 @@ async function copyText(t){
 function r7Sheet(s){
   if(s.t==='xshare'){const p=findPost(s.id);const canSys=typeof navigator!=='undefined'&&!!navigator.share;
     return `<h3>分享帖子</h3><button class="mi" data-a="xcopylink" data-v="${esc(s.id)}">🔗 复制帖子链接</button>${p&&p.x?`<button class="mi" data-a="xcopytext" data-v="${esc(s.id)}">📋 复制正文</button>`:''}${canSys?`<button class="mi" data-a="xsys" data-v="${esc(s.id)}">📤 通过其他应用分享…</button>`:''}<button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
-  if(s.t==='xrt'){const done=!!repostMap()[s.id];
-    return `<h3>转帖</h3>${done?`<p class="lab" style="margin-bottom:6px">你已经转过这条帖子。</p>`:`<button class="mi" data-a="xrtgo" data-v="${esc(s.id)}">🔁 转帖</button>`}<button class="mi" data-a="xquote" data-v="${esc(s.id)}">✍️ 引用并说点什么</button><button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
+  if(s.t==='xrt'){const p0=findPost(s.id),tid=p0&&p0.rp&&!p0.rp.deleted?p0.rp.id:s.id,done=!!myRepostOf(findPost(tid)||{id:tid});
+    return `<h3>转帖</h3>${done?`<button class="mi" data-a="xrtundo" data-v="${esc(tid)}">↩️ 撤销转帖</button>`:`<button class="mi" data-a="xrtgo" data-v="${esc(tid)}">🔁 转帖</button>`}<button class="mi" data-a="xquote" data-v="${esc(tid)}">✍️ 引用并说点什么</button><button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
   return '';
 }
 function repostText(p,extra){const who=p?P(p.a).n:'';const ex=p&&p.x?[...p.x].slice(0,80).join('')+([...p.x].length>80?'…':''):'';return (extra?extra+'\n\n':'')+'🔁 转帖 @'+who+(ex?'：'+ex:'')+'\n'+postLink(p.id)}
@@ -6134,12 +6187,21 @@ Object.assign(A,{
   xcopytext:async v=>{S.sh=null;const p=findPost(v);const ok=await copyText(p&&p.x||'');T(ok?'已复制正文':'复制失败')},
   xsys:async v=>{S.sh=null;const u=postLink(v);if(!/^https?:/i.test(u)){const ok=await copyText(u);T(ok?'已复制帖子链接':'复制失败');return}try{await navigator.share({title:'VEXO',url:u})}catch(e){if(e&&e.name==='AbortError')return;const ok=await copyText(u);T(ok?'已复制帖子链接':'复制失败')}},/* 2.0.1：只分享链接（微信不接受文字 + 链接混合） */
   xrt:v=>{S.sh={t:'xrt',id:v};repostVerify(v)},
-  xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(repostMap()[v])return T('已经转过了');const text=repostText(p);
-    let nid=null;
-    if(typeof usingNet==='function'&&usingNet()){if(S.rtBusy)return;S.rtBusy=1;try{const np=await publishPost(text,{audience:'public'});nid=np&&np.id}finally{S.rtBusy=0}if(!nid)return}
-    else{nid='rt'+Date.now();D.p.unshift({id:nid,a:'me',t:'刚刚',at:Date.now(),x:text,r:[0,0,0,0,0,0],m:-1,aud:'public'})}
-    const m=repostMap();m[v]=nid;repostSave(m);T('已转帖')},
-  xquote:v=>{const p=findPost(v);S.sh=null;if(!p)return;S.d.pin=repostText(p,'');S.d.pin='\n\n'+S.d.pin;if(typeof compState==='function')compState();S.st.push('compose')}
+  /* 直接转帖：登录后发一条只带 repostOf 的帖子（服务器防重复）；演示模式保留旧做法 */
+  xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(myRepostOf(p))return T('已经转过了');
+    if(rpNet()){if(S.rtBusy)return;S.rtBusy=1;try{const np=await publishPost('',{audience:'public',repostOf:v});if(!np)return;rpPatch(v,x=>{x.myRepost=np.id;x.repostCount=(Number(x.repostCount)||0)+1});T('已转帖')}finally{rpReset()}return}
+    const nid='rt'+Date.now();D.p.unshift({id:nid,a:'me',t:'刚刚',at:Date.now(),x:'',rp:{id:String(v),deleted:false},r:[0,0,0,0,0,0],m:-1,aud:'public'});
+    const m=repostMap();m[v]=nid;repostSave(m);rpReset();T('已转帖')},
+  xrtundo:async v=>{const p=findPost(v);S.sh=null;const mine=myRepostOf(p||{id:v});if(!mine)return;
+    if(rpNet()){if(S.rtBusy)return;S.rtBusy=1;try{const r=await api('POST','/api/posts/'+encodeURIComponent(mine)+'/delete',{});if(r.s!==200&&r.s!==404)return T(errMsg(r,'撤销失败'));if(typeof dropPost==='function')dropPost(mine);rpPatch(v,x=>{x.myRepost=null;x.repostCount=Math.max(0,(Number(x.repostCount)||0)-1)});T('已撤销转帖')}finally{rpReset()}return}
+    D.p=D.p.filter(x=>x.id!==mine);repostForget(mine);rpReset();T('已撤销转帖')},
+  xquote:v=>{const p=findPost(v);S.sh=null;if(!p)return;rpReset();S.quoteOf=String(v);A.go('quote:'+v)},
+  quotex:()=>{rpReset();S.sh=null;const cur=S.st[S.st.length-1];if(cur&&String(cur).startsWith('quote:'))S.st.pop()},
+  quotego:async v=>{const x=(S.d.qin||'').trim(),mx=textLimit('post');if(!x)return T('写点什么');if(!ok(x,mx))return T('动态最多 '+mx+' 字');
+    const leave=()=>{rpReset();const cur=S.st[S.st.length-1];if(cur&&String(cur).startsWith('quote:'))S.st.pop();rpPatch(v,o=>{o.repostCount=(Number(o.repostCount)||0)+1});T('已转帖')};
+    if(rpNet()){if(S.rtBusy)return;S.rtBusy=1;try{if(typeof checkText==='function'&&!(await checkText('post',x)))return;const np=await publishPost(x,{audience:'public',repostOf:v});if(!np)return;leave()}finally{S.rtBusy=0}return}
+    D.p.unshift({id:'rt'+Date.now(),a:'me',t:'刚刚',at:Date.now(),x,rp:{id:String(v),deleted:false},r:[0,0,0,0,0,0],m:-1,aud:'public'});leave()},
+  rpopen:async v=>{if(!findPost(v)&&rpNet()){const r=await api('GET','/api/posts/'+encodeURIComponent(v));if(r.s!==200||!r.j||!r.j.post)return T('原帖不存在或已删除');S.postCache=S.postCache||{};S.postCache[String(v)]=adoptPost(r.j.post)}return A.post(v)}
 });
 /* 帖子链接打开：#/post/<id> */
 function openHashPost(){const m=/^#\/post\/([^/?#]+)/.exec(location.hash||'');if(!m)return;const id=decodeURIComponent(m[1]);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
