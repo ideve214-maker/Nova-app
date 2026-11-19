@@ -67,7 +67,7 @@ test('智谱适配器：控制台余额接口 → 可用余额 / 已用 / 充值
   await assert.rejects(BALANCE_ADAPTERS.zhipu({base: 'http://zhipu.mock/api', key: 'k', fetch: f1(200, {})}), /不是智谱官方/);
   const seen = [];
   await BALANCE_ADAPTERS.zhipu({base: 'http://zhipu.mock/api', key: 'k', env: {ZHIPU_BALANCE_URL: 'https://bal.example/x'}, fetch: async u => { seen.push(u); return json({code: 200, data: {availableBalance: 1}}); }});
-  assert.deepEqual(seen, ['https://bal.example/x']);
+  assert.deepEqual(seen, ['https://bal.example/x', 'https://bigmodel.cn/api/biz/tokenAccounts/list?filterEnabled=true&pageNum=1&pageSize=50']);
 });
 test('DeepSeek / Kimi / 硅基流动 / OpenRouter 适配器', async () => {
   const urls = [];
@@ -130,7 +130,7 @@ test('额度接口：要管理员登录；服务器默认智谱显示实时余�
   const r2 = await call('GET', '/api/admin/ai/quota?refresh=1');
   assert.equal(hits.filter(h => h.url === ZHIPU_BALANCE_URL).length, 2);
   const e2 = r2.j.providers.find(p => p.id === 'env');
-  assert.equal(e2.balance, 8); assert.equal(e2.low, true, '低于 10 元提醒线');
+  assert.equal(e2.balance, 8); assert.equal(e2.low, false, 'glm-4-flash 是免费模型，现金低于提醒线也不标黄'); assert.equal(e2.cashNote, 'free_model');
   T += 61e3;
   await call('GET', '/api/admin/ai/quota');
   assert.equal(hits.filter(h => h.url === ZHIPU_BALANCE_URL).length, 3, '60 秒后自动重新查');
