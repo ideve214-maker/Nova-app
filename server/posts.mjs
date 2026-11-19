@@ -2,6 +2,7 @@
 // M7：audience（public/followers/friends/self）在列表与详情上做服务端过滤。
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
+import {extAuthorPayload, SOURCE_LABEL} from './import-feed.mjs';
 
 const nid = () => 'po_' + randomBytes(12).toString('base64url');
 const len = s => [...String(s)].length;
@@ -39,6 +40,11 @@ function normMedia(v) {
 
 export function createPosts(db, {vip, profile, now}) {
   const ins = db.prepare(`INSERT INTO posts(id,author_id,text,created_at,updated_at,client_id,audience,mood,location,tagged,media) VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
+  // 2.0.3 转帖（迁移 056）。旧库没有这一列时转帖接口返回 503，其他功能不受影响。
+  const hasRepost = (() => { try { db.prepare('SELECT repost_of FROM posts LIMIT 1').get(); return true; } catch { return false; } })();
+  const setRepost = hasRepost ? db.prepare('UPDATE posts SET repost_of=? WHERE id=?') : null;
+  const repostCnt = hasRepost ? db.prepare('SELECT COUNT(*) n FROM posts WHERE repost_of=? AND deleted_at IS NULL') : null;
+  const myPlainRepost = hasRepost ? db.prepare("SELECT id FROM posts WHERE repost_of=? AND author_id=? AND deleted_at IS NULL AND COALESCE(text,'')='' ORDER BY created_at DESC LIMIT 1") : null;
   const byId = db.prepare('SELECT * FROM posts WHERE id=?');
   const byClient = db.prepare('SELECT * FROM posts WHERE author_id=? AND client_id=?');
   const upd = db.prepare('UPDATE posts SET text=?, updated_at=?, audience=COALESCE(?,audience), mood=COALESCE(?,mood), location=COALESCE(?,location), tagged=COALESCE(?,tagged), media=COALESCE(?,media) WHERE id=? AND author_id=? AND deleted_at IS NULL');
@@ -122,7 +128,22 @@ export function createPosts(db, {vip, profile, now}) {
     if (!s) return undefined;
     try { return JSON.parse(s); } catch { return undefined; }
   }
-  function pub(row, me) {
+  // 2.0.3 之前的转帖只是一条文字帖：「🔁 转帖 @某人：摘要\n<链接>/#/post/<id>」，引用时前面还有自己的话。
+  // 读出时按这个格式还原成转帖，旧数据不用迁移。
+  const LEGACY_RT = /(?:^|\n\n)🔁 转帖 @[^\n]*\n\S*(?:#\/post\/|:\/\/post\/)([A-Za-z0-9_-]+)\s*$/;
+  function repostInfo(row) {
+    if (row.repost_of) return {of: String(row.repost_of), text: row.text || ''};
+    const m = LEGACY_RT.exec(row.text || '');
+    if (!m || m[1] === row.id) return null;
+    return {of: m[1], text: (row.text || '').slice(0, m.index).trim()};
+  }
+  function embedOf(origId, me) {
+    const o = byId.get(origId);
+    if (!o || o.deleted_at || !canSee(o, me)) return {id: origId, deleted: true};
+    const e = pub(o, me, true);
+    return e ? Object.assign(e, {deleted: false}) : {id: origId, deleted: true};
+  }
+  function pub(row, me, embedded) {
     if (!row || row.deleted_at) return null;
     const out = {
       id: row.id,
@@ -142,6 +163,19 @@ export function createPosts(db, {vip, profile, now}) {
       viewCount: Math.max(0, viewCnt.get(row.id).n + (row.adj_views || 0)),
       bookmarkCount: Math.max(0, saveCnt.get(row.id).n + (row.adj_saves || 0)),
     };
+    if (repostCnt) out.repostCount = repostCnt.get(row.id).n;
+    if (myPlainRepost && me && me.id) { const mr = myPlainRepost.get(row.id, Number(me.id)); out.myRepost = mr ? mr.id : null; }
+    if (!embedded) {
+      const ri = repostInfo(row);
+      if (ri) { out.text = ri.text; out.repostOf = embedOf(ri.of, me); }
+    }
+    if (row.source) {
+      out.source = row.source;
+      out.sourceLabel = SOURCE_LABEL[row.source] || ('来自 ' + row.source);
+      if (row.source_url) out.sourceUrl = row.source_url;
+      out.author = extAuthorPayload(row);
+      out.mine = false;
+    }
     if (row.mood) out.mood = row.mood;
     if (row.location) out.location = row.location;
     const tagged = parseJson(row.tagged);
@@ -173,11 +207,31 @@ export function createPosts(db, {vip, profile, now}) {
       media: normMedia(body && (body.media != null ? body.media : body.mediaIds)),
     };
   }
+  // 转帖目标：必须存在、看得见；转的是转帖时指向它的原帖（不套娃）。
+  function repostTarget(user, raw) {
+    if (raw == null || raw === '') return null;
+    if (!hasRepost) throw new ApiError(503, 'NO_REPOST', '转帖功能尚未就绪');
+    let row = byId.get(String(raw).slice(0, 80));
+    if (!row || row.deleted_at || !canSee(row, user)) throw new ApiError(404, 'NOT_FOUND', '原帖不存在或已删除');
+    const ri = repostInfo(row);
+    if (ri) {
+      const o = byId.get(ri.of);
+      if (!o || o.deleted_at || !canSee(o, user)) throw new ApiError(404, 'NOT_FOUND', '原帖不存在或已删除');
+      row = o;
+    }
+    return row;
+  }
   function create(user, body) {
     const text = String((body && body.text) != null ? body.text : '').trim();
     const f0 = fields(body);
+    const target = repostTarget(user, body && body.repostOf);
     if (len(text) && extras && typeof extras.assertPlatform === 'function') extras.assertPlatform(text);
-    if (!len(text) && !f0.media) throw new ApiError(400, 'BAD_TEXT', '请写下你想发布的内容');
+    if (target && !len(text) && !f0.media) {
+      // 直接转帖：同一个人对同一条原帖只保留一条，重复点返回已有的那条
+      const mine = myPlainRepost.get(target.id, Number(user.id));
+      if (mine) return {post: pub(byId.get(mine.id), user), idempotent: true};
+    }
+    if (!target && !len(text) && !f0.media) throw new ApiError(400, 'BAD_TEXT', '请写下你想发布的内容');
     if (len(text)) vip.requireTextLength(user, 'post', text);
     let clientId = body && body.clientId != null ? String(body.clientId).trim() : '';
     if (clientId) {
@@ -190,7 +244,7 @@ export function createPosts(db, {vip, profile, now}) {
     } else clientId = null;
     const f = fields(body);
     const id = nid(), t = now();
-    try { ins.run(id, user.id, text, t, t, clientId, f.audience, f.mood, f.location, f.tagged, f.media); }
+    try { ins.run(id, user.id, text, t, t, clientId, f.audience, f.mood, f.location, f.tagged, f.media); if (target) setRepost.run(target.id, id); }
     catch (e) {
       if (clientId && /UNIQUE/i.test(String(e.message))) {
         const existed = byClient.get(user.id, clientId);

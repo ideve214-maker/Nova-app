@@ -10,6 +10,7 @@ tag:'<circle cx="9" cy="8.2" r="3.05"/><path d="M4.2 19.2c.15-3.15 2.35-5.15 4.8
 mood:'<circle cx="12" cy="12" r="8.4"/><circle cx="9" cy="10" r=".95" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r=".95" fill="currentColor" stroke="none"/><path d="M8.4 14.6c1.15 1.7 2.5 2.45 3.6 2.45s2.45-.75 3.6-2.45"/>',
 loc:'<path d="M12 21s6.6-5.85 6.6-10.6A6.6 6.6 0 0 0 5.4 10.4C5.4 15.15 12 21 12 21Z"/><circle cx="12" cy="10.2" r="2.15"/>',
 game:'<rect x="3.2" y="7.4" width="17.6" height="10.4" rx="5.2"/><path d="M8 10.4v4.4M5.8 12.6h4.4"/><circle cx="15.4" cy="11.2" r=".95" fill="currentColor" stroke="none"/><circle cx="17.5" cy="13.6" r=".95" fill="currentColor" stroke="none"/>',
+cmd:'<path d="M5.2 8.2 9.6 12 5.2 15.8"/><path d="M12.2 16.4H18.8"/>',
 plus:'<path d="M12 6.2v11.6M6.2 12h11.6"/>',
 grid1:'<rect x="4.2" y="4.2" width="15.6" height="15.6" rx="2.2"/>',
 grid2:'<rect x="3.2" y="4.5" width="7.8" height="15" rx="1.6"/><rect x="13" y="4.5" width="7.8" height="15" rx="1.6"/>',

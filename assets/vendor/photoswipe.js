@@ -1,5 +1,5 @@
 (() => {
-  // node_modules/photoswipe/dist/photoswipe.esm.js
+  // ../vexo-weather/node_modules/photoswipe/dist/photoswipe.esm.js
   function createElement(className, tagName, appendToEl) {
     const el = document.createElement(tagName);
     if (className) {

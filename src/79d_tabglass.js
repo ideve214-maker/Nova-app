@@ -79,9 +79,25 @@ function tgDown(e){
   const p=tgPill(nav);if(!p)return;
   TG.drag={nav,p,id:e.pointerId,x0:e.clientX,lastX:e.clientX,lastT:performance.now(),moved:false,idx:tgBtns(nav).findIndex(b=>b.classList.contains('on'))};
 }
+/* 拖动途中整页重绘（例如滚动停下后补做的 render、新消息角标）会换掉整个 nav：接到新的 nav 上继续拖，不中断手势 */
+function tgLive(d){
+  if(d.nav.isConnected)return true;
+  const n=document.querySelector('#app .fnav');if(!n)return false;
+  let p=tgPill(n);
+  if(!p){p=document.createElement('i');p.className='tgpill';p.setAttribute('aria-hidden','true');n.insertBefore(p,n.firstChild)}
+  d.nav=n;d.p=p;
+  if(d.moved){n.classList.add('tgdrag');try{p0(d)}catch(_){}try{n.setPointerCapture(d.id)}catch(_){}
+    tgBtns(n).forEach((b,j)=>b.classList.toggle('on',j===d.idx));
+    if(TG.w)p.style.width=TG.w+'px';if(d.x!=null)tgSet(p,d.x,1)}
+  return true;
+}
 function tgMove(e){
   const d=TG.drag;if(!d||e.pointerId!==d.id)return;
-  if(!d.moved){if(Math.abs(e.clientX-d.x0)<8)return;d.moved=true;try{d.nav.setPointerCapture(e.pointerId)}catch(_){}d.nav.classList.add('tgdrag');try{p0(d)}catch(_){}}
+  if(!tgLive(d))return;
+  if(!d.moved){if(Math.abs(e.clientX-d.x0)<8)return;d.moved=true;d.nav.classList.add('tgdrag');try{p0(d)}catch(_){}
+    /* 触摸时浏览器默认把指针隐式捕获在按下的那个按钮/图标上；这里改由 nav 捕获，
+       浏览器会在原按钮上补发一次 lostpointercapture。那不是取消，见 tgLost()。 */
+    try{d.nav.setPointerCapture(e.pointerId)}catch(_){}}
   const r=d.nav.getBoundingClientRect(),btns=tgBtns(d.nav),w=TG.w||d.p.offsetWidth;
   const x=Math.max(4,Math.min(r.width-w-4,e.clientX-r.left-w/2));
   const t=performance.now(),v=(e.clientX-d.lastX)/Math.max(1,t-d.lastT);d.lastX=e.clientX;d.lastT=t;
@@ -93,6 +109,7 @@ function tgMove(e){
 function p0(d){d.p.getAnimations&&d.p.getAnimations().forEach(a=>a.cancel());d.p.style.opacity='1'}
 function tgUp(e){
   const d=TG.drag;if(!d||e.pointerId!==d.id)return;
+  tgLive(d);
   d.nav.classList.remove('tgdrag');
   TG.drag=null;
   if(!d.moved)return;
@@ -101,11 +118,21 @@ function tgUp(e){
 }
 function tgCancel(e){
   const d=TG.drag;if(!d||(e&&e.pointerId!=null&&e.pointerId!==d.id))return;
+  tgLive(d);
   d.nav.classList.remove('tgdrag');
   TG.drag=null;
   if(!d.moved)return;
   S.nc=Date.now();
   tgGo(d.nav,d.idx);
+}
+/* lostpointercapture 只说明“捕获换了人或被释放”，手指可能还按着：
+   - 触摸开始拖动时，捕获从按下的按钮（隐式捕获）转给 nav，原按钮会收到一次 lostpointercapture；
+     2.0.4（#24）把它当成取消，于是手指一动拖动就结束、胶囊弹回原位——这就是“底部栏拖不动”。
+   - nav 被整页重绘换掉时，旧 nav 也会收到；这时接到新 nav 上继续。
+   真正的结束只认 pointerup / pointercancel。 */
+function tgLost(e){
+  const d=TG.drag;if(!d||e.pointerId!==d.id)return;
+  if(e.target===d.nav&&!d.nav.isConnected)tgLive(d);
 }
 function tgRelayout(){
   if(TG.drag&&TG.drag.moved)return;
@@ -120,7 +147,7 @@ if(typeof document!=='undefined'){
   document.addEventListener('pointermove',tgMove,{passive:true});
   document.addEventListener('pointerup',tgUp,{passive:true});
   document.addEventListener('pointercancel',tgCancel,{passive:true});
-  document.addEventListener('lostpointercapture',tgCancel,{passive:true,capture:true});
+  document.addEventListener('lostpointercapture',tgLost,{passive:true,capture:true});
   window.addEventListener('resize',()=>{TG.x=null;tgRelayout()});
   if(window.visualViewport)visualViewport.addEventListener('resize',()=>{tgRelayout()});
 }

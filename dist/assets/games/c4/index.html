@@ -17,7 +17,29 @@
       content="四子棋 game in JS + Canvas. Play against artificial intelligence or with other human offline or online!"
     />
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
-  <link rel="stylesheet" href="app.css"><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style><style data-nova-fit>table.visually-hidden{display:none!important}html,body{max-width:100%;overflow-x:hidden}.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}dialog.init-screen{box-sizing:border-box;max-width:calc(100vw - 24px)!important;max-height:calc(100vh - 24px);overflow:auto}dialog.init-screen *{max-width:100%;box-sizing:border-box}.section-canvas{max-width:100%}</style></head>
+  <link rel="stylesheet" href="app.css"><style data-nova-hide-sb>html,body,*{scrollbar-width:none;-ms-overflow-style:none}html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{display:none;width:0;height:0}</style><style data-nova-fit>
+html,body{height:100%;max-width:100%;margin:0;overflow:hidden;background:#fff}
+body{display:flex;flex-direction:column;align-items:stretch}
+.header{flex:none;position:static;padding:4px 8px}
+.header-title,.header h1{margin:4px 0;font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
+.section{flex:1;min-height:0;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:100%;overflow:hidden}
+.section-message{flex:none;min-height:1.4em;font-size:14px;padding:0 8px}
+.section-canvas{display:block;max-width:100%;height:auto;margin:0 auto}
+.statusbox{flex:none;padding:8px 10px;box-sizing:border-box}
+.statusbox-body,.statusbox-controls{flex-wrap:wrap;gap:8px;max-width:100%}
+.footer{display:none}
+table.visually-hidden{display:none!important}
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+dialog.init-screen,dialog.message-body{box-sizing:border-box;width:calc(100vw - 16px)!important;max-width:420px!important;max-height:calc(100vh - 16px);overflow:auto;padding:12px}
+dialog.init-screen *{max-width:100%;box-sizing:border-box}
+@media (max-width:400px){
+  .game-settings-form{grid-template-columns:1fr!important;gap:8px}
+  .game-settings-form-section{grid-column:1/-1}
+  h1{font-size:1.15em;margin:.35em 0}
+  h2{font-size:1em;margin:.35em 0}
+  dialog.init-screen p{margin:.4em 0;font-size:14px;line-height:1.45}
+}
+</style></head>
 
   <body data-game="c4">
     <header class="header">
@@ -49,26 +71,25 @@
         aria-describedby="board-player-legend"
       >
         <caption>
-          四子棋 board. Rows are listed from top to bottom.
+          四子棋棋盘，从上到下列出各行。
         </caption>
         <thead>
           <tr>
-            <th scope="col">Row</th>
-            <th scope="col">Column 1</th>
-            <th scope="col">Column 2</th>
-            <th scope="col">Column 3</th>
-            <th scope="col">Column 4</th>
-            <th scope="col">Column 5</th>
-            <th scope="col">Column 6</th>
-            <th scope="col">Column 7</th>
+            <th scope="col">行</th>
+            <th scope="col">第1列</th>
+            <th scope="col">第2列</th>
+            <th scope="col">第3列</th>
+            <th scope="col">第4列</th>
+            <th scope="col">第5列</th>
+            <th scope="col">第6列</th>
+            <th scope="col">第7列</th>
           </tr>
         </thead>
         <tbody class="board-state-body"></tbody>
       </table>
       <fieldset class="hidden game-controls" tabindex="-1">
         <legend class="visually-hidden">
-          四子棋 columns. Use keys 1 through 7 to drop a disc in a
-          column when it is your turn.
+          四子棋列。轮到你时，按 1 到 7 向对应列落子。
         </legend>
         <button
           class="visually-hidden game-control"
@@ -76,7 +97,7 @@
           data-column="0"
           aria-keyshortcuts="1"
         >
-          Drop a disc in column 1
+          向第1列落子
         </button>
         <button
           class="visually-hidden game-control"
@@ -84,7 +105,7 @@
           data-column="1"
           aria-keyshortcuts="2"
         >
-          Drop a disc in column 2
+          向第2列落子
         </button>
         <button
           class="visually-hidden game-control"
@@ -92,7 +113,7 @@
           data-column="2"
           aria-keyshortcuts="3"
         >
-          Drop a disc in column 3
+          向第3列落子
         </button>
         <button
           class="visually-hidden game-control"
@@ -100,7 +121,7 @@
           data-column="3"
           aria-keyshortcuts="4"
         >
-          Drop a disc in column 4
+          向第4列落子
         </button>
         <button
           class="visually-hidden game-control"
@@ -108,7 +129,7 @@
           data-column="4"
           aria-keyshortcuts="5"
         >
-          Drop a disc in column 5
+          向第5列落子
         </button>
         <button
           class="visually-hidden game-control"
@@ -116,7 +137,7 @@
           data-column="5"
           aria-keyshortcuts="6"
         >
-          Drop a disc in column 6
+          向第6列落子
         </button>
         <button
           class="visually-hidden game-control"
@@ -124,7 +145,7 @@
           data-column="6"
           aria-keyshortcuts="7"
         >
-          Drop a disc in column 7
+          向第7列落子
         </button>
       </fieldset>
     </section>
@@ -222,7 +243,7 @@
           class="hidden statusbox-button statusbox-button-share"
           type="button"
         >
-          Share game
+          分享对局
         </button>
         <button
           class="hidden statusbox-button statusbox-button-back"

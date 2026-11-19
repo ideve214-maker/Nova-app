@@ -1,17 +1,27 @@
-/* 小游戏目录。游戏本体在 assets/games/<id>/，离线运行。 */
-const GAMES = [
-  {id:'2048', name:'2048', desc:'滑动合并相同数字。', score:true},
-  {id:'tower', name:'盖楼', desc:'把楼层叠得越高越好。', score:true},
-  {id:'gobang', name:'五子棋', desc:'和电脑下五子棋。', score:false},
-  {id:'chess', name:'中国象棋', desc:'经典象棋对局。', score:false},
-  {id:'snake', name:'贪吃蛇', desc:'吃到食物就变长。', score:true},
-  {id:'solitaire', name:'纸牌接龙', desc:'把牌按花色收齐。', score:false},
-  {id:'reversi', name:'黑白棋', desc:'翻转对手的棋子。', score:false},
-  {id:'calc24', name:'24点', desc:'用四个数算出 24。', score:false},
-  {id:'mines', name:'扫雷', desc:'标出所有地雷。', score:false},
-  {id:'sudoku', name:'数独', desc:'填满九宫格。', score:false},
-  {id:'c4', name:'四子棋', desc:'先连成四子的一方获胜。', score:false},
+/* 小游戏目录（数据驱动）。游戏本体在 assets/games/<id>/，打开时才按需加载，不打进热更新包。
+   新游戏：在 GAME_CATEGORIES 已有分类下往 GAMES 加一条即可（id 与目录名一致，并补 GAME_ICO）。 */
+const GAME_CATEGORIES = [
+  {id:'board', name:'棋类'},
+  {id:'puzzle', name:'益智'},
+  {id:'casual', name:'休闲'},
 ];
+const GAMES = [
+  {id:'gobang', name:'五子棋', desc:'和电脑下五子棋。', score:false, category:'board'},
+  {id:'c4', name:'四子棋', desc:'先连成四子的一方获胜。', score:false, category:'board'},
+  {id:'reversi', name:'黑白棋', desc:'翻转对手的棋子。', score:false, category:'board'},
+  {id:'chess', name:'中国象棋', desc:'经典象棋对局。', score:false, category:'board'},
+  {id:'mines', name:'扫雷', desc:'标出所有地雷。', score:false, category:'puzzle'},
+  {id:'2048', name:'2048', desc:'滑动合并相同数字。', score:true, category:'puzzle'},
+  {id:'calc24', name:'24点', desc:'用四个数算出 24。', score:false, category:'puzzle'},
+  {id:'sudoku', name:'数独', desc:'填满九宫格。', score:false, category:'puzzle'},
+  {id:'solitaire', name:'纸牌接龙', desc:'把牌按花色收齐。', score:false, category:'puzzle'},
+  {id:'snake', name:'贪吃蛇', desc:'吃到食物就变长。', score:true, category:'casual'},
+  {id:'tower', name:'盖楼', desc:'把楼层叠得越高越好。', score:true, category:'casual'},
+];
+function gamesInCategory(cat){
+  if(!cat || cat==='all') return GAMES.slice();
+  return GAMES.filter(g=>g.category===cat);
+}
 function gameBest(id){
   try{const n=localStorage.getItem('nova_game_best_'+id);return n==null||n===''?null:n}catch(e){return null}
 }
@@ -39,13 +49,27 @@ function gameIcon(id){
   const inner=GAME_ICO[id]||'';
   return `<svg class="gico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
 }
+function gameTile(g){
+  const best=gameBest(g.id);
+  const score=g.score?(best!=null?('最高 '+esc(best)):'还没有成绩'):'无计分';
+  return `<button type="button" class="gtile" data-a="game" data-v="${esc(g.id)}"><span class="gico">${gameIcon(g.id)}</span><b>${esc(g.name)}</b><small>${esc(g.desc)}</small><em>${score}</em></button>`;
+}
 function pGames(){
-  const tiles=GAMES.map(g=>{
-    const best=gameBest(g.id);
-    const score=g.score?(best!=null?('最高 '+esc(best)):'还没有成绩'):'无计分';
-    return `<button type="button" class="gtile" data-a="game" data-v="${esc(g.id)}"><span class="gico">${gameIcon(g.id)}</span><b>${esc(g.name)}</b><small>${esc(g.desc)}</small><em>${score}</em></button>`;
-  }).join('');
-  return `<div class="pg">${sub('小游戏')}<div class="sc"><p class="hint" style="padding:12px 16px 0">成绩只存在这台设备。</p><div class="gtiles">${tiles}</div></div></div>`;
+  const cat=S.gameCat||'all';
+  const tabs=[{id:'all', name:'全部'}].concat(GAME_CATEGORIES);
+  const seg=`<div class="seg gcat-seg" role="tablist">${tabs.map(c=>`<button type="button" role="tab" data-a="gcat" data-v="${esc(c.id)}" class="${cat===c.id?'on':''}" aria-selected="${cat===c.id?'true':'false'}">${esc(c.name)}</button>`).join('')}</div>`;
+  let body='';
+  if(cat==='all'){
+    body=GAME_CATEGORIES.map(c=>{
+      const list=gamesInCategory(c.id);
+      if(!list.length)return '';
+      return `<h2 class="gsec">${esc(c.name)}</h2><div class="gtiles">${list.map(gameTile).join('')}</div>`;
+    }).join('');
+  }else{
+    const list=gamesInCategory(cat);
+    body=list.length?`<div class="gtiles">${list.map(gameTile).join('')}</div>`:`<p class="hint ghint">这个分类还没有游戏。</p>`;
+  }
+  return `<div class="pg games-pg">${sub('小游戏')}${seg}<div class="sc"><p class="hint ghint">成绩只存在这台设备。</p>${body}</div></div>`;
 }
 /* 1.0.7：热更新包不再带小游戏（体积太大，手机网络下载会超时），改从服务器加载；完整安装包仍用本地文件。 */
 function gameBase(){const b=typeof window!=='undefined'&&window.NOVA_GAMES_BASE;return b?String(b).replace(/\/?$/,'/'):'assets/games/'}
@@ -53,7 +77,10 @@ function pGame(id){
   const g=GAMES.find(x=>x.id===id);
   if(!g)return `<div class="pg">${sub('小游戏')}<div class="sc"><p class="em">没有这个游戏</p></div></div>`;
   S.gameId=id;
-  return `<div class="pg game-pg">${sub(esc(g.name))}<div class="sc game-frame"><iframe title="${esc(g.name)}" src="${esc(gameBase())}${esc(g.id)}/index.html" data-game="${esc(g.id)}"></iframe></div></div>`;
+  const url=gameBase()+g.id+'/index.html';
+  /* 按需加载：列表页不下载任何游戏资源；点开后才用 iframe 拉这一款的 HTML/JS/CSS。热更新精简包也不含 assets/games。 */
+  try{console.info('[vexo-games] lazy-load', g.id, url)}catch(e){}
+  return `<div class="pg game-pg">${sub(esc(g.name))}<div class="sc game-frame"><iframe title="${esc(g.name)}" src="${esc(url)}" data-game="${esc(g.id)}" loading="lazy"></iframe></div></div>`;
 }
 if(typeof window!=='undefined' && !window.__novaGameScore){
   window.__novaGameScore=1;
