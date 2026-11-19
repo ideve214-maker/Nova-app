@@ -1,5 +1,14 @@
 # 更新日志（最新在上）
 
+## 未发布 · 命令速查卡片（分支 feat/tldr-cards-v2，基于 tldr-pages）
+
+从线上 2.0.5 / b0a6e23 拉出。不改版本号。社区页在小游戏旁边增加「命令速查」入口。内容来自开源项目 [tldr-pages](https://github.com/tldr-pages/tldr)，按 CC BY 4.0 使用，每张卡片和列表页都标明出处并链到原文。
+
+- 客户端只请求本服务器 `GET /api/tldr?q=`（搜索/目录）和 `GET /api/tldr?cmd=`（某一条说明）。
+- 服务器拉取并缓存官方索引和页面：优先简体中文（`pages.zh`），没有再英文；平台按 common → linux → osx。网络失败时给出明确提示。不把密钥或语料打进 App。没有数据库迁移。
+- 发布时需要先部署服务器（新接口），再发热更新。
+- 新增 `server/test/tldr.test.mjs`（假 fetch，不访问外网）和 `server/test/m210-tldr-ui.test.mjs`（CDP 真实触摸，390×844），已加入 `npm run test:server` / `test:ui`。
+
 ## VEXO 2.0.x · 底部导航栏又能左右拖动了（修 #24 回归，待发布）
 
 只改客户端（`src/79d_tabglass.js`、`src/00_head.html`），不需要升级服务器，也不需要数据库迁移；走热更新。
