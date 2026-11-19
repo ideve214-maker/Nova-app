@@ -35,7 +35,10 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;return o;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;
+  /* 2.0.3 转帖：原帖整条带回来（已删除时只有 id + deleted），放进 postCache，点卡片能直接打开详情 */
+  if(p.repostOf){const q=p.repostOf;if(q.deleted||!q.author)o.rp={id:String(q.id),deleted:true};else{const oo=adoptPost(q);o.rp={id:String(oo.id),deleted:false};S.postCache=S.postCache||{};S.postCache[String(oo.id)]=oo}}
+  return o;
 }
 /* 帖子已被删除（作者删帖或管理员处理举报）：从内存列表和离线缓存里去掉，避免继续显示旧帖子 */
 function dropPost(id,toast){
@@ -105,7 +108,7 @@ async function loadFeed(){
 }
 async function publishPost(text,meta){
   const body={text,clientId:'c'+Date.now()+'-'+Math.random().toString(36).slice(2,8)};
-  if(meta){if(meta.audience)body.audience=meta.audience;if(meta.mood)body.mood=meta.mood;if(meta.location)body.location=meta.location;if(meta.tagged&&meta.tagged.length)body.tagged=meta.tagged.map(Number).filter(n=>n);if(meta.media&&meta.media.length)body.media=meta.media;if(meta.kind)body.kind=meta.kind;if(meta.poll)body.poll=meta.poll;if(meta.activity)body.activity=meta.activity;}
+  if(meta){if(meta.audience)body.audience=meta.audience;if(meta.mood)body.mood=meta.mood;if(meta.location)body.location=meta.location;if(meta.tagged&&meta.tagged.length)body.tagged=meta.tagged.map(Number).filter(n=>n);if(meta.media&&meta.media.length)body.media=meta.media;if(meta.kind)body.kind=meta.kind;if(meta.poll)body.poll=meta.poll;if(meta.activity)body.activity=meta.activity;if(meta.repostOf)body.repostOf=meta.repostOf;}
   const r=await api('POST','/api/posts',body);
   if(r.s!==200){T(errMsg(r,'发布失败'));return null}
   const p=adoptPost(r.j.post);
