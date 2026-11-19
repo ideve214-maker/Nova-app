@@ -59,6 +59,7 @@ import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
 import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} from './legal.mjs';
 import {createTldr, TldrError} from './tldr.mjs';
+import {createImportFeed, isReservedImportIdentity} from './import-feed.mjs';
 import {appVersion} from './version.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
@@ -106,6 +107,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   aiEnv = process.env, aiFetch, adminAiOpts = {},
   tldrFetch,
   weatherFetch, weatherEnv, weatherIpLookup,
+  importFetch, importAuto, importDelayMs, importLimit, importCommentLimit, importIntervalMs,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -355,10 +357,19 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const verInfo = appVersion();
   const tldr = createTldr({fetchFn: tldrFetch || globalThis.fetch, now});
   const weather = createWeather({fetchFn: weatherFetch || globalThis.fetch, env: weatherEnv || process.env, now, ipLookup: weatherIpLookup});
+  const importFeed = createImportFeed(db, {
+    fetchFn: importFetch || globalThis.fetch,
+    now,
+    delayMs: importDelayMs != null ? importDelayMs : 250,
+    sourceLimit: importLimit != null ? importLimit : 20,
+    commentLimit: importCommentLimit != null ? importCommentLimit : 10,
+    intervalMs: importIntervalMs != null ? importIntervalMs : (Number(process.env.NOVA_IMPORT_INTERVAL_MS) || 15 * 60 * 1000),
+  });
   const routes = {
     'POST /api/auth/register'(req, b) {
       if (flags.read().registrationOpen === false) throw bad('REGISTRATION_CLOSED', '暂不开放注册', 403);
       const username = String(b.username || '').trim(), email = String(b.email || '').trim().toLowerCase(), pw = b.password;
+      if (isReservedImportIdentity(username, email)) throw bad('EXISTS', '用户名或邮箱已被注册', 409);
       if (!validate.username(username)) throw bad('BAD_USERNAME', '用户名需 3–20 位，仅限文字、数字、下划线');
       if (!validate.email(email)) throw bad('BAD_EMAIL', '邮箱格式不正确');
       { const dc = emailDomainCheck(email, {allowTest: allowTestEmails});
@@ -385,8 +396,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const a = q.att.get(key);
       if (a && a.locked_until > now()) throw bad('LOCKED', `尝试次数过多，请 ${Math.ceil((a.locked_until - now()) / 60e3)} 分钟后再试`, 429);
       const u = q.userByLogin.get(id, id);
+      // 导入系统账号不能登录；仍走同样的失败路径，避免暴露这个账号。
+      const reserved = u && isReservedImportIdentity(u.username, u.email);
       // 账号不存在时也做一次哈希，避免通过耗时判断账号是否存在
-      const ok = u ? verifyPassword(pw, u.password_hash) : (verifyPassword(pw, 'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$' + 'A'.repeat(86) + '=='), false);
+      const ok = (u && !reserved) ? verifyPassword(pw, u.password_hash) : (verifyPassword(pw, 'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$' + 'A'.repeat(86) + '=='), false);
       if (!ok) {
         const locks = (a && a.locks) || 0;
         const f = (a ? a.fails : 0) + 1;
@@ -2043,6 +2056,18 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return res.end(html);
       } catch { return send(503, {error: {code: 'NO_BUILD', message: '前端还没构建'}}); }
     }
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/api/import/avatar') {
+      importFeed.avatar(req.query.u || req.query.url || '').then(f => {
+        if (!f) return send(404, {error: {code: 'NOT_FOUND', message: '头像不可用'}});
+        return sendRanged(req, res, f.buf, {
+          ...corsHeaders(req),
+          'Content-Type': f.mime,
+          'Cache-Control': 'public, max-age=86400',
+          'X-Content-Type-Options': 'nosniff',
+        });
+      }, () => send(404, {error: {code: 'NOT_FOUND', message: '头像不可用'}}));
+      return;
+    }
     const mediaFile = /^\/api\/media\/([^/]+)\/(file|preview|cover)$/.exec(path);
     const sendMediaFile = f => {
         const data = readFileSync(f.path);
@@ -2185,15 +2210,19 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.importFeed = importFeed; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
   if (autoSched && process.env.ADMIN_AI_ADS_DAILY !== '0') adminAi.ads.start();
+  const autoImport = importAuto != null ? !!importAuto
+    : (dbPath !== ':memory:' && process.env.NOVA_IMPORT_AUTO !== '0' && !process.env.NODE_TEST_CONTEXT);
+  if (autoImport) importFeed.start();
   const _close = server.close.bind(server);
   server.close = function(cb) {
     try { schedule.stop(); } catch {}
     try { adminAi.ads.stop(); } catch {}
+    try { importFeed.stop(); } catch {}
     try { events.closeAll(); } catch {}
     return _close(cb);
   };

@@ -1,6 +1,7 @@
 // M4.1.3 评论、回复、反应。关系与计数由服务端维护；删除和权限在服务端校验。
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
+import {extAuthorPayload, SOURCE_LABEL} from './import-feed.mjs';
 
 const nid = () => 'co_' + randomBytes(12).toString('base64url');
 const len = s => [...String(s)].length;
@@ -68,6 +69,13 @@ export function createComments(db, {profile, vip, posts, now}) {
       replyTo: null,
       replyCount: 0,
     };
+    if (row.source) {
+      out.source = row.source;
+      out.sourceLabel = SOURCE_LABEL[row.source] || ('来自 ' + row.source);
+      if (row.source_url) out.sourceUrl = row.source_url;
+      out.author = extAuthorPayload(row);
+      out.mine = false;
+    }
     if (!gone && extras && extras.personalFilter && me) {
       const f = extras.personalFilter(out.text, me, row.author_id);
       if (f) { out.text = f.text; out.filtered = true; out.filteredBy = f.filteredBy; }
@@ -101,11 +109,11 @@ export function createComments(db, {profile, vip, posts, now}) {
     if (!row.parent_id) return null;
     const p = byId.get(row.parent_id);
     if (!p) return {id: row.parent_id, deleted: true, missing: true, author: null, text: ''};
-    const a = authorOf(p.author_id);
+    const a = p.source ? extAuthorPayload(p) : authorOf(p.author_id);
     return {
       id: p.id,
       deleted: !!p.deleted_at,
-      author: {id: a.id, username: a.username, displayName: a.displayName},
+      author: {id: a.id, username: a.username, displayName: a.displayName, external: !!a.external, source: a.source || null},
       text: p.deleted_at ? '' : String(p.text || '').slice(0, 80),
     };
   }

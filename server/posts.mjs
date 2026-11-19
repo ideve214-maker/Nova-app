@@ -2,6 +2,7 @@
 // M7：audience（public/followers/friends/self）在列表与详情上做服务端过滤。
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
+import {extAuthorPayload, SOURCE_LABEL} from './import-feed.mjs';
 
 const nid = () => 'po_' + randomBytes(12).toString('base64url');
 const len = s => [...String(s)].length;
@@ -167,6 +168,13 @@ export function createPosts(db, {vip, profile, now}) {
     if (!embedded) {
       const ri = repostInfo(row);
       if (ri) { out.text = ri.text; out.repostOf = embedOf(ri.of, me); }
+    }
+    if (row.source) {
+      out.source = row.source;
+      out.sourceLabel = SOURCE_LABEL[row.source] || ('来自 ' + row.source);
+      if (row.source_url) out.sourceUrl = row.source_url;
+      out.author = extAuthorPayload(row);
+      out.mine = false;
     }
     if (row.mood) out.mood = row.mood;
     if (row.location) out.location = row.location;
