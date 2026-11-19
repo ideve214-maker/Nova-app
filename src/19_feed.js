@@ -35,7 +35,7 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;if(p.source){o.source=p.source;o.sourceLabel=p.sourceLabel||(p.source==='hn'?'来自 HN':p.source==='v2ex'?'来自 V2EX':'来自 '+p.source);if(p.sourceUrl)o.sourceUrl=p.sourceUrl;o.ext=1;}
   /* 2.0.3 转帖：原帖整条带回来（已删除时只有 id + deleted），放进 postCache，点卡片能直接打开详情 */
   if(p.repostOf){const q=p.repostOf;if(q.deleted||!q.author)o.rp={id:String(q.id),deleted:true};else{const oo=adoptPost(q);o.rp={id:String(oo.id),deleted:false};S.postCache=S.postCache||{};S.postCache[String(oo.id)]=oo}}
   return o;
@@ -124,7 +124,7 @@ function postsOf(id){return feedSrc().filter(p=>p.a==id)}
 function adoptComment(c){
   rememberAuthor(c.author);
   const me=SESSION&&SESSION.user&&c.author&&Number(SESSION.user.id)===Number(c.author.id);
-  return {id:c.id,p:c.postId,pa:c.parentId||0,a:me?'me':String(c.author.id),at:c.createdAt,t:ago(c.createdAt),l:c.likeCount||0,ml:c.liked?1:0,x:c.deleted?'（已删除）':c.text,deleted:!!c.deleted,src:'net',depth:c.depth||0,rootId:c.rootId||c.id,replyTo:c.replyTo||null,replyCount:c.replyCount||0};
+  const o={id:c.id,p:c.postId,pa:c.parentId||0,a:me?'me':String(c.author.id),at:c.createdAt,t:ago(c.createdAt),l:c.likeCount||0,ml:c.liked?1:0,x:c.deleted?'（已删除）':c.text,deleted:!!c.deleted,src:'net',depth:c.depth||0,rootId:c.rootId||c.id,replyTo:c.replyTo||null,replyCount:c.replyCount||0};if(c.source){o.source=c.source;o.sourceLabel=c.sourceLabel||'';o.ext=1;if(c.sourceUrl)o.sourceUrl=c.sourceUrl}return o;
 }
 async function loadComments(postId){
   if(!usingNet()||!SESSION)return;
