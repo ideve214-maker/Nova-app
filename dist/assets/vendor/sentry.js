@@ -5,7 +5,7 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/index.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/index.js
   var prod_exports = {};
   __export(prod_exports, {
     BrowserClient: () => BrowserClient,
@@ -167,16 +167,16 @@
     zodErrorsIntegration: () => zodErrorsIntegration
   });
 
-  // node_modules/@sentry/core/build/esm/debug-build.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/debug-build.js
   var DEBUG_BUILD = typeof __SENTRY_DEBUG__ === "undefined" || __SENTRY_DEBUG__;
 
-  // node_modules/@sentry/core/build/esm/utils/worldwide.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/worldwide.js
   var GLOBAL_OBJ = globalThis;
 
-  // node_modules/@sentry/core/build/esm/utils/version.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/version.js
   var SDK_VERSION = "11.12.0";
 
-  // node_modules/@sentry/core/build/esm/carrier.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/carrier.js
   function getMainCarrier() {
     getSentryCarrier(GLOBAL_OBJ);
     return GLOBAL_OBJ;
@@ -192,7 +192,7 @@
     return carrier[name] || (carrier[name] = creator());
   }
 
-  // node_modules/@sentry/core/build/esm/utils/debug-logger.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/debug-logger.js
   var CONSOLE_LEVELS = [
     "debug",
     "info",
@@ -273,7 +273,7 @@
     error
   };
 
-  // node_modules/@sentry/core/build/esm/utils/stacktrace.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/stacktrace.js
   var STACKTRACE_FRAME_LIMIT = 50;
   var UNKNOWN_FUNCTION = "?";
   var WEBPACK_ERROR_REGEXP = /\(error: (.*)\)/;
@@ -372,7 +372,7 @@
     return filename;
   }
 
-  // node_modules/@sentry/core/build/esm/instrument/handlers.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/instrument/handlers.js
   var handlers = {};
   var instrumented = {};
   function addHandler(type, handler) {
@@ -418,7 +418,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/core/build/esm/instrument/globalError.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/instrument/globalError.js
   var _oldOnErrorHandler = null;
   function addGlobalErrorInstrumentationHandler(handler) {
     const type = "error";
@@ -444,7 +444,7 @@ Error:`,
     GLOBAL_OBJ.onerror.__SENTRY_INSTRUMENTED__ = true;
   }
 
-  // node_modules/@sentry/core/build/esm/instrument/globalUnhandledRejection.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/instrument/globalUnhandledRejection.js
   var _oldOnUnhandledRejectionHandler = null;
   function addGlobalUnhandledRejectionInstrumentationHandler(handler) {
     const type = "unhandledrejection";
@@ -464,7 +464,7 @@ Error:`,
     GLOBAL_OBJ.onunhandledrejection.__SENTRY_INSTRUMENTED__ = true;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/is.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/is.js
   var objectToString = Object.prototype.toString;
   function isError(wat) {
     switch (objectToString.call(wat)) {
@@ -524,7 +524,7 @@ Error:`,
     return typeof Request !== "undefined" && isInstanceOf(request, Request);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/object.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/object.js
   function fill(source, name, replacementFactory) {
     if (!(name in source)) {
       return;
@@ -599,7 +599,7 @@ Error:`,
     return !keys2[0] ? "[object has no keys]" : keys2.join(", ");
   }
 
-  // node_modules/@sentry/core/build/esm/utils/randomSafeContext.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/randomSafeContext.js
   var RESOLVED_RUNNER;
   function withRandomSafeContext(cb) {
     if (RESOLVED_RUNNER !== void 0) {
@@ -621,7 +621,7 @@ Error:`,
     return withRandomSafeContext(() => Date.now());
   }
 
-  // node_modules/@sentry/core/build/esm/utils/normalizationHints.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/normalizationHints.js
   var SENTRY_SKIP_NORMALIZATION = /* @__PURE__ */ Symbol.for("sentry.skipNormalization");
   var SENTRY_OVERRIDE_NORMALIZATION_DEPTH = /* @__PURE__ */ Symbol.for("sentry.overrideNormalizationDepth");
   function setSkipNormalizationHint(obj) {
@@ -635,7 +635,7 @@ Error:`,
     return typeof v3 === "number" ? v3 : void 0;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/normalize.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/normalize.js
   var stringifier;
   function setNormalizeStringifier(newStringifier) {
     stringifier = newStringifier;
@@ -762,7 +762,7 @@ Error:`,
     return [memoize, unmemoize];
   }
 
-  // node_modules/@sentry/core/build/esm/utils/string.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/string.js
   function truncate(str, max = 0) {
     if (typeof str !== "string" || max === 0) {
       return str;
@@ -839,7 +839,7 @@ Error:`,
     return false;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/misc.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/misc.js
   function getCrypto() {
     const gbl = GLOBAL_OBJ;
     return gbl.crypto || gbl.msCrypto;
@@ -945,7 +945,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/core/build/esm/utils/time.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/time.js
   var ONE_SECOND_IN_MS = 1e3;
   var CLOCK_DRIFT_THRESHOLD_MS = 1e3;
   var MAX_TIME_ORIGIN_SEGMENTS = 100;
@@ -1018,7 +1018,7 @@ Error:`,
     return segment?.origin;
   }
 
-  // node_modules/@sentry/core/build/esm/session.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/session.js
   function makeSession(context) {
     const startingTime = timestampInSeconds();
     const session = {
@@ -1122,7 +1122,7 @@ Error:`,
     };
   }
 
-  // node_modules/@sentry/core/build/esm/utils/merge.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/merge.js
   function merge(initialObj, mergeObj, levels = 2) {
     if (!mergeObj || typeof mergeObj !== "object" || levels <= 0) {
       return mergeObj;
@@ -1139,7 +1139,7 @@ Error:`,
     return output;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/propagationContext.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/propagationContext.js
   function generateTraceId() {
     return uuid4();
   }
@@ -1147,7 +1147,7 @@ Error:`,
     return uuid4().substring(16);
   }
 
-  // node_modules/@sentry/core/build/esm/scope.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/scope.js
   var DEFAULT_MAX_BREADCRUMBS = 100;
   var Scope = class _Scope {
     // NOTE: Any field which gets added here should get added not only to the constructor but also to the `clone` method.
@@ -1650,7 +1650,7 @@ Error:`,
     }
   };
 
-  // node_modules/@sentry/core/build/esm/defaultScopes.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/defaultScopes.js
   function getDefaultCurrentScope() {
     return getGlobalSingleton("defaultCurrentScope", () => new Scope());
   }
@@ -1658,10 +1658,10 @@ Error:`,
     return getGlobalSingleton("defaultIsolationScope", () => new Scope());
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/constants.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/constants.js
   var SUPPRESS_TRACING_KEY = "__SENTRY_SUPPRESS_TRACING__";
 
-  // node_modules/@sentry/core/build/esm/utils/chain-and-copy-promiselike.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/chain-and-copy-promiselike.js
   var isActualPromise = (p4) => p4 instanceof Promise && !p4[kChainedCopy];
   var kChainedCopy = /* @__PURE__ */ Symbol("chained PromiseLike");
   var chainAndCopyPromiseLike = (original, onSuccess, onError) => {
@@ -1699,7 +1699,7 @@ Error:`,
     return chained;
   };
 
-  // node_modules/@sentry/core/build/esm/asyncContext/stackStrategy.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/asyncContext/stackStrategy.js
   var AsyncContextStack = class {
     constructor(scope, isolationScope) {
       let assignedScope;
@@ -1824,7 +1824,7 @@ Error:`,
     });
   }
 
-  // node_modules/@sentry/core/build/esm/asyncContext/index.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/asyncContext/index.js
   function getAsyncContextStrategy(carrier) {
     const sentry = getSentryCarrier(carrier);
     if (sentry.acs) {
@@ -1833,7 +1833,7 @@ Error:`,
     return getStackAsyncContextStrategy();
   }
 
-  // node_modules/@sentry/core/build/esm/attributes.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/attributes.js
   function isAttributeObject(maybeObj) {
     return typeof maybeObj === "object" && maybeObj != null && !Array.isArray(maybeObj) && Object.keys(maybeObj).includes("value");
   }
@@ -1908,7 +1908,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/core/build/esm/currentScopes.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/currentScopes.js
   function getExternalPropagationContext() {
     return getSentryCarrier(getMainCarrier()).externalPropagationContextProvider?.();
   }
@@ -1972,7 +1972,7 @@ Error:`,
     return traceContext;
   }
 
-  // node_modules/@sentry/conventions/dist/attributes.mjs
+  // ../vexo-weather/node_modules/@sentry/conventions/dist/attributes.mjs
   var Q = "angular.version";
   var Ft = "browser.bfcache.frame";
   var Ht = "browser.bfcache.not_restored_reason_count";
@@ -2102,7 +2102,7 @@ Error:`,
   var Ry = "user.ip_address";
   var Ny = "user.name";
 
-  // node_modules/@sentry/core/build/esm/semanticAttributes.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/semanticAttributes.js
   var SEMANTIC_ATTRIBUTE_SENTRY_SAMPLE_RATE = "sentry.sample_rate";
   var SEMANTIC_ATTRIBUTE_SENTRY_PREVIOUS_TRACE_SAMPLE_RATE = "sentry.previous_trace_sample_rate";
   var SEMANTIC_ATTRIBUTE_SENTRY_OP = "sentry.op";
@@ -2111,7 +2111,7 @@ Error:`,
   var SEMANTIC_ATTRIBUTE_SENTRY_MEASUREMENT_VALUE = "sentry.measurement_value";
   var SEMANTIC_ATTRIBUTE_SENTRY_CUSTOM_SPAN_NAME = "sentry.custom_span_name";
 
-  // node_modules/@sentry/core/build/esm/types/spanStatus.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/types/spanStatus.js
   var SPAN_STATUS_TYPES = [
     /** The operation completed successfully. */
     "ok",
@@ -2149,7 +2149,7 @@ Error:`,
     "data_loss"
   ];
 
-  // node_modules/@sentry/core/build/esm/tracing/spanstatus.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spanstatus.js
   var SPAN_STATUS_UNSET = 0;
   var SPAN_STATUS_OK = 1;
   var SPAN_STATUS_ERROR = 2;
@@ -2202,7 +2202,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/core/build/esm/utils/weakRef.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/weakRef.js
   function makeWeakRef(value) {
     try {
       const WeakRefImpl = GLOBAL_OBJ.WeakRef;
@@ -2227,7 +2227,7 @@ Error:`,
     return ref;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/utils.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/utils.js
   var SCOPE_ON_START_SPAN_FIELD = "_sentryScope";
   var ISOLATION_SCOPE_ON_START_SPAN_FIELD = "_sentryIsolationScope";
   var TRACER_PROVIDER_SPAN_FIELD = /* @__PURE__ */ Symbol.for("sentry.tracerProviderSpan");
@@ -2248,7 +2248,7 @@ Error:`,
     return span[TRACER_PROVIDER_SPAN_FIELD] === true;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/baggage.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/baggage.js
   var SENTRY_BAGGAGE_KEY_PREFIX = "sentry-";
   var MAX_BAGGAGE_STRING_LENGTH = 8192;
   function baggageHeaderToDynamicSamplingContext(baggageHeader) {
@@ -2339,7 +2339,7 @@ Error:`,
     }, "");
   }
 
-  // node_modules/@sentry/core/build/esm/utils/dsn.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/dsn.js
   var ORG_ID_REGEX = /^o(\d+)\./;
   var DSN_REGEX = /^(?:(\w+):)\/\/(?:(\w+)(?::(\w+)?)?@)((?:\[[:.%\w]+\]|[\w.-]+))(?::(\d+))?\/(.+)/;
   function isValidProtocol(protocol) {
@@ -2437,7 +2437,7 @@ Error:`,
     return components;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/parseSampleRate.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/parseSampleRate.js
   function parseSampleRate(sampleRate) {
     if (typeof sampleRate === "boolean") {
       return Number(sampleRate);
@@ -2449,7 +2449,7 @@ Error:`,
     return rate;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/tracing.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/tracing.js
   var TRACEPARENT_REGEXP = new RegExp(
     "^[ \\t]*([0-9a-f]{32})?-?([0-9a-f]{16})?-?([01])?[ \\t]*$"
     // whitespace
@@ -2545,7 +2545,7 @@ Error:`,
     return true;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/spanOnScope.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/spanOnScope.js
   var SCOPE_SPAN_FIELD = "span";
   function _setSpanForScope(scope, span) {
     if (span) {
@@ -2558,7 +2558,7 @@ Error:`,
     return derefWeakRef(scope.refs[SCOPE_SPAN_FIELD]);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/spanUtils.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/spanUtils.js
   var TRACE_FLAG_NONE = 0;
   var TRACE_FLAG_SAMPLED = 1;
   function spanToTransactionTraceContext(span) {
@@ -2820,7 +2820,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/errors.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/errors.js
   var errorsInstrumented = false;
   function registerSpanErrorInstrumentation() {
     if (errorsInstrumented) {
@@ -2840,7 +2840,7 @@ Error:`,
     addGlobalUnhandledRejectionInstrumentationHandler(errorCallback);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/hasSpansEnabled.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/hasSpansEnabled.js
   function hasSpansEnabled(maybeOptions) {
     if (typeof __SENTRY_TRACING__ === "boolean" && !__SENTRY_TRACING__) {
       return false;
@@ -2850,7 +2850,7 @@ Error:`,
     (options.tracesSampleRate != null || !!options.tracesSampler);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/should-ignore-span.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/should-ignore-span.js
   function logIgnoredSpan(droppedSpan) {
     debug.log(`Ignoring span ${droppedSpan.op} - ${droppedSpan.description} because it matches \`ignoreSpans\`.`);
   }
@@ -2907,7 +2907,7 @@ Error:`,
     return typeof value === "string" || value instanceof RegExp;
   }
 
-  // node_modules/@sentry/core/build/esm/integration.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integration.js
   var installedIntegrations = [];
   function filterDuplicates(integrations) {
     const integrationsByName = {};
@@ -3003,10 +3003,10 @@ Error:`,
     return fn;
   }
 
-  // node_modules/@sentry/core/build/esm/constants.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/constants.js
   var DEFAULT_ENVIRONMENT = "production";
 
-  // node_modules/@sentry/core/build/esm/tracing/sentryNonRecordingSpan.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/sentryNonRecordingSpan.js
   var NON_RECORDING_SPAN_FIELD = /* @__PURE__ */ Symbol.for("sentry.nonRecordingSpan");
   var SentryNonRecordingSpan = class {
     constructor(spanContext = {}) {
@@ -3072,7 +3072,7 @@ Error:`,
     return !!span && span[NON_RECORDING_SPAN_FIELD] === true;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/dynamicSamplingContext.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/dynamicSamplingContext.js
   var FROZEN_DSC_FIELD = "_frozenDsc";
   function freezeDscOnSpan(span, dsc) {
     const spanWithMaybeDsc = span;
@@ -3158,7 +3158,7 @@ Error:`,
     return dynamicSamplingContextToSentryBaggageHeader(dsc);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/scopeData.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/scopeData.js
   function applyScopeDataToEvent(event, data) {
     const { fingerprint, breadcrumbs, sdkProcessingMetadata } = data;
     applyDataToEvent(event, data);
@@ -3273,7 +3273,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/core/build/esm/utils/safeCallback.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/safeCallback.js
   var CALLBACK_ERROR = /* @__PURE__ */ Symbol.for("SentryCallbackError");
   function safeCallback(message, fn, fallback) {
     let result;
@@ -3292,7 +3292,7 @@ Error:`,
     return fallback(error3);
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/beforeSendSpan.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/beforeSendSpan.js
   function withStaticSpan(callback) {
     addNonEnumerableProperty(callback, "_static", true);
     return callback;
@@ -3312,7 +3312,7 @@ Error:`,
     return modifiedSpan || span;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/spanJsonToStreamedSpan.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/spanJsonToStreamedSpan.js
   function spanJsonToSerializedStreamedSpan(span) {
     const streamedSpan = {
       trace_id: span.trace_id,
@@ -3329,7 +3329,7 @@ Error:`,
     return streamedSpanJsonToSerializedSpan(streamedSpan);
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/scopeContextAttributes.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/scopeContextAttributes.js
   function scopeContextsToSpanAttributes(contexts) {
     const attrs = {};
     const { response, profile, cloud_resource, culture, state } = contexts;
@@ -3384,7 +3384,7 @@ Error:`,
     return attrs;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/captureSpan.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/captureSpan.js
   function captureSpan(span, client) {
     const spanJSON = spanToJSON(span);
     if (spanJSON.attributes) {
@@ -3471,12 +3471,12 @@ Error:`,
     return spanJsonToSerializedStreamedSpan(processedSpan);
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/hasSpanStreamingEnabled.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/hasSpanStreamingEnabled.js
   function hasSpanStreamingEnabled(client) {
     return client.getOptions().traceLifecycle === "stream";
   }
 
-  // node_modules/@sentry/core/build/esm/utils/timer.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/timer.js
   function safeUnref(timer) {
     if (typeof timer === "object" && typeof timer.unref === "function") {
       timer.unref();
@@ -3484,7 +3484,7 @@ Error:`,
     return timer;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/envelope.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/envelope.js
   function createEnvelope(headers, items = []) {
     return [headers, items];
   }
@@ -3631,7 +3631,7 @@ ${JSON.stringify(itemHeaders)}
     return type === "replay_event" ? "replay" : type || "error";
   }
 
-  // node_modules/@sentry/core/build/esm/utils/env.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/env.js
   function isBrowserBundle() {
     return typeof __SENTRY_BROWSER_BUNDLE__ !== "undefined" && !!__SENTRY_BROWSER_BUNDLE__;
   }
@@ -3639,12 +3639,12 @@ ${JSON.stringify(itemHeaders)}
     return "npm";
   }
 
-  // node_modules/@sentry/core/build/esm/utils/node.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/node.js
   function isNodeEnv() {
     return !isBrowserBundle() && Object.prototype.toString.call(typeof process !== "undefined" ? process : 0) === "[object process]";
   }
 
-  // node_modules/@sentry/core/build/esm/utils/isBrowser.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/isBrowser.js
   function isBrowser() {
     return typeof window !== "undefined" && (!isNodeEnv() || isElectronNodeRenderer());
   }
@@ -3653,7 +3653,7 @@ ${JSON.stringify(itemHeaders)}
     return process2?.type === "renderer";
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/envelope.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/envelope.js
   function createStreamedSpanEnvelope(serializedSpans, dsc, client) {
     const options = client.getOptions();
     const dsn = client.getDsn();
@@ -3682,7 +3682,7 @@ ${JSON.stringify(itemHeaders)}
     return !!dsc.trace_id && !!dsc.public_key;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/estimateSize.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/estimateSize.js
   function estimateSerializedSpanSizeInBytes(span) {
     let weight = 156;
     weight += span.name.length * 2;
@@ -3696,7 +3696,7 @@ ${JSON.stringify(itemHeaders)}
     return weight;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/spanBuffer.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/spanBuffer.js
   var MAX_SPANS_PER_ENVELOPE = 1e3;
   var MAX_TRACE_WEIGHT_IN_BYTES = 5e6;
   var SpanBuffer = class {
@@ -3814,7 +3814,7 @@ ${JSON.stringify(itemHeaders)}
     }
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/spanStreaming.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/spanStreaming.js
   var INTEGRATION_NAME = "SpanStreaming";
   var spanStreamingIntegration = defineIntegration((options = {}) => {
     const flushOnSegmentEnd = options.flushOnSegmentEnd ?? true;
@@ -3849,7 +3849,7 @@ ${JSON.stringify(itemHeaders)}
     };
   });
 
-  // node_modules/@sentry/core/build/esm/utils/handleCallbackErrors.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/handleCallbackErrors.js
   function handleCallbackErrors(fn, onError, onFinally = () => {
   }, onSuccess = () => {
   }) {
@@ -3882,7 +3882,7 @@ ${JSON.stringify(itemHeaders)}
     return value;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/errorSpanAttribution.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/errorSpanAttribution.js
   var escapedSpanTraceContexts = /* @__PURE__ */ new WeakMap();
   function toWeakMapKey(error3) {
     return isPrimitive(error3) ? void 0 : error3;
@@ -3914,7 +3914,7 @@ ${JSON.stringify(itemHeaders)}
     };
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/logSpans.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/logSpans.js
   function logSpanStart(span) {
     if (!DEBUG_BUILD) return;
     const {
@@ -3954,7 +3954,7 @@ ${JSON.stringify(itemHeaders)}
     debug.log(msg);
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/sampling.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/sampling.js
   function sampleSpan(options, samplingContext, sampleRand) {
     if (!hasSpansEnabled(options)) {
       return [false];
@@ -4024,7 +4024,7 @@ ${JSON.stringify(itemHeaders)}
     return void 0;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/measurement.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/measurement.js
   function setMeasurement(name, value, unit, activeSpan = getActiveSpan()) {
     const rootSpan = activeSpan && getRootSpan(activeSpan);
     if (rootSpan) {
@@ -4051,12 +4051,12 @@ ${JSON.stringify(itemHeaders)}
     return measurements;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/segmentSpanCaptureStrategy.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/segmentSpanCaptureStrategy.js
   function getSegmentSpanCaptureStrategy() {
     return getSentryCarrier(getMainCarrier()).segmentSpanCaptureStrategy;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/sentrySpan.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/sentrySpan.js
   var MAX_SPAN_COUNT = 1e3;
   var SentrySpan = class {
     /**
@@ -4442,7 +4442,7 @@ ${JSON.stringify(itemHeaders)}
     client.sendEnvelope(createStreamedSpanEnvelope([serializedSpan], dsc, client));
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/trace.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/trace.js
   function startSpan(options, callback) {
     const spanArguments = parseSentrySpanArguments(options);
     const { forceTransaction, parentSpan: customParentSpan, scope: customScope } = options;
@@ -4822,7 +4822,7 @@ ${JSON.stringify(itemHeaders)}
     );
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/browserSpanApi.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/browserSpanApi.js
   var clientsWithIntegration = /* @__PURE__ */ new WeakSet();
   function _INTERNAL_ensureBrowserSpanStreaming(client = getClient()) {
     if (!client || clientsWithIntegration.has(client) || !hasSpanStreamingEnabled(client)) {
@@ -4844,7 +4844,7 @@ ${JSON.stringify(itemHeaders)}
     return startInactiveSpan(options);
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/idleSpan.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/idleSpan.js
   var TRACING_DEFAULTS = {
     idleTimeout: 1e3,
     finalTimeout: 3e4,
@@ -5056,7 +5056,7 @@ ${JSON.stringify(itemHeaders)}
     return span;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/debounce.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/debounce.js
   function debounce(func, wait, options) {
     let callbackReturnValue;
     let timerId;
@@ -5094,7 +5094,7 @@ ${JSON.stringify(itemHeaders)}
     return debounced;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/bindScopeToEmitter.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/bindScopeToEmitter.js
   var ADD_LISTENER_METHODS = [
     "addListener",
     "on",
@@ -5203,7 +5203,7 @@ ${JSON.stringify(itemHeaders)}
     return ee[SCOPE_BOUND_LISTENERS];
   }
 
-  // node_modules/@sentry/conventions/dist/op.mjs
+  // ../vexo-weather/node_modules/@sentry/conventions/dist/op.mjs
   var e = "pageload";
   var E = "navigation";
   var _ = "navigation.redirect";
@@ -5235,7 +5235,7 @@ ${JSON.stringify(itemHeaders)}
   var CE = "http.client";
   var nE = "http.client.stream";
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/spanNames.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/spanNames.js
   var PAGELOAD_SPAN_NAME_FALLBACK = "Pageload";
   var NAVIGATION_SPAN_NAME_FALLBACK = "Navigation";
   var RESOURCE_SPAN_NAME_FALLBACK = "Resource";
@@ -5265,7 +5265,7 @@ ${JSON.stringify(itemHeaders)}
     [D]: "Load event"
   };
 
-  // node_modules/@sentry/core/build/esm/envelope.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/envelope.js
   function _enhanceEventWithSdkInfo(event, newSdkInfo) {
     if (!newSdkInfo) {
       return event;
@@ -5304,7 +5304,7 @@ ${JSON.stringify(itemHeaders)}
     return createEnvelope(envelopeHeaders, [eventItem]);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/data-collection/filtering-snippets.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/data-collection/filtering-snippets.js
   var FILTERED_VALUE = "[Filtered]";
   var SENSITIVE_KEY_SNIPPETS = [
     "auth",
@@ -5358,7 +5358,7 @@ ${JSON.stringify(itemHeaders)}
     "2fa"
   ];
 
-  // node_modules/@sentry/core/build/esm/utils/data-collection/filterKeyValueData.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/data-collection/filterKeyValueData.js
   function isSensitiveKey(lower, denySnippets) {
     return denySnippets.some((snippet) => lower.includes(snippet));
   }
@@ -5389,7 +5389,7 @@ ${JSON.stringify(itemHeaders)}
     return result;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/syncpromise.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/syncpromise.js
   var STATE_PENDING = 0;
   var STATE_RESOLVED = 1;
   var STATE_REJECTED = 2;
@@ -5521,7 +5521,7 @@ ${JSON.stringify(itemHeaders)}
     }
   };
 
-  // node_modules/@sentry/core/build/esm/eventProcessors.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/eventProcessors.js
   function notifyEventProcessors(processors, event, hint, index = 0, onDrop) {
     try {
       const result = _notifyEventProcessors(event, hint, processors, index, onDrop);
@@ -5562,7 +5562,7 @@ ${JSON.stringify(itemHeaders)}
     return _notifyEventProcessors(result, hint, processors, index + 1, onDrop);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/debug-ids.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/debug-ids.js
   var parsedStackResults;
   var lastSentryKeysCount;
   var lastNativeKeysCount;
@@ -5634,7 +5634,7 @@ ${JSON.stringify(itemHeaders)}
     return images;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/eventUtils.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/eventUtils.js
   function isInternalException(hint) {
     return hint.data?.__sentry__ === true;
   }
@@ -5656,7 +5656,7 @@ ${JSON.stringify(itemHeaders)}
     return possibleMessages;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/prepareEvent.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/prepareEvent.js
   function prepareEvent(options, event, hint, scope, client, isolationScope) {
     const { normalizeDepth = 3, normalizeMaxBreadth = 1e3 } = options;
     const prepared = {
@@ -5870,7 +5870,7 @@ ${JSON.stringify(itemHeaders)}
     return Object.keys(hint).some((key) => captureContextKeys.includes(key));
   }
 
-  // node_modules/@sentry/core/build/esm/exports.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/exports.js
   function captureException(exception, hint) {
     return getCurrentScope().captureException(exception, parseEventHintOrCaptureContext(hint));
   }
@@ -5990,7 +5990,7 @@ ${JSON.stringify(itemHeaders)}
     _sendSessionUpdate();
   }
 
-  // node_modules/@sentry/core/build/esm/api.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/api.js
   var SENTRY_API_VERSION = "7";
   function getBaseApiEndpoint(dsn) {
     const protocol = dsn.protocol ? `${dsn.protocol}:` : "";
@@ -6047,7 +6047,7 @@ ${JSON.stringify(itemHeaders)}
     return `${endpoint}?${encodedOptions}`;
   }
 
-  // node_modules/@sentry/core/build/esm/tracing/spans/extractGenAiSpans.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/tracing/spans/extractGenAiSpans.js
   function extractGenAiSpansFromEvent(event, client) {
     if (event.type !== "transaction" || !event.spans?.length || !event.sdkProcessingMetadata?.hasGenAiSpans || hasSpanStreamingEnabled(client)) {
       return void 0;
@@ -6068,7 +6068,7 @@ ${JSON.stringify(itemHeaders)}
     return createSpanContainerItem(genAiSpans, client);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/promisebuffer.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/promisebuffer.js
   var SENTRY_BUFFER_FULL_ERROR = /* @__PURE__ */ Symbol.for("SentryBufferFullError");
   function makePromiseBuffer(limit = 100) {
     const buffer = /* @__PURE__ */ new Set();
@@ -6113,7 +6113,7 @@ ${JSON.stringify(itemHeaders)}
     };
   }
 
-  // node_modules/@sentry/core/build/esm/utils/ratelimit.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/ratelimit.js
   var DEFAULT_RETRY_AFTER = 60 * 1e3;
   function parseRetryAfterHeader(header, now = safeDateNow()) {
     const headerDelay = parseInt(`${header}`, 10);
@@ -6165,7 +6165,7 @@ ${JSON.stringify(itemHeaders)}
     return updatedRateLimits;
   }
 
-  // node_modules/@sentry/core/build/esm/transports/base.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/transports/base.js
   var DEFAULT_TRANSPORT_BUFFER_SIZE = 64;
   function createTransport(options, makeRequest, buffer = makePromiseBuffer(
     options.bufferSize || DEFAULT_TRANSPORT_BUFFER_SIZE
@@ -6241,7 +6241,7 @@ ${JSON.stringify(itemHeaders)}
     };
   }
 
-  // node_modules/@sentry/core/build/esm/utils/clientreport.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/clientreport.js
   function createClientReportEnvelope(discarded_events, dsn, timestamp) {
     const clientReportItem = [
       { type: "client_report" },
@@ -6253,7 +6253,7 @@ ${JSON.stringify(itemHeaders)}
     return createEnvelope(dsn ? { dsn } : {}, [clientReportItem]);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/transactionEvent.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/transactionEvent.js
   function convertTransactionEventToSpanJson(event) {
     const { trace_id, parent_span_id, span_id, status, origin, data, op: op2, links } = event.contexts?.trace ?? {};
     return {
@@ -6300,7 +6300,7 @@ ${JSON.stringify(itemHeaders)}
     };
   }
 
-  // node_modules/@sentry/core/build/esm/utils/warnAboutIgnoredTransactionOptions.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/warnAboutIgnoredTransactionOptions.js
   function maybeWarnAboutIgnoredTransactionOptions(options) {
     if (options.traceLifecycle !== "stream" || // oxlint-disable-next-line typescript/no-deprecated
     !(options.beforeSendTransaction || options.ignoreTransactions?.length)) {
@@ -6313,7 +6313,7 @@ ${JSON.stringify(itemHeaders)}
     });
   }
 
-  // node_modules/@sentry/core/build/esm/utils/data-collection/resolveDataCollectionOptions.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/data-collection/resolveDataCollectionOptions.js
   var DEFAULTS = {
     userInfo: true,
     cookies: true,
@@ -6370,7 +6370,7 @@ ${JSON.stringify(itemHeaders)}
     };
   }
 
-  // node_modules/@sentry/core/build/esm/client.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/client.js
   var ALREADY_SEEN_ERROR = "Not capturing exception because it's already been captured.";
   var MISSING_RELEASE_FOR_SESSION_ERROR = "Discarded session because of missing or non-string release";
   var INTERNAL_ERROR_SYMBOL = /* @__PURE__ */ Symbol.for("SentryInternalError");
@@ -7125,7 +7125,7 @@ Reason: ${reason}`
     return event.type === "transaction";
   }
 
-  // node_modules/@sentry/core/build/esm/sdk.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/sdk.js
   function initAndBind(clientClass, options) {
     if (options.debug === true) {
       if (DEBUG_BUILD) {
@@ -7161,7 +7161,7 @@ Reason: ${reason}`
     getCurrentScope().setClient(client);
   }
 
-  // node_modules/@sentry/core/build/esm/transports/offline.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/transports/offline.js
   var MIN_DELAY = 100;
   var START_DELAY = 5e3;
   var MAX_DELAY = 36e5;
@@ -7271,7 +7271,7 @@ Reason: ${reason}`
     };
   }
 
-  // node_modules/@sentry/core/build/esm/transports/multiplexed.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/transports/multiplexed.js
   var MULTIPLEXED_TRANSPORT_EXTRA_KEY = "MULTIPLEXED_TRANSPORT_EXTRA_KEY";
   function eventFromEnvelope(env, types) {
     let event;
@@ -7362,7 +7362,7 @@ Reason: ${reason}`
     };
   }
 
-  // node_modules/@sentry/core/build/esm/utils/cookie.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/cookie.js
   function parseCookieHeader(value, headerName) {
     const segments = (Array.isArray(value) ? value : [value]).flatMap((headerValue) => {
       if (typeof headerValue !== "string") {
@@ -7402,7 +7402,7 @@ Reason: ${reason}`
     }
   }
 
-  // node_modules/@sentry/core/build/esm/utils/data-collection/filterCookies.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/data-collection/filterCookies.js
   function filterCookies(cookieString, behavior, headerName) {
     if (behavior === false) {
       return {};
@@ -7411,7 +7411,7 @@ Reason: ${reason}`
     return filterKeyValueData(cookies, behavior, SENSITIVE_COOKIE_NAME_SNIPPETS);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/data-collection/filterQueryParams.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/data-collection/filterQueryParams.js
   function filterQueryParams(queryString, behavior) {
     if (!queryString || behavior === false) {
       return void 0;
@@ -7424,7 +7424,7 @@ Reason: ${reason}`
     }).join("&");
   }
 
-  // node_modules/@sentry/core/build/esm/utils/data-collection/filterUrlQuery.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/data-collection/filterUrlQuery.js
   function filterUrlQuery(url, behavior) {
     const fragmentStart = url.indexOf("#");
     const queryEnd = fragmentStart === -1 ? url.length : fragmentStart;
@@ -7439,7 +7439,7 @@ Reason: ${reason}`
     return filtered ? `${prefix}?${filtered}${suffix}` : `${prefix}${suffix}`;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/data-collection/filterCollectedUrl.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/data-collection/filterCollectedUrl.js
   function urlQueryParamsBehavior(client) {
     return (client ?? getClient())?.getDataCollectionOptions().urlQueryParams ?? true;
   }
@@ -7450,7 +7450,7 @@ Reason: ${reason}`
     return query ? filterQueryParams(query, urlQueryParamsBehavior(client)) : void 0;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/url.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/url.js
   var DEFAULT_BASE_URL = "thismessage:/";
   function isURLObjectRelative(url) {
     return "isRelative" in url;
@@ -7546,7 +7546,7 @@ Reason: ${reason}`
     return url;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/isSentryRequestUrl.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/isSentryRequestUrl.js
   function isSentryRequestUrl(url, client) {
     const dsn = client?.getDsn();
     const tunnel = client?.getOptions().tunnel;
@@ -7575,7 +7575,7 @@ Reason: ${reason}`
     return str[str.length - 1] === "/" ? str.slice(0, -1) : str;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/parameterize.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/parameterize.js
   function parameterize(strings, ...values) {
     const cooked = strings.map((str, i3) => str ?? strings.raw[i3]);
     const formatted = new String(String.raw({ raw: cooked }, ...values));
@@ -7585,7 +7585,7 @@ Reason: ${reason}`
   }
   var fmt = parameterize;
 
-  // node_modules/@sentry/core/build/esm/utils/tunnel.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/tunnel.js
   function getTunnelPath(dsn) {
     const components = dsn ? makeDsn(dsn) : getClient()?.getDsn();
     return components ? `/${fnv1a32(dsnToString(components)).toString(36)}` : void 0;
@@ -7603,7 +7603,7 @@ Reason: ${reason}`
     return hash >>> 0;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/ipAddress.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/ipAddress.js
   function addAutoIpAddressToSession(session) {
     if ("aggregates" in session) {
       if (session.attrs?.["ip_address"] === void 0) {
@@ -7619,7 +7619,7 @@ Reason: ${reason}`
     }
   }
 
-  // node_modules/@sentry/core/build/esm/utils/sdkMetadata.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/sdkMetadata.js
   function applySdkMetadata(options, name, names = [name], source = "npm") {
     const sdk = (options._metadata = options._metadata || {}).sdk = options._metadata.sdk || {};
     if (!sdk.name) {
@@ -7632,7 +7632,7 @@ Reason: ${reason}`
     }
   }
 
-  // node_modules/@sentry/core/build/esm/utils/traceData.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/traceData.js
   function getTraceData(options = {}) {
     const client = options.client || getClient();
     if (!isEnabled2() || !client) {
@@ -7675,7 +7675,7 @@ Reason: ${reason}`
     return generateTraceparentHeader(traceId, propagationSpanId, sampled);
   }
 
-  // node_modules/@sentry/core/build/esm/utils/tracePropagationTargets.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/tracePropagationTargets.js
   var NORMALIZED_REGEXP_CACHE = /* @__PURE__ */ new WeakMap();
   function normalizeRegExpTarget(pattern) {
     const flags = `${pattern.flags.replace(/[gy]/g, "")}${pattern.ignoreCase ? "" : "i"}`;
@@ -7705,7 +7705,7 @@ Reason: ${reason}`
     return false;
   }
 
-  // node_modules/@sentry/core/build/esm/breadcrumbs.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/breadcrumbs.js
   var DEFAULT_BREADCRUMBS = 100;
   function addBreadcrumb(breadcrumb, hint) {
     const client = getClient();
@@ -7727,7 +7727,7 @@ Reason: ${reason}`
     isolationScope.addBreadcrumb(finalBreadcrumb, maxBreadcrumbs);
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/functiontostring.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/functiontostring.js
   var INTEGRATION_NAME2 = "FunctionToString";
   var SETUP_CLIENTS = /* @__PURE__ */ new WeakMap();
   var _functionToStringIntegration = (() => {
@@ -7758,7 +7758,7 @@ Reason: ${reason}`
   });
   var functionToStringIntegration = defineIntegration(_functionToStringIntegration);
 
-  // node_modules/@sentry/core/build/esm/integrations/eventFilters.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/eventFilters.js
   var DEFAULT_IGNORE_ERRORS = [
     /^Script error\.?$/,
     /^Javascript error: Script error\.? on line 0$/,
@@ -7919,7 +7919,7 @@ Event: ${getEventDescription(event)}`
     );
   }
 
-  // node_modules/@sentry/core/build/esm/utils/aggregate-errors.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/aggregate-errors.js
   function applyAggregateErrorsToEvent(exceptionFromErrorImplementation, parser, key, limit, event, hint) {
     if (!event.exception?.values || !hint || !isError(hint.originalException)) {
       return;
@@ -8028,7 +8028,7 @@ Event: ${getEventDescription(event)}`
     };
   }
 
-  // node_modules/@sentry/core/build/esm/utils/eventbuilder.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/eventbuilder.js
   function hasSentryFetchUrlHost(error3) {
     return isError(error3) && "__sentry_fetch_url_host__" in error3 && typeof error3.__sentry_fetch_url_host__ === "string";
   }
@@ -8039,7 +8039,7 @@ Event: ${getEventDescription(event)}`
     return error3.message;
   }
 
-  // node_modules/@sentry/core/build/esm/metadata.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/metadata.js
   var filenameMetadataMap = /* @__PURE__ */ new Map();
   var parsedStacks = /* @__PURE__ */ new Set();
   function ensureMetadataStacksAreParsed(parser) {
@@ -8086,7 +8086,7 @@ Event: ${getEventDescription(event)}`
     });
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/moduleMetadata.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/moduleMetadata.js
   var moduleMetadataIntegration = defineIntegration(() => {
     return {
       name: "ModuleMetadata",
@@ -8113,7 +8113,7 @@ Event: ${getEventDescription(event)}`
     };
   });
 
-  // node_modules/@sentry/core/build/esm/instrument/console.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/instrument/console.js
   var _filter = /* @__PURE__ */ new Set([]);
   function addConsoleInstrumentationHandler(handler) {
     const type = "console";
@@ -8158,12 +8158,12 @@ Event: ${getEventDescription(event)}`
     });
   }
 
-  // node_modules/@sentry/core/build/esm/utils/severity.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/severity.js
   function severityLevelFromString(level) {
     return level === "warn" ? "warning" : ["fatal", "error", "warning", "log", "info", "debug"].includes(level) ? level : "log";
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/captureconsole.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/captureconsole.js
   var INTEGRATION_NAME4 = "CaptureConsole";
   var _captureConsoleIntegration = ((options = {}) => {
     const levels = options.levels || CONSOLE_LEVELS;
@@ -8220,7 +8220,7 @@ Event: ${getEventDescription(event)}`
     });
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/dedupe.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/dedupe.js
   var INTEGRATION_NAME5 = "Dedupe";
   var _dedupeIntegration = (() => {
     let previousEvent;
@@ -8325,7 +8325,7 @@ Event: ${getEventDescription(event)}`
     return event.exception?.values?.[0];
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/extraerrordata.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/extraerrordata.js
   var INTEGRATION_NAME6 = "ExtraErrorData";
   var _extraErrorDataIntegration = ((options = {}) => {
     const { depth = 3, captureErrorCause = true } = options;
@@ -8403,7 +8403,7 @@ Event: ${getEventDescription(event)}`
     return null;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/path.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/path.js
   function normalizeArray(parts, allowAboveRoot) {
     let up2 = 0;
     for (let i3 = parts.length - 1; i3 >= 0; i3--) {
@@ -8494,7 +8494,7 @@ Event: ${getEventDescription(event)}`
     return f3;
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/rewriteframes.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/rewriteframes.js
   var INTEGRATION_NAME7 = "RewriteFrames";
   var rewriteFramesIntegration = defineIntegration((options = {}) => {
     const root = options.root;
@@ -8566,7 +8566,7 @@ Event: ${getEventDescription(event)}`
     };
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/supabase.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/supabase.js
   var AUTH_OPERATIONS_TO_INSTRUMENT = [
     "reauthenticate",
     "signInAnonymously",
@@ -8976,7 +8976,7 @@ Event: ${getEventDescription(event)}`
     return _supabaseIntegration(options.supabaseClient, { sendOperationData: options.sendOperationData });
   });
 
-  // node_modules/@sentry/core/build/esm/integrations/zoderrors.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/zoderrors.js
   var DEFAULT_LIMIT = 10;
   var INTEGRATION_NAME9 = "ZodErrors";
   function originalExceptionIsZodError(originalException) {
@@ -9081,7 +9081,7 @@ ${e6.stack}` : "unknown"
   });
   var zodErrorsIntegration = defineIntegration(_zodErrorsIntegration);
 
-  // node_modules/@sentry/core/build/esm/integrations/third-party-errors-filter.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/third-party-errors-filter.js
   var thirdPartyErrorFilterIntegration = defineIntegration((options) => {
     const ignoreSentryInternalFrames = options.ignoreSentryInternalFrames ?? false;
     return {
@@ -9190,7 +9190,7 @@ ${e6.stack}` : "unknown"
   var SENTRY_INTERNAL_COMMENT = "Attempt to invoke user-land function";
   var SENTRY_INTERNAL_FN_APPLY = "fn.apply(this, wrappedArguments)";
 
-  // node_modules/@sentry/core/build/esm/integrations/console.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/console.js
   var INTEGRATION_NAME10 = "Console";
   var consoleIntegration = defineIntegration((options = {}) => {
     const levels = new Set(options.levels || CONSOLE_LEVELS);
@@ -9239,7 +9239,7 @@ ${e6.stack}` : "unknown"
     return "util" in GLOBAL_OBJ && typeof GLOBAL_OBJ.util.format === "function" ? GLOBAL_OBJ.util.format(...values) : safeJoin(values, " ");
   }
 
-  // node_modules/@sentry/core/build/esm/utils/featureFlags.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/featureFlags.js
   var _INTERNAL_FLAG_BUFFER_SIZE = 100;
   var _INTERNAL_MAX_FLAGS_PER_SPAN = 10;
   var SPAN_FLAG_ATTRIBUTE_PREFIX = "flag.evaluation.";
@@ -9306,7 +9306,7 @@ ${e6.stack}` : "unknown"
     }
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/featureFlags/featureFlagsIntegration.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/featureFlags/featureFlagsIntegration.js
   var featureFlagsIntegration = defineIntegration(() => {
     return {
       name: "FeatureFlags",
@@ -9320,7 +9320,7 @@ ${e6.stack}` : "unknown"
     };
   });
 
-  // node_modules/@sentry/core/build/esm/integrations/featureFlags/growthbook.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/featureFlags/growthbook.js
   var growthbookIntegration = defineIntegration(
     ({ growthbookClass }) => {
       return {
@@ -9352,7 +9352,7 @@ ${e6.stack}` : "unknown"
     };
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/conversationId.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/conversationId.js
   var INTEGRATION_NAME11 = "ConversationId";
   var _conversationIdIntegration = (() => {
     return {
@@ -9375,7 +9375,7 @@ ${e6.stack}` : "unknown"
   });
   var conversationIdIntegration = defineIntegration(_conversationIdIntegration);
 
-  // node_modules/@sentry/core/build/esm/fetch.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/fetch.js
   function instrumentFetchRequest(handlerData, shouldCreateSpan, shouldAttachHeaders2, spans, instrumentFetchRequestOptions) {
     if (!handlerData.fetchData) {
       return void 0;
@@ -9581,7 +9581,7 @@ ${e6.stack}` : "unknown"
     return attributes;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/supports.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/supports.js
   var WINDOW = GLOBAL_OBJ;
   function _isFetchSupported() {
     if (!("fetch" in WINDOW)) {
@@ -9627,7 +9627,7 @@ ${e6.stack}` : "unknown"
     return result;
   }
 
-  // node_modules/@sentry/core/build/esm/instrument/fetch.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/instrument/fetch.js
   function addFetchInstrumentationHandler(handler) {
     const type = "fetch";
     const removeHandler = addHandler(type, handler);
@@ -9816,7 +9816,7 @@ ${e6.stack}` : "unknown"
     return;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/breadcrumb-log-level.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/breadcrumb-log-level.js
   function getBreadcrumbLogLevelFromHttpStatusCode(statusCode) {
     if (statusCode === void 0) {
       return void 0;
@@ -9829,7 +9829,7 @@ ${e6.stack}` : "unknown"
     }
   }
 
-  // node_modules/@sentry/core/build/esm/utils/lru.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/lru.js
   var LRUMap = class {
     constructor(_maxSize) {
       this._maxSize = _maxSize;
@@ -9882,7 +9882,7 @@ ${e6.stack}` : "unknown"
     }
   };
 
-  // node_modules/@sentry/core/build/esm/feedback.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/feedback.js
   function captureFeedback(params, hint = {}, scope = getCurrentScope()) {
     const { message, name, email, url, source, associatedEventId, tags } = params;
     const feedbackEvent = {
@@ -9908,7 +9908,7 @@ ${e6.stack}` : "unknown"
     return eventId;
   }
 
-  // node_modules/@sentry/core/build/esm/utils/timestampSequence.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/timestampSequence.js
   var _sequenceNumber = 0;
   var _previousTimestampMs;
   function getSequenceAttribute(timestampInSeconds2) {
@@ -9925,7 +9925,7 @@ ${e6.stack}` : "unknown"
     };
   }
 
-  // node_modules/@sentry/core/build/esm/utils/trace-info.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/trace-info.js
   function _getTraceInfoFromScope(client, scope) {
     if (!scope) {
       return [void 0, void 0];
@@ -9938,7 +9938,7 @@ ${e6.stack}` : "unknown"
     });
   }
 
-  // node_modules/@sentry/core/build/esm/utils/weightBasedFlushing.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/utils/weightBasedFlushing.js
   var DEFAULT_FLUSH_INTERVAL = 5e3;
   function setupWeightBasedFlushing(client, afterCaptureHook, flushHook, estimateSizeFn, flushFn) {
     let weight = 0;
@@ -10011,7 +10011,7 @@ ${e6.stack}` : "unknown"
     return 0;
   }
 
-  // node_modules/@sentry/core/build/esm/logs/constants.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/logs/constants.js
   var SEVERITY_TEXT_TO_SEVERITY_NUMBER = {
     trace: 1,
     debug: 5,
@@ -10021,7 +10021,7 @@ ${e6.stack}` : "unknown"
     fatal: 21
   };
 
-  // node_modules/@sentry/core/build/esm/logs/envelope.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/logs/envelope.js
   function createLogContainerEnvelopeItem(items, inferUserData) {
     const inferSetting = inferUserData ? "auto" : "never";
     return [
@@ -10053,7 +10053,7 @@ ${e6.stack}` : "unknown"
     return createEnvelope(headers, [createLogContainerEnvelopeItem(logs, inferUserData)]);
   }
 
-  // node_modules/@sentry/core/build/esm/logs/internal.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/logs/internal.js
   var MAX_LOG_BUFFER_SIZE = 100;
   function setLogAttribute(logAttributes, key, value, setEvenIfPresent = true) {
     if (value && (!logAttributes[key] || setEvenIfPresent)) {
@@ -10196,7 +10196,7 @@ ${e6.stack}` : "unknown"
     return str;
   }
 
-  // node_modules/@sentry/core/build/esm/logs/public-api.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/logs/public-api.js
   var public_api_exports = {};
   __export(public_api_exports, {
     debug: () => debug2,
@@ -10229,7 +10229,7 @@ ${e6.stack}` : "unknown"
     captureLog("fatal", message, attributes, scope);
   }
 
-  // node_modules/@sentry/core/build/esm/logs/utils.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/logs/utils.js
   function formatConsoleArgs2(values, normalizeDepth, normalizeMaxBreadth) {
     return "util" in GLOBAL_OBJ && typeof GLOBAL_OBJ.util.format === "function" ? GLOBAL_OBJ.util.format(...values) : safeJoinConsoleArgs(values, normalizeDepth, normalizeMaxBreadth);
   }
@@ -10251,7 +10251,7 @@ ${e6.stack}` : "unknown"
     return attributes;
   }
 
-  // node_modules/@sentry/core/build/esm/logs/console-integration.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/logs/console-integration.js
   var INTEGRATION_NAME12 = "ConsoleLogs";
   var DEFAULT_ATTRIBUTES = {
     [_b]: "auto.log.console"
@@ -10306,7 +10306,7 @@ ${e6.stack}` : "unknown"
   });
   var consoleLoggingIntegration = defineIntegration(_consoleLoggingIntegration);
 
-  // node_modules/@sentry/core/build/esm/metrics/envelope.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/metrics/envelope.js
   function createMetricContainerEnvelopeItem(items, inferUserData) {
     const inferSetting = inferUserData ? "auto" : "never";
     return [
@@ -10338,7 +10338,7 @@ ${e6.stack}` : "unknown"
     return createEnvelope(headers, [createMetricContainerEnvelopeItem(metrics, inferUserData)]);
   }
 
-  // node_modules/@sentry/core/build/esm/metrics/internal.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/metrics/internal.js
   var MAX_METRIC_BUFFER_SIZE = 1e3;
   function setMetricAttribute(metricAttributes, key, value, setEvenIfPresent = true) {
     if (value && (setEvenIfPresent || !(key in metricAttributes))) {
@@ -10467,7 +10467,7 @@ ${e6.stack}` : "unknown"
     return getGlobalSingleton("clientToMetricBufferMap", () => /* @__PURE__ */ new WeakMap());
   }
 
-  // node_modules/@sentry/core/build/esm/metrics/public-api.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/metrics/public-api.js
   var public_api_exports2 = {};
   __export(public_api_exports2, {
     count: () => count,
@@ -10490,7 +10490,7 @@ ${e6.stack}` : "unknown"
     captureMetric("distribution", name, value, options);
   }
 
-  // node_modules/@sentry/core/build/esm/integrations/consola.js
+  // ../vexo-weather/node_modules/@sentry/core/build/esm/integrations/consola.js
   var DEFAULT_CAPTURED_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal"];
   function createConsolaReporter(options = {}) {
     const levels = new Set(options.levels ?? DEFAULT_CAPTURED_LEVELS);
@@ -10640,7 +10640,7 @@ ${e6.stack}` : "unknown"
     };
   }
 
-  // node_modules/@sentry/feedback/build/npm/esm/index.js
+  // ../vexo-weather/node_modules/@sentry/feedback/build/npm/esm/index.js
   var WINDOW2 = GLOBAL_OBJ;
   var DOCUMENT = WINDOW2.document;
   var NAVIGATOR = WINDOW2.navigator;
@@ -12904,7 +12904,7 @@ ${SUCCESS}
     };
   });
 
-  // node_modules/web-vitals/dist/web-vitals.js
+  // ../vexo-weather/node_modules/web-vitals/dist/web-vitals.js
   var t2 = -1;
   var n2 = () => t2;
   var e3 = (n5) => {
@@ -13226,10 +13226,10 @@ ${SUCCESS}
     });
   };
 
-  // node_modules/@sentry/browser-utils/build/esm/debug-build.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/debug-build.js
   var DEBUG_BUILD3 = typeof __SENTRY_DEBUG__ === "undefined" || __SENTRY_DEBUG__;
 
-  // node_modules/@sentry/browser-utils/build/esm/instrumentation/performanceObserver.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/instrumentation/performanceObserver.js
   var handlers2 = {};
   var instrumented2 = {};
   var _previousCls;
@@ -13406,10 +13406,10 @@ Error:`,
     return "duration" in entry;
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/types.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/types.js
   var WINDOW3 = GLOBAL_OBJ;
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/softNavs.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/softNavs.js
   var MAX_TRACKED_NAVIGATIONS = 5;
   var INTERACTION_MATCH_TOLERANCE_MS = 5;
   var _pendingNavigation;
@@ -13502,7 +13502,7 @@ Error:`,
     return metric.navigationInteractionId != null ? _interactionIdToNavigationSpan.get(metric.navigationInteractionId) : void 0;
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/performance/utils.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/performance/utils.js
   function isMeasurementValue(value) {
     return typeof value === "number" && isFinite(value);
   }
@@ -13559,7 +13559,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/performance/resourceTiming.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/performance/resourceTiming.js
   function resourceTimingToSpanAttributes(resourceTiming) {
     const timingSpanData = {};
     if (resourceTiming.nextHopProtocol != void 0) {
@@ -13599,7 +13599,7 @@ Error:`,
     return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value != null));
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/performance/entries.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/performance/entries.js
   var MAX_INT_AS_BYTES = 2147483647;
   var _performanceCursor = 0;
   function startTrackingLongTasks() {
@@ -13908,7 +13908,7 @@ Error:`,
     });
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/htmlTreeAsString.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/htmlTreeAsString.js
   var DEFAULT_MAX_STRING_LENGTH = 80;
   var accessors = {};
   try {
@@ -14016,13 +14016,13 @@ Error:`,
     return out.join("");
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/lcp.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/lcp.js
   var MAX_PLAUSIBLE_LCP_DURATION = 6e4;
   function isValidLcpMetric(lcpValue) {
     return lcpValue != null && lcpValue > 0 && lcpValue <= MAX_PLAUSIBLE_LCP_DURATION;
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/utils.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/utils.js
   function addPageListener(type, listener, options) {
     if (WINDOW3.document) {
       WINDOW3.addEventListener(type, listener, options);
@@ -14110,7 +14110,7 @@ Error:`,
     }
   };
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/tracking.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/tracking.js
   var _measurements = {};
   var _lcpEntry;
   var _clsEntry;
@@ -14279,14 +14279,14 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/conventions/dist/metrics.mjs
+  // ../vexo-weather/node_modules/@sentry/conventions/dist/metrics.mjs
   var _4 = "browser.bfcache.navigation";
   var e4 = "browser.bfcache.not_restored";
   var E4 = "browser.bfcache.reload.duration";
   var A3 = "ui.element.load_time";
   var b4 = "ui.element.render_time";
 
-  // node_modules/@sentry/browser-utils/build/esm/performance/elementTiming.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/performance/elementTiming.js
   var INTEGRATION_NAME13 = "ElementTiming";
   var _elementTimingIntegration = (() => {
     return {
@@ -14347,7 +14347,7 @@ Error:`,
   });
   var elementTimingIntegration = defineIntegration(_elementTimingIntegration);
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/inp.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/inp.js
   var LAST_INTERACTIONS = [];
   var INTERACTIONS_SPAN_MAP = /* @__PURE__ */ new Map();
   var UNKNOWN_ELEMENT_NAME = "<unknown>";
@@ -14456,7 +14456,7 @@ Error:`,
     addPerformanceInstrumentationHandler("first-input", handleEntries);
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/isBotUserAgent.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/isBotUserAgent.js
   var BOT_USER_AGENT_RE = /Googlebot|Google-InspectionTool|Storebot-Google|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Facebot|facebookexternalhit|LinkedInBot|Twitterbot|Applebot/i;
   function isBotUserAgent() {
     const nav = WINDOW3.navigator;
@@ -14466,7 +14466,7 @@ Error:`,
     return BOT_USER_AGENT_RE.test(nav.userAgent);
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/component-name.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/component-name.js
   function getComponentName(elem, maxTraverseHeight = 5) {
     if (!GLOBAL_OBJ.HTMLElement) {
       return null;
@@ -14489,7 +14489,7 @@ Error:`,
     return null;
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/performance/interactions.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/performance/interactions.js
   var INTEGRATION_NAME14 = "Interactions";
   var _interactionsIntegration = ((options = {}) => {
     return {
@@ -14626,7 +14626,7 @@ Error:`,
     });
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/getLocationHref.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/getLocationHref.js
   function getLocationHref() {
     try {
       return WINDOW3.document?.location.href ?? "";
@@ -14635,7 +14635,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/routing.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/routing.js
   var CLIENT_ROUTE_PROVIDERS = /* @__PURE__ */ new WeakMap();
   function setRouteProvider(provider, client = getClient()) {
     if (!client) {
@@ -14699,7 +14699,7 @@ Error:`,
     return url ? parseStringToURLObject(url, getLocationHref() || void 0) : void 0;
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/performance/userTiming.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/performance/userTiming.js
   var INTEGRATION_NAME15 = "UserTiming";
   var _userTimingIntegration = ((options = {}) => {
     return {
@@ -14804,7 +14804,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/emitSpan.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/emitSpan.js
   function _emitWebVitalSpan(options) {
     const {
       name,
@@ -14872,7 +14872,7 @@ Error:`,
     };
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/reportEvents.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/reportEvents.js
   function listenForWebVitalReportEvents(client, collectorCallback) {
     let pageloadSpan;
     let collected = false;
@@ -14898,7 +14898,7 @@ Error:`,
     });
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/web-vitals/spans.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/web-vitals/spans.js
   var INTERACTION_TYPE_TO_SPAN_OP = {
     click: H,
     hover: Q2,
@@ -15151,7 +15151,7 @@ Error:`,
     });
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/instrumentation/dom.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/instrumentation/dom.js
   var DEBOUNCE_DURATION = 1e3;
   var debounceTimerID;
   var lastCapturedEventType;
@@ -15297,7 +15297,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/instrumentation/history.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/instrumentation/history.js
   var lastHref;
   function supportsHistory() {
     return "history" in WINDOW3 && !!WINDOW3.history;
@@ -15349,7 +15349,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/getNativeImplementation.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/getNativeImplementation.js
   var cachedImplementations = {};
   function getNativeImplementation(name) {
     const cached = cachedImplementations[name];
@@ -15394,7 +15394,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/instrumentation/xhr.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/instrumentation/xhr.js
   var SENTRY_XHR_DATA_KEY = "__sentry_xhr_v3__";
   function addXhrInstrumentationHandler(handler) {
     const type = "xhr";
@@ -15496,7 +15496,7 @@ Error:`,
     return void 0;
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/networkUtils.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/networkUtils.js
   var ORIGINAL_REQ_BODY = /* @__PURE__ */ Symbol.for("sentry__originalRequestBody");
   function serializeFormData(formData) {
     return new URLSearchParams(formData).toString();
@@ -15556,7 +15556,7 @@ Error:`,
     }, {});
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/is.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/is.js
   function isElement2(wat) {
     if (typeof Element === "undefined") {
       return false;
@@ -15568,7 +15568,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser-utils/build/esm/instrumentation/location.js
+  // ../vexo-weather/node_modules/@sentry/browser-utils/build/esm/instrumentation/location.js
   function getAbsoluteUrl2(urlOrPath) {
     try {
       const origin = WINDOW3.location.origin;
@@ -15580,7 +15580,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/helpers.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/helpers.js
   var WINDOW4 = GLOBAL_OBJ;
   var ignoreOnError = 0;
   var ignoredErrorReports = [];
@@ -15700,7 +15700,7 @@ Error:`,
     return request;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/utils/lazyLoadIntegration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/utils/lazyLoadIntegration.js
   var LAZY_LOADABLE_NAMES = [
     "replayIntegration",
     "replayCanvasIntegration",
@@ -15776,18 +15776,18 @@ Error:`,
     return new URL(`/${SDK_VERSION}/${bundle}.min.js`, baseURL).toString();
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/feedbackAsync.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/feedbackAsync.js
   var feedbackAsyncIntegration = buildFeedbackIntegration({
     lazyLoadIntegration
   });
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/feedbackSync.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/feedbackSync.js
   var feedbackSyncIntegration = buildFeedbackIntegration({
     getModalIntegration: () => feedbackModalIntegration,
     getScreenshotIntegration: () => feedbackScreenshotIntegration
   });
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/eventbuilder.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/eventbuilder.js
   function exceptionFromError2(stackParser, ex) {
     const frames = parseStackFrames2(stackParser, ex);
     const exception = {
@@ -16005,7 +16005,7 @@ Error:`,
     return Object.values(obj).find(isError);
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/client.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/client.js
   var BrowserClient = class extends Client {
     /**
      * Creates a new Browser SDK instance.
@@ -16102,7 +16102,7 @@ Error:`,
     };
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/transports/fetch.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/transports/fetch.js
   var DEFAULT_BROWSER_TRANSPORT_BUFFER_SIZE = 40;
   function makeFetchTransport(options, nativeFetch = getNativeImplementation("fetch")) {
     let pendingBodySize = 0;
@@ -16154,10 +16154,10 @@ Error:`,
     );
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/debug-build.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/debug-build.js
   var DEBUG_BUILD4 = typeof __SENTRY_DEBUG__ === "undefined" || __SENTRY_DEBUG__;
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/profiling/index.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/profiling/index.js
   function startProfiler() {
     const client = getClient();
     if (!client) {
@@ -16189,7 +16189,7 @@ Error:`,
     stopProfiler
   };
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/stack-parsers.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/stack-parsers.js
   var OPERA10_PRIORITY = 10;
   var OPERA11_PRIORITY = 20;
   var CHROME_PRIORITY = 30;
@@ -16296,7 +16296,7 @@ Error:`,
     ] : [func, filename];
   };
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/userfeedback.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/userfeedback.js
   function createUserFeedbackEnvelope(feedback, {
     metadata,
     tunnel,
@@ -16323,7 +16323,7 @@ Error:`,
     return [feedbackHeaders, feedback];
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/breadcrumbs.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/breadcrumbs.js
   var MAX_ALLOWED_STRING_LENGTH = 1024;
   var INTEGRATION_NAME16 = "Breadcrumbs";
   var _breadcrumbsIntegration = ((options = {}) => {
@@ -16533,7 +16533,7 @@ Error:`,
     return !!event && !!event.target;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/browserapierrors.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/browserapierrors.js
   var DEFAULT_EVENT_TARGET = "EventTarget,Window,Node,ApplicationCache,AudioTrackList,BroadcastChannel,ChannelMergerNode,CryptoOperation,EventSource,FileReader,HTMLUnknownElement,IDBDatabase,IDBRequest,IDBTransaction,KeyOperation,MediaController,MessagePort,ModalWindow,Notification,SVGElementInstance,Screen,SharedWorker,TextTrack,TextTrackCue,TextTrackList,WebSocket,WebSocketWorker,Worker,XMLHttpRequest,XMLHttpRequestEventTarget,XMLHttpRequestUpload".split(
     ","
   );
@@ -16694,7 +16694,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/browsersession.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/browsersession.js
   var browserSessionIntegration = defineIntegration((options = {}) => {
     const lifecycle = options.lifecycle ?? "page";
     return {
@@ -16736,7 +16736,7 @@ Error:`,
     };
   });
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/culturecontext.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/culturecontext.js
   var INTEGRATION_NAME18 = "CultureContext";
   var _cultureContextIntegration = (() => {
     return {
@@ -16780,7 +16780,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/globalhandlers.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/globalhandlers.js
   var INTEGRATION_NAME19 = "GlobalHandlers";
   var _globalHandlersIntegration = ((options = {}) => {
     const _options = {
@@ -16913,7 +16913,7 @@ Error:`,
     return url;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/httpcontext.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/httpcontext.js
   var httpContextIntegration = defineIntegration(() => {
     return {
       name: "HttpContext",
@@ -16966,7 +16966,7 @@ Error:`,
     };
   });
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/linkederrors.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/linkederrors.js
   var DEFAULT_KEY = "cause";
   var DEFAULT_LIMIT2 = 5;
   var INTEGRATION_NAME20 = "LinkedErrors";
@@ -16991,7 +16991,7 @@ Error:`,
   });
   var linkedErrorsIntegration = defineIntegration(_linkedErrorsIntegration);
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/normalizeStringifyValue.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/normalizeStringifyValue.js
   var HTML_ELEMENT_CONSTRUCTOR_NAME_REGEX = /^HTML(\w*)Element$/;
   function normalizeStringifyValue(value) {
     if (typeof window !== "undefined" && value === window) {
@@ -17013,7 +17013,7 @@ Error:`,
     return prototype?.constructor ? prototype.constructor.name : "null prototype";
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/utils/detectBrowserExtension.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/utils/detectBrowserExtension.js
   function checkAndWarnIfIsEmbeddedBrowserExtension() {
     if (_isEmbeddedBrowserExtension()) {
       if (DEBUG_BUILD4) {
@@ -17044,7 +17044,7 @@ Error:`,
     return !isDedicatedExtensionPage;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/utils/managedTunnel.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/utils/managedTunnel.js
   function resolveBrowserTunnelOption(options) {
     const { tunnel, dsn, transportOptions } = options;
     if (!tunnel || typeof tunnel === "string") {
@@ -17069,7 +17069,7 @@ Error:`,
     };
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/sdk.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/sdk.js
   function getDefaultIntegrations(_options) {
     return [
       eventFiltersIntegration(),
@@ -17110,7 +17110,7 @@ Error:`,
     callback();
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/report-dialog.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/report-dialog.js
   function showReportDialog(options = {}) {
     const optionalDocument = WINDOW4.document;
     const injectionPoint = optionalDocument?.head || optionalDocument?.body;
@@ -17169,7 +17169,7 @@ Error:`,
     injectionPoint.appendChild(script);
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/reportingobserver.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/reportingobserver.js
   var WINDOW5 = GLOBAL_OBJ;
   function supportsReportingObserver() {
     return "ReportingObserver" in WINDOW5;
@@ -17227,7 +17227,7 @@ Error:`,
   });
   var reportingObserverIntegration = defineIntegration(_reportingObserverIntegration);
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/httpclient.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/httpclient.js
   var INTEGRATION_NAME22 = "HttpClient";
   var _httpClientIntegration = ((options = {}) => {
     const _options = {
@@ -17453,7 +17453,7 @@ Error:`,
     return { cookies, requestHeaders: httpHeaders.request, responseHeaders: httpHeaders.response };
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/contextlines.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/contextlines.js
   var WINDOW6 = GLOBAL_OBJ;
   var DEFAULT_LINES_OF_CONTEXT = 5;
   var INTEGRATION_NAME23 = "ContextLines";
@@ -17500,7 +17500,7 @@ Error:`,
     return frame;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/graphqlClient.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/graphqlClient.js
   var INTEGRATION_NAME24 = "GraphQLClient";
   var _graphqlClientIntegration = ((options) => {
     return {
@@ -17650,7 +17650,7 @@ Error:`,
   }
   var graphqlClientIntegration = defineIntegration(_graphqlClientIntegration);
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/view-hierarchy.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/view-hierarchy.js
   var viewHierarchyIntegration = defineIntegration((options = {}) => {
     const skipHtmlTags = ["script"];
     function walk(element, windows, depth = 0) {
@@ -17719,7 +17719,7 @@ Error:`,
     };
   });
 
-  // node_modules/@sentry/replay/build/npm/esm/index.js
+  // ../vexo-weather/node_modules/@sentry/replay/build/npm/esm/index.js
   var Ob2 = "sentry.replay_id";
   var qb2 = "sentry.segment.name.source";
   var WINDOW7 = GLOBAL_OBJ;
@@ -26273,7 +26273,7 @@ Error:`,
     return client?.getIntegrationByName("Replay");
   }
 
-  // node_modules/@sentry/replay-canvas/build/npm/esm/index.js
+  // ../vexo-weather/node_modules/@sentry/replay-canvas/build/npm/esm/index.js
   var __defProp3 = Object.defineProperty;
   var __defNormalProp2 = (obj, key, value) => key in obj ? __defProp3(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __publicField2 = (obj, key, value) => __defNormalProp2(obj, typeof key !== "symbol" ? key + "" : key, value);
@@ -27329,7 +27329,7 @@ Error:`,
     _replayCanvasIntegration
   );
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/tracing/utils.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/tracing/utils.js
   function baggageHeaderHasSentryValues(baggageHeader) {
     return baggageHeader.split(",").some((value) => value.trim().startsWith("sentry-"));
   }
@@ -27352,7 +27352,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/tracing/request.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/tracing/request.js
   var defaultRequestInstrumentationOptions = {
     traceFetch: true,
     traceXHR: true,
@@ -27576,7 +27576,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/webVitals.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/webVitals.js
   var WEB_VITALS_INTEGRATION_NAME = "WebVitals";
   var webVitalsIntegration = defineIntegration((options = {}) => {
     const { ignore = [], softNavigations = true, bfcacheNavigations = true } = options;
@@ -27637,7 +27637,7 @@ Error:`,
     };
   });
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/tracing/backgroundtab.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/tracing/backgroundtab.js
   function registerBackgroundTabDetection() {
     if (WINDOW4.document) {
       WINDOW4.document.addEventListener("visibilitychange", () => {
@@ -27667,7 +27667,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/tracing/linkedTraces.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/tracing/linkedTraces.js
   var PREVIOUS_TRACE_MAX_DURATION = 3600;
   var PREVIOUS_TRACE_KEY = "sentry_previous_trace";
   var PREVIOUS_TRACE_TMP_SPAN_ATTRIBUTE = "sentry.previous_trace";
@@ -27783,7 +27783,7 @@ Error:`,
     return ctx.traceFlags === 1;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/tracing/browserTracingIntegration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/tracing/browserTracingIntegration.js
   var BROWSER_TRACING_INTEGRATION_ID = "BrowserTracing";
   var DEFAULT_BROWSER_TRACING_OPTIONS = {
     ...TRACING_DEFAULTS,
@@ -28182,12 +28182,12 @@ Error:`,
     return true;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/tracing/reportPageLoaded.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/tracing/reportPageLoaded.js
   function reportPageLoaded(client = getClient()) {
     client?.emit("endPageloadSpan");
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/tracing/setActiveSpan.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/tracing/setActiveSpan.js
   function setActiveSpanInBrowser(span) {
     const maybePreviousActiveSpan = getActiveSpan();
     if (maybePreviousActiveSpan === span) {
@@ -28203,7 +28203,7 @@ Error:`,
     _setSpanForScope(scope, span);
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/fetchStreamPerformance.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/fetchStreamPerformance.js
   var responseToStreamSpan = /* @__PURE__ */ new WeakMap();
   var responseToFallbackTimeout = /* @__PURE__ */ new WeakMap();
   var STREAM_RESOLVE_FALLBACK_MS = 9e4;
@@ -28261,7 +28261,7 @@ Error:`,
     };
   });
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/bfcacheMetrics.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/bfcacheMetrics.js
   var INTEGRATION_NAME26 = "BfcacheMetrics";
   var bfcacheMetricsIntegration = defineIntegration(
     (options = {}) => {
@@ -28366,7 +28366,7 @@ Error:`,
     return attributes;
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/transports/offline.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/transports/offline.js
   function promisifyRequest(request) {
     return new Promise((resolve2, reject) => {
       request.oncomplete = request.onsuccess = () => resolve2(request.result);
@@ -28466,7 +28466,7 @@ Error:`,
     return makeIndexedDbOfflineTransport(makeOfflineTransport(createTransport2));
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/profiling/utils.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/profiling/utils.js
   var isMainThread = "window" in GLOBAL_OBJ && GLOBAL_OBJ.window === GLOBAL_OBJ && typeof importScripts === "undefined";
   var PROFILER_THREAD_ID_STRING = String(0);
   var PROFILER_THREAD_NAME = isMainThread ? "main" : "worker";
@@ -28667,7 +28667,7 @@ Error:`,
     span.setAttribute(Tg, PROFILER_THREAD_NAME);
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/profiling/UIProfiler.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/profiling/UIProfiler.js
   var CHUNK_INTERVAL_MS = 6e4;
   var MAX_ROOT_SPAN_PROFILE_MS = 3e5;
   var UIProfiler = class {
@@ -28966,7 +28966,7 @@ Error:`,
     }
   };
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/profiling/integration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/profiling/integration.js
   var INTEGRATION_NAME27 = "BrowserProfiling";
   var _browserProfilingIntegration = (() => {
     return {
@@ -29008,7 +29008,7 @@ Error:`,
   });
   var browserProfilingIntegration = defineIntegration(_browserProfilingIntegration);
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/spotlight.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/spotlight.js
   var INTEGRATION_NAME28 = "SpotlightBrowser";
   var SPOTLIGHT_IGNORE_SPANS = [
     { op: H, name: "#sentry-spotlight" },
@@ -29063,7 +29063,7 @@ Error:`,
   }
   var spotlightBrowserIntegration = defineIntegration(_spotlightIntegration);
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/launchdarkly/integration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/launchdarkly/integration.js
   var launchDarklyIntegration = defineIntegration(() => {
     return {
       name: "LaunchDarkly",
@@ -29087,7 +29087,7 @@ Error:`,
     };
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/openfeature/integration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/openfeature/integration.js
   var openFeatureIntegration = defineIntegration(() => {
     return {
       name: "OpenFeature",
@@ -29113,7 +29113,7 @@ Error:`,
     }
   };
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/unleash/integration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/unleash/integration.js
   var unleashIntegration = defineIntegration(
     ({ featureFlagClientClass: unleashClientClass }) => {
       return {
@@ -29144,10 +29144,10 @@ Error:`,
     };
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/growthbook/integration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/growthbook/integration.js
   var growthbookIntegration2 = (({ growthbookClass }) => growthbookIntegration({ growthbookClass }));
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/statsig/integration.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/featureFlags/statsig/integration.js
   var statsigIntegration = defineIntegration(
     ({ featureFlagClient: statsigClient }) => {
       return {
@@ -29165,7 +29165,7 @@ Error:`,
     }
   );
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/diagnose-sdk.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/diagnose-sdk.js
   async function diagnoseSdkConnectivity() {
     const client = getClient();
     if (!client) {
@@ -29194,7 +29194,7 @@ Error:`,
     }
   }
 
-  // node_modules/@sentry/browser/build/npm/esm/prod/integrations/webWorker.js
+  // ../vexo-weather/node_modules/@sentry/browser/build/npm/esm/prod/integrations/webWorker.js
   var INTEGRATION_NAME29 = "WebWorker";
   var MAX_FORWARDED_ERRORS = 20;
   var webWorkerIntegration = defineIntegration(({ worker }) => ({
