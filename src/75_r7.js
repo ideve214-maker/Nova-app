@@ -381,14 +381,44 @@ function postViews(p){const s=Number(p.viewCount!=null?p.viewCount:p.views);retu
 function repostMap(){const k=acctKey('nova_reposted');if(!k)return {};try{return JSON.parse(localStorage.getItem(k)||'{}')||{}}catch(e){return {}}}
 function repostSave(m){const k=acctKey('nova_reposted');if(!k)return;try{localStorage.setItem(k,JSON.stringify(m))}catch(e){}}
 /* 删除帖子时：删的是转帖本身，或者删的是原帖，都把转帖记录清掉 */
-function repostForget(id){id=String(id);const m=repostMap();let ch=0;for(const k of Object.keys(m))if(k===id||String(m[k])===id){delete m[k];ch=1}if(ch)repostSave(m);return ch}
+function repostForget(id){id=String(id);try{const dp=typeof findPost==='function'&&findPost(id);if(dp&&dp.rp&&typeof rpPatch==='function')rpPatch(dp.rp.id,x=>{if(String(x.myRepost)===id)x.myRepost=null;x.repostCount=Math.max(0,(Number(x.repostCount)||0)-1)})}catch(e){}const m=repostMap();let ch=0;for(const k of Object.keys(m))if(k===id||String(m[k])===id){delete m[k];ch=1}if(ch)repostSave(m);return ch}
 /* 打开转帖面板时向服务器确认那条转帖还在（在别的设备上删掉的也能清掉） */
 async function repostVerify(id){const m=repostMap(),nid=m[id];if(!nid||!(typeof usingNet==='function'&&usingNet())||typeof api!=='function')return;try{const r=await api('GET','/api/posts/'+encodeURIComponent(nid));if(r&&(r.s===404||r.s===410)){repostForget(nid);if(typeof render==='function')render()}}catch(e){}}
-function postReposts(p){return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
-function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Number.isFinite(s)&&s>0?s:(mine?1:0)}
+/* 2.0.3：登录后转帖由服务器记录（posts.repost_of）。帖子自带 repostCount 和 myRepost（我那条直接转帖的 id），
+   不再用本机记录判断「转过没有」；本机记录只留给演示模式。 */
+function rpNet(){return typeof usingNet==='function'&&usingNet()}
+function myRepostOf(p){if(!p)return null;if(rpNet()&&('myRepost' in p))return p.myRepost||null;return repostMap()[p.id]||null}
+function postReposts(p){if(rpNet()&&p.repostCount!=null)return Number(p.repostCount)||0;return (Number(p.repostCount)||0)+(repostMap()[p.id]?1:0)}
+/* 同一条原帖可能同时出现在首页、详情缓存、别人的转帖卡片里：一起改 */
+function rpPatch(id,fn){id=String(id);[].concat(Array.isArray(S.posts)?S.posts:[],S.postCache?Object.values(S.postCache):[],Array.isArray(S.boosts)?S.boosts:[]).forEach(x=>{if(x&&String(x.id)===id)fn(x)})}
+/* 转帖卡片（X 式）：原帖作者头像、名字、正文、图片；点卡片打开原帖详情 */
+function rpEmbed(p,det){
+  const r=p.rp;if(!r)return '';
+  if(r.deleted)return `<div class="rpc del"><span>原帖已删除</span></div>`;
+  const o=findPost(r.id);if(!o)return `<div class="rpc del"><span>原帖已删除</span></div>`;
+  const u=P(o.a),tm=typeof fmtTime==='function'&&o.at?fmtTime(o.at):(o.t||'');
+  const media=typeof mediaHTML==='function'?mediaHTML(Array.isArray(o.media)?o.media:[],false,o.id):'';
+  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}</small></div>${o.x?`<div class="rpx${det?'':' clamp'}">${esc(o.x)}</div>`:''}${media}</div>`;
+}
+function rpCardWrap(p,det,k){
+  const plain=!(p.x||'').trim();
+  const body=plain?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
+  const head=plain
+    ?`<div class="rptop"><span data-a="user" data-v="${p.a}">${xic('rt')}<b>${esc(p.a==='me'?'你':k.u.n)}</b> 转帖了</span><small>${esc(k.tm)}</small><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`
+    :`<div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(k.u)}</b><small>${esc(k.tm)}${k.tm?' · ':''}${k.aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`;
+  return `<article class="fcard rp${plain?' plain':''}" data-pid="${p.id}">${head}${body}${k.chips.length?`<div class="fmeta">${k.chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${k.mediaH}${rpEmbed(p,det)}${typeof xbar==='function'?xbar(p,k.nLike,k.nC):''}</article>`;
+}
+/* 引用转帖：单独的编辑页，草稿只放在 S.d.qin，取消或发出后清空；永远不碰普通发帖草稿（S.d.pin / nova_compose_draft） */
+function rpReset(){S.d.qin='';S.quoteOf=null;S.rtBusy=0}
+function pQuote(id){
+  const o=findPost(id);if(!o)return sub('引用转帖')+'<p class="em">原帖不存在或已删除</p>';
+  const mx=typeof textLimit==='function'?textLimit('post'):500,can=ok(S.d.qin||'',mx);
+  return `<div class="pg compose-pg"><div class="top sub"><button class="ib tx" data-a="quotex">取消</button><h1>引用转帖</h1><button class="pb${can?'':' off'}" data-a="quotego" data-v="${esc(String(id))}" data-for="qin" ${can?'':'disabled'}>发布</button></div><div class="sc compose"><div class="cwho">${av('me',48)}<div class="gr"><b>${esc(P('me').n||'我的账号')}</b></div></div><textarea class="cta" data-d="qin" data-max="${mx}" data-af rows="4" placeholder="说点什么…"></textarea>${rpEmbed({rp:{id:String(id),deleted:false}},false).replace(' data-a="rpopen"',' ')}<p class="lab" style="text-align:right" data-cnt="qin"></p></div></div>`;
+}
+function postBookmarks(p){const s=Number(p.bookmarkCount);const mine=typeof isSaved==='function'&&isSaved('post',String(p.id));return Math.max(Number.isFinite(s)&&p.bookmarkCount!=null?s:0,mine?1:0)}
 function findPost(id){const a=(typeof feedSrc==='function'?feedSrc():[]).concat(Array.isArray(S.posts)?S.posts:[],D.p||[],S.postCache?Object.values(S.postCache):[]);return a.find(x=>String(x.id)===String(id))}
 function xbar(p,nLike,nC){
-  const id=esc(String(p.id)),liked=p.m>=0,rt=!!repostMap()[p.id],bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
+  const id=esc(String(p.id)),liked=p.m>=0,rt=!!myRepostOf(p),bm=typeof isSaved==='function'&&isSaved('post',String(p.id));
   const likeIc=liked&&p.m!==0&&typeof E!=='undefined'&&E[p.m]?`<span class="xemo">${E[p.m]}</span>`:xic('lk',liked);
   const b=(a,cls,ic,n,label)=>`<button data-a="${a}" data-v="${id}" class="${cls}" aria-label="${label}${n?' '+n:''}">${ic}<span>${fmtN(n)}</span></button>`;
   return `<div class="xbar">${b('post','xc',xic('cm'),nC,'评论')}${b('xrt','xr'+(rt?' on':''),xic('rt'),postReposts(p),'转帖')}${b('xlike','xl'+(liked?' on':''),likeIc,nLike,'点赞')}${b('xviews','xv',xic('vw'),postViews(p),'阅读')}${b('xbm','xb'+(bm?' on':''),xic('bm',bm),postBookmarks(p),'收藏')}<button data-a="xshare" data-v="${id}" class="xs" aria-label="分享">${xic('sh')}</button></div>`;
@@ -421,8 +451,8 @@ async function copyText(t){
 function r7Sheet(s){
   if(s.t==='xshare'){const p=findPost(s.id);const canSys=typeof navigator!=='undefined'&&!!navigator.share;
     return `<h3>分享帖子</h3><button class="mi" data-a="xcopylink" data-v="${esc(s.id)}">🔗 复制帖子链接</button>${p&&p.x?`<button class="mi" data-a="xcopytext" data-v="${esc(s.id)}">📋 复制正文</button>`:''}${canSys?`<button class="mi" data-a="xsys" data-v="${esc(s.id)}">📤 通过其他应用分享…</button>`:''}<button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
-  if(s.t==='xrt'){const done=!!repostMap()[s.id];
-    return `<h3>转帖</h3>${done?`<p class="lab" style="margin-bottom:6px">你已经转过这条帖子。</p>`:`<button class="mi" data-a="xrtgo" data-v="${esc(s.id)}">🔁 转帖</button>`}<button class="mi" data-a="xquote" data-v="${esc(s.id)}">✍️ 引用并说点什么</button><button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
+  if(s.t==='xrt'){const p0=findPost(s.id),tid=p0&&p0.rp&&!p0.rp.deleted?p0.rp.id:s.id,done=!!myRepostOf(findPost(tid)||{id:tid});
+    return `<h3>转帖</h3>${done?`<button class="mi" data-a="xrtundo" data-v="${esc(tid)}">↩️ 撤销转帖</button>`:`<button class="mi" data-a="xrtgo" data-v="${esc(tid)}">🔁 转帖</button>`}<button class="mi" data-a="xquote" data-v="${esc(tid)}">✍️ 引用并说点什么</button><button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
   return '';
 }
 function repostText(p,extra){const who=p?P(p.a).n:'';const ex=p&&p.x?[...p.x].slice(0,80).join('')+([...p.x].length>80?'…':''):'';return (extra?extra+'\n\n':'')+'🔁 转帖 @'+who+(ex?'：'+ex:'')+'\n'+postLink(p.id)}
@@ -435,12 +465,21 @@ Object.assign(A,{
   xcopytext:async v=>{S.sh=null;const p=findPost(v);const ok=await copyText(p&&p.x||'');T(ok?'已复制正文':'复制失败')},
   xsys:async v=>{S.sh=null;const u=postLink(v);if(!/^https?:/i.test(u)){const ok=await copyText(u);T(ok?'已复制帖子链接':'复制失败');return}try{await navigator.share({title:'VEXO',url:u})}catch(e){if(e&&e.name==='AbortError')return;const ok=await copyText(u);T(ok?'已复制帖子链接':'复制失败')}},/* 2.0.1：只分享链接（微信不接受文字 + 链接混合） */
   xrt:v=>{S.sh={t:'xrt',id:v};repostVerify(v)},
-  xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(repostMap()[v])return T('已经转过了');const text=repostText(p);
-    let nid=null;
-    if(typeof usingNet==='function'&&usingNet()){if(S.rtBusy)return;S.rtBusy=1;try{const np=await publishPost(text,{audience:'public'});nid=np&&np.id}finally{S.rtBusy=0}if(!nid)return}
-    else{nid='rt'+Date.now();D.p.unshift({id:nid,a:'me',t:'刚刚',at:Date.now(),x:text,r:[0,0,0,0,0,0],m:-1,aud:'public'})}
-    const m=repostMap();m[v]=nid;repostSave(m);T('已转帖')},
-  xquote:v=>{const p=findPost(v);S.sh=null;if(!p)return;S.d.pin=repostText(p,'');S.d.pin='\n\n'+S.d.pin;if(typeof compState==='function')compState();S.st.push('compose')}
+  /* 直接转帖：登录后发一条只带 repostOf 的帖子（服务器防重复）；演示模式保留旧做法 */
+  xrtgo:async v=>{const p=findPost(v);S.sh=null;if(!p)return;if(myRepostOf(p))return T('已经转过了');
+    if(rpNet()){if(S.rtBusy)return;S.rtBusy=1;try{const np=await publishPost('',{audience:'public',repostOf:v});if(!np)return;rpPatch(v,x=>{x.myRepost=np.id;x.repostCount=(Number(x.repostCount)||0)+1});T('已转帖')}finally{rpReset()}return}
+    const nid='rt'+Date.now();D.p.unshift({id:nid,a:'me',t:'刚刚',at:Date.now(),x:'',rp:{id:String(v),deleted:false},r:[0,0,0,0,0,0],m:-1,aud:'public'});
+    const m=repostMap();m[v]=nid;repostSave(m);rpReset();T('已转帖')},
+  xrtundo:async v=>{const p=findPost(v);S.sh=null;const mine=myRepostOf(p||{id:v});if(!mine)return;
+    if(rpNet()){if(S.rtBusy)return;S.rtBusy=1;try{const r=await api('POST','/api/posts/'+encodeURIComponent(mine)+'/delete',{});if(r.s!==200&&r.s!==404)return T(errMsg(r,'撤销失败'));if(typeof dropPost==='function')dropPost(mine);rpPatch(v,x=>{x.myRepost=null;x.repostCount=Math.max(0,(Number(x.repostCount)||0)-1)});T('已撤销转帖')}finally{rpReset()}return}
+    D.p=D.p.filter(x=>x.id!==mine);repostForget(mine);rpReset();T('已撤销转帖')},
+  xquote:v=>{const p=findPost(v);S.sh=null;if(!p)return;rpReset();S.quoteOf=String(v);A.go('quote:'+v)},
+  quotex:()=>{rpReset();S.sh=null;const cur=S.st[S.st.length-1];if(cur&&String(cur).startsWith('quote:'))S.st.pop()},
+  quotego:async v=>{const x=(S.d.qin||'').trim(),mx=textLimit('post');if(!x)return T('写点什么');if(!ok(x,mx))return T('动态最多 '+mx+' 字');
+    const leave=()=>{rpReset();const cur=S.st[S.st.length-1];if(cur&&String(cur).startsWith('quote:'))S.st.pop();rpPatch(v,o=>{o.repostCount=(Number(o.repostCount)||0)+1});T('已转帖')};
+    if(rpNet()){if(S.rtBusy)return;S.rtBusy=1;try{if(typeof checkText==='function'&&!(await checkText('post',x)))return;const np=await publishPost(x,{audience:'public',repostOf:v});if(!np)return;leave()}finally{S.rtBusy=0}return}
+    D.p.unshift({id:'rt'+Date.now(),a:'me',t:'刚刚',at:Date.now(),x,rp:{id:String(v),deleted:false},r:[0,0,0,0,0,0],m:-1,aud:'public'});leave()},
+  rpopen:async v=>{if(!findPost(v)&&rpNet()){const r=await api('GET','/api/posts/'+encodeURIComponent(v));if(r.s!==200||!r.j||!r.j.post)return T('原帖不存在或已删除');S.postCache=S.postCache||{};S.postCache[String(v)]=adoptPost(r.j.post)}return A.post(v)}
 });
 /* 帖子链接打开：#/post/<id> */
 function openHashPost(){const m=/^#\/post\/([^/?#]+)/.exec(location.hash||'');if(!m)return;const id=decodeURIComponent(m[1]);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
