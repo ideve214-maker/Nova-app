@@ -8,6 +8,8 @@ import { avatarLetter, hasAvatarFailed, isHexColor, markAvatarFailed, normalizeI
 import { useAdmin } from "@/lib/admin/store";
 import { getStoredSkin, getStoredTheme, subscribeAppearance, type SkinId, type ThemeMode } from "@/lib/admin/theme";
 import { skinIconSvg, skinMarkUrl, type SkinIconName } from "@/theme/marks";
+import appIcon256 from "@/assets/app-icon-256.png";
+import appIcon512 from "@/assets/app-icon-512.png";
 
 export type { SkinIconName };
 
@@ -28,6 +30,20 @@ export function useAppearance(): { skin: SkinId; theme: ThemeMode } {
 export function StarMark({ className }: { className?: string }) {
   const { skin } = useAppearance();
   return <img src={skinMarkUrl(skin)} alt="" className={className} />;
+}
+
+/** Official VEXO iOS app icon (full-bleed source: resources/icon-masked.png). */
+export function AppIcon({ className }: { className?: string }) {
+  return (
+    <img
+      src={appIcon256}
+      srcSet={`${appIcon256} 256w, ${appIcon512} 512w`}
+      sizes="44px"
+      alt=""
+      draggable={false}
+      className={cn("object-cover [border-radius:22%]", className)}
+    />
+  );
 }
 
 export function SkinIcon({ name, className }: { name: SkinIconName; className?: string }) {

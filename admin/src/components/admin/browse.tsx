@@ -30,7 +30,7 @@ import { sanitizeText } from "@/lib/admin/sanitize";
 import { formatBytes, formatUptime, readHealthView } from "@/lib/admin/backend";
 import { hapticLight } from "@/lib/admin/native";
 import { getStoredTheme, setSkin, setTheme, SKIN_DEFAULT_MODE, SKINS, type SkinId, type ThemeMode } from "@/lib/admin/theme";
-import { DataHint, DemoBanner, EmptyState, Pill, RowLink, Seg, StarMark, useAppearance } from "./ui";
+import { AppIcon, DataHint, DemoBanner, EmptyState, Pill, RowLink, Seg, useAppearance } from "./ui";
 import { ConnectionBadge } from "./server-panel";
 
 const modules: { name: PageName; label: string; desc: string; icon: typeof Users }[] = [
@@ -108,9 +108,7 @@ export function HomeScreen() {
             <h1 className="truncate text-[17px] font-semibold leading-tight">管理后台</h1>
           </div>
           <button type="button" onClick={() => go("me")} aria-label="我的" className="grid size-11 place-items-center">
-            <span className="grid size-8 place-items-center rounded-full bg-primary text-on-primary">
-              <StarMark className="size-4" />
-            </span>
+            <AppIcon className="size-8" />
           </button>
         </div>
       </header>
@@ -486,9 +484,7 @@ export function MeScreen() {
       </header>
       <div className="nova-scroll min-h-0 flex-1" data-nova-content-scroll>
       <div className="mx-5 mt-3 flex items-center gap-3 rounded-card bg-surface p-3 shadow-card">
-        <span className="grid size-11 place-items-center rounded-full bg-primary text-on-primary">
-          <StarMark className="size-5" />
-        </span>
+        <AppIcon className="size-11 shrink-0" />
         <div className="min-w-0">
           <div className="text-[16px] font-semibold">{adminProfile?.username || adminName || "管理员"}</div>
           <div className="text-[13px] text-muted">{adminProfile?.role || "admin"} · 服务器账号</div>
