@@ -52,7 +52,9 @@ const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 export function readPostMeta(raw: unknown): PostMeta {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const ext = r.external && typeof r.external === "object" ? (r.external as Record<string, unknown>) : {};
-  const source = str(r.source) || str(r.origin) || str(ext.source) || str(ext.origin);
+  let source = str(r.source) || str(r.origin) || str(ext.source) || str(ext.origin);
+  // 服务端 2.1.2 管理端列表：用户发的帖 source = "user"、sourceLabel =「用户」，不算外部来源
+  if (source === "user") source = "";
   const label = str(r.sourceLabel) || str(r.originLabel) || str(ext.label) || str(ext.sourceLabel);
   return {
     category: normalizeCategory(r.category ?? ext.category),
@@ -77,10 +79,10 @@ export function sourceOptions(loaded: { source?: string }[]): { id: string; labe
   for (const x of loaded) if (x.source) ids.add(x.source);
   return [...ids].map((id) => ({ id, label: sourceName(id) }));
 }
-/** 查询参数：只带有值的（服务端 2.1.2 还不认这两个参数，会忽略；管理端同时在本页过滤） */
+/** 查询参数（服务端 2.1.2 在分页前筛选）。「未分类」服务端不支持（会回 BAD_CATEGORY），不传，只在本页过滤。 */
 export function metaQuery(f: MetaFilter): Record<string, string> {
   const q: Record<string, string> = {};
-  if (f.category) q.category = f.category;
+  if (f.category && f.category !== "none") q.category = f.category;
   if (f.source) q.source = f.source;
   return q;
 }

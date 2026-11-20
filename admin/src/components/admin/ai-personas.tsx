@@ -717,7 +717,8 @@ function LogTab() {
     setErr("");
     const got = r.data.log || [];
     setRows((x) => (before ? [...(x || []), ...got] : got));
-    setMore(got.length >= LIMIT);
+    // 服务端 2.1.3 回 nextBefore（null = 没有更多）；旧格式按条数判断
+    setMore(r.data.nextBefore !== undefined ? r.data.nextBefore != null : got.length >= LIMIT);
   }, []);
   useEffect(() => { void load(kind, userId, null); }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -264,7 +264,7 @@ export function makePersonasApi(call: CallFn) {
     testSource: (id: number) =>
       call<{ ok: boolean; items: { title: string; url: string; publishedAt: number | null }[]; ms: number }>("adminAiPersonasSourceTest", { params: { id: String(id) }, body: {}, timeoutMs: 30000 }),
     log: (q: { kind?: string; userId?: string; before?: number | null; limit?: number }) =>
-      call<{ log: PersonaLogRow[] }>("adminAiPersonasLog", {
+      call<{ log: PersonaLogRow[]; nextBefore?: number | null }>("adminAiPersonasLog", {
         query: { kind: q.kind || undefined, userId: q.userId || undefined, before: q.before || undefined, limit: q.limit ?? 100 },
       }),
     avatarStyles: () => call<{ styles: AvatarStyle[] }>("adminAiPersonasAvatarStyles"),

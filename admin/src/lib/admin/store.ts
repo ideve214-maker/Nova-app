@@ -843,7 +843,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     const type = opts?.type;
     const status = opts?.status || "all";
     const q = opts?.q;
-    // 2.0.9：分类 / 来源参数先带上（服务端 2.1.2 还不认，会忽略；页面同时在本地过滤）
+    // 2.0.9：分类 / 来源由服务端 2.1.2 在分页前筛选；页面再在本地过一遍（兼容旧服务端、「未分类」）
     const meta = { category: opts?.category || undefined, source: opts?.source || undefined };
     if (!type || type === "all") {
       const [posts, comments] = await Promise.all([
@@ -855,7 +855,8 @@ export const useAdmin = create<AdminState>((set, get) => ({
       if (comments.ok) rows.push(...comments.data.map(toPost));
       rows.sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
       if (posts.ok || comments.ok) set({ posts: rows });
-      if (!posts.ok && !comments.ok && posts) get().flash(posts.error);
+      // 帖子请求失败（如分类 / 来源取值不对：BAD_CATEGORY / BAD_SOURCE）也要提示
+      if (!posts.ok) get().flash(posts.error);
       return;
     }
     const result = await remote.remoteContent({ type, status, q, limit: 50, ...(type === "post" ? meta : {}) });

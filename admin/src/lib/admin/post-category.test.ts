@@ -19,6 +19,8 @@ test("matchMeta / metaQuery / sourceOptions", () => {
   assert.ok(matchMeta(ext, { category: "", source: "external" }));
   assert.ok(!matchMeta(ext, { category: "", source: "ign" }));
   assert.deepEqual(metaQuery({ category: "", source: "hn" }), { source: "hn" });
+  assert.deepEqual(metaQuery({ category: "none", source: "user" }), { source: "user" });
+  assert.deepEqual(readPostMeta({ category: "tech", source: "user", sourceLabel: "用户" }), { category: "tech", source: "", sourceLabel: "" });
   assert.ok(sourceOptions([{ source: "weird" }]).some((s) => s.id === "weird"));
 });
 test("mapRemoteContent 带上分类和来源", () => {

@@ -80,7 +80,7 @@ export function ContentScreen() {
         ))}
       </div>}
       {kind !== "review" && kind !== "comment" && (
-        <MetaFilterBar value={meta} onChange={setMeta} loaded={posts} note={metaOn ? "按分类 / 来源筛选的是已加载的最近 50 条帖子" : undefined} />
+        <MetaFilterBar value={meta} onChange={setMeta} loaded={posts} note={meta.category === "none" ? "「未分类」筛选的是已加载的最近 50 条帖子" : undefined} />
       )}
       <div className="p-4">
         {kind === "review" ? (
