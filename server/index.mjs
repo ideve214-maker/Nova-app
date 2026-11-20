@@ -64,6 +64,7 @@ import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} fro
 import {createTldr, TldrError} from './tldr.mjs';
 import {createImportFeed, isReservedImportIdentity, IMPORT_DELAY_MS} from './import-feed.mjs';
 import {createAiReview} from './ai-review.mjs';
+import {importReviewRoutes} from './admin-import-review.mjs';
 import {appVersion} from './version.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
@@ -370,7 +371,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const tldr = createTldr({fetchFn: tldrFetch || globalThis.fetch, now});
   const weather = createWeather({fetchFn: weatherFetch || globalThis.fetch, env: weatherEnv || process.env, now, ipLookup: weatherIpLookup});
   // 2.1.0：外部帖先过 AI 审查再入库（ai-review.mjs，复用 aiMod 的智谱配置和限速）
-  const aiReview = createAiReview(db, {aiMod, now});
+  const aiReview = createAiReview(db, {aiMod, blockwords, now});
   const envNum = k => { const n = Number(process.env[k]); return Number.isFinite(n) && n > 0 ? n : null; };
   const importFeed = createImportFeed(db, {
     fetchFn: importFetch || globalThis.fetch,
@@ -1787,6 +1788,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       audit(admin.id, 'admin.ai_moderation', 'ai', ip(req), {enabled: st.enabled, mode: st.mode, model: st.model});
       return {settings: st, status: aiMod.status()};
     },
+    // 2.1.0 外部导入帖 AI 审查（管理端 2.0.8「外部帖审查」卡片）
+    ...importReviewRoutes({aiReview, adminAuth, audit, ip, bad}),
     async 'POST /api/admin/ai-moderation/test'(req, b) {
       adminAuth(req);
       const text = String((b && b.text) || '').trim();

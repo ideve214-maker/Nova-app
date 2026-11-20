@@ -1,4 +1,4 @@
-// 营销帖权重唯一：新建取 MAX+1，手动重复 409，权重为 1 的帖可改可删，迁移 063 先去重再加索引。
+// 营销帖权重：2.1.0 起去除（忽略 weight、不再唯一、随机不重复）；保留迁移 063 本身的回归测试。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync, cpSync, rmSync, readFileSync} from 'node:fs';
@@ -27,81 +27,53 @@ const call = async (m, p, body, tok) => {
   return {s: r.status, j};
 };
 
-test.describe('营销帖权重 HTTP', {concurrency: false}, () => {
-test('新建不填权重：按当前最大权重 +1 递增，列表带回 nextWeight', async () => {
+test.describe('营销帖权重 HTTP（2.1.0 起权重去除）', {concurrency: false}, () => {
+test('新建 / 编辑带不带 weight 都可以；重复的 weight 不再 409；列表不再给 nextWeight', async () => {
   const a = await call('POST', '/api/admin/marketing/ads', {kind: 'text', title: '一', text: 'a'}, adm);
-  const b = await call('POST', '/api/admin/marketing/ads', {kind: 'text', title: '二', text: 'b'}, adm);
-  const c = await call('POST', '/api/admin/marketing/ads', {kind: 'text', title: '三', text: 'c'}, adm);
+  const b = await call('POST', '/api/admin/marketing/ads', {kind: 'text', title: '二', text: 'b', weight: 10}, adm);
+  const c = await call('POST', '/api/admin/marketing/ads', {kind: 'text', title: '三', text: 'c', weight: 10}, adm);
   assert.equal(a.s, 200, JSON.stringify(a.j));
-  assert.equal(a.j.ad.weight, 1);
-  assert.equal(b.j.ad.weight, 2);
-  assert.equal(c.j.ad.weight, 3);
+  assert.equal(b.s, 200, JSON.stringify(b.j));
+  assert.equal(c.s, 200, '旧版管理端带重复权重也不报错');
+  for (const r of [a, b, c]) assert.equal(r.j.ad.weight, 1, '权重被忽略，统一为 1');
+  const up = await call('POST', `/api/admin/marketing/ads/${b.j.ad.id}`, {weight: 99, title: '改标题'}, adm);
+  assert.equal(up.s, 200, JSON.stringify(up.j));
+  assert.equal(up.j.ad.weight, 1);
+  assert.equal(up.j.ad.title, '改标题');
   const list = await call('GET', '/api/admin/marketing/ads', null, adm);
   assert.equal(list.s, 200);
-  assert.equal(list.j.nextWeight, 4);
+  assert.equal(list.j.nextWeight, undefined);
+  assert.equal(list.j.weightEnabled, false);
+  const del = await call('POST', `/api/admin/marketing/ads/${a.j.ad.id}/delete`, {}, adm);
+  assert.equal(del.s, 200);
+});
 });
 
-test('手动指定未被占用的权重可以；占用则 409 并提示下一个', async () => {
-  const ok = await call('POST', '/api/admin/marketing/ads', {kind: 'text', text: '指定 10', weight: 10}, adm);
-  assert.equal(ok.s, 200, JSON.stringify(ok.j));
-  assert.equal(ok.j.ad.weight, 10);
-  const dup = await call('POST', '/api/admin/marketing/ads', {kind: 'text', text: '再要 10', weight: 10}, adm);
-  assert.equal(dup.s, 409);
-  assert.equal(dup.j.error.code, 'WEIGHT_TAKEN');
-  assert.match(dup.j.error.message, /权重 10 已被其他营销帖占用，请改用 11/);
-  assert.equal(dup.j.error.nextWeight, 11);
-  const auto = await call('POST', '/api/admin/marketing/ads', {kind: 'text', text: '自动'}, adm);
-  assert.equal(auto.s, 200);
-  assert.equal(auto.j.ad.weight, 11);
-});
-
-test('编辑：可以把权重 1 改成别的；改成已占用的被拒；只改启用不影响权重', async () => {
-  const list = await call('GET', '/api/admin/marketing/ads', null, adm);
-  const one = list.j.ads.find(x => x.weight === 1);
-  assert.ok(one, '应有一条权重为 1 的营销帖');
-  const bad = await call('POST', `/api/admin/marketing/ads/${one.id}`, {weight: 10}, adm);
-  assert.equal(bad.s, 409);
-  assert.equal(bad.j.error.code, 'WEIGHT_TAKEN');
-  const next = list.j.nextWeight;
-  const good = await call('POST', `/api/admin/marketing/ads/${one.id}`, {weight: next, title: '改过权重'}, adm);
-  assert.equal(good.s, 200, JSON.stringify(good.j));
-  assert.equal(good.j.ad.weight, next);
-  assert.equal(good.j.ad.title, '改过权重');
-  const tog = await call('POST', `/api/admin/marketing/ads/${one.id}`, {enabled: false}, adm);
-  assert.equal(tog.s, 200);
-  assert.equal(tog.j.ad.enabled, false);
-  assert.equal(tog.j.ad.weight, next);
-});
-
-test('权重为 1 的营销帖可以删除，删除后不再出现在列表里', async () => {
-  const made = await call('POST', '/api/admin/marketing/ads', {kind: 'text', text: '用来删的 1', weight: 1}, adm);
-  assert.equal(made.s, 200, JSON.stringify(made.j));
-  assert.equal(made.j.ad.weight, 1);
-  const id = made.j.ad.id;
-  const del = await call('POST', `/api/admin/marketing/ads/${id}/delete`, {}, adm);
-  assert.equal(del.s, 200, JSON.stringify(del.j));
-  assert.equal(del.j.deleted, id);
-  const list = await call('GET', '/api/admin/marketing/ads', null, adm);
-  assert.ok(!list.j.ads.some(x => x.id === id));
-  // 权重 1 已腾出，可以再指定 1
-  const again = await call('POST', '/api/admin/marketing/ads', {kind: 'text', text: '重新占用 1', weight: 1}, adm);
-  assert.equal(again.s, 200, JSON.stringify(again.j));
-  assert.equal(again.j.ad.weight, 1);
-});
-
-});
-
-test('marketing.create 与 AI 发布一样：不传 weight 时取 MAX+1，且与外层事务兼容', () => {
+test('marketing.create 与外层事务兼容；pickFor 等概率随机且同一次不重复', () => {
   const db = openDb();
   const mk = createMarketing(db);
-  const a = mk.create({kind: 'text', text: '先发'});
-  const b = mk.create({kind: 'text', text: '后发'});
-  assert.equal(a.ad.weight, 1);
-  assert.equal(b.ad.weight, 2);
+  mk.create({kind: 'text', text: '先发'});
   db.exec('BEGIN IMMEDIATE');
-  const c = mk.create({kind: 'text', text: '事务内'});
+  mk.create({kind: 'text', text: '事务内'});
   db.exec('COMMIT');
-  assert.equal(c.ad.weight, 3);
+  mk.create({kind: 'text', text: '第三条'});
+  mk.saveSettings({perFeed: 10, dailyCap: 0});
+  const firsts = new Map();
+  for (let i = 0; i < 300; i++) {
+    const {ads} = mk.pickFor({id: 1});
+    assert.equal(ads.length, 3, '候选只有 3 条时只发 3 条，不重复填充');
+    assert.equal(new Set(ads.map(x => x.id)).size, 3, '同一次不重复');
+    firsts.set(ads[0].text, (firsts.get(ads[0].text) || 0) + 1);
+  }
+  assert.equal(firsts.size, 3, '每条都有机会排第一');
+  for (const n of firsts.values()) assert.ok(n > 50, '大致等概率: ' + JSON.stringify([...firsts]));
+  db.close();
+});
+
+test('迁移 064：去掉 063 的权重唯一索引', () => {
+  const db = openDb();
+  const idx = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_marketing_ads_weight_alive'").get();
+  assert.equal(idx, undefined);
   db.close();
 });
 

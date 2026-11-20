@@ -270,19 +270,19 @@ export function createImportFeed(db, {
         post: existed ? null : {source: post.source, sourceId: post.sid, text: post.text},
         comments: comments.map(c => ({source: post.source, sourceId: c.sourceId, text: c.text})),
       });
-      if (!r.ok && r.error) state.aiDown = true;
+      if (r.aiDown && !r.ok) state.aiDown = true;
     }
     let postId = existed && existed.id;
     if (!existed) {
       const v = r && r.post;
       if (v && v.verdict === 'block') {
         out.rejected++;
-        review.noteImport({target: 'post', source: post.source, sourceId: post.sid, result: v, action: 'rejected', text: post.text});
+        review.noteImport({target: 'post', source: post.source, sourceId: post.sid, sourceUrl: post.url, result: v, action: 'rejected', text: post.text});
         return 'rejected';
       }
       if (v && v.verdict === 'pending') {
         out.pending++;
-        review.noteImport({target: 'post', source: post.source, sourceId: post.sid, result: v, action: 'deferred'});
+        review.noteImport({target: 'post', source: post.source, sourceId: post.sid, sourceUrl: post.url, result: v, action: 'deferred'});
         commentFetchedAt.delete(post.source + ':' + post.sid);
         return 'pending';
       }
@@ -290,14 +290,14 @@ export function createImportFeed(db, {
       if (up.skipped === 'deleted') { out.deletedKept++; return 'kept'; }
       if (up.imported) out.imported++; else out.skipped++;
       postId = up.row && up.row.id;
-      if (review && v && up.imported) review.noteImport({target: 'post', source: post.source, sourceId: post.sid, refId: postId, result: v, action: 'inserted'});
+      if (review && v && up.imported) review.noteImport({target: 'post', source: post.source, sourceId: post.sid, sourceUrl: post.url, refId: postId, result: v, action: 'inserted', text: post.text});
     }
     if (!postId) return existed ? 'exists' : 'imported';
     for (const c of comments) {
       const v = r && r.comments.get(String(c.sourceId));
       if (v && v.verdict === 'block') {
         out.commentsRejected++;
-        review.noteImport({target: 'comment', source: post.source, sourceId: c.sourceId, postRefId: postId, result: v, action: 'rejected', text: c.text});
+        review.noteImport({target: 'comment', source: post.source, sourceId: c.sourceId, sourceUrl: c.sourceUrl, postRefId: postId, result: v, action: 'rejected', text: c.text});
         continue;
       }
       if (v && v.verdict === 'pending') { out.commentsPending++; commentFetchedAt.delete(post.source + ':' + post.sid); continue; }
@@ -307,7 +307,7 @@ export function createImportFeed(db, {
         authorName: c.authorName, authorAvatar: c.authorAvatar, text: c.text, createdAt: c.createdAt});
       if (cr.imported) {
         out.comments++;
-        if (review && v) review.noteImport({target: 'comment', source: post.source, sourceId: c.sourceId, refId: cr.row.id, postRefId: postId, result: v, action: 'inserted'});
+        if (review && v) review.noteImport({target: 'comment', source: post.source, sourceId: c.sourceId, sourceUrl: c.sourceUrl, refId: cr.row.id, postRefId: postId, result: v, action: 'inserted', text: c.text});
       }
     }
     return existed ? 'exists' : 'imported';
@@ -524,10 +524,9 @@ export function createImportFeed(db, {
       let backfill = null;
       if (review) {
         review.pruneLogs();
-        const st = review.settings();
-        // 2.1.0：已发布但还没审过的外部帖，每轮顺带补审一小批（AI 本轮可用时）
-        if (st.enabled && st.autoBackfill && !state.aiDown) {
-          try { backfill = await review.backfill({limit: Math.min(10, st.backfillBatch)}); }
+        // 2.1.0：已发布但还没审过的外部帖，每轮顺带补审一小批（AI 本轮可用、没有手动补审任务时）
+        if (!state.aiDown) {
+          try { backfill = await review.autoBackfill(); }
           catch (e) { log('import backfill', e.message || e); }
         }
       }

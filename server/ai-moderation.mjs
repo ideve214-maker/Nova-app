@@ -65,7 +65,9 @@ export function createAiModeration(db, {now = Date.now, env = process.env, fetch
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`);
   const setPost = db.prepare('UPDATE ai_moderation_log SET post_id=? WHERE id=?');
   const recent = db.prepare(`SELECT l.*, u.username FROM ai_moderation_log l LEFT JOIN users u ON u.id=l.user_id
-    WHERE (? = '' OR l.verdict = ?) ORDER BY l.id DESC LIMIT ?`);
+    WHERE (? = '' OR l.verdict = ?) AND (? = '' OR l.kind = ? OR (? = 'import' AND l.kind IN ('import','import_comment','backfill','backfill_comment')))
+    ORDER BY l.id DESC LIMIT ?`);
+  const hasOrigin = db.prepare('PRAGMA table_info(ai_moderation_log)').all().some(c => c.name === 'origin');
   const rpm = Math.max(1, Number(env.AI_RPM) || 25);
   const rpd = Math.max(1, Number(env.AI_RPD) || 900);
   const base = String(env.AI_API_BASE || DEFAULT_BASE).trim().replace(/\/+$/, '');
@@ -290,7 +292,7 @@ export function createAiModeration(db, {now = Date.now, env = process.env, fetch
     }
     return blocked;
   }
-  async function checkMany(items, {kind = 'import'} = {}) {
+  async function checkMany(items) {
     const st = settings();
     const results = new Array(items.length);
     const todo = [];
@@ -302,10 +304,9 @@ export function createAiModeration(db, {now = Date.now, env = process.env, fetch
       const death = localDeathCheck(s);
       if (death && death.level === 'block') {
         results[idx] = {key, verdict: 'block', category: '暴力 / 自杀自残', reason: '包含「' + death.term.slice(0, 12) + '」', source: 'local'};
-        log(kind, null, s, {...results[idx], model: null});
         return;
       }
-      if (!death && contactOnly(s)) { results[idx] = {key, verdict: 'allow', source: 'local-allow'}; return; }
+      // 外部内容不走 contactOnly 快速放行：纯英文短句（HN 评论）会被它误当成「用户名」直接放行
       todo.push({idx, key, text: s});
     });
     const pendingAll = (list, err) => {
@@ -316,7 +317,6 @@ export function createAiModeration(db, {now = Date.now, env = process.env, fetch
     else if (!keyOk()) pre = 'no_key';
     if (pre && todo.length) {
       pendingAll(todo, pre); error = pre; lastError = pre;
-      log(kind, null, todo.length + ' 条外部内容未审', {verdict: 'fallback', source: 'fallback', error: pre, model: st.model});
       return {ok: false, error, results};
     }
     // 分块：每块最多 BATCH_MAX_ITEMS 条、BATCH_MAX_CHARS 字
@@ -335,7 +335,6 @@ export function createAiModeration(db, {now = Date.now, env = process.env, fetch
         error = b === 'cooldown' ? 'rate_limited' : 'local_limit_' + b;
         const rest = chunks.slice(ci).flat();
         pendingAll(rest, error);
-        log(kind, null, rest.length + ' 条外部内容未审', {verdict: 'fallback', source: 'fallback', error, model: st.model});
         break;
       }
       const t0 = now();
@@ -345,14 +344,12 @@ export function createAiModeration(db, {now = Date.now, env = process.env, fetch
         chunk.forEach((t, i) => {
           const hit = blocked.get(i);
           if (hit && !relaxedOverride(hit.category, hit.reason)) {
-            results[t.idx] = {key: t.key, verdict: 'block', category: hit.category, reason: hit.reason, source: 'ai'};
-            log(kind, null, t.text, {...results[t.idx], model: st.model, latencyMs: now() - t0});
-          } else results[t.idx] = {key: t.key, verdict: 'allow', source: 'ai'};
+            results[t.idx] = {key: t.key, verdict: 'block', category: hit.category, reason: hit.reason, source: 'ai', model: st.model};
+          } else results[t.idx] = {key: t.key, verdict: 'allow', source: 'ai', model: st.model};
         });
       } catch (e) {
         error = lastError = String(e && e.message || e).slice(0, 200);
         pendingAll(chunk, error);
-        log(kind, null, chunk.length + ' 条外部内容未审', {verdict: 'fallback', source: 'fallback', error, model: st.model, latencyMs: now() - t0});
       }
     }
     return {ok: !results.some(r => r && r.verdict === 'pending'), error, results};
@@ -361,9 +358,12 @@ export function createAiModeration(db, {now = Date.now, env = process.env, fetch
   function logs(q = {}) {
     const v = String(q.verdict || '');
     const lim = Math.min(Math.max(Number(q.limit) || 50, 1), 200);
-    return recent.all(v, v, lim).map(x => ({id: x.id, kind: x.kind, userId: x.user_id, username: x.username || null, postId: x.post_id,
+    const k = String(q.kind || '');
+    // 2.1.0：kind=import 返回外部导入审查（import / import_comment / backfill / backfill_comment）；每条带 origin、originUrl、action
+    return recent.all(v, v, k, k, k, lim).map(x => ({id: x.id, kind: x.kind, userId: x.user_id, username: x.username || null, postId: x.post_id,
       excerpt: x.excerpt, verdict: x.verdict, category: x.category, reason: x.reason, source: x.source, model: x.model,
-      latencyMs: x.latency_ms, error: x.error, createdAt: x.created_at}));
+      latencyMs: x.latency_ms, error: x.error, createdAt: x.created_at,
+      origin: hasOrigin ? (x.origin || null) : null, originUrl: hasOrigin ? (x.origin_url || null) : null, action: hasOrigin ? (x.action || null) : null}));
   }
   return {settings, save, status, check, checkMany, enforce, linkPost, logs, DEFAULT_RULES, ALLOW_NOTE};
 }
