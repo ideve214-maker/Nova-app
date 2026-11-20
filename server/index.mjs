@@ -1310,6 +1310,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {admin} = adminAuth(req);
       return adminOps.restoreContent(admin, req.params.type, req.params.id, b || {}, ip(req));
     },
+    'POST /api/admin/posts/:id/category'(req, b) {
+      const {admin} = adminAuth(req);
+      return adminOps.setPostCategory(admin, req.params.id, b || {}, ip(req));
+    },
     'GET /api/admin/stats'(req) {
       const {admin} = adminAuth(req);
       return adminOps.stats();

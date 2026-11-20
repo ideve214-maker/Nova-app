@@ -2,6 +2,8 @@
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {hashPassword} from './auth.mjs';
+import {normalizePostCategory, POST_CATEGORIES} from './post-category.mjs';
+import {adminSourceFields, parseAdminPostFilters, pushAdminPostFilters} from './admin-post-meta.mjs';
 
 function asInt(v) {
   const n = Number(v);
@@ -176,6 +178,8 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
       adminHidden: !!row.admin_hidden,
       adminReason: row.admin_reason || null,
       adminActorId: row.admin_actor_id || null,
+      category: row.category || null,
+      ...adminSourceFields(row),
     };
   }
   function commentThread(row) {
@@ -257,6 +261,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
     if (status === 'removed' || status === 'deleted') where.push('deleted_at IS NOT NULL');
     else if (status === 'visible' || status === 'approved') where.push('deleted_at IS NULL');
     if (search) { where.push('text LIKE ?'); args.push('%' + search.replace(/%/g, '') + '%'); }
+    if (type === 'post') pushAdminPostFilters(where, args, parseAdminPostFilters(q));
     if (cursor) { where.push('created_at<?'); args.push(Number(cursor) || 0); }
     const sql = `SELECT * FROM ${table} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY created_at DESC LIMIT ?`;
     const rows = db.prepare(sql).all(...args, limit + 1);
@@ -324,6 +329,19 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
       return {item: pubComment(db.prepare('SELECT * FROM post_comments WHERE id=?').get(id)), already: false};
     }
     throw new ApiError(400, 'BAD_TYPE', 'type 须为 post 或 comment');
+  }
+
+  function setPostCategory(admin, id, body = {}, ip = null) {
+    const row = db.prepare('SELECT * FROM posts WHERE id=?').get(id);
+    if (!row) throw new ApiError(404, 'NOT_FOUND', '动态不存在');
+    let category = null;
+    if (body.category != null && body.category !== '') {
+      category = normalizePostCategory(body.category);
+      if (!category) throw new ApiError(400, 'BAD_CATEGORY', 'category 只能是 ' + POST_CATEGORIES.join('、'));
+    }
+    db.prepare('UPDATE posts SET category=? WHERE id=?').run(category, id);
+    if (audit) audit(admin.id, 'admin.post.category', 'post:' + id, ip, {category, before: row.category || null, adminUsername: admin.username});
+    return {ok: true, post: {id, category}};
   }
 
   // 2.0.6 首页“平台概览”口径（和“用户管理”列表默认口径一致）：
@@ -638,7 +656,7 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
 
   return {
     listUsers, oneUser, ban, unban, resetPassword, grantVip, revokeVip,
-    listContent, getContent, hideContent, restoreContent,
+    listContent, getContent, hideContent, restoreContent, setPostCategory,
     stats, listAnnouncements, addAnnouncement, removeAnnouncement, editAnnouncement, withdrawAnnouncement,
     publishAnnouncement, currentAnnouncement, pubPost,
     listCommunities, getCommunity, listChannelMessages, userRow,
