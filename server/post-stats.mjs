@@ -3,6 +3,7 @@
 // 保存支持新格式 {adj:{views,likes,saves,reposts}}（直接调整量），并兼容旧格式（传显示值）。
 import {ApiError} from './errors.mjs';
 import {createInternalHints, isInternalAccount} from './internal-account.mjs';
+import {adminSourceFields, parseAdminPostFilters, pushAdminPostFilters} from './admin-post-meta.mjs';
 
 export function createPostStats(db, {now = Date.now, posts, comments} = {}) {
   const byId = db.prepare('SELECT * FROM posts WHERE id=? AND deleted_at IS NULL');
@@ -67,20 +68,24 @@ export function createPostStats(db, {now = Date.now, posts, comments} = {}) {
       id: r.id, text: String(r.text || '').slice(0, 200), createdAt: r.created_at, audience: r.audience || 'public',
       author: u ? {id: u.id, username: u.username, displayName: u.display_name || u.username, badge: u.badge || null, ai: isInternalAccount(u, db)} : null,
       real: re, ai, adj, shown,
+      category: r.category || null,
+      ...adminSourceFields(r),
     };
   }
   function search(q = {}) {
     const kw = String(q.q || '').trim().replace(/[%_]/g, '');
     const limit = Math.min(Math.max(Number(q.limit) || 30, 1), 100);
-    let rows;
-    if (!kw) rows = db.prepare('SELECT * FROM posts WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ?').all(limit);
-    else {
+    const filters = parseAdminPostFilters(q);
+    const where = ['p.deleted_at IS NULL'], args = [];
+    pushAdminPostFilters(where, args, filters, {sourceCol: 'p.source', categoryCol: 'p.category'});
+    if (kw) {
       const like = '%' + kw + '%';
       const user = kw.replace(/^@/, '');
-      rows = db.prepare(`SELECT p.* FROM posts p JOIN users u ON u.id=p.author_id LEFT JOIN profiles pr ON pr.user_id=u.id
-        WHERE p.deleted_at IS NULL AND (p.text LIKE ? OR u.username LIKE ? OR IFNULL(pr.display_name,'') LIKE ? OR p.id=?)
-        ORDER BY p.created_at DESC LIMIT ?`).all(like, '%' + user + '%', like, kw, limit);
+      where.push('(p.text LIKE ? OR u.username LIKE ? OR IFNULL(pr.display_name,\'\') LIKE ? OR p.id=?)');
+      args.push(like, '%' + user + '%', like, kw);
     }
+    const rows = db.prepare(`SELECT p.* FROM posts p JOIN users u ON u.id=p.author_id LEFT JOIN profiles pr ON pr.user_id=u.id
+      WHERE ${where.join(' AND ')} ORDER BY p.created_at DESC LIMIT ?`).all(...args, limit);
     return {posts: rows.map(row2)};
   }
   function pickAdj(raw, cur) {

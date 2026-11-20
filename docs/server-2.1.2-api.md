@@ -60,3 +60,18 @@
 分数 = 偏好（`like` 加分，`dislike` 大幅减分）+ 按分类汇总的兴趣分（来自 signals，半衰期默认 7 天，`FEED_SCORE_HALFLIFE_DAYS`）+ 新鲜度（`FEED_FRESHNESS_HALFLIFE_HOURS`，默认 72）。`hiddenSources` 和「不感兴趣」的帖直接排除。大约两成位置做探索（`FEED_EXPLORE_RATIO`，默认 0.2），从非最爱分类里抽，仍尊重不喜欢和隐藏。没有偏好也没有兴趣分的新用户，保持原来的时间倒序。
 
 其它可调环境变量：`FEED_CANDIDATE_POOL`（默认 300）、`FEED_LIKE_BONUS`、`FEED_DISLIKE_PENALTY`、`FEED_LEARNED_WEIGHT`、`FEED_FRESHNESS_WEIGHT`。
+
+## 管理端内容列表与改分类
+
+`GET /api/admin/content`（帖子序列化 `pubPost`）和 `GET /api/admin/marketing/posts`（`row2`）的每条帖子都带：
+
+- `category`：`tech` / `game` / `crypto` / `finance` / `news` / `life` / `other`，没有时为 `null`
+- `source`：用户发帖为 `user`，外部导入帖为来源 id（如 `v2ex`、`hn`、`sspai`、`ithome`）
+- `sourceLabel`：中文展示名（来源目录里「来自…」去掉前缀后的名称；用户发帖为 `用户`）
+
+两个列表都支持 `?category=&source=`，在 SQL 里、分页之前筛选。`source` 可以是 `user`（只看用户发帖）、`external`（任意外部导入帖），或具体来源 id。非法分类返回 400 `BAD_CATEGORY`，非法来源返回 400 `BAD_SOURCE`。筛选只作用于帖子；`GET /api/admin/content?type=comment` 会忽略这两项。
+
+### `POST /api/admin/posts/:id/category`
+
+需要管理员登录。请求体 `{ "category": "tech" }`，取值同上；传 `null` 或空字符串则清空分类。成功返回 `{ "ok": true, "post": { "id": "po_xxx", "category": "tech" } }`。写入审计 `admin.post.category`。帖子不存在：404 `NOT_FOUND`。非法分类：400 `BAD_CATEGORY`。
+
