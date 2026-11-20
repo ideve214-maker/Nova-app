@@ -81,7 +81,7 @@ test('默认关闭：环境变量没开时不启动定时器、不调用智谱�
   assert.equal(r.j.settings.enabled, false);
   assert.equal(r.j.status.envEnabled, false);
   assert.equal(r.j.status.active, false);
-  assert.equal(r.j.settings.dailyCap, 3);
+  assert.equal(r.j.settings.dailyCap, 0); // 2.1.1：默认不限
   assert.equal(srv.adminAi.autoAds.start(1000), false);
   assert.equal(srv.adminAi.autoAds.scheduled, false);
   const run = await call('POST', '/api/admin/ai/auto-ads/run');
@@ -136,8 +136,9 @@ test('立即运行：屏蔽词过滤、原网址必填、每日上限、来源�
   const r2 = await call('POST', '/api/admin/ai/auto-ads/run');
   assert.deepEqual(r2.j.result.published.map(a => a.sourceUrl), ['https://shop5.example.com/']);
   assert.ok(audits('ai.autoads.rejected').some(a => JSON.parse(a.detail).code === 'DUPLICATE'));
-  // 上限不能超过 ADMIN_AI_AUTO_ADS_CAP_MAX
-  assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: 99})).s, 400);
+  // 2.1.1：不再封顶 10，负数仍然拒绝
+  assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: 99})).s, 200);
+  assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: -1})).s, 400);
   await call('POST', '/api/admin/ai/auto-ads/settings', {enabled: false, dailyCap: 3});
   delete env.ADMIN_AI_AUTO_ADS;
 });

@@ -4,7 +4,8 @@
 // 安全规则（全部在服务端执行）：
 // 1. 默认关闭：必须同时满足 环境变量 ADMIN_AI_AUTO_ADS=1 + 管理端开关（admin_ai_settings 的 autoads.enabled=1）+ 已配置智谱密钥，才会自动发布。
 //    环境变量不是 1 时连定时器都不启动，不会调用任何接口。管理端开关就是“紧急停止”，关掉后立即生效（正在跑的这一轮也会在下一条前停下）。
-// 2. 每天上限（autoads.dailyCap，默认 3，不能超过 ADMIN_AI_AUTO_ADS_CAP_MAX，默认 10）；按上海时间切日，AI 助手代发的也算在内。
+// 2. 每天上限（autoads.dailyCap）：2.1.1 起默认 0 = 不限；填正数才限制。ADMIN_AI_AUTO_ADS_CAP_MAX 默认 0 = 不设封顶。按上海时间切日，AI 助手代发的也算在内。
+//    不限时每轮最多发 ADMIN_AI_AUTO_ADS_RUN_MAX（默认 50）条，防止一轮无限调用模型。
 // 3. 必须有原网址：来自搜索结果，由系统附上（模型写的网址、电话、微信号会被去掉）；没有原网址一律拒绝；同一原网址只发一次（下架过的也不再发）。
 // 4. 屏蔽词：内置高风险词（赌博、贷款、色情等）+ 平台屏蔽词 + 管理端自定义词，搜索结果和生成的文案都要过一遍。
 // 5. 每个自动动作都写 audit_log（ai.autoads.*；管理员操作 admin.ai.autoads.*），管理端可以查看。
@@ -76,12 +77,15 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
   const log = (actor, action, target, ip, detail) => { try { audit(actor || null, action, target, ip || null, detail); } catch {} };
 
   const envOn = () => String(env.ADMIN_AI_AUTO_ADS || '').trim() === '1';
-  const capMax = () => envInt(env.ADMIN_AI_AUTO_ADS_CAP_MAX, 1, 50, 10);
+  const capMax = () => envInt(env.ADMIN_AI_AUTO_ADS_CAP_MAX, 0, 100000, 0); // 0 = 不设封顶
+  const runMax = () => envInt(env.ADMIN_AI_AUTO_ADS_RUN_MAX, 1, 500, 50);
   const hour = () => envInt(env.ADMIN_AI_AUTO_ADS_HOUR, 0, 23, 10);
   const perRun = () => envInt(env.ADMIN_AI_AUTO_ADS_QUERIES, 1, 20, 5); // 每轮最多搜几个方向（每个方向算一次联网搜索）
   const ttlDays = () => envInt(env.ADMIN_AI_AUTO_ADS_TTL_DAYS, 0, 90, 7);
   const switchOn = () => setting('autoads.enabled', '0') === '1';
-  const dailyCap = () => Math.min(capMax(), envInt(setting('autoads.dailyCap'), 0, 50, 3));
+  // 0 = 不限
+  const dailyCap = () => { const n = envInt(setting('autoads.dailyCap'), 0, 100000, 0), m = capMax(); return m ? (n ? Math.min(n, m) : m) : n; };
+  const capReached = () => { const c = dailyCap(); return c > 0 && todayPublished() >= c; };
   const customWords = () => { try { const a = JSON.parse(setting('autoads.blockwords', '[]')); return Array.isArray(a) ? a.map(String) : []; } catch { return []; } };
   const query = () => setting('autoads.query') || (() => { const d = q.activeDir.get(); return d ? clip(d.name + ' ' + (d.prompt || ''), 60) : DEFAULT_QUERY; })();
   const todayPublished = () => q.today.get(dayStart(now())).n;
@@ -113,7 +117,8 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     if (body.enabled != null) setSetting('autoads.enabled', body.enabled === true || body.enabled === 1 || body.enabled === '1' || body.enabled === 'true' ? '1' : '0');
     if (body.dailyCap != null) {
       const n = Number(body.dailyCap);
-      if (!Number.isInteger(n) || n < 0 || n > capMax()) throw new ApiError(400, 'BAD_CAP', `每天上限需在 0–${capMax()} 之间`);
+      const m = capMax() || 100000;
+      if (!Number.isInteger(n) || n < 0 || n > m) throw new ApiError(400, 'BAD_CAP', `每天上限需在 0–${m} 之间（0 = 不限）`);
       setSetting('autoads.dailyCap', n);
     }
     if (body.query != null) setSetting('autoads.query', normQuery(body.query));
@@ -138,7 +143,7 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     const url = cleanSourceUrl(b.sourceUrl);
     if (!url) throw new ApiError(400, 'AUTOADS_NO_SOURCE', '必须附上原网址（http/https），没有原网址不能发布');
     if (q.byUrl.get(url)) throw new ApiError(409, 'AUTOADS_DUPLICATE', '这个原网址已经发布过了');
-    if (todayPublished() >= dailyCap()) throw new ApiError(429, 'AUTOADS_CAP', `今天 AI 发布的营销帖已达上限（${dailyCap()} 条）`);
+    if (capReached()) throw new ApiError(429, 'AUTOADS_CAP', `今天 AI 发布的营销帖已达上限（${dailyCap()} 条）`);
     const h = hits(b.title, b.text, b.advertiser, b.sourceTitle);
     if (h.length) throw new ApiError(400, 'AUTOADS_BLOCKED', '内容包含禁止的词语：' + h.join('、'));
     return url;
@@ -150,7 +155,7 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     const base = {sourceUrl: url || clip(b.sourceUrl, 200), title: clip(b.title, 60)};
     if (!url) throw reject('NO_SOURCE', '没有原网址，不能发布', ctx, base);
     if (q.byUrl.get(url)) throw reject('DUPLICATE', '这个原网址已经发布过了', ctx, base);
-    if (todayPublished() >= dailyCap()) throw reject('CAP', `今天 AI 发布的营销帖已达上限（${dailyCap()} 条）`, ctx, base);
+    if (capReached()) throw reject('CAP', `今天 AI 发布的营销帖已达上限（${dailyCap()} 条）`, ctx, base);
     const title = clip(scrubCopy(b.title), 30), text = clip(scrubCopy(b.text), 200), advertiser = clip(scrubCopy(b.advertiser), 20);
     if (!title && !text) throw reject('EMPTY', '文案为空', ctx, base);
     const h = hits(title, text, advertiser, b.sourceTitle);
@@ -194,7 +199,8 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     if (running) return skip('running');
     if (trigger === 'schedule' && (hourOf(t) < hour() || setting('autoads.lastRunDay') === day)) return {skipped: 'not_due'};
     if (trigger === 'schedule') setSetting('autoads.lastRunDay', day); // 先记下，失败也不会每 10 分钟重试一次
-    const remaining = dailyCap() - todayPublished();
+    const cap = dailyCap();
+    const remaining = cap > 0 ? Math.min(runMax(), cap - todayPublished()) : runMax();
     if (remaining <= 0) return skip('cap_reached', {audit: true});
     running = true;
     const runId = 'aar_' + randomBytes(8).toString('hex');
