@@ -5,11 +5,14 @@ import {hashPassword} from './auth.mjs';
 
 export const IMPORT_USERNAME = 'vexo_import';
 export const IMPORT_EMAIL = 'vexo-import@vexo.invalid';
-export const IMPORT_UA = 'VEXO/2.0.6 (feed-import; +https://github.com/ideve214-maker/VEXOold)';
+export const IMPORT_UA = 'VEXO/2.1.0 (feed-import; +https://github.com/ideve214-maker/VEXOold)';
 export const SOURCE_LABEL = Object.freeze({v2ex: '来自 V2EX', hn: '来自 HN'});
 export const V2EX_HOT = 'https://www.v2ex.com/api/topics/hot.json';
+export const V2EX_LATEST = 'https://www.v2ex.com/api/topics/latest.json';
 export const v2exRepliesUrl = id => 'https://www.v2ex.com/api/replies/show.json?topic_id=' + encodeURIComponent(id);
 export const HN_TOP = 'https://hacker-news.firebaseio.com/v0/topstories.json';
+export const HN_NEW = 'https://hacker-news.firebaseio.com/v0/newstories.json';
+export const HN_BEST = 'https://hacker-news.firebaseio.com/v0/beststories.json';
 export const hnItemUrl = id => 'https://hacker-news.firebaseio.com/v0/item/' + encodeURIComponent(id) + '.json';
 export const AVATAR_HOSTS = Object.freeze([
   'v2ex.com', 'www.v2ex.com', 'cdn.v2ex.com', 'cdn.v2ex.co', 'i.v2ex.co',
@@ -133,9 +136,15 @@ export function createImportFeed(db, {
   fetchFn = globalThis.fetch,
   now = Date.now,
   delayMs = 250,
-  sourceLimit = 20,
-  commentLimit = 10,
-  intervalMs = 15 * 60 * 1000,
+  sourceLimit = 20,        // 2.1.0：每个来源每轮最多新入库多少帖（以前是「看多少帖」，已有的也算数，所以每轮几乎没有新帖）
+  commentLimit = 20,       // 每帖最多导入多少条评论（2.1.0 起 10 → 20）
+  scanLimit = 120,         // 每个来源每轮最多看多少个候选帖
+  intervalMs = 2 * 60 * 1000,
+  review = null,           // 2.1.0：ai-review.mjs 实例；有就先审后入库
+  v2exPerHour = 100,       // V2EX 公开 API 每 IP 每小时约 120 次，自己留余量
+  commentRefreshMs = 30 * 60 * 1000, // 已入库帖的评论多久补拉一次
+  refreshPerRun = 3,       // 每个来源每轮最多给几条旧帖补拉评论
+  hotEvery = 5,            // V2EX 热门榜每几轮拉一次
   log = (...a) => console.error(...a),
 } = {}) {
   const selPost = db.prepare('SELECT * FROM posts WHERE source=? AND source_id=?');
@@ -148,6 +157,104 @@ export function createImportFeed(db, {
   let timer = null;
   let running = false;
   let last = {at: 0, v2ex: null, hn: null};
+  let runCount = 0;
+  const v2exCalls = [];              // 最近一小时 V2EX 请求时间
+  let v2exCooldownUntil = 0;
+  const commentFetchedAt = new Map(); // source:sid -> 上次拉评论时间
+  async function v2exJson(url) {
+    const t = now();
+    while (v2exCalls.length && v2exCalls[0] <= t - 3600e3) v2exCalls.shift();
+    if (v2exCooldownUntil > t) throw Object.assign(new Error('v2ex cooldown'), {budget: true});
+    if (v2exCalls.length >= v2exPerHour) throw Object.assign(new Error('v2ex hourly budget used'), {budget: true});
+    v2exCalls.push(t);
+    try { return await fetchJson(fetchFn, url); }
+    catch (e) {
+      if (e && (e.status === 429 || e.status === 403)) v2exCooldownUntil = now() + 15 * 60e3;
+      throw e;
+    }
+  }
+  function refreshDue(source, sid, row) {
+    if (!commentLimit) return false;
+    const key = source + ':' + sid;
+    const at = commentFetchedAt.get(key) || 0;
+    if (now() - at < commentRefreshMs) return false;
+    return now() - Number(row.created_at || 0) < 3 * 24 * 3600e3; // 只给三天内的帖补评论
+  }
+  function noteFetched(source, sid) {
+    if (commentFetchedAt.size > 5000) commentFetchedAt.delete(commentFetchedAt.keys().next().value);
+    commentFetchedAt.set(source + ':' + sid, now());
+  }
+  const newOut = () => ({ok: true, fetched: 0, scanned: 0, imported: 0, comments: 0, skipped: 0, deletedKept: 0,
+    rejected: 0, rejectedKept: 0, pending: 0, commentsRejected: 0, commentsPending: 0, error: null});
+
+  /*
+   * 2.1.0 入库流程（先审后入库）：
+   * post: {source, sid, url, name, avatar, text, createdAt}; comments: [{sourceId, sourceUrl, parentSourceId, authorName, authorAvatar, text, createdAt}]
+   * 返回 'imported' | 'exists' | 'rejected' | 'pending' | 'kept'
+   */
+  async function ingest(post, loadComments, out, state) {
+    const existed = selPost.get(post.source, String(post.sid));
+    if (existed && blocked(existed)) { out.deletedKept++; return 'kept'; }
+    if (!existed && review && review.isRejected(post.source, post.sid)) { out.rejectedKept++; return 'kept'; }
+    if (!existed && state.aiDown) { out.pending++; return 'pending'; } // AI 本轮已不可用，不再浪费请求
+    if (existed) out.skipped++;
+    let comments = [];
+    if (commentLimit && (!existed || refreshDue(post.source, post.sid, existed))) {
+      if (existed) { if (state.refreshed >= refreshPerRun) return 'exists'; state.refreshed++; }
+      try { comments = (await loadComments()) || []; noteFetched(post.source, post.sid); }
+      catch (e) { if (!e || !e.budget) log('import ' + post.source + ' comments', post.sid, e.message || e); comments = []; }
+    }
+    comments = comments.filter(c => c && String(c.text || '').trim() && !selCmt.get(post.source, String(c.sourceId))
+      && !(review && review.isRejected(post.source, c.sourceId))).slice(0, commentLimit);
+    if (existed && !comments.length) return 'exists';
+    let r = null;
+    if (review) {
+      r = await review.reviewImport({
+        post: existed ? null : {source: post.source, sourceId: post.sid, text: post.text},
+        comments: comments.map(c => ({source: post.source, sourceId: c.sourceId, text: c.text})),
+      });
+      if (!r.ok && r.error) state.aiDown = true;
+    }
+    let postId = existed && existed.id;
+    if (!existed) {
+      const v = r && r.post;
+      if (v && v.verdict === 'block') {
+        out.rejected++;
+        review.noteImport({target: 'post', source: post.source, sourceId: post.sid, result: v, action: 'rejected', text: post.text});
+        return 'rejected';
+      }
+      if (v && v.verdict === 'pending') {
+        out.pending++;
+        review.noteImport({target: 'post', source: post.source, sourceId: post.sid, result: v, action: 'deferred'});
+        commentFetchedAt.delete(post.source + ':' + post.sid);
+        return 'pending';
+      }
+      const up = upsertPost({source: post.source, sourceId: post.sid, sourceUrl: post.url, authorName: post.name, authorAvatar: post.avatar, text: post.text, createdAt: post.createdAt});
+      if (up.skipped === 'deleted') { out.deletedKept++; return 'kept'; }
+      if (up.imported) out.imported++; else out.skipped++;
+      postId = up.row && up.row.id;
+      if (review && v && up.imported) review.noteImport({target: 'post', source: post.source, sourceId: post.sid, refId: postId, result: v, action: 'inserted'});
+    }
+    if (!postId) return existed ? 'exists' : 'imported';
+    for (const c of comments) {
+      const v = r && r.comments.get(String(c.sourceId));
+      if (v && v.verdict === 'block') {
+        out.commentsRejected++;
+        review.noteImport({target: 'comment', source: post.source, sourceId: c.sourceId, postRefId: postId, result: v, action: 'rejected', text: c.text});
+        continue;
+      }
+      if (v && v.verdict === 'pending') { out.commentsPending++; commentFetchedAt.delete(post.source + ':' + post.sid); continue; }
+      let parentId = null;
+      if (c.parentSourceId) { const pr = selCmt.get(post.source, String(c.parentSourceId)); if (pr && pr.post_id === postId) parentId = pr.id; }
+      const cr = upsertComment({source: post.source, sourceId: c.sourceId, sourceUrl: c.sourceUrl, postId, parentId,
+        authorName: c.authorName, authorAvatar: c.authorAvatar, text: c.text, createdAt: c.createdAt});
+      if (cr.imported) {
+        out.comments++;
+        if (review && v) review.noteImport({target: 'comment', source: post.source, sourceId: c.sourceId, refId: cr.row.id, postRefId: postId, result: v, action: 'inserted'});
+      }
+    }
+    return existed ? 'exists' : 'imported';
+  }
 
   function ownerId() {
     return Number(ensureImportUser(db, {now}).id);
@@ -201,26 +308,36 @@ export function createImportFeed(db, {
     return {row: selCmt.get(source, String(sourceId)), skipped: null, imported: true};
   }
 
-  async function importV2ex() {
-    const out = {ok: true, fetched: 0, imported: 0, comments: 0, skipped: 0, deletedKept: 0, error: null};
-    let list;
-    try {
-      list = await fetchJson(fetchFn, V2EX_HOT);
-    } catch (e) {
-      out.ok = false;
-      out.error = e.message || String(e);
-      return out;
+  async function importV2ex(state) {
+    const out = newOut();
+    const lists = [];
+    const errors = [];
+    // 最新帖每轮拉；热门帖变化慢，每 hotEvery 轮拉一次，省下 V2EX 每小时的请求额度给评论
+    const urls = (runCount - 1) % hotEvery === 0 ? [V2EX_LATEST, V2EX_HOT] : [V2EX_LATEST];
+    for (const u of urls) {
+      try {
+        const raw = await v2exJson(u);
+        if (Array.isArray(raw)) lists.push(raw); else errors.push('v2ex list is not a list');
+      } catch (e) { errors.push(e.message || String(e)); }
     }
-    if (!Array.isArray(list)) {
-      out.ok = false;
-      out.error = 'v2ex hot is not a list';
-      return out;
+    if (!lists.length && !urls.includes(V2EX_HOT)) { // 最新榜失败时退回热门榜
+      try { const raw = await v2exJson(V2EX_HOT); if (Array.isArray(raw)) lists.push(raw); } catch (e) { errors.push(e.message || String(e)); }
     }
-    const batch = list.slice(0, sourceLimit);
-    out.fetched = batch.length;
-    for (const topic of batch) {
-      const sid = topic && (topic.id != null ? String(topic.id) : '');
+    if (!lists.length) { out.ok = false; out.error = errors[errors.length - 1] || 'v2ex hot is not a list'; return out; }
+    if (errors.length) out.error = errors.join('; ');
+    const seen = new Set();
+    const batch = [];
+    for (const t of lists.flat()) {
+      const sid = t && (t.id != null ? String(t.id) : '');
       if (!sid) { out.skipped++; continue; }
+      if (seen.has(sid)) continue;
+      seen.add(sid); batch.push(t);
+    }
+    out.fetched = batch.length;
+    for (const topic of batch.slice(0, scanLimit)) {
+      if (out.imported >= sourceLimit) break;
+      out.scanned++;
+      const sid = String(topic.id);
       const member = topic.member || {};
       const name = String(member.username || member.name || 'v2ex').trim() || 'v2ex';
       const avatar = absUrl(member.avatar_large || member.avatar_normal || member.avatar_mini || '');
@@ -229,38 +346,22 @@ export function createImportFeed(db, {
       const body = htmlToText(topic.content || topic.content_rendered || '');
       const text = [title, body].filter(Boolean).join('\n\n');
       const createdAt = (Number(topic.created) || 0) * 1000;
-      const up = upsertPost({
-        source: 'v2ex', sourceId: sid, sourceUrl: url,
-        authorName: name, authorAvatar: avatar, text, createdAt,
-      });
-      if (up.skipped === 'deleted') { out.deletedKept++; continue; }
-      if (!up.imported) { out.skipped++; }
-      else out.imported++;
-      const postId = up.row && up.row.id;
-      if (!postId || !commentLimit) continue;
-      await sleep(delayMs);
-      let replies = [];
-      try {
-        const raw = await fetchJson(fetchFn, v2exRepliesUrl(sid));
-        if (Array.isArray(raw)) replies = raw.slice(0, commentLimit);
-      } catch (e) {
-        log('import v2ex replies', sid, e.message || e);
-        continue;
-      }
-      for (const r of replies) {
-        const cid = r && r.id != null ? String(r.id) : '';
-        if (!cid) continue;
-        const rn = String((r.member && (r.member.username || r.member.name)) || 'v2ex').trim() || 'v2ex';
-        const rav = absUrl((r.member && (r.member.avatar_large || r.member.avatar_normal || r.member.avatar_mini)) || '');
-        const ctext = htmlToText(r.content || r.content_rendered || '');
-        const cr = upsertComment({
-          source: 'v2ex', sourceId: 'v2ex-reply-' + cid,
-          sourceUrl: url + '#reply' + cid,
-          postId, parentId: null, authorName: rn, authorAvatar: rav,
-          text: ctext, createdAt: (Number(r.created) || 0) * 1000,
-        });
-        if (cr.imported) out.comments++;
-      }
+      await ingest({source: 'v2ex', sid, url, name, avatar, text, createdAt}, async () => {
+        await sleep(delayMs);
+        const raw = await v2exJson(v2exRepliesUrl(sid));
+        if (!Array.isArray(raw)) return [];
+        return raw.slice(0, commentLimit * 2).map(r => {
+          const cid = r && r.id != null ? String(r.id) : '';
+          if (!cid) return null;
+          const m = r.member || {};
+          return {
+            sourceId: 'v2ex-reply-' + cid, sourceUrl: url + '#reply' + cid, parentSourceId: null,
+            authorName: String(m.username || m.name || 'v2ex').trim() || 'v2ex',
+            authorAvatar: absUrl(m.avatar_large || m.avatar_normal || m.avatar_mini || ''),
+            text: htmlToText(r.content || r.content_rendered || ''), createdAt: (Number(r.created) || 0) * 1000,
+          };
+        }).filter(Boolean);
+      }, out, state);
     }
     return out;
   }
@@ -269,87 +370,76 @@ export function createImportFeed(db, {
     return fetchJson(fetchFn, hnItemUrl(id));
   }
 
-  async function importHn() {
-    const out = {ok: true, fetched: 0, imported: 0, comments: 0, skipped: 0, deletedKept: 0, error: null};
-    let ids;
-    try {
-      ids = await fetchJson(fetchFn, HN_TOP);
-    } catch (e) {
-      out.ok = false;
-      out.error = e.message || String(e);
-      return out;
+  async function importHn(state) {
+    const out = newOut();
+    const lists = [];
+    const errors = [];
+    for (const u of [HN_TOP, HN_NEW, HN_BEST]) {
+      try {
+        const raw = await fetchJson(fetchFn, u);
+        if (Array.isArray(raw)) lists.push(raw); else errors.push('hn list is not a list');
+      } catch (e) { errors.push(e.message || String(e)); }
     }
-    if (!Array.isArray(ids)) {
-      out.ok = false;
-      out.error = 'hn topstories is not a list';
-      return out;
+    if (!lists.length) { out.ok = false; out.error = errors[0] || 'hn topstories is not a list'; return out; }
+    if (errors.length) out.error = errors.join('; ');
+    // 交错合并：热门、最新、最佳轮流取，去重
+    const ids = [], seen = new Set();
+    for (let i = 0; ids.length < scanLimit && lists.some(l => i < l.length); i++) {
+      for (const l of lists) {
+        const id = l[i];
+        if (id == null || seen.has(String(id))) continue;
+        seen.add(String(id)); ids.push(id);
+        if (ids.length >= scanLimit) break;
+      }
     }
-    const picked = [];
+    out.fetched = ids.length;
     for (const rawId of ids) {
-      if (picked.length >= sourceLimit) break;
+      if (out.imported >= sourceLimit) break;
+      const sid = String(rawId);
+      const existed = selPost.get('hn', sid);
+      if (existed && blocked(existed)) { out.deletedKept++; continue; }
+      if (!existed && review && review.isRejected('hn', sid)) { out.rejectedKept++; continue; }
+      if (existed && !(state.refreshed < refreshPerRun && refreshDue('hn', sid, existed))) { out.skipped++; continue; }
+      if (!existed && state.aiDown) { out.pending++; continue; }
+      out.scanned++;
       await sleep(delayMs);
-      let item;
-      try { item = await hnItem(rawId); }
+      let story;
+      try { story = await hnItem(rawId); }
       catch (e) { log('import hn item', rawId, e.message || e); continue; }
-      if (!item || item.dead || item.deleted || item.type !== 'story') continue;
-      picked.push(item);
-    }
-    out.fetched = picked.length;
-    for (const story of picked) {
-      const sid = String(story.id);
+      if (!story || story.dead || story.deleted || story.type !== 'story') continue;
       const name = String(story.by || 'HN').trim() || 'HN';
-      const url = story.url || ('https://news.ycombinator.com/item?id=' + sid);
       const title = String(story.title || '').trim(); // 英文标题保持原文
       const body = htmlToText(story.text || '');
       const parts = [title];
       if (story.url) parts.push(String(story.url));
       if (body) parts.push(body);
       const text = parts.filter(Boolean).join('\n\n');
-      const up = upsertPost({
-        source: 'hn', sourceId: sid,
-        sourceUrl: 'https://news.ycombinator.com/item?id=' + sid,
-        authorName: name, authorAvatar: null,
-        text, createdAt: (Number(story.time) || 0) * 1000,
-      });
-      if (up.skipped === 'deleted') { out.deletedKept++; continue; }
-      if (!up.imported) out.skipped++;
-      else out.imported++;
-      const postId = up.row && up.row.id;
-      if (!postId || !commentLimit) continue;
-      const idMap = new Map(); // hn id -> our comment id
-      const queue = Array.isArray(story.kids) ? story.kids.slice() : [];
-      let taken = 0;
-      while (queue.length && taken < commentLimit) {
-        const kid = queue.shift();
-        await sleep(delayMs);
-        let c;
-        try { c = await hnItem(kid); }
-        catch (e) { log('import hn comment', kid, e.message || e); continue; }
-        if (!c || c.dead || c.deleted || c.type !== 'comment') {
-          if (c && Array.isArray(c.kids)) queue.push(...c.kids);
-          continue;
-        }
-        const ctext = htmlToText(c.text || '');
-        if (!ctext) {
+      await ingest({source: 'hn', sid, url: 'https://news.ycombinator.com/item?id=' + sid, name, avatar: null, text,
+        createdAt: (Number(story.time) || 0) * 1000}, async () => {
+        const got = [];
+        const queue = Array.isArray(story.kids) ? story.kids.slice() : [];
+        let tries = 0;
+        while (queue.length && got.length < commentLimit && tries < commentLimit * 3) {
+          const kid = queue.shift();
+          tries++;
+          await sleep(delayMs);
+          let c;
+          try { c = await hnItem(kid); }
+          catch (e) { log('import hn comment', kid, e.message || e); continue; }
+          if (!c) continue;
           if (Array.isArray(c.kids)) queue.push(...c.kids);
-          continue;
+          if (c.dead || c.deleted || c.type !== 'comment') continue;
+          const ctext = htmlToText(c.text || '');
+          if (!ctext) continue;
+          got.push({
+            sourceId: 'hn-comment-' + c.id, sourceUrl: 'https://news.ycombinator.com/item?id=' + c.id,
+            parentSourceId: c.parent != null && String(c.parent) !== sid ? 'hn-comment-' + c.parent : null,
+            authorName: String(c.by || 'HN').trim() || 'HN', authorAvatar: null,
+            text: ctext, createdAt: (Number(c.time) || 0) * 1000,
+          });
         }
-        const parentOur = c.parent != null ? idMap.get(Number(c.parent)) : null;
-        const cr = upsertComment({
-          source: 'hn', sourceId: 'hn-comment-' + c.id,
-          sourceUrl: 'https://news.ycombinator.com/item?id=' + c.id,
-          postId, parentId: parentOur || null,
-          authorName: String(c.by || 'HN').trim() || 'HN',
-          authorAvatar: null,
-          text: ctext, createdAt: (Number(c.time) || 0) * 1000,
-        });
-        if (cr.imported || cr.row) {
-          if (cr.row) idMap.set(Number(c.id), cr.row.id);
-          if (cr.imported) { out.comments++; taken++; }
-          else taken++;
-        }
-        if (Array.isArray(c.kids)) queue.push(...c.kids);
-      }
+        return got;
+      }, out, state);
     }
     return out;
   }
@@ -359,16 +449,33 @@ export function createImportFeed(db, {
     running = true;
     const started = now();
     try {
-      const v2ex = await importV2ex();
-      const hn = await importHn();
-      last = {at: started, v2ex, hn};
+      runCount++;
+      const state = {aiDown: false, refreshed: 0};
+      const v2ex = await importV2ex(state);
+      state.refreshed = 0;
+      const hn = await importHn(state);
+      let backfill = null;
+      if (review) {
+        review.pruneLogs();
+        const st = review.settings();
+        // 2.1.0：已发布但还没审过的外部帖，每轮顺带补审一小批（AI 本轮可用时）
+        if (st.enabled && st.autoBackfill && !state.aiDown) {
+          try { backfill = await review.backfill({limit: Math.min(10, st.backfillBatch)}); }
+          catch (e) { log('import backfill', e.message || e); }
+        }
+      }
+      const sum = k => (v2ex[k] || 0) + (hn[k] || 0);
+      last = {at: started, durationMs: now() - started, v2ex, hn,
+        total: {imported: sum('imported'), comments: sum('comments'), rejected: sum('rejected'), pending: sum('pending'),
+          commentsRejected: sum('commentsRejected'), commentsPending: sum('commentsPending')},
+        aiDown: state.aiDown, backfill};
       return last;
     } finally { running = false; }
   }
 
   function start() {
     if (timer) return;
-    const ms = Math.max(60 * 1000, Number(intervalMs) || 15 * 60 * 1000);
+    const ms = Math.max(60 * 1000, Number(intervalMs) || 2 * 60 * 1000);
     // 启动后稍等再拉，避免和别的启动任务挤在一起
     timer = setTimeout(() => {
       run().catch(e => log('import run', e.message || e));

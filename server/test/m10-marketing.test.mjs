@@ -25,7 +25,7 @@ async function acc(n) {
   return {tok: r.j.token, id: r.j.user.id};
 }
 
-test('营销帖：只有一条时按每人数量重复下发；不感兴趣后不再出现；每日上限生效', async () => {
+test('营销帖：2.1.0 只有一条时只下发 1 条（不重复）；不感兴趣后不再出现；每日上限生效', async () => {
   const a = await acc('mka');
   const c = await call('POST', '/api/admin/marketing/ads', {kind: 'text', title: '春季上新', text: '全场八折', linkUrl: 'https://example.com', cta: '去看看'}, adm);
   assert.equal(c.s, 200, JSON.stringify(c.j));
@@ -33,7 +33,7 @@ test('营销帖：只有一条时按每人数量重复下发；不感兴趣后�
   assert.equal((await call('POST', '/api/admin/marketing/settings', {every: 4, perFeed: 3, dailyCap: 5}, adm)).j.settings.every, 4);
   let f = await call('GET', '/api/posts?feed=rec', null, a.tok);
   assert.equal(f.j.adEvery, 4);
-  assert.equal(f.j.ads.length, 3);
+  assert.equal(f.j.ads.length, 1, '同一次下发不重复');
   assert.ok(f.j.ads.every(x => x.id === id && x.badge === '推广'));
   // 曝光计数 + 每日上限
   for (let i = 0; i < 4; i++) assert.equal((await call('POST', `/api/marketing/ads/${id}/impression`, {}, a.tok)).s, 200);
@@ -48,7 +48,7 @@ test('营销帖：只有一条时按每人数量重复下发；不感兴趣后�
   assert.equal(ad.impressions, 4); assert.equal(ad.clicks, 1); assert.equal(ad.hides, 1);
   // 别的用户不受影响；翻页（带 cursor）不再附带广告
   const b = await acc('mkb');
-  assert.equal((await call('GET', '/api/posts?feed=rec', null, b.tok)).j.ads.length, 3);
+  assert.equal((await call('GET', '/api/posts?feed=rec', null, b.tok)).j.ads.length, 1);
 });
 
 test('营销帖：多条时随机且不重复；关闭后不下发；停用/删除生效；校验', async () => {

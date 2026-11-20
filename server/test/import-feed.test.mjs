@@ -69,6 +69,10 @@ function mockFetch({failHot = false, failTop = false, failAll = false, calls} = 
   };
 }
 
+// 2.1.0：外部帖先过 AI 审查再入库。这里用假的智谱接口，全部放行。
+const AI_ENV = {AI_API_KEY: 'test-key-not-real', AI_RPM: '500', AI_RPD: '5000'};
+const allowAllAi = async () => Response.json({choices: [{message: {content: '{"blocked":[]}'}}]});
+
 let seq = 0;
 async function boot(opts = {}) {
   const calls = [];
@@ -78,6 +82,7 @@ async function boot(opts = {}) {
     importDelayMs: 0,
     importLimit: opts.importLimit ?? 20,
     importCommentLimit: opts.importCommentLimit ?? 10,
+    aiEnv: AI_ENV, aiFetch: allowAllAi,
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = 'http://127.0.0.1:' + srv.address().port;
@@ -198,7 +203,7 @@ test('拉取失败时保留上一轮已导入的数据', async () => {
     if (mode === 'fail') throw new Error('network down');
     return mockFetch()(url, opts);
   };
-  const srv = createApp({importFetch: fetchFn, importAuto: false, importDelayMs: 0});
+  const srv = createApp({importFetch: fetchFn, importAuto: false, importDelayMs: 0, aiEnv: AI_ENV, aiFetch: allowAllAi});
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = 'http://127.0.0.1:' + srv.address().port;
   try {

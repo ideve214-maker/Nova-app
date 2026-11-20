@@ -63,6 +63,7 @@ import {readFileSync as _readLegal} from 'node:fs';
 import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} from './legal.mjs';
 import {createTldr, TldrError} from './tldr.mjs';
 import {createImportFeed, isReservedImportIdentity} from './import-feed.mjs';
+import {createAiReview} from './ai-review.mjs';
 import {appVersion} from './version.mjs';
 import {mkdirSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
@@ -367,13 +368,18 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const verInfo = appVersion();
   const tldr = createTldr({fetchFn: tldrFetch || globalThis.fetch, now});
   const weather = createWeather({fetchFn: weatherFetch || globalThis.fetch, env: weatherEnv || process.env, now, ipLookup: weatherIpLookup});
+  // 2.1.0：外部帖先过 AI 审查再入库（ai-review.mjs，复用 aiMod 的智谱配置和限速）
+  const aiReview = createAiReview(db, {aiMod, now});
+  const envNum = k => { const n = Number(process.env[k]); return Number.isFinite(n) && n > 0 ? n : null; };
   const importFeed = createImportFeed(db, {
     fetchFn: importFetch || globalThis.fetch,
     now,
-    delayMs: importDelayMs != null ? importDelayMs : 250,
-    sourceLimit: importLimit != null ? importLimit : 20,
-    commentLimit: importCommentLimit != null ? importCommentLimit : 10,
-    intervalMs: importIntervalMs != null ? importIntervalMs : (Number(process.env.NOVA_IMPORT_INTERVAL_MS) || 15 * 60 * 1000),
+    review: aiReview,
+    delayMs: importDelayMs != null ? importDelayMs : 150,
+    sourceLimit: importLimit != null ? importLimit : (envNum('NOVA_IMPORT_LIMIT') || 20),
+    commentLimit: importCommentLimit != null ? importCommentLimit : (envNum('NOVA_IMPORT_COMMENT_LIMIT') || 20),
+    intervalMs: importIntervalMs != null ? importIntervalMs : (envNum('NOVA_IMPORT_INTERVAL_MS') || 2 * 60 * 1000),
+    v2exPerHour: envNum('NOVA_IMPORT_V2EX_PER_HOUR') || 100,
   });
   const routes = {
     'POST /api/auth/register'(req, b) {
@@ -2226,7 +2232,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.importFeed = importFeed; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.importFeed = importFeed; server.aiReview = aiReview; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

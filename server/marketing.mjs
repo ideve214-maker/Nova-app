@@ -1,6 +1,6 @@
 // r10 营销管理（1）：营销帖（广告）。
 // - 管理端维护广告（文字 / 图片 / 视频 / 第三方广告位），设置「每 N 条普通帖插 1 条」「每次刷新每人最多几条」「每人每天上限」。
-// - 用户端信息流第一页附带 ads（服务端为每个用户随机挑选，已点「不感兴趣」的不再出现；只有一条时重复使用）。
+// - 用户端信息流第一页附带 ads（服务端为每个用户等概率随机挑选且不重复，已点「不感兴趣」的不再出现；2.1.0 起不看权重）。
 // - 曝光、点击、不感兴趣都回报到服务端，管理端可看数据。
 import {randomBytes} from 'node:crypto';
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
@@ -146,35 +146,8 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     }
     return o;
   }
-  // 权重：只在未删除的营销帖之间唯一。新建未指定时取 MAX(weight)+1（不填空位），
-  // 与 INSERT 放在同一个 BEGIN IMMEDIATE 事务里。手动填了已被占用的权重则 409。
-  const WEIGHT_MIN = 1, WEIGHT_MAX = 2147483647;
-  const maxWeight = db.prepare('SELECT COALESCE(MAX(weight), 0) AS m FROM marketing_ads WHERE deleted_at IS NULL');
-  const byWeight = db.prepare('SELECT id FROM marketing_ads WHERE deleted_at IS NULL AND weight=? AND (? IS NULL OR id!=?)');
-  function isWeightConstraint(e) {
-    return e && (e.errcode === 2067 || (e.code === 'ERR_SQLITE_ERROR' && /UNIQUE constraint failed:.*\bweight\b/i.test(String(e.message || ''))));
-  }
-  function parseWeight(v) {
-    if (v === undefined || v === null || v === '') return null;
-    const n = Math.round(Number(v));
-    if (n === 0) return null;
-    if (!Number.isFinite(n) || n < WEIGHT_MIN || n > WEIGHT_MAX) {
-      throw new ApiError(400, 'BAD_WEIGHT', '权重必须是 ' + WEIGHT_MIN + ' 到 ' + WEIGHT_MAX + ' 的整数');
-    }
-    return n;
-  }
-  function nextWeight() {
-    const m = Number(maxWeight.get().m) || 0;
-    const n = m + 1;
-    if (n > WEIGHT_MAX) throw new ApiError(409, 'WEIGHT_EXHAUSTED', '权重已用到上限，请先调整或删除已有营销帖');
-    return n;
-  }
-  function takenError(weight) {
-    throw new ApiError(409, 'WEIGHT_TAKEN', '权重 ' + weight + ' 已被其他营销帖占用，请改用 ' + nextWeight(), {weight, nextWeight: nextWeight()});
-  }
-  function assertFree(weight, excludeId = null) {
-    if (byWeight.get(weight, excludeId, excludeId)) takenError(weight);
-  }
+  // 2.1.0：营销帖权重去除。权重不再参与排序、校验或唯一约束（迁移 064 删掉了唯一索引）。
+  // 旧版管理端仍可能在新建 / 编辑时带 weight：一律忽略，不报错（兼容）。列 weight 保留，新建统一写 1。
   function inImmediate(fn) {
     const started = !db.isTransaction;
     if (started) db.exec('BEGIN IMMEDIATE');
@@ -187,24 +160,13 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
       throw e;
     }
   }
-  function insertAd(f, weight) {
-    const id = nid(), t = now();
-    try {
-      ins.run(id, f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, weight, f.starts_at, f.ends_at, t, t);
-    } catch (e) {
-      if (isWeightConstraint(e)) takenError(weight);
-      throw e;
-    }
-    setCard.run(f.avatar, f.domain, f.subtitle, id);
-    return {ad: pub(byId.get(id), {admin: true})};
-  }
   function create(b = {}) {
     return inImmediate(() => {
       const f = fields(b);
-      const requested = parseWeight(b.weight);
-      const weight = requested == null ? nextWeight() : requested;
-      if (requested != null) assertFree(weight);
-      return insertAd(f, weight);
+      const id = nid(), t = now();
+      ins.run(id, f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, 1, f.starts_at, f.ends_at, t, t);
+      setCard.run(f.avatar, f.domain, f.subtitle, id);
+      return {ad: pub(byId.get(id), {admin: true})};
     });
   }
   function update(id, b = {}) {
@@ -212,15 +174,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
       const cur = byId.get(id);
       if (!cur) throw new ApiError(404, 'NOT_FOUND', '营销帖不存在');
       const f = fields(b, cur);
-      const requested = Object.prototype.hasOwnProperty.call(b, 'weight') ? parseWeight(b.weight) : undefined;
-      const weight = requested == null ? cur.weight : requested;
-      if (requested != null && requested !== cur.weight) assertFree(weight, id);
-      try {
-        upd.run(f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, weight, f.starts_at, f.ends_at, now(), id);
-      } catch (e) {
-        if (isWeightConstraint(e)) takenError(weight);
-        throw e;
-      }
+      upd.run(f.kind, f.advertiser, f.title, f.text, f.media, f.link_url, f.cta, f.sdk_provider, f.sdk_slot, f.enabled, cur.weight == null ? 1 : cur.weight, f.starts_at, f.ends_at, now(), id);
       setCard.run(f.avatar, f.domain, f.subtitle, id);
       return {ad: pub(byId.get(id), {admin: true})};
     });
@@ -231,10 +185,14 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     return {deleted: id};
   }
   function adminList() {
-    return {ads: listAll.all().map(r => pub(r, {admin: true})), settings: settings(), hideReasons: HIDE_REASONS, nextWeight: nextWeight()};
+    return {ads: listAll.all().map(r => pub(r, {admin: true})), settings: settings(), hideReasons: HIDE_REASONS, weightEnabled: false};
   }
 
-  // 按权重随机挑选，不放回；候选不够时重复使用（只有一条也照样按频率出现）。
+  // 2.1.0：所有广告等概率随机展示，同一次下发不重复（不放回抽样）。候选少于 perFeed 时只发候选数，不再重复填充。
+  function shuffle(arr, rnd = Math.random) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+  }
   function pickFor(user) {
     const st = settings();
     if (!st.enabled || !st.perFeed || !user) return {ads: [], every: st.every};
@@ -246,17 +204,7 @@ export function createMarketing(db, {now = Date.now, dataDir, blockwords} = {}) 
     // 第三方 SDK 广告位里只有 Revive（网页投放）能在网页端直接展示；其它需要原生 SDK，暂不下发。
     const pool = active.all(now(), now(), user.id).filter(r => r.kind !== 'sdk' || r.sdk_provider === 'revive');
     if (!want || !pool.length) return {ads: [], every: st.every};
-    const out = [];
-    let bag = pool.slice();
-    while (out.length < want) {
-      if (!bag.length) bag = pool.slice();
-      const total = bag.reduce((a, r) => a + (r.weight || 1), 0);
-      let x = Math.random() * total, i = 0;
-      for (; i < bag.length - 1; i++) { x -= bag[i].weight || 1; if (x <= 0) break; }
-      out.push(pub(bag[i]));
-      bag.splice(i, 1);
-    }
-    return {ads: out, every: st.every};
+    return {ads: shuffle(pool.slice()).slice(0, want).map(r => pub(r)), every: st.every};
   }
 
   function track(user, id, action, body = {}) {
