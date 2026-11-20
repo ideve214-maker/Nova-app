@@ -33,9 +33,12 @@ async function loadSearch(q){
    - 其他（举报处理结果、警告、全体通知、系统通知、评论点赞等）打开详情，显示完整标题、正文和时间。
    打开即标为已读。列表里标题最多 2 行、正文最多 3 行，完整内容在详情里。 */
 function notifFind(id){return (typeof nSrc==='function'?nSrc():D.n).find(x=>String(x.id)===String(id))}
+/* 2.0.7：AI 内部账号会发「转帖 repost / 收藏 save」通知（服务端标题是「有人转发了你的动态」），有发起人时显示成「昵称 转发了你的帖子」 */
+const NOTIF_ACT={repost:'转发了你的帖子',save:'收藏了你的帖子',favorite:'收藏了你的帖子'};
 function notifParts(n){
   if(!n)return {title:'',body:''};
-  if(n.title!=null||n.body!=null){const t=String(n.title||''),b=String(n.body||'');return t?{title:t,body:b}:{title:b,body:''}}
+  if(NOTIF_ACT[n.kind]&&n.actor&&typeof P==='function'){const u=P(n.actor);if(u&&u.n&&D.u&&D.u[n.actor])return {title:u.n+' '+NOTIF_ACT[n.kind],body:String(n.body||'')}}
+  if(n.title!=null||n.body!=null){const t=String(n.title||''),b=String(n.body||'');if(!t&&!b)return {title:NOTIF_ACT[n.kind]?'有人'+NOTIF_ACT[n.kind]:'新通知',body:''};return t?{title:t,body:b}:{title:b,body:''}}
   const x=String(n.x||'');const i=x.indexOf(' · ');return i>0?{title:x.slice(0,i),body:x.slice(i+3)}:{title:x,body:''};
 }
 function notifTime(n){return (typeof fmtTime==='function'&&n&&n.at)?fmtTime(n.at):(n&&n.t)||''}
@@ -53,7 +56,8 @@ function notifRoute(n){
 }
 function notifRow(n){
   const pr=notifParts(n);
-  return `<i class="${n.u?'':'z'}"></i><span class="gr ngr"><b class="nt">${esc(pr.title)}</b>${pr.body?`<span class="nb">${esc(pr.body)}</span>`:''}<small>${esc(notifTime(n))}</small></span><span class="nchev" aria-hidden="true">›</span>`;
+  const avh=n.actor&&D.u&&D.u[n.actor]&&typeof av==='function'?`<span class="nav">${av(n.actor,36)}</span>`:'';
+  return `<i class="${n.u?'':'z'}"></i>${avh}<span class="gr ngr"><b class="nt">${esc(pr.title)}</b>${pr.body?`<span class="nb">${esc(pr.body)}</span>`:''}<small>${esc(notifTime(n))}</small></span><span class="nchev" aria-hidden="true">›</span>`;
 }
 function notifDetail(n){
   if(!n)return '<h3>通知</h3><p class="em">这条通知已不存在</p><div class="fr"><button class="pb s" data-a="notif">返回通知</button></div>';

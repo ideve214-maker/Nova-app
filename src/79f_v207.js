@@ -25,13 +25,15 @@ function txIsImg(u){try{const x=new URL(u);if(!/^https?:$/.test(x.protocol))retu
 const TX_CACHE=new Map();
 function txSplit(text){
   const s=String(text==null?'':text);
-  if(!/https?:\/\//i.test(s))return {t:s,imgs:[]};
+  if(!/https?:\/\//i.test(s))return {t:s,imgs:[],links:[]};
   const hit=TX_CACHE.get(s);if(hit)return hit;
-  const imgs=[];const add=u=>{if(!imgs.includes(u)&&imgs.length<9)imgs.push(u)};
+  const imgs=[],links=[];const add=u=>{if(!imgs.includes(u)&&imgs.length<9)imgs.push(u)};const addL=u=>{if(!links.includes(u))links.push(u)};
   let t=s.replace(/!\[[^\]\n]*\]\(\s*<?(https?:\/\/[^\s)>]+)>?(?:\s+"[^"]*")?\s*\)/gi,(m,u)=>{add(u);return ''});
-  t=t.replace(/(^|[\s(（\[【:：])(https?:\/\/[^\s<>"'）)\]】，。；！？、]+)/gi,(m,pre,u)=>{const clean=u.replace(/[.,;!?，。；！？、]+$/,'');if(!txIsImg(clean))return m;add(clean);return pre+u.slice(clean.length)});
+  t=t.replace(/(^|[\s(（\[【:：])(https?:\/\/[^\s<>"'）)\]】，。；！？、]+)/gi,(m,pre,u)=>{const clean=u.replace(/[.,;!?，。；！？、]+$/,'');if(!txIsImg(clean)){/* J（2.0.7）：普通链接也从正文拿掉，改成下方的链接卡片 */addL(clean);return pre+u.slice(clean.length)}add(clean);return pre+u.slice(clean.length)});
+  /* Markdown 普通链接 [文字](url)：保留文字，链接放进卡片 */
+  t=t.replace(/\[([^\]\n]+)\]\(\s*(https?:\/\/[^\s)]+)\s*\)/gi,(m,txt,u)=>{addL(u);return txt});
   t=t.replace(/[(（]\s*[)）]/g,'').replace(/\[\s*\]/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
-  const out={t,imgs};
+  const out={t,imgs,links};
   if(TX_CACHE.size>500)TX_CACHE.delete(TX_CACHE.keys().next().value);
   TX_CACHE.set(s,out);return out;
 }
@@ -135,3 +137,39 @@ function feedAutoTick(){
   }catch(e){}
 }
 if(typeof window!=='undefined'&&!window.__vexoFeedAuto){window.__vexoFeedAuto=setInterval(feedAutoTick,FEED_AUTO_MS)}
+
+/* ---------- L. 通知「全部已读」（服务端已有 POST /api/notifications/read-all） ---------- */
+Object.assign(A,{
+  nrall:async()=>{
+    const L=typeof nSrc==='function'?nSrc():(D.n||[]);
+    L.forEach(n=>{n.u=0});S.notifUnread=0;
+    if(typeof usingNet==='function'&&usingNet()&&SESSION){
+      const r=await api('POST','/api/notifications/read-all',{});
+      if(r.s!==200){T(errMsg(r,'操作失败，请稍后再试'));}
+      else T('已全部标为已读');
+      if(typeof loadNotifications==='function')await loadNotifications();
+    }else{if(typeof save==='function')save();T('已全部标为已读')}
+  },
+});
+
+/* ---------- J. 正文链接 → 预览卡片 ----------
+   服务端以后在帖子上返回 linkPreview（或 linkPreviews[]）：{url,title,description,image,siteName}，有就显示标题、摘要、缩略图；
+   没有时显示紧凑卡片：网站图标 + 域名 + 路径。点卡片用应用内浏览器打开。 */
+function lkHost(u){try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}}
+function lkPath(u){try{const x=new URL(u);let p=decodeURIComponent(x.pathname+(x.search||'')).replace(/\/$/,'');return p.length>48?p.slice(0,46)+'…':p}catch(e){return ''}}
+function lkPrevOf(p,u){
+  if(!p)return null;
+  const L=[].concat(p.linkPreviews||[],p.linkPreview||[],p.preview||[],p.og||[]).filter(x=>x&&typeof x==='object');
+  return L.find(x=>x.url===u)||(L.length===1&&!L[0].url?L[0]:null)||null;
+}
+function lkCards(links,p,det){
+  if(!links||!links.length)return '';
+  return '<div class="lkcs">'+links.slice(0,det?3:1).map(u=>{
+    const h=lkHost(u);if(!h)return '';
+    const pv=lkPrevOf(p,u)||{};
+    const fav='https://'+h+'/favicon.ico',fb=typeof extLetterAv==='function'?extLetterAv(h):'';
+    const img=pv.image&&/^https?:/i.test(pv.image)?`<img class="lkimg" src="${esc(pv.image)}" referrerpolicy="no-referrer" alt="" loading="lazy" data-fb="${esc(fb)}">`:'';
+    const title=pv.title?esc(String(pv.title).slice(0,120)):esc(lkPath(u)||h);
+    return `<button type="button" class="lkc${img?' big':''}" data-a="extlink" data-v="${esc(u)}" aria-label="打开链接 ${esc(h)}">${img}<span class="lkb"><span class="lkh"><img class="lkfav" src="${esc(fav)}" referrerpolicy="no-referrer" alt="" loading="lazy" data-fb="${esc(fb)}"><span>${esc(pv.siteName||h)}</span></span><span class="lkt">${title}</span>${pv.description?`<span class="lkd">${esc(String(pv.description).slice(0,160))}</span>`:''}</span><span class="lkgo" aria-hidden="true">›</span></button>`;
+  }).join('')+'</div>';
+}

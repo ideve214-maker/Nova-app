@@ -400,14 +400,14 @@ function rpEmbed(p,det){
   const o=findPost(r.id);if(!o)return `<div class="rpc del"><span>原帖已删除</span></div>`;
   const u=P(o.a),tm=typeof fmtTime==='function'&&o.at?fmtTime(o.at):(o.t||'');
   const otx=typeof txSplit==='function'?txSplit(o.x):{t:o.x||'',imgs:[]};
-  const media=typeof mediaHTML==='function'?mediaHTML((Array.isArray(o.media)?o.media:[]).concat(otx.imgs),false,o.id):'';
-  const srcL=o.sourceLabel||'';
-  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${otx.t?`<div class="rpx${det?'':' clamp'}">${esc(otx.t)}</div>`:''}${media}</div>`;
+  const media=(typeof mediaHTML==='function'?mediaHTML((Array.isArray(o.media)?o.media:[]).concat(otx.imgs),false,o.id):'')+(typeof lkCards==='function'?lkCards(otx.links,o,false):'');
+  const srcL=o.sourceLabel||(o.source&&typeof extSrcLabel==='function'?extSrcLabel(o):'');
+  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${otx.t?`<div class="rpx${det?'':' clamp'}">${typeof atrBody==='function'?atrBody('p:'+o.id,otx.t,o):esc(otx.t)}</div>`:''}${media}</div>`;
 }
 function rpCardWrap(p,det,k){
   const plain=!(p.x||'').trim();
   const ptx=typeof txSplit==='function'?txSplit(p.x):{t:p.x||'',imgs:[]};
-  const body=plain||!ptx.t?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(ptx.t)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
+  const body=plain||!ptx.t?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${typeof atrBody==='function'?atrBody('p:'+p.id,ptx.t,p):esc(ptx.t)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
   const head=plain
     ?`<div class="rptop"><span data-a="user" data-v="${p.a}">${xic('rt')}<b>${esc(p.a==='me'?'你':k.u.n)}</b> 转帖了</span><small>${esc(k.tm)}</small><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`
     :`<div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(k.u)}</b><small>${esc(k.tm)}${k.tm?' · ':''}${k.aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`;

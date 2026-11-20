@@ -27,6 +27,8 @@ function rememberAuthor(a){
   const l=(a.avatar&&a.avatar.letter)||[...String(a.displayName||a.username||'用')][0];
   const c=(a.avatar&&a.avatar.color)||'#3A3F46';
   D.u[id]=[a.displayName||a.username,a.username,l,c,'',a.vip?1:0,a.badge||''];
+  /* 2.0.7：AI 内部账号（author.ai===true）头像加 AI 角标，badge==='internal' 资料页显示「官方内部账号」 */
+  D.uai=D.uai||{};if(a.ai===true||a.badge==='internal')D.uai[id]=a.ai===true?2:1;else delete D.uai[id];
   /* r10：别人的图片头像 / 背景（服务器返回 avatar.image、cover）。 */
   D.uph=D.uph||{};
   if(a.avatar&&Object.prototype.hasOwnProperty.call(a.avatar,'image'))D.uph[id]=a.avatar.image||'';
@@ -37,7 +39,7 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;if(p.source){o.source=p.source;o.sourceLabel=p.sourceLabel||(p.source==='hn'?'来自 HN':p.source==='v2ex'?'来自 V2EX':'来自 '+p.source);if(p.sourceUrl)o.sourceUrl=p.sourceUrl;o.ext=1;}
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;if(p.source){o.source=p.source;o.sourceName=p.sourceName||p.originName||(p.origin&&p.origin.name)||'';o.sourceLabel=p.sourceLabel||(typeof extSrcLabel==='function'?extSrcLabel(Object.assign({},p,{sourceName:o.sourceName})):'来自 '+p.source);if(p.sourceUrl)o.sourceUrl=p.sourceUrl;o.ext=1;}
   /* 2.0.3 转帖：原帖整条带回来（已删除时只有 id + deleted），放进 postCache，点卡片能直接打开详情 */
   if(p.repostOf){const q=p.repostOf;if(q.deleted||!q.author)o.rp={id:String(q.id),deleted:true};else{const oo=adoptPost(q);o.rp={id:String(oo.id),deleted:false};S.postCache=S.postCache||{};S.postCache[String(oo.id)]=oo}}
   return o;

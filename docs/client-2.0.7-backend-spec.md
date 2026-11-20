@@ -22,33 +22,34 @@
 - 注销账号时删除备份。审计日志只记录“备份已更新”和大小，不记录内容。
 - 客户端（下个版本做）：登录后检查是否有备份，有的话请用户输入备份密码来恢复；新消息解密后最多 30 秒同步一次备份。
 
-## C. 群聊端到端加密
-
-**结论**：一次做完的工作量比较大（客户端约 3–4 天，服务端约 1.5 天，加上测试），这次 2.0.7 不做，先给方案。现在服务端会拒绝群聊加密消息（`chats.mjs` 返回 `E2EE_GROUP`）。
-
-**方案**：用和私聊同一个库（vodozemac）里的 Megolm（`GroupSession` / `InboundGroupSession`，库里已经带了，不用加依赖）。这是 Matrix/Element 群聊用的方案：
-1. 每个发送者在每个群里有一个出站 `GroupSession`。群消息只加密一次，所有成员共用。
-2. 会话密钥（`session_key`）通过**现有的私聊 Olm 通道**逐个发给群里每个成员的每台设备（复用 `/api/e2ee/keys/claim`）。
-3. 有人加群：给他发当前的会话密钥，他看不到加群之前的消息。有人退群或被踢：所有人轮换新的会话，他看不到之后的消息。
-4. 群消息的密文格式：`{v:1, alg:"megolm", sessionId, body}`。
-
-### 服务端需要做
-| 方法 | 路径 | 请求 | 说明 |
-|---|---|---|---|
-| POST | `/api/conversations/:id/messages` | 现有接口，允许 `kind=group` 时 `encrypted:true`，`ciphertext` 为 `{v:1,alg:"megolm",sessionId,body}` | 去掉 `E2EE_GROUP` 拦截，按 alg 校验格式；群聊加密消息不跑屏蔽词、@所有人 改为客户端在密文外带 `mentions:[userId]/"all"`（明文元数据） |
-| POST | `/api/e2ee/room-keys` | `{conversationId, sessionId, to:[{userId, deviceId, type, body}]}` | 发送方把用 Olm 加密的会话密钥投递给每台设备；服务器只转存，最多 500 条/次 |
-| GET | `/api/e2ee/room-keys?since=` | 无 | 拉取发给本设备的会话密钥（按 `recipient_device_id`），拉取后 7 天删除 |
-| GET | `/api/conversations/:id/devices` | 无 | 返回群成员全部未撤销设备 `{userId, deviceId, identityKey}`，用来分发会话密钥 |
-| SSE | `e2ee.room_key` / `conversation.members_changed` | — | 收到新会话密钥、成员变化时通知客户端（成员变化后客户端轮换会话） |
-
-- 存储：`e2ee_room_keys(id, conversation_id, session_id, sender_user_id, sender_device_id, recipient_user_id, recipient_device_id, type, body, created_at)`；`messages` 表复用现有的 `encrypted / ciphertext / e2ee_type` 字段（`e2ee_type='megolm'`），`olm_session_id` 存 Megolm 的 `sessionId`。
-- 群里的成员变化接口（加人、踢人、退群）在返回和推送里带上 `membersVersion`，客户端靠它判断要不要轮换会话。
-- 群聊加密以后，服务端的消息搜索、导出、举报看不到内容；举报时由客户端把解密后的内容随举报一起提交（和私聊一样）。
-
-### 客户端（Bob）
-`26_e2ee.js` 加 Megolm 收发、会话密钥分发和轮换；`22_chat.js` 的群聊发送走加密；群聊横幅改成“群聊已加密”。上线开关：服务端 `/api/health` 返回 `features.groupE2ee:true` 后客户端才加密，旧版本客户端看到加密的群消息时显示“请更新到最新版本查看”。
-
 ## 其他（服务端 2.1.0 已经做了，客户端已对接）
 - 外部帖头像：客户端优先用 `avatar.path`，通过 `apiUrl()` 补全成完整地址；图片加载失败时显示 `avatar.fallback`。
 - 私聊文件 / 视频：客户端文件选择器同时写了扩展名和 MIME（安卓只认 MIME，以前 doc/docx 在安卓上选不了）；.mov 按 mp4 上传（新旧服务器都接受）；超过 100 MB 在客户端直接提示；413 时提示“普通 50 MB / VIP 100 MB”。**部署时要确认 nginx 的 `client_max_body_size` ≥ 100m，服务器装了 ffprobe**，否则视频还是发不出去。
 - 首页每 2 分钟刷新一次，和导入频率一致。
+
+
+## J. 外部帖链接预览卡片（可选，客户端已能用兜底样式）
+
+客户端已经把正文里的网址拆出来显示成卡片：没有预览数据时显示网站图标（`https://域名/favicon.ico`）+ 域名 + 路径。服务端补上下面的字段后，卡片自动显示标题、摘要和缩略图：
+
+- 帖子（和评论，可选）返回 `linkPreviews: [{url, title, description, image, siteName}]`，单个也可以用 `linkPreview: {...}`。`url` 要和正文里的网址一致（客户端按网址匹配，忽略末尾 `/`）。
+- 抓取时机：外部帖入库时顺便抓（就在 AI 审查那一步之前），用户帖发帖后异步抓。只读 `<head>` 里的 `og:title / og:description / og:image / og:site_name`，没有就用 `<title>` 和 `meta description`。
+- 安全：只允许 http/https；解析域名后拒绝内网和回环地址（防 SSRF）；跟随跳转最多 3 次且每次都重新检查；超时 5 秒；最多读 256KB；`image` 建议走现有的 `/api/import/avatar` 同类代理，返回相对地址，客户端用 `apiUrl()` 拼。
+- 可选单独接口：`GET /api/link-preview?u=<url>` → `{url,title,description,image,siteName}`，按网址缓存 7 天。
+
+## K. 自动翻译（客户端已做，服务端做了能省额度）
+
+客户端现状：开了自动翻译后，进屏幕的外文内容合并成一次 `POST /api/ai/translate`（`[[1]] … [[2]] …` 分段，最多 8 段 / 约 1800 字），译文存本机。限制是每人每小时 60 次（`LIMITS.translate`），客户端自限 40 次。
+
+建议服务端：
+1. **入库时就翻**：外部帖和外部评论在 AI 审查那次调用里顺便产出中文译文（原文已是中文就跳过），返回 `translations: {zh: "…"}`（以后可加 `en`）。客户端优先用这个字段，完全不再调用翻译接口。
+2. **批量接口**（可选）：`POST /api/ai/translate/batch {items:[{id, text}], to:'zh'|'en'}` → `{items:[{id, text}]}`，按「原文哈希 + 目标语言」做持久缓存（所有用户共享，命中不计次数），一批算 1 次额度，最多 20 条 / 6000 字。上线后在 `/api/health` 的 `features.translateBatch=true`，客户端再切过去。
+
+## M. 个性化推荐（Dift 已在 2.1.2 分支 `db8f51d` 实现，迁移 067；客户端已按实际返回联调）
+
+- `GET /api/me/interests` → `{like:[category], dislike:[category], hiddenSources:[origin], onboarded:bool}`；`PUT` 传同样结构。`category` 取值：`tech / game / crypto / finance / news / life / other`；`origin` 用帖子的 `source`（如 `ithome`）。
+- `POST /api/feed/not-interested {postId, reason:'post'|'category'|'source'}`：`category` 把该帖分类加进 dislike，`source` 把该帖来源加进 hiddenSources（客户端本地也同步更新并立刻从列表里移除）。
+- `POST /api/feed/signals {events:[{postId, dwellMs, action, at}]}`：`action` 取 `view|open|open_origin|like|save|share|hide`；`at` 是毫秒时间戳；每批最多 100 条，客户端每 30 秒或切到后台时发（切到后台用 keepalive）。`view` 的 `dwellMs` 只统计帖子露出 ≥50% 的时间，<500ms 不报。
+- 客户端遇到 404 / 405 / 501 静默停用对应功能；5xx 和 429 会把这批留到下次再发（本地最多攒 300 条）。
+- 排序（Dift）：偏好权重 + 随时间衰减的行为分 + 新鲜度，约 20% 随机探索；dislike 分类、隐藏来源、标了不感兴趣的帖子不出。兴趣分只算真人，AI 账号的浏览不计。
+- 客户端按 2.1.2 实际行为处理：`PUT` 以返回为准（服务端会规范化重叠项），跳过选择页时只发 `{onboarded:true}`；`not-interested` 用返回的 `interests` 刷新本地偏好，`NO_CATEGORY / NO_SOURCE / NOT_FOUND` 只提示不报错；`signals` 遇到 429 `RATE_LIMIT` 暂停 90 秒再发，400（`BAD_ACTION / TOO_MANY_EVENTS`）丢弃这一批不重试。

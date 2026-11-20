@@ -915,6 +915,28 @@ html.kb-open #v .pg>.sc:last-child:not(.game-frame){padding-bottom:calc(var(--kb
 .stc-tools .pb svg{display:block;flex:none;width:20px;height:20px;margin:0}
 .stc-tools .pb span{display:block;line-height:20px}
 .stc-prev .tx.ph{padding:0 16px;font-size:15px;font-weight:500;letter-spacing:.02em;white-space:nowrap;color:rgba(255,255,255,.82);text-shadow:0 1px 6px rgba(0,0,0,.18)}
+.nrhd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.nrhd h3{margin:0}
+.nrall{flex:none;font-size:14px;font-weight:600;color:var(--ac);padding:6px 12px;border-radius:999px;background:rgba(45,136,255,.12)}
+/* 2.0.7 链接卡片 */
+.avw{position:relative;display:inline-grid;flex:none;line-height:0}.avw>.aibg{position:absolute;right:-2px;bottom:-2px;min-width:var(--aiz);height:var(--aiz);padding:0 2px;border-radius:calc(var(--aiz)/2);background:linear-gradient(135deg,#6d5bff,#2fb5ff);color:#fff;font:700 calc(var(--aiz)*.62)/var(--aiz) system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 1.5px var(--bg,#000);pointer-events:none}
+.intag{display:inline-block;margin:4px 0 2px;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;color:#2f7dff;background:rgba(47,125,255,.12)}
+.ichips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.ichip{height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--line,rgba(127,127,127,.3));background:transparent;color:inherit;font-size:14px;cursor:pointer}.ichip.on{background:var(--ac);border-color:var(--ac);color:#fff}.ichip.no{border-style:dashed;color:var(--t3);text-decoration:line-through}
+.nav{flex:none;margin-right:10px;display:inline-flex;align-self:flex-start}
+.atrn{display:block;margin-top:4px;font-size:12px;color:var(--t3);font-weight:400}.atrn .lk{font-size:12px;padding:0;margin:0;background:none;border:0;color:var(--ac);cursor:pointer}
+.atrfab{font-size:15px;font-weight:700}.atrfab.on{color:var(--ac);background:rgba(91,140,255,.16);border-radius:50%}
+.lkcs{display:flex;flex-direction:column;gap:8px;margin:8px 16px 4px}
+.cimg .lkcs,.rpc .lkcs{margin:6px 0 2px}
+.lkc{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--ln);border-radius:12px;background:var(--s2);color:var(--tx);overflow:hidden}
+.lkc.big{flex-wrap:wrap;padding:0 0 10px}
+.lkc.big .lkimg{width:100%;max-height:180px;object-fit:cover;display:block}
+.lkc.big .lkb{padding:0 12px}
+.lkb{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.lkh{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);min-width:0}
+.lkh span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lkfav{width:16px;height:16px;border-radius:4px;flex:none;object-fit:cover}
+.lkt{font-size:14px;font-weight:600;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all}
+.lkd{font-size:12px;color:var(--t2);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.lkgo{flex:none;color:var(--t3);font-size:20px}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
 <link rel="stylesheet" href="assets/vendor/photoswipe.css">
@@ -2341,9 +2363,9 @@ const VIP={cat:null,me:null,busy:0,err:''};
 /* 会员标识：只表示订阅状态，不是实名认证。 */
 const vipBadge=()=>'<i class="vip" role="img" aria-label="VEXO VIP 会员">VIP</i>';
 /* 2.0 官方账号 / 官方授权账号标识：蓝色认证章，和金色 VIP 区分；同时有时总在 VIP 前面。 */
-const OBG={official:['官方','官方账号','Official','Official account'],authorized:['官方授权','官方授权账号','Authorized','Authorized account']};const obgEn=()=>typeof LANG!=='undefined'&&LANG==='en';
+const OBG={official:['官方','官方账号','Official','Official account'],authorized:['官方授权','官方授权账号','Authorized','Authorized account'],internal:['内部','官方内部账号','Internal','Official internal account']};const obgEn=()=>typeof LANG!=='undefined'&&LANG==='en';
 const obadge=k=>OBG[k]?`<i class="obg obg-${k}" role="img" aria-label="${OBG[k][obgEn()?3:1]}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .9l1.9 1.3 2.3-.1.8 2.2 1.8 1.4-.7 2.2.7 2.2-1.8 1.4-.8 2.2-2.3-.1L8 15.1l-1.9-1.3-2.3.1-.8-2.2-1.8-1.4.7-2.2-.7-2.2 1.8-1.4.8-2.2 2.3.1z" fill="currentColor"/><path d="M5.2 8.1l1.9 1.9 3.8-3.9" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${OBG[k][obgEn()?2:0]}</span></i>`:'';
-const nameBadges=u=>(u&&u.g?obadge(u.g):'')+(u&&u.v?vipBadge():'');
+const nameBadges=u=>(u&&u.g&&u.g!=='internal'?obadge(u.g):'')+(u&&u.v?vipBadge():'');
 /* 名字 + 标识：名字过长时只截名字，标识一直可见（外层元素加 class="nb"） */
 const nmB=(u,label)=>`<span class="nmt">${esc(label!=null?label:u.n)}</span>${nameBadges(u)}`;
 const pad2=n=>String(n).padStart(2,'0');
@@ -2834,6 +2856,8 @@ function rememberAuthor(a){
   const l=(a.avatar&&a.avatar.letter)||[...String(a.displayName||a.username||'用')][0];
   const c=(a.avatar&&a.avatar.color)||'#3A3F46';
   D.u[id]=[a.displayName||a.username,a.username,l,c,'',a.vip?1:0,a.badge||''];
+  /* 2.0.7：AI 内部账号（author.ai===true）头像加 AI 角标，badge==='internal' 资料页显示「官方内部账号」 */
+  D.uai=D.uai||{};if(a.ai===true||a.badge==='internal')D.uai[id]=a.ai===true?2:1;else delete D.uai[id];
   /* r10：别人的图片头像 / 背景（服务器返回 avatar.image、cover）。 */
   D.uph=D.uph||{};
   if(a.avatar&&Object.prototype.hasOwnProperty.call(a.avatar,'image'))D.uph[id]=a.avatar.image||'';
@@ -2844,7 +2868,7 @@ function rememberAuthor(a){
 function adoptPost(p){
   rememberAuthor(p.author);
   const me=SESSION&&SESSION.user&&p.author&&Number(SESSION.user.id)===Number(p.author.id);
-  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;if(p.source){o.source=p.source;o.sourceLabel=p.sourceLabel||(p.source==='hn'?'来自 HN':p.source==='v2ex'?'来自 V2EX':'来自 '+p.source);if(p.sourceUrl)o.sourceUrl=p.sourceUrl;o.ext=1;}
+  const o={id:p.id,a:me?'me':String(p.author.id),at:p.createdAt,t:ago(p.createdAt),x:p.text,r:p.reactions||[0,0,0,0,0,0],m:p.myReaction==null?-1:p.myReaction,src:'net',edited:!!p.edited,commentCount:p.commentCount,aud:p.audience||'public',audience:p.audience||'public'};if(p.audienceLabel)o.audienceLabel=p.audienceLabel;if(typeof p.isPublic==='boolean')o.isPublic=p.isPublic;if(p.mood)o.mood=p.mood;if(p.location)o.location=p.location;if(p.tagged)o.tagged=p.tagged;if(p.media)o.media=p.media;if(p.poll)o.poll=p.poll;if(p.activity)o.activity=p.activity;if(p.hashtags)o.hashtags=p.hashtags;if(p.kind)o.kind=p.kind;if(p.hotPosition)o.hotPosition=p.hotPosition;if(p.viewCount!=null)o.viewCount=p.viewCount;if(p.bookmarkCount!=null)o.bookmarkCount=p.bookmarkCount;if(p.boost)o.boost=p.boost;if(p.repostCount!=null)o.repostCount=p.repostCount;if('myRepost' in p)o.myRepost=p.myRepost||null;if(p.source){o.source=p.source;o.sourceName=p.sourceName||p.originName||(p.origin&&p.origin.name)||'';o.sourceLabel=p.sourceLabel||(typeof extSrcLabel==='function'?extSrcLabel(Object.assign({},p,{sourceName:o.sourceName})):'来自 '+p.source);if(p.sourceUrl)o.sourceUrl=p.sourceUrl;o.ext=1;}
   /* 2.0.3 转帖：原帖整条带回来（已删除时只有 id + deleted），放进 postCache，点卡片能直接打开详情 */
   if(p.repostOf){const q=p.repostOf;if(q.deleted||!q.author)o.rp={id:String(q.id),deleted:true};else{const oo=adoptPost(q);o.rp={id:String(oo.id),deleted:false};S.postCache=S.postCache||{};S.postCache[String(oo.id)]=oo}}
   return o;
@@ -3009,7 +3033,7 @@ const av=(id,s,opt)=>{const src=avSrcOf(id);
   /* 2.0.7：外部帖（V2EX / HN）的发帖人和评论人：没有头像时用名字首字母头像；头像加载失败（对方图床不可达）时也换成首字母头像 */
   if(String(id).startsWith('ext:')&&typeof extLetterAv==='function'){const fb=(D.ufb&&/^data:image\//.test(D.ufb[id]||'')&&D.ufb[id])||extLetterAv(P(id).n||String(id).replace(/^ext:[^:]+:/,''));h=src&&!isMediaId(src)?phImg(src,s).replace('<img ',`<img data-fb="${esc(fb)}" referrerpolicy="no-referrer" `):src?h:phImg(fb,s)}
   const deco=opt&&Object.prototype.hasOwnProperty.call(opt,'dec')?!!opt.dec:(id==='me'&&typeof vipDecoOn==='function'&&vipDecoOn());
-  if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');return h};
+  if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');if(D.uai&&D.uai[id]===2&&typeof aiBadgeWrap==='function')h=aiBadgeWrap(h,s);return h};
 const gface=(c,s)=>{const src=c&&c.gp||'';if(isMediaId(src))return lookImg(src,s).replace(DEF_AV,PH.group);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('blob:')||String(src).startsWith('assets/'))?src:PH.group,s)};
 const isMediaId=src=>/^md_[A-Za-z0-9_-]{8,80}$/.test(String(src||''));
 /* 2.0.1：上传的背景（媒体 id）绝不先显示默认背景——有缓存直接显示，没有就用主色占位再淡入 */
@@ -3031,12 +3055,12 @@ const nLike=(p.r||[]).reduce((a,b)=>a+(b||0),0),nC=p.commentCount!=null?p.commen
 const media=Array.isArray(p.media)?p.media:[];
 /* 2.0.7：正文里的图片链接（外部帖常见：Markdown 图片、图床直链）当成图片显示，正文里去掉这些链接 */
 const tx=typeof txSplit==='function'?txSplit(p.x):{t:p.x||'',imgs:[]},txT=tx.t;
-const mediaH=typeof mediaHTML==='function'?mediaHTML(media.concat(tx.imgs),det,p.id):'';
+const mediaH=(typeof mediaHTML==='function'?mediaHTML(media.concat(tx.imgs),det,p.id):'')+(typeof lkCards==='function'?lkCards(tx.links,p,det):'');
 const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:'';
 const chips=[p.boost?(p.boost.label==='推流中'?`🚀 推流中 · 已曝光 ${Number(p.boost.delivered)||0}/${Number(p.boost.impressions)||0}`:'🔥 曝光中'):'',S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
 if(p.rp&&typeof rpCardWrap==='function')return rpCardWrap(p,det,{u,tm,aud,chips,mediaH,nLike,nC});
-const ext=!!(p.source||p.ext);const who=ext?'extauthor':'user';const srcL=p.sourceLabel||'';const srcMeta=ext?`<div class="fsrc"><span class="srclbl">${esc(srcL||(p.source==='hn'?'来自 HN':'来自 V2EX'))}</span>${p.sourceUrl?`<button type="button" class="srclnk" data-a="extlink" data-v="${esc(p.sourceUrl)}">查看原帖</button>`:''}</div>`:'';
-return `<article class="fcard${ext?' ext':''}" data-pid="${p.id}"${p.source?` data-src="${esc(p.source)}"`:''}><div class="fhd"><div data-a="${who}" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="${who}" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${ext?esc(srcL||aud):aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)&&txT?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(txT)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${srcMeta}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
+const ext=!!(p.source||p.ext);const who=ext?'extauthor':'user';const srcL=p.sourceLabel||'';const srcMeta=ext?`<div class="fsrc"><span class="srclbl">${esc(srcL||(typeof extSrcLabel==='function'?extSrcLabel(p):(p.source==='hn'?'来自 HN':'来自 V2EX')))}</span>${p.sourceUrl?`<button type="button" class="srclnk" data-a="extlink" data-v="${esc(p.sourceUrl)}">查看原帖</button>`:''}</div>`:'';
+return `<article class="fcard${ext?' ext':''}" data-pid="${p.id}"${p.source?` data-src="${esc(p.source)}"`:''}><div class="fhd"><div data-a="${who}" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="${who}" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${ext?esc(srcL||aud):aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)&&txT?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${typeof atrBody==='function'?atrBody('p:'+p.id,txT,p):esc(txT)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${srcMeta}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['co','共创','spark'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
 function riskNoticeText(id){
   const u=S.userView&&String(S.userView.id)===String(id)&&S.userView.user;
@@ -3629,9 +3653,12 @@ async function loadSearch(q){
    - 其他（举报处理结果、警告、全体通知、系统通知、评论点赞等）打开详情，显示完整标题、正文和时间。
    打开即标为已读。列表里标题最多 2 行、正文最多 3 行，完整内容在详情里。 */
 function notifFind(id){return (typeof nSrc==='function'?nSrc():D.n).find(x=>String(x.id)===String(id))}
+/* 2.0.7：AI 内部账号会发「转帖 repost / 收藏 save」通知（服务端标题是「有人转发了你的动态」），有发起人时显示成「昵称 转发了你的帖子」 */
+const NOTIF_ACT={repost:'转发了你的帖子',save:'收藏了你的帖子',favorite:'收藏了你的帖子'};
 function notifParts(n){
   if(!n)return {title:'',body:''};
-  if(n.title!=null||n.body!=null){const t=String(n.title||''),b=String(n.body||'');return t?{title:t,body:b}:{title:b,body:''}}
+  if(NOTIF_ACT[n.kind]&&n.actor&&typeof P==='function'){const u=P(n.actor);if(u&&u.n&&D.u&&D.u[n.actor])return {title:u.n+' '+NOTIF_ACT[n.kind],body:String(n.body||'')}}
+  if(n.title!=null||n.body!=null){const t=String(n.title||''),b=String(n.body||'');if(!t&&!b)return {title:NOTIF_ACT[n.kind]?'有人'+NOTIF_ACT[n.kind]:'新通知',body:''};return t?{title:t,body:b}:{title:b,body:''}}
   const x=String(n.x||'');const i=x.indexOf(' · ');return i>0?{title:x.slice(0,i),body:x.slice(i+3)}:{title:x,body:''};
 }
 function notifTime(n){return (typeof fmtTime==='function'&&n&&n.at)?fmtTime(n.at):(n&&n.t)||''}
@@ -3649,7 +3676,8 @@ function notifRoute(n){
 }
 function notifRow(n){
   const pr=notifParts(n);
-  return `<i class="${n.u?'':'z'}"></i><span class="gr ngr"><b class="nt">${esc(pr.title)}</b>${pr.body?`<span class="nb">${esc(pr.body)}</span>`:''}<small>${esc(notifTime(n))}</small></span><span class="nchev" aria-hidden="true">›</span>`;
+  const avh=n.actor&&D.u&&D.u[n.actor]&&typeof av==='function'?`<span class="nav">${av(n.actor,36)}</span>`:'';
+  return `<i class="${n.u?'':'z'}"></i>${avh}<span class="gr ngr"><b class="nt">${esc(pr.title)}</b>${pr.body?`<span class="nb">${esc(pr.body)}</span>`:''}<small>${esc(notifTime(n))}</small></span><span class="nchev" aria-hidden="true">›</span>`;
 }
 function notifDetail(n){
   if(!n)return '<h3>通知</h3><p class="em">这条通知已不存在</p><div class="fr"><button class="pb s" data-a="notif">返回通知</button></div>';
@@ -4563,7 +4591,7 @@ const base=src.filter(p=>S.feed=='rec'||S.feed=='topic'||p.a=='me'||fl.includes(
 const L=S.feed=='topic'&&!S.hotMode?base.filter(p=>(p.hashtags&&p.hashtags.length)||(p.x&&p.x.includes('#'))):base;
 /* r7：顶部一排只放「发日常」和有日常的人（日常独立于帖子，见 75_r7.js） */
 const stories=()=>typeof storyStrip==='function'?storyStrip():'';
-return `<div class="pg home"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1><button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
+return `<div class="pg home"><div class="top"><h1 class="br">${typeof brandTitle==='function'?brandTitle():'VEXO'}</h1>${typeof atrFab==='function'?atrFab():''}<button class="ib" data-a="compose" aria-label="发帖">${ic('plus')}</button><button class="ib" data-a="search" aria-label="搜索">${ic('search')}</button><button class="ib" data-a="notif" aria-label="通知">${ic('bell')}${(typeof nSrc==='function'?nSrc():D.n).some(n=>n.u)?'<i class="dot"></i>':''}</button></div>
 ${modeChip()}
 <div class="sc">
 <div class="hcol"><div class="hcoli">${stories()}
@@ -4635,7 +4663,7 @@ const acts=me?`<div class="fr"><button class="pb" data-a="panel">面板</button>
 const ov=`<div class="card" style="padding:12px 16px"><div class="fr" style="justify-content:space-between;padding:0"><b style="font-size:17px">总览</b>${me?'<button class="lk" data-a="edit" style="color:var(--ac)">查看全部</button>':''}</div>${IN.length?IN.map(x=>`<div class="ln2">${x}</div>`).join(''):'<small>还没有公开的资料</small>'}</div>`;
 const photoGrid=photos.length?`<div class="fmedia n2 prof-ph" style="margin:8px 0">${photos.flatMap(p=>(p.media||[]).map(m=>{const x=typeof mItem==='function'?mItem(m):(typeof m==='string'?{url:m}:m);const src=x.url?` src="${esc(x.url)}"`:x.id?` data-mid="${esc(x.id)}"`:'';if(!src)return '';return (typeof mKind==='function'&&mKind(x)==='video')?`<span class="mv" data-a="post" data-v="${p.id}"><video${src} muted playsinline preload="metadata"></video></span>`:`<img${src} alt="" data-a="post" data-v="${p.id}">`})).join('')}</div>`:'<p class="em">还没有照片或视频</p>';
 const body=tab==='photos'?photoGrid:`${ov}${fl.length?`<div class="card"><div class="fr" style="justify-content:space-between;padding:12px 16px 0"><b style="font-size:17px">好友 / 关注</b><button class="lk" data-a="fl" data-v="following|${id}" style="color:var(--ac)">查看全部</button></div><div class="ppl" style="border:0">${fl.map(i=>`<button data-a="user" data-v="${i}">${av(i,52)}<span>${esc(P(i).n)}</span></button>`).join('')}</div></div>`:''}${me?`<div class="comp"><span>${av('me',40)}</span><button class="p" data-a="compose">分享一下你的新鲜事</button></div>`:''}${posts.map(p=>pc(p)).join('')||'<p class="em">这里还没有内容</p>'}`;
-return `<div class="cvr tall${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${lookCss(pfCoverOf(me,id),cove(id))}"${lookMbg(pfCoverOf(me,id))}>${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,80)}${me?'<button class="cam avcam" data-a="cover" aria-label="更换头像" title="更换头像">'+(typeof icLine==='function'?icLine('camera'):'更换头像')+'</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="VEXO VIP 资料装饰"></span>':''}<h2 class="nmb nbc">${nmB(u)}</h2><div class="handle">@${u.h}</div>${u.b?`<p class="bio">${esc(u.b)}</p>`:''}<div class="sts r7"><span><b>${fmtCount(posts.length)}</b>帖子</span><button data-a="fl" data-v="followers|${id}"><b>${fmtCount(n(1))}</b>粉丝</button><button data-a="fl" data-v="following|${id}"><b>${fmtCount(n(0))}</b>关注</button></div>${acts}</div><div class="seg"><button data-a="mt" data-v="all" class="${tab=='all'||tab=='about'?'on':''}">全部</button><button data-a="mt" data-v="photos" class="${tab=='photos'?'on':''}">照片</button></div>${body}`};
+return `<div class="cvr tall${dec?' dec':''}"${dec?' data-dec="gold"':''} style="${lookCss(pfCoverOf(me,id),cove(id))}"${lookMbg(pfCoverOf(me,id))}>${me?'<button class="cam" data-a="cover">更换背景</button>':''}</div><div class="pf ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}><div class="avw ovl${dec?' dec':''}"${dec?' data-dec="gold"':''}>${av(id,80)}${me?'<button class="cam avcam" data-a="cover" aria-label="更换头像" title="更换头像">'+(typeof icLine==='function'?icLine('camera'):'更换头像')+'</button>':''}</div>${dec?'<span class="pdec" data-dec="gold" role="img" aria-label="VEXO VIP 资料装饰"></span>':''}<h2 class="nmb nbc">${nmB(u)}</h2><div class="handle">@${u.h}</div>${typeof internalTag==='function'?internalTag(id):''}${u.b?`<p class="bio">${esc(u.b)}</p>`:''}<div class="sts r7"><span><b>${fmtCount(posts.length)}</b>帖子</span><button data-a="fl" data-v="followers|${id}"><b>${fmtCount(n(1))}</b>粉丝</button><button data-a="fl" data-v="following|${id}"><b>${fmtCount(n(0))}</b>关注</button></div>${acts}</div><div class="seg"><button data-a="mt" data-v="all" class="${tab=='all'||tab=='about'?'on':''}">全部</button><button data-a="mt" data-v="photos" class="${tab=='photos'?'on':''}">照片</button></div>${body}`};
 const tMe=()=>`<div class="pg"><div class="top"><h1>@${P('me').h}</h1><button class="ib" data-a="go" data-v="set" aria-label="设置" style="font-size:14px;width:auto;padding:0 12px;border-radius:22px">设置</button></div><div class="sc">${prof('me')}</div></div>`;
 
 /* ===== 31_games.js ===== */
@@ -5703,7 +5731,7 @@ const cmts=id=>{
 };
 /* 回复某条评论后，展开它所在的一级评论 */
 function cmRootOf(cid){const all=(S.comments&&S.commentPost)?S.comments:D.c;let c=all.find(x=>x.id==cid),n=0;while(c&&c.pa&&n++<50){const up=all.find(x=>x.id==c.pa);if(!up)break;c=up}return c?c.id:cid}
-const ci=(c,depth)=>{const s=depth>=1,collapse=(c.depth!=null?c.depth:depth)>=2,rt=c.replyTo,who=rt&&(rt.author&&(rt.author.displayName||rt.author.username)||'');const hint=collapse&&who?`<span class="hint">回复 @${esc(who)}</span> `:((c.depth>=1||s)&&who&&depth>=2?`<span class="hint">回复 @${esc(who)}</span> `:'');const tm=typeof fmtTime==='function'&&c.at?fmtTime(c.at):(c.t||'');const ctx=!c.deleted&&typeof txSplit==='function'?txSplit(c.x):{t:c.x||'',imgs:[]};const cimg=ctx.imgs.length&&typeof mediaHTML==='function'?mediaHTML(ctx.imgs,0,''):'';const ctr=!c.deleted&&(ctx.t||'').trim()&&typeof trCan==='function'&&trCan();return `<div class="cm${s?' sub':''}" data-cid="${c.id}" data-depth="${c.depth||depth||0}">${c.ext||(c.a&&String(c.a).startsWith('ext:'))?`<span data-a="extauthor" data-v="${c.a}">${av(c.a,s?28:34)}</span>`:av(c.a,s?28:34)}<div class="gr"><div class="cb"><b class="nmb"${c.ext||(c.a&&String(c.a).startsWith('ext:'))?` data-a="extauthor" data-v="${c.a}"`:''}>${nmB(P(c.a))}</b> ${hint}${c.deleted?'<i style="color:var(--t3)">'+(esc(c.x)||'（已删除）')+'</i>':esc(ctx.t)}</div>${cimg?`<div class="cimg">${cimg}</div>`:''}${!c.deleted&&typeof trBox==='function'?trBox('c:'+c.id):''}${c.deleted&&!(c.replyCount)?`<small style="display:block;padding-left:4px">${tm}</small>`:`<small style="display:block;padding-left:4px">${tm}${c.deleted?'':` · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button> · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>${ctr?` · <button class="lk" data-a="trc" data-v="${c.id}">${trLabel('c:'+c.id)}</button>`:''}`}${c.a=='me'&&!c.deleted?` · <button class="lk dg" data-a="delc" data-v="${c.id}">删除</button>`:''}</small>`}</div></div>`};
+const ci=(c,depth)=>{const s=depth>=1,collapse=(c.depth!=null?c.depth:depth)>=2,rt=c.replyTo,who=rt&&(rt.author&&(rt.author.displayName||rt.author.username)||'');const hint=collapse&&who?`<span class="hint">回复 @${esc(who)}</span> `:((c.depth>=1||s)&&who&&depth>=2?`<span class="hint">回复 @${esc(who)}</span> `:'');const tm=typeof fmtTime==='function'&&c.at?fmtTime(c.at):(c.t||'');const ctx=!c.deleted&&typeof txSplit==='function'?txSplit(c.x):{t:c.x||'',imgs:[]};const cimg=(ctx.imgs.length&&typeof mediaHTML==='function'?mediaHTML(ctx.imgs,0,''):'')+(ctx.links&&ctx.links.length&&typeof lkCards==='function'?lkCards(ctx.links,c,true):'');const ctr=!c.deleted&&(ctx.t||'').trim()&&typeof trCan==='function'&&trCan();return `<div class="cm${s?' sub':''}" data-cid="${c.id}" data-depth="${c.depth||depth||0}">${c.ext||(c.a&&String(c.a).startsWith('ext:'))?`<span data-a="extauthor" data-v="${c.a}">${av(c.a,s?28:34)}</span>`:av(c.a,s?28:34)}<div class="gr"><div class="cb"><b class="nmb"${c.ext||(c.a&&String(c.a).startsWith('ext:'))?` data-a="extauthor" data-v="${c.a}"`:''}>${nmB(P(c.a))}</b> ${hint}${c.deleted?'<i style="color:var(--t3)">'+(esc(c.x)||'（已删除）')+'</i>':(typeof atrBody==='function'?atrBody('c:'+c.id,ctx.t,c):esc(ctx.t))}</div>${cimg?`<div class="cimg">${cimg}</div>`:''}${!c.deleted&&typeof trBox==='function'?trBox('c:'+c.id):''}${c.deleted&&!(c.replyCount)?`<small style="display:block;padding-left:4px">${tm}</small>`:`<small style="display:block;padding-left:4px">${tm}${c.deleted?'':` · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button> · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>${ctr?` · <button class="lk" data-a="trc" data-v="${c.id}">${trLabel('c:'+c.id)}</button>`:''}`}${c.a=='me'&&!c.deleted?` · <button class="lk dg" data-a="delc" data-v="${c.id}">删除</button>`:''}</small>`}</div></div>`};
 const inbar=(k,ph,btn,v,extra='')=>{if(Array.isArray(extra))return cbBar(k,ph,btn,v,extra);return `<div class="inrow">${extra}<textarea class="inta" rows="1" data-grow="5" enterkeyhint="enter" data-d="${k}" data-max="${k=='chin'?textLimit('chat'):k=='cmin'?textLimit('channel'):k=='cin'?280:textLimit('post')}" placeholder="${ph}" autocomplete="off"></textarea><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`};
 const pPost=id=>{const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==id)||D.p.find(x=>x.id==id)||(S.postCache&&S.postCache[String(id)]);if(!p)return sub('帖子')+'<p class="em">帖子不存在</p>';const all=typeof commentsOf==='function'?commentsOf(id):D.c;const rc=S.reply&&all.find(c=>c.id==S.reply);
 return `<div class="pg">${sub('帖子')}<div class="sc">${pc(p,1)}<div class="shd">评论</div>${cmts(id)}</div>${rc?`<div class="rt">回复 ${esc(P(rc.a).n)}<button class="lk" data-a="rpx">取消</button></div>`:''}${inbar('cin',rc?'写一条回复':'写一条评论','cs',id,typeof trInBtn==='function'?trInBtn(id):'')}</div>`};
@@ -5757,7 +5785,7 @@ const INF={privacy:['隐私','你可以选择谁能看到资料：所有人、�
 const pSet=()=>{const t=D.st.theme,r=D.st.rm,s=D.st.sound!==0,h=D.st.haptic!==0,acct=MODE==='account'&&SESSION&&SESSION.user,held=MODE==='demo'&&SESSION&&SESSION.user;
 const demoSwitch=(!demoDisabled()&&acct)?`<div class="row"><div class="gr"><b>切换到演示数据</b><small>和这个账号的本地内容分开保存，不会互相覆盖</small></div><button class="pb sm s" data-a="todemo">切换</button></div>`:'';
 const who=NET?(acct?`<div class="row"><div class="gr"><b>真实账号</b><small>@${esc(SESSION.user.username)} · ${esc(maskEmail(SESSION.user.email))}${SESSION.user.vip?' · VIP':''}</small></div><button class="pb sm" data-a="logout">退出</button></div>`+demoSwitch:`<div class="row"><div class="gr"><b>${held?'演示数据（登录还在）':'演示数据'}</b><small>${held?'@'+esc(SESSION.user.username)+' 还登录着，可以回去':'未登录。内容只存在这台设备'}</small></div><button class="pb sm" data-a="toacct">${held?'回到账号':'登录'}</button></div>`):(demoDisabled()?`<div class="row"><div class="gr"><b>无法连接服务器</b><small>当前版本未开放本机演示。</small></div><button class="pb sm" data-a="retryconnect">重试</button></div>`:`<div class="row"><div class="gr"><b>当前是离线演示</b><small>没有连上服务器，所以不能登录。数据只在这台设备。</small></div></div>`);
-return `<div class="pg">${sub('设置')}<div class="sc"><div class="shd">账号</div>${who}${typeof friendsRow==="function"?friendsRow():""}${vipRow()}${savedRow()}<div class="shd">外观与手感</div><div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button><button class="pb${t=='system'?'':' s'}" data-a="theme" data-v="system">跟随系统</button></div></div><div class="row"><div class="gr"><b>语言</b><small>只切换界面文字，用户发的内容不翻译</small></div><div class="sw" data-ut="1"><button class="pb${LANG==='zh'?'':' s'}" data-a="setlang" data-v="zh">简体中文</button><button class="pb${LANG==='en'?'':' s'}" data-a="setlang" data-v="en">English</button></div></div>${typeof uiSizeRow==='function'?uiSizeRow():''}${typeof skinRow==='function'?skinRow():''}<div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div><div class="shd">隐私与安全</div><button class="row" style="width:100%;text-align:left" data-a="priv" id="privrow"><div class="gr"><b>隐私</b><small>资料可见、好友请求等，保存在服务器</small></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="sec" id="secrow"><div class="gr"><b>账号安全</b><small>修改密码、登录设备、退出其他设备</small></div><small>›</small></button><div class="shd">关于</div><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="privacy"><div class="gr"><b>隐私政策</b></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="terms"><div class="gr"><b>用户协议</b></div><small>›</small></button>${['help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>版本</b><small>当前运行的应用版本</small></div><small>${esc(typeof runningAppVersion==='function'?runningAppVersion():'')}</small></div><div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>VEXO</b><small style="display:block;margin-top:5px">${acct?'已登录。动态、社区和聊天会保存在账号里。':'演示内容只存在这台设备。'}一对一聊天会加密。群聊暂时还没有加密。</small></div></div></div>`};
+return `<div class="pg">${sub('设置')}<div class="sc"><div class="shd">账号</div>${who}${typeof friendsRow==="function"?friendsRow():""}${vipRow()}${savedRow()}<div class="shd">外观与手感</div><div class="row"><div class="gr"><b>外观</b></div><div class="sw"><button class="pb${t=='dark'?'':' s'}" data-a="theme" data-v="dark">深色</button><button class="pb${t=='light'?'':' s'}" data-a="theme" data-v="light">浅色</button><button class="pb${t=='system'?'':' s'}" data-a="theme" data-v="system">跟随系统</button></div></div><div class="row"><div class="gr"><b>语言</b><small>只切换界面文字，用户发的内容不翻译</small></div><div class="sw" data-ut="1"><button class="pb${LANG==='zh'?'':' s'}" data-a="setlang" data-v="zh">简体中文</button><button class="pb${LANG==='en'?'':' s'}" data-a="setlang" data-v="en">English</button></div></div>${typeof uiSizeRow==='function'?uiSizeRow():''}${typeof skinRow==='function'?skinRow():''}${typeof atrRow==='function'?atrRow():''}${typeof intRow==='function'?intRow():''}<div class="row"><div class="gr"><b>减少动态效果</b><small>尊重系统偏好，关闭页面转场动画</small></div><button class="pb${r?'':' s'}" data-a="rm" aria-pressed="${!!r}">${r?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键音效</b><small>轻柔的点击、切换和发送提示音</small></div><button class="pb${s?'':' s'}" data-a="sound" aria-pressed="${s}">${s?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>按键震动</b><small>${esc(FEEL.cap())}</small></div><button class="pb${h?'':' s'}" data-a="haptic" aria-pressed="${h}">${h?'已开启':'已关闭'}</button></div><div class="row"><div class="gr"><b>试一试手感</b><small>点一下，听声音、感受震动</small></div><button class="pb sm s" data-a="feeltest">试一下</button></div><div class="shd">隐私与安全</div><button class="row" style="width:100%;text-align:left" data-a="priv" id="privrow"><div class="gr"><b>隐私</b><small>资料可见、好友请求等，保存在服务器</small></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="sec" id="secrow"><div class="gr"><b>账号安全</b><small>修改密码、登录设备、退出其他设备</small></div><small>›</small></button><div class="shd">关于</div><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="privacy"><div class="gr"><b>隐私政策</b></div><small>›</small></button><button class="row" style="width:100%;text-align:left" data-a="legal" data-v="terms"><div class="gr"><b>用户协议</b></div><small>›</small></button>${['help','about'].map(k=>`<button class="row" style="width:100%;text-align:left" data-a="go" data-v="info:${k}"><div class="gr"><b>${INF[k][0]}</b></div></button>`).join('')}<div class="row"><div class="gr"><b>版本</b><small>当前运行的应用版本</small></div><small>${esc(typeof runningAppVersion==='function'?runningAppVersion():'')}</small></div><div class="row"><div class="gr"><b>重置当前数据</b><small>只清现在这个身份在本机的帖子和消息，不影响另一个身份，也不删除服务器账号</small></div><button class="pb sm d" data-a="resetq">重置</button></div><div class="card" style="padding:12px 16px;margin:8px 0"><b>VEXO</b><small style="display:block;margin-top:5px">${acct?'已登录。动态、社区和聊天会保存在账号里。':'演示内容只存在这台设备。'}一对一聊天会加密。群聊暂时还没有加密。</small></div></div></div>`};
 const pInfo=k=>{const ver=(k==='about'&&typeof runningAppVersion==='function')?('\n\n版本 '+runningAppVersion()):'';return `<div class="pg">${sub(INF[k][0])}<div class="sc"><p style="padding:16px;white-space:pre-line">${INF[k][1]}${ver?esc(ver):''}</p></div></div>`};
 const pLegal=k=>{const d=(S.legal&&S.legal[k])||{};const title=d.title||(k==='terms'?'用户协议':'隐私政策');const body=d.body||'正在加载…';return `<div class="pg">${sub(esc(title))}<div class="sc"><p class="hint" style="padding:16px 16px 0">${d.effectiveDate?esc('生效日期：'+d.effectiveDate)+' · ':''}${d.version?esc('版本 '+d.version):''}</p><div style="padding:16px;white-space:pre-wrap;font-size:14px;line-height:1.65">${esc(body)}</div></div></div>`};
 
@@ -5788,7 +5816,7 @@ const U=Object.keys(D.u).filter(i=>(P(i).n+P(i).h).toLowerCase().includes(q)),Po
 return U.length+Po.length+C.length?U.map(i=>`<div class="row" style="padding:8px 0" data-a="user" data-v="${i}">${av(i,40)}<div class="gr"><b>${esc(P(i).n)}</b><small>@${P(i).h}</small></div></div>`).join('')+C.map(c=>`<div class="row" style="padding:8px 0" data-a="cm" data-v="${c.id}">${cmface(c,40)}<div class="gr"><b>${esc(c.n)}</b><small>社区 · ${esc(c.d)}</small></div></div>`).join('')+Po.map(p=>`<div class="row" style="padding:8px 0" data-a="post" data-v="${p.id}">${av(p.a,40)}<div class="gr"><b>${esc(P(p.a).n)}</b><small>${esc(p.x)}</small></div></div>`).join(''):'<p class="em">没有匹配结果</p>'};
 const sheet=()=>{const s=S.sh;if(!s)return '';let h='',full=0;
 if(s.t=='rx')h=`<h3>表态</h3><div class="rxs">${E.map((e,i)=>`<button data-a="rxp" data-v="${s.id}|${i}" aria-label="${e}">${e}</button>`).join('')}</div>`;
-if(s.t=='more'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);h=`${p&&p.x&&typeof trCan==='function'&&trCan()?`<button class="mi" data-a="trp" data-v="${s.id}">${trLabel('p:'+s.id)}</button>`:''}<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="savp" data-v="${s.id}">${isSaved('post',s.id)?'取消收藏':'收藏（仅自己可见）'}</button><button class="mi" data-a="reportp" data-v="${s.id}">举报</button>${p&&p.a=='me'&&typeof boostCan==='function'&&boostCan(p)?`<button class="mi" data-a="boostopen" data-v="${s.id}">🚀 推流加热</button>`:''}${p&&p.a=='me'?`<button class="mi" data-a="edp" data-v="${s.id}">编辑</button><button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
+if(s.t=='more'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);h=`${p&&p.x&&typeof trCan==='function'&&trCan()?`<button class="mi" data-a="trp" data-v="${s.id}">${trLabel('p:'+s.id)}</button>`:''}<button class="mi" data-a="copy" data-v="${s.id}">复制正文</button><button class="mi" data-a="savp" data-v="${s.id}">${isSaved('post',s.id)?'取消收藏':'收藏（仅自己可见）'}</button>${typeof niItems==='function'?niItems(p):''}<button class="mi" data-a="reportp" data-v="${s.id}">举报</button>${p&&p.a=='me'&&typeof boostCan==='function'&&boostCan(p)?`<button class="mi" data-a="boostopen" data-v="${s.id}">🚀 推流加热</button>`:''}${p&&p.a=='me'?`<button class="mi" data-a="edp" data-v="${s.id}">编辑</button><button class="mi dg" data-a="delp" data-v="${s.id}">删除这条帖子</button>`:''}`}
 if(s.t=='edp'){const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==s.id)||D.p.find(x=>x.id==s.id);S.d.ep=p?p.x:'';h=`<h3>编辑动态</h3><textarea class="fld" data-d="ep" data-max="${textLimit('post')}" data-af rows="5"></textarea><div class="fr"><span class="cn" data-cnt="ep"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="savep" data-v="${s.id}" data-for="ep">保存</button></div>`}
 if(s.t=='compose')h=`<h3>发帖</h3><textarea class="fld" data-d="pin" data-max="${textLimit('post')}" data-af rows="5" placeholder="写点什么"></textarea><div class="fr"><span class="cn" data-cnt="pin"></span><button class="pb s" data-a="x">取消</button><button class="pb" data-a="pub" data-for="pin" disabled>发布</button></div>`;
 if(s.t=='aud'){const cur=(S.comp&&S.comp.aud)||'public';const opts=[['public','公开','所有人可见'],['followers','仅粉丝','关注你的人可见'],['friends','仅好友','仅互为好友的人可见'],['self','仅自己','只自己能看']];h=`<h3>选择受众</h3><div class="audlist">${opts.map(([k,n,d])=>`<button data-a="setaud" data-v="${k}" class="${cur==k?'on':''}"><div class="gr"><b>${n}</b><small>${d}</small></div>${cur==k?'✓':''}</button>`).join('')}</div>`}
@@ -5797,7 +5825,7 @@ if(s.t=='loc'){if(S._locKeep)S._locKeep=0;else{S.d.locin=(S.comp&&S.comp.loc)||S
 if(s.t=='tagfr'){const ids=typeof pickPeople==='function'?pickPeople((S.comp&&S.comp.tags)||[]):[];const sel=new Set(((S.comp&&S.comp.tags)||[]).map(String));h=`<h3>标记好友</h3>`+(ids.length?ids.map(i=>`<button class="row" style="width:100%;text-align:left" data-a="togtag" data-v="${i}">${av(i,40)}<div class="gr"><b>${esc(P(i).n)}</b><small>@${esc(P(i).h)}</small></div>${sel.has(String(i))?'✓':''}</button>`).join('')+'<div class="fr"><button class="pb" data-a="x">完成</button></div>':'<p class="em">'+(S.tagLoading?'正在加载好友…':'还没有可标记的好友。互相加为好友后就能标记。')+'</p><div class="fr"><button class="pb s" data-a="x">关闭</button></div>')}
 
 if(s.t=='search')h=`<input class="fld" id="sq" data-af placeholder="搜索" value="${esc(S.sq)}"><div id="sr">${srch(S.sq)}</div>`;
-if(s.t=='notif'){const ns=notifShown();h='<h3>通知</h3>'+(ns.list.length?ns.list.map(n=>swrow(`data-a="nr" data-v="${n.id}"`,notifRow(n),[['nrtog',n.u?'标为已读':'标为未读','#2D88FF',n.id],['nrdel','删除','#D4655A',n.id]],'nr')).join('')+(ns.more?notifMoreRow():''):'<p class="em">没有通知</p>')+'<p class="lab" style="padding-top:8px">提示：点一下查看详情，左滑可标为已读/删除</p>'}
+if(s.t=='notif'){const ns=notifShown();const nun=(typeof nSrc==='function'?nSrc():D.n||[]).some(n=>n.u)||(S.notifUnread>0);h='<div class="nrhd"><h3>通知</h3>'+(nun?'<button type="button" class="nrall" data-a="nrall">全部已读</button>':'')+'</div>'+(ns.list.length?ns.list.map(n=>swrow(`data-a="nr" data-v="${n.id}"`,notifRow(n),[['nrtog',n.u?'标为已读':'标为未读','#2D88FF',n.id],['nrdel','删除','#D4655A',n.id]],'nr')).join('')+(ns.more?notifMoreRow():''):'<p class="em">没有通知</p>')+'<p class="lab" style="padding-top:8px">提示：点一下查看详情，左滑可标为已读/删除</p>'}
 if(s.t=='cmgone'){const can=s.isOwner&&s.appealable,pending=s.isOwner&&s.appealStatus==='pending',reason=s.reason?`<p class="hint">原因：${esc(s.reason)}</p>`:'',btn=can?`<button class="pb" data-a="cmapform" data-v="${esc(String(s.id||''))}">申诉</button>`:(pending?'<button class="pb s" disabled>已提交申诉</button>':'');h=`<h3>无法打开社区</h3><p class="hint" style="white-space:pre-wrap;line-height:1.6">${esc(s.msg||'')}</p>${reason}<div class="fr">${btn}<button class="pb${btn?' s':''}" data-a="x">知道了</button></div>`}
 if(s.t=='cmappeal')h=typeof cmAppealForm==='function'?cmAppealForm(s):'';
 if(s.t=='nappeal')h=typeof notifAppealForm==='function'?notifAppealForm(s.id):'';
@@ -5848,7 +5876,7 @@ if(s.t=='fwd'){
 if(s.t=='cmedit')h=`<h3>编辑小组资料</h3><input class="fld" data-d="cmn" data-af placeholder="名称（2–20 字）"><textarea class="fld" data-d="cmd" data-max="80" rows="3" placeholder="简介（最多 80 字）"></textarea><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="cmedit2" data-v="${s.id}">保存</button></div>`;
 if(s.t=='gnick')h=`<h3>我在本群的昵称</h3><p class="lab" style="margin-bottom:8px">只在这个群里显示，不影响账号名。</p><input class="fld" data-d="gnick" data-af placeholder="最多 20 个字，留空则使用账号名"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="gnick2" data-v="${s.id}">保存</button></div>`;
 if(s.t=='gdis'){const gc=typeof cvf==='function'?cvf(s.id):null;h=`<h3>解散这个群聊？</h3><p style="color:var(--t2);margin-bottom:8px">${gc&&gc.projectId?'所有成员将被移出项目群聊，此操作不可撤销。项目本身不会取消，但之后不再有项目群聊。':'所有成员将被移出，此操作不可撤销。'}</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="gdis2" data-v="${s.id}">解散群聊</button></div>`;}
-if(!h&&typeof v207Sheet==='function')h=v207Sheet(s)||'';
+if(!h&&typeof v207Sheet==='function')h=v207Sheet(s)||'';if(!h&&typeof intSheet==='function')h=intSheet(s)||'';
 if(!h&&typeof v2Sheet==='function')h=v2Sheet(s)||'';
 if(!h&&typeof r7Sheet==='function')h=r7Sheet(s)||'';
 return `<div class="ov" data-a="x"></div><div class="pn${full?' full':''}" role="dialog">${h}</div>`};
@@ -6291,7 +6319,7 @@ const cvDrop=id=>{D.cv=D.cv.filter(c=>c.id!=id);delete D.m[id];if(Array.isArray(
 const gx=id=>{cvDrop(id);S.sh=null;T('已退出群聊')};
 const cvf=v=>(typeof cvSrc==='function'?cvSrc():D.cv).find(c=>c.id==v);
 const A={tab:v=>{const again=v=='home'&&S.tab=='home'&&!(S.st&&S.st.length)&&!S.sh;S.tab=v;S.st=[];S.sh=null;S.reply=null;const after=()=>{if(typeof render==='function')render()};if(v=='home'&&again)S.ptr=1;if(v=='home'&&typeof usingNet==='function'&&usingNet()&&typeof refreshFeedSafe==='function')refreshFeedSafe();if(v=='cm'&&typeof usingNet==='function'&&usingNet()&&typeof loadCommunities==='function')loadCommunities().then(after);if(v=='co'&&typeof coLoad==='function')coLoad().then(after);if(v=='me'&&typeof usingNet==='function'&&usingNet()&&typeof loadFollows==='function')loadFollows().then(after);if(v=='chat'&&typeof usingNet==='function'&&usingNet()){const jobs=[];if(typeof loadConversations==='function')jobs.push(loadConversations());if(typeof loadFriends==='function')jobs.push(loadFriends());if(typeof loadMsgRequests==='function')jobs.push(loadMsgRequests());Promise.all(jobs).then(after)}},go:v=>{S.st.push(v);S.sh=null},back:()=>{S.st.pop();S.reply=null},x:()=>{S.sh=null},morefeed:()=>typeof loadMoreFeed==='function'&&loadMoreFeed(),newposts:()=>{if(typeof applyFeedPending==='function')applyFeedPending();S.ptr=1},feed:v=>{S.feed=v;if(typeof usingNet==='function'&&usingNet()&&typeof loadFeed==='function')return loadFeed()},
-user:v=>{if(v&&(String(v).startsWith('ext:')||(typeof findExtPost==='function'&&findExtPost(v))))return A.extauthor(v);if(v=='me'){S.tab='me';S.st=[];S.sh=null}else{A.go('user:'+v);if(typeof loadUserCard==='function')return loadUserCard(v).then(()=>{if(typeof render==='function')render()})}},extauthor:v=>{const id=String(v||'');const u=typeof P==='function'?P(id):null;const name=u&&u.n?u.n:id.replace(/^ext:[^:]+:/,'');const post=(S.posts||[]).concat(Object.values(S.postCache||{})).find(p=>String(p.a)===id||(p.source&&('ext:'+p.source+':')===id.slice(0,id.lastIndexOf(':')+1)));const lab=(post&&post.sourceLabel)||(id.startsWith('ext:hn:')?'来自 HN':id.startsWith('ext:v2ex:')?'来自 V2EX':'外部作者');const url=post&&post.sourceUrl;T(name+' · '+lab);if(url){S._extUrl=url} },extlink:v=>{const url=String(v||S._extUrl||'');if(!url)return;try{if(typeof window!=='undefined'&&window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Browser)return window.Capacitor.Plugins.Browser.open({url});}catch(e){}if(typeof window!=='undefined')window.open(url,'_blank','noopener');},post:v=>{A.go('post:'+v);if(typeof usingNet==='function'&&usingNet())return loadComments(v)},
+user:v=>{if(v&&(String(v).startsWith('ext:')||(typeof findExtPost==='function'&&findExtPost(v))))return A.extauthor(v);if(v=='me'){S.tab='me';S.st=[];S.sh=null}else{A.go('user:'+v);if(typeof loadUserCard==='function')return loadUserCard(v).then(()=>{if(typeof render==='function')render()})}},extauthor:v=>{const id=String(v||'');const u=typeof P==='function'?P(id):null;const name=u&&u.n?u.n:id.replace(/^ext:[^:]+:/,'');const post=(S.posts||[]).concat(Object.values(S.postCache||{})).find(p=>String(p.a)===id||(p.source&&('ext:'+p.source+':')===id.slice(0,id.lastIndexOf(':')+1)));const lab=(post&&post.sourceLabel)||(typeof extSrcLabel==='function'&&/^ext:[^:]+:/.test(id)?extSrcLabel({source:id.split(':')[1]}):(id.startsWith('ext:hn:')?'来自 HN':id.startsWith('ext:v2ex:')?'来自 V2EX':'外部作者'));const url=post&&post.sourceUrl;T(name+' · '+lab);if(url){S._extUrl=url} },extlink:v=>{const url=String(v||S._extUrl||'');if(!url)return;try{if(typeof window!=='undefined'&&window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Browser)return window.Capacitor.Plugins.Browser.open({url});}catch(e){}if(typeof window!=='undefined')window.open(url,'_blank','noopener');},post:v=>{A.go('post:'+v);if(typeof usingNet==='function'&&usingNet())return loadComments(v)},
 rx:v=>{S.sh={t:'rx',id:v}},rxp:v=>{const[i,j]=v.split('|'),k=+j,apply=(p,r,m)=>{if(!p)return;p.r=r||p.r;p.m=m};const loc=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==i)||D.p.find(x=>x.id==i);if(MODE==='account'&&NET&&SESSION)return api('POST','/api/posts/'+i+'/react',{index:k}).then(r=>{if(r.s!==200){T(errMsg(r,'表态失败'));return}apply(loc,r.j.reactions,r.j.myReaction);S.sh=null});if(!loc)return;if(loc.m==k){loc.r[k]--;loc.m=-1}else{if(loc.m>=0)loc.r[loc.m]--;loc.r[k]++;loc.m=k}S.sh=null},
 more:v=>{S.sh={t:'more',id:v}},copy:v=>{const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==v)||D.p.find(x=>x.id==v);try{navigator.clipboard.writeText(p?p.x:'').catch(()=>{})}catch(e){}S.sh=null;T('已复制')},report:()=>{S.sh=null;T('已记录（仅演示，不会发送给任何人）')},edp:v=>{S.sh={t:'edp',id:v}},
 delp:v=>{const go=()=>{if(typeof repostForget==='function')repostForget(v);D.p=D.p.filter(p=>p.id!=v);D.c=D.c.filter(c=>c.p!=v);if(S.posts)S.posts=S.posts.filter(p=>p.id!=v);S.sh=null;if(S.st[S.st.length-1]=='post:'+v)S.st.pop();T('已删除')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/posts/'+v+'/delete',{}).then(r=>{if(r.s!==200){T(errMsg(r,'无法删除'));return}go()});go()},savep:v=>{const x=(S.d.ep||'').trim(),mx=textLimit('post');if(!ok(x,mx))return T('动态最多 '+mx+' 字');const apply=p=>{const L=typeof feedSrc==='function'?feedSrc():D.p;const it=L.find(i=>i.id==v);if(it){it.x=x;it.edited=1}const loc=D.p.find(i=>i.id==v);if(loc)loc.x=x;S.sh=null;T('已保存')};if(MODE==='account'&&NET&&SESSION)return api('POST','/api/posts/'+v+'/edit',{text:x}).then(r=>{if(r.s!==200){T(errMsg(r,'保存失败'));return}apply(r.j.post)});apply()},
@@ -6757,14 +6785,14 @@ function rpEmbed(p,det){
   const o=findPost(r.id);if(!o)return `<div class="rpc del"><span>原帖已删除</span></div>`;
   const u=P(o.a),tm=typeof fmtTime==='function'&&o.at?fmtTime(o.at):(o.t||'');
   const otx=typeof txSplit==='function'?txSplit(o.x):{t:o.x||'',imgs:[]};
-  const media=typeof mediaHTML==='function'?mediaHTML((Array.isArray(o.media)?o.media:[]).concat(otx.imgs),false,o.id):'';
-  const srcL=o.sourceLabel||'';
-  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${otx.t?`<div class="rpx${det?'':' clamp'}">${esc(otx.t)}</div>`:''}${media}</div>`;
+  const media=(typeof mediaHTML==='function'?mediaHTML((Array.isArray(o.media)?o.media:[]).concat(otx.imgs),false,o.id):'')+(typeof lkCards==='function'?lkCards(otx.links,o,false):'');
+  const srcL=o.sourceLabel||(o.source&&typeof extSrcLabel==='function'?extSrcLabel(o):'');
+  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${otx.t?`<div class="rpx${det?'':' clamp'}">${typeof atrBody==='function'?atrBody('p:'+o.id,otx.t,o):esc(otx.t)}</div>`:''}${media}</div>`;
 }
 function rpCardWrap(p,det,k){
   const plain=!(p.x||'').trim();
   const ptx=typeof txSplit==='function'?txSplit(p.x):{t:p.x||'',imgs:[]};
-  const body=plain||!ptx.t?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(ptx.t)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
+  const body=plain||!ptx.t?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${typeof atrBody==='function'?atrBody('p:'+p.id,ptx.t,p):esc(ptx.t)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
   const head=plain
     ?`<div class="rptop"><span data-a="user" data-v="${p.a}">${xic('rt')}<b>${esc(p.a==='me'?'你':k.u.n)}</b> 转帖了</span><small>${esc(k.tm)}</small><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`
     :`<div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(k.u)}</b><small>${esc(k.tm)}${k.tm?' · ':''}${k.aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`;
@@ -8243,13 +8271,15 @@ function txIsImg(u){try{const x=new URL(u);if(!/^https?:$/.test(x.protocol))retu
 const TX_CACHE=new Map();
 function txSplit(text){
   const s=String(text==null?'':text);
-  if(!/https?:\/\//i.test(s))return {t:s,imgs:[]};
+  if(!/https?:\/\//i.test(s))return {t:s,imgs:[],links:[]};
   const hit=TX_CACHE.get(s);if(hit)return hit;
-  const imgs=[];const add=u=>{if(!imgs.includes(u)&&imgs.length<9)imgs.push(u)};
+  const imgs=[],links=[];const add=u=>{if(!imgs.includes(u)&&imgs.length<9)imgs.push(u)};const addL=u=>{if(!links.includes(u))links.push(u)};
   let t=s.replace(/!\[[^\]\n]*\]\(\s*<?(https?:\/\/[^\s)>]+)>?(?:\s+"[^"]*")?\s*\)/gi,(m,u)=>{add(u);return ''});
-  t=t.replace(/(^|[\s(（\[【:：])(https?:\/\/[^\s<>"'）)\]】，。；！？、]+)/gi,(m,pre,u)=>{const clean=u.replace(/[.,;!?，。；！？、]+$/,'');if(!txIsImg(clean))return m;add(clean);return pre+u.slice(clean.length)});
+  t=t.replace(/(^|[\s(（\[【:：])(https?:\/\/[^\s<>"'）)\]】，。；！？、]+)/gi,(m,pre,u)=>{const clean=u.replace(/[.,;!?，。；！？、]+$/,'');if(!txIsImg(clean)){/* J（2.0.7）：普通链接也从正文拿掉，改成下方的链接卡片 */addL(clean);return pre+u.slice(clean.length)}add(clean);return pre+u.slice(clean.length)});
+  /* Markdown 普通链接 [文字](url)：保留文字，链接放进卡片 */
+  t=t.replace(/\[([^\]\n]+)\]\(\s*(https?:\/\/[^\s)]+)\s*\)/gi,(m,txt,u)=>{addL(u);return txt});
   t=t.replace(/[(（]\s*[)）]/g,'').replace(/\[\s*\]/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
-  const out={t,imgs};
+  const out={t,imgs,links};
   if(TX_CACHE.size>500)TX_CACHE.delete(TX_CACHE.keys().next().value);
   TX_CACHE.set(s,out);return out;
 }
@@ -8353,6 +8383,280 @@ function feedAutoTick(){
   }catch(e){}
 }
 if(typeof window!=='undefined'&&!window.__vexoFeedAuto){window.__vexoFeedAuto=setInterval(feedAutoTick,FEED_AUTO_MS)}
+
+/* ---------- L. 通知「全部已读」（服务端已有 POST /api/notifications/read-all） ---------- */
+Object.assign(A,{
+  nrall:async()=>{
+    const L=typeof nSrc==='function'?nSrc():(D.n||[]);
+    L.forEach(n=>{n.u=0});S.notifUnread=0;
+    if(typeof usingNet==='function'&&usingNet()&&SESSION){
+      const r=await api('POST','/api/notifications/read-all',{});
+      if(r.s!==200){T(errMsg(r,'操作失败，请稍后再试'));}
+      else T('已全部标为已读');
+      if(typeof loadNotifications==='function')await loadNotifications();
+    }else{if(typeof save==='function')save();T('已全部标为已读')}
+  },
+});
+
+/* ---------- J. 正文链接 → 预览卡片 ----------
+   服务端以后在帖子上返回 linkPreview（或 linkPreviews[]）：{url,title,description,image,siteName}，有就显示标题、摘要、缩略图；
+   没有时显示紧凑卡片：网站图标 + 域名 + 路径。点卡片用应用内浏览器打开。 */
+function lkHost(u){try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}}
+function lkPath(u){try{const x=new URL(u);let p=decodeURIComponent(x.pathname+(x.search||'')).replace(/\/$/,'');return p.length>48?p.slice(0,46)+'…':p}catch(e){return ''}}
+function lkPrevOf(p,u){
+  if(!p)return null;
+  const L=[].concat(p.linkPreviews||[],p.linkPreview||[],p.preview||[],p.og||[]).filter(x=>x&&typeof x==='object');
+  return L.find(x=>x.url===u)||(L.length===1&&!L[0].url?L[0]:null)||null;
+}
+function lkCards(links,p,det){
+  if(!links||!links.length)return '';
+  return '<div class="lkcs">'+links.slice(0,det?3:1).map(u=>{
+    const h=lkHost(u);if(!h)return '';
+    const pv=lkPrevOf(p,u)||{};
+    const fav='https://'+h+'/favicon.ico',fb=typeof extLetterAv==='function'?extLetterAv(h):'';
+    const img=pv.image&&/^https?:/i.test(pv.image)?`<img class="lkimg" src="${esc(pv.image)}" referrerpolicy="no-referrer" alt="" loading="lazy" data-fb="${esc(fb)}">`:'';
+    const title=pv.title?esc(String(pv.title).slice(0,120)):esc(lkPath(u)||h);
+    return `<button type="button" class="lkc${img?' big':''}" data-a="extlink" data-v="${esc(u)}" aria-label="打开链接 ${esc(h)}">${img}<span class="lkb"><span class="lkh"><img class="lkfav" src="${esc(fav)}" referrerpolicy="no-referrer" alt="" loading="lazy" data-fb="${esc(fb)}"><span>${esc(pv.siteName||h)}</span></span><span class="lkt">${title}</span>${pv.description?`<span class="lkd">${esc(String(pv.description).slice(0,160))}</span>`:''}</span><span class="lkgo" aria-hidden="true">›</span></button>`;
+  }).join('')+'</div>';
+}
+
+/* ===== 79g_v207b.js ===== */
+/* ===== VEXO 2.0.7（续）=====
+   1. 来源标签通用化：「来自 X」优先用服务器给的 sourceLabel / sourceName / origin.name，没有时按来源代码查表，最后直接显示代码。
+   2. 自动翻译（K）：设置里或首页顶栏「译」打开后，外文帖子/评论滑进屏幕时自动翻译成中文（界面英文时翻成英文）。
+      - 只翻进入视口的内容；多条合并成一次请求（≤8 条或约 1800 字，用 [[n]] 分隔），解析失败退回逐条；
+      - 结果存在本机（按 id+内容摘要），同一条不重复请求；服务器若已返回 translations.zh / trZh 直接用；
+      - 客户端自限每小时 40 次自动请求（服务器上限 60/小时，给手动翻译留余量），遇到 429 暂停 10 分钟；
+      - 每条显示「已翻译 · 查看原文」，可随时切回。 */
+
+/* ---------- 1. 来源标签 ---------- */
+const SRC_NAMES={hn:'HN',hackernews:'HN',v2ex:'V2EX',sspai:'少数派',ithome:'IT之家',juejin:'掘金',solidot:'Solidot',github:'GitHub Trending','github-trending':'GitHub Trending',githubtrending:'GitHub Trending',gh_trending:'GitHub Trending',producthunt:'Product Hunt','product-hunt':'Product Hunt',ph:'Product Hunt',bilibili:'B站热门',bili:'B站热门',panews:'PANews',cointelegraph:'Cointelegraph',gcores:'机核',ign:'IGN',wallstreetcn:'华尔街见闻',wscn:'华尔街见闻'};
+function extSrcName(p){p=p||{};const o=p.origin;return p.sourceName||p.originName||(o&&typeof o==='object'?(o.label||o.name):'')||SRC_NAMES[String(p.source||'').toLowerCase()]||String(p.source||'')}
+function extSrcLabel(p){p=p||{};if(p.sourceLabel)return p.sourceLabel;if(p.origin&&p.origin.label)return p.origin.label;const n=extSrcName(p);return n?'来自 '+n:''}
+
+/* ---------- 2. 自动翻译 ---------- */
+const ATR_KEY='vexo_atr_on',ATR_CACHE='vexo_atr_cache_v1',ATR_CALLS='vexo_atr_calls',ATR_MAX=1500,ATR_HOURLY=40;
+const ATR={pend:new Set(),q:[],busy:0,orig:new Set(),src:new Map(),fail:new Set(),pauseUntil:0,timer:0};
+function atrOn(){try{return localStorage.getItem(ATR_KEY)==='1'}catch(e){return false}}
+function atrTo(){return typeof LANG!=='undefined'&&LANG==='en'?'en':'zh'}
+let ATRC=null,ATRS=0;
+function atrC(){if(!ATRC){try{ATRC=JSON.parse(localStorage.getItem(ATR_CACHE)||'{}')||{}}catch(e){ATRC={}}}return ATRC}
+function atrSave(){clearTimeout(ATRS);ATRS=setTimeout(()=>{const c=atrC(),ks=Object.keys(c);if(ks.length>ATR_MAX)ks.slice(0,ks.length-ATR_MAX).forEach(k=>delete c[k]);try{localStorage.setItem(ATR_CACHE,JSON.stringify(c))}catch(e){}},300)}
+function atrHash(s){s=String(s);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)+s.length.toString(36)}
+/* 需要翻译吗：去掉链接/@/# 后，目标是中文时汉字占比 <30% 且有拉丁/其他文字；目标是英文时含汉字才翻 */
+function atrNeed(text){
+  const t=String(text||'').replace(/https?:\/\/\S+/g,'').replace(/[@#][^\s#@]+/g,'').replace(/[\s\d\p{P}\p{S}]/gu,'');
+  if(t.length<2)return false;
+  const cjk=(t.match(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g)||[]).length;
+  const han=(t.match(/[\u3400-\u9fff\uf900-\ufaff]/g)||[]).length;
+  if(atrTo()==='en')return han>0;
+  return han/t.length<.3&&(t.length-cjk>=2||cjk>han);
+}
+function atrSrv(obj){if(!obj)return '';const to=atrTo(),tr=obj.translations;return (tr&&typeof tr==='object'&&tr[to])||(to==='zh'?obj.trZh:obj.trEn)||''}
+function atrCk(k,text){return atrTo()+'|'+k+'|'+atrHash(text)}
+function atrNote(k,tr){return `<span class="atrn" data-ut>${tr?'已翻译 · ':'原文 · '}<button type="button" class="lk" data-a="atrorig" data-v="${esc(k)}">${tr?'查看原文':'查看翻译'}</button></span>`}
+function atrBody(k,text,obj){
+  const raw=esc(text);
+  if(!text||!atrOn()||!atrNeed(text))return raw;
+  const tr=atrSrv(obj)||atrC()[atrCk(k,text)];
+  if(tr){ATR.src.set(k,{text,obj});return ATR.orig.has(k)?`<span class="atro" data-atrk="${esc(k)}">${raw}</span>${atrNote(k,false)}`:`<span class="atrt" data-atrk="${esc(k)}" data-ut>${esc(tr)}</span>${atrNote(k,true)}`}
+  if(typeof aiOn==='function'&&!aiOn())return raw;
+  ATR.src.set(k,{text,obj});
+  return `<span data-trk="${esc(k)}" data-atrk="${esc(k)}">${raw}</span>`;
+}
+function atrCalls(){let a=[];try{a=JSON.parse(localStorage.getItem(ATR_CALLS)||'[]')||[]}catch(e){}const now=Date.now();return a.filter(t=>now-t<3600e3)}
+function atrBudget(){return Date.now()>=ATR.pauseUntil&&atrCalls().length<ATR_HOURLY}
+function atrSpend(){const a=atrCalls();a.push(Date.now());try{localStorage.setItem(ATR_CALLS,JSON.stringify(a))}catch(e){}}
+function atrEnq(k){
+  if(!atrOn()||ATR.pend.has(k)||ATR.fail.has(k))return;
+  const s=ATR.src.get(k);if(!s)return;
+  if(atrC()[atrCk(k,s.text)])return atrPatch(k);
+  ATR.pend.add(k);ATR.q.push(k);clearTimeout(ATR.timer);ATR.timer=setTimeout(atrFlush,350);
+}
+/* 把这一条在页面上就地换成译文，不整页重绘 */
+function atrPatch(k){
+  const s=ATR.src.get(k);if(!s)return;
+  document.querySelectorAll('[data-atrk]').forEach(el=>{if(el.getAttribute('data-atrk')!==k)return;
+    const nx=el.nextElementSibling;if(nx&&nx.classList.contains('atrn'))nx.remove();
+    const w=document.createElement('span');w.innerHTML=atrBody(k,s.text,s.obj);el.replaceWith(...w.childNodes)});
+}
+function atrParse(out,n){
+  const parts=String(out||'').split(/\[\[\s*(\d+)\s*\]\]/);const res=new Array(n).fill('');let hit=0;
+  for(let i=1;i<parts.length;i+=2){const ix=+parts[i]-1;const v=(parts[i+1]||'').trim();if(ix>=0&&ix<n&&v&&!res[ix]){res[ix]=v;hit++}}
+  return hit===n?res:null;
+}
+async function atrFlush(){
+  if(ATR.busy||!ATR.q.length)return;
+  if(!atrOn()){ATR.q.forEach(k=>ATR.pend.delete(k));ATR.q=[];return}
+  if(!atrBudget()){ATR.q.forEach(k=>ATR.pend.delete(k));ATR.q=[];return}
+  const batch=[];let len=0;
+  while(ATR.q.length&&batch.length<8){const k=ATR.q[0],s=ATR.src.get(k);if(!s){ATR.q.shift();ATR.pend.delete(k);continue}
+    const t=[...String(s.text)].slice(0,1800).join('');if(batch.length&&len+t.length>1800)break;ATR.q.shift();batch.push({k,t,s});len+=t.length+8;
+    if(s.single)break}
+  if(!batch.length)return;
+  const one=batch.length===1;
+  const text=one?batch[0].t:batch.map((b,i)=>`[[${i+1}]] ${b.t}`).join('\n\n');
+  ATR.busy=1;atrSpend();
+  let r;try{r=await api('POST','/api/ai/translate',{text:[...text].slice(0,2000).join(''),to:atrTo()})}catch(e){r={s:0}}
+  ATR.busy=0;
+  if(!r||r.s!==200){
+    if(r&&r.s===429)ATR.pauseUntil=Date.now()+10*60e3;else if(r&&(r.s===503||!r.s))ATR.pauseUntil=Date.now()+2*60e3;else batch.forEach(b=>ATR.fail.add(b.k));
+    batch.forEach(b=>ATR.pend.delete(b.k));
+  }else{
+    const out=String(r.j&&r.j.text||'');
+    const res=one?[out.trim()]:atrParse(out,batch.length);
+    if(!res){batch.forEach(b=>{b.s.single=1;ATR.pend.delete(b.k)});batch.forEach(b=>atrEnq(b.k))}
+    else{const c=atrC();batch.forEach((b,i)=>{ATR.pend.delete(b.k);if(res[i]){c[atrCk(b.k,b.s.text)]=res[i];atrPatch(b.k)}else ATR.fail.add(b.k)});atrSave()}
+  }
+  if(ATR.q.length)setTimeout(atrFlush,300);
+}
+function atrRow(){const on=atrOn();return `<div class="row"><div class="gr"><b>自动翻译</b><small>外文帖子和评论滑到眼前时自动翻译成${atrTo()==='en'?'英文':'中文'}，可随时查看原文</small></div><button class="pb${on?'':' s'}" data-a="atrtoggle" aria-pressed="${on}">${on?'已开启':'已关闭'}</button></div>`}
+function atrFab(){if(typeof aiOn==='function'&&!aiOn())return '';const on=atrOn();return `<button class="ib atrfab${on?' on':''}" data-a="atrtoggle" data-ut aria-pressed="${on}" aria-label="${on?'关闭自动翻译':'打开自动翻译'}" title="自动翻译">译</button>`}
+Object.assign(A,{
+  atrtoggle:()=>{const on=!atrOn();try{localStorage.setItem(ATR_KEY,on?'1':'0')}catch(e){}if(on){ATR.fail.clear()}T(on?'已开启自动翻译：外文内容会自动翻成'+(atrTo()==='en'?'英文':'中文'):'已关闭自动翻译')},
+  atrorig:v=>{const k=String(v||'');if(ATR.orig.has(k))ATR.orig.delete(k);else ATR.orig.add(k);atrPatch(k)},
+});
+if(typeof IntersectionObserver!=='undefined'){
+  const io=new IntersectionObserver(es=>es.forEach(en=>{if(!en.isIntersecting)return;const el=en.target;io.unobserve(el);const k=el.getAttribute('data-trk');if(k&&el.isConnected)atrEnq(k)}),{rootMargin:'150px 0px'});
+  const seen=new WeakSet();
+  const scan=()=>{if(!atrOn())return;document.querySelectorAll('[data-trk]').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el)}})};
+  if(typeof MutationObserver!=='undefined'&&document.getElementById('app')){let q=0;new MutationObserver(()=>{if(q)return;q=1;requestAnimationFrame(()=>{q=0;scan()})}).observe(document.getElementById('app'),{childList:true,subtree:true})}
+  window.__atr={ATR,atrParse,atrNeed,scan};
+}
+
+/* ===== 79h_aibadge.js ===== */
+/* ===== VEXO 2.0.7：AI 内部账号（设计文档 §7）=====
+   - 作者对象 ai===true：所有头像（av()）右下角加小「AI」角标；
+   - badge==='internal'：资料页显示「官方内部账号」，昵称旁不另外加章（13_vip.js 的 nameBadges 已跳过 internal）；
+   - 点这类账号的「消息 / 加好友」直接提示「这是官方内部账号，不接收私信」；服务端返回 403 INTERNAL_ACCOUNT 时也显示同一句。 */
+const INTERNAL_MSG='这是官方内部账号，不接收私信';
+function isInternal(id){id=String(id||'');return !!(D.uai&&D.uai[id])||((D.u&&D.u[id]&&D.u[id][6])==='internal')}
+function aiBadgeWrap(h,s){const z=Math.max(9,Math.round((s||40)*.3));return `<span class="avw" style="--aiz:${z}px">${h}<i class="aibg" aria-label="AI 账号">AI</i></span>`}
+function internalTag(id){return id!=='me'&&isInternal(id)?`<div class="intag" data-ut>${OBG.internal[typeof LANG!=='undefined'&&LANG==='en'?3:1]}</div>`:''}
+setTimeout(function(){ /* 等 80_events.js 把 frequest 等动作挂到 A 上之后再包一层 */
+  const wrap=k=>{const f=A[k];if(typeof f!=='function')return;A[k]=v=>{if(isInternal(v)){T(INTERNAL_MSG);return}return f(v)}};
+  ['dm','frequest'].forEach(wrap);
+  if(typeof errMsg==='function'){const em=errMsg;errMsg=function(r,fb){const c=r&&r.j&&r.j.error&&r.j.error.code;if(c==='INTERNAL_ACCOUNT'||(r&&r.j&&r.j.code==='INTERNAL_ACCOUNT'))return INTERNAL_MSG;return em(r,fb)}}
+},0);
+
+/* ===== 79i_interest.js ===== */
+/* ===== VEXO 2.0.7：个性化推荐（M，用户端部分）=====
+   接口（Dift 服务端 2.1.2）：
+   - GET/PUT /api/me/interests  {like:[category], dislike:[category], hiddenSources:[origin], onboarded:bool}
+   - POST /api/feed/not-interested {postId, reason:'post'|'category'|'source'}
+   - POST /api/feed/signals {events:[{postId, dwellMs, action, at}]}；action：view|open|open_origin|like|save|share|hide；
+     每 30 秒或切到后台时批量发，每批最多 100 条；停留时长只在帖子露出一半以上时计时。
+   服务端还没有这些接口（404）时全部静默跳过：不弹选择页、设置里不显示、不上报。 */
+const INT_CATS=[['tech','科技','💻'],['game','游戏','🎮'],['crypto','币圈','🪙'],['finance','财经','📈'],['news','综合热点','📰'],['life','生活','🌿'],['other','其他','✨']];
+const INT={sup:null,data:null,busy:0,asked:0,draft:null};
+const intNet=()=>typeof usingNet==='function'&&usingNet()&&!!SESSION;
+const intCatName=c=>{const x=INT_CATS.find(k=>k[0]===c);return x?x[1]:c};
+async function intLoad(force){
+  if(!intNet()||INT.busy||(INT.sup===false&&!force))return INT.data;
+  INT.busy=1;let r;try{r=await api('GET','/api/me/interests')}catch(e){r={s:0}}INT.busy=0;
+  if(r.s===404||r.s===405||r.s===501){INT.sup=false;return null}
+  if(r.s!==200||!r.j)return INT.data;
+  INT.sup=true;const j=r.j.interests||r.j;
+  INT.data={like:Array.isArray(j.like)?j.like:[],dislike:Array.isArray(j.dislike)?j.dislike:[],hiddenSources:Array.isArray(j.hiddenSources)?j.hiddenSources:[],onboarded:!!j.onboarded};
+  /* 第一次打开（更新后）还没选过：弹一次选择页（每个账号本机只问一次，跳过也算） */
+  const k='vexo_int_asked_'+(SESSION&&SESSION.user&&SESSION.user.id);
+  let asked='';try{asked=localStorage.getItem(k)||''}catch(e){}
+  if(!INT.data.onboarded&&!asked&&!S.sh&&S.tab==='home'&&!(S.st&&S.st.length)){try{localStorage.setItem(k,'1')}catch(e){}INT.draft=intDraft();S.sh={t:'intpick',first:1};if(typeof render==='function')render()}
+  return INT.data;
+}
+function intDraft(){const d=INT.data||{like:[],dislike:[],hiddenSources:[]};return {like:[...d.like],dislike:[...d.dislike],hiddenSources:[...d.hiddenSources]}}
+async function intSave(body){
+  let r;try{r=await api('PUT','/api/me/interests',body)}catch(e){r={s:0}}
+  if(r.s===404){INT.sup=false;return false}
+  if(r.s!==200){T(errMsg(r,'保存失败，请稍后再试'));return false}
+  const j=r.j&&(r.j.interests||r.j);/* 服务端会规范化（喜欢和不喜欢重叠时按不喜欢），以返回为准 */
+  INT.data=j&&Array.isArray(j.like)?{like:j.like,dislike:j.dislike||[],hiddenSources:j.hiddenSources||[],onboarded:j.onboarded!==false}:{...(INT.data||{}),...body};return true;
+}
+function intRow(){
+  if(!intNet()||INT.sup===false)return '';
+  if(INT.sup===null)intLoad();
+  const d=INT.data;const sum=d&&d.like.length?d.like.map(intCatName).join('、'):'还没选';
+  return `<div class="row"><div class="gr"><b>兴趣偏好</b><small>「为你推荐」多推你感兴趣的类型 · ${esc(sum)}</small></div><button class="pb sm s" data-a="intopen">设置</button></div>`;
+}
+function intSheet(s){
+  if(s.t!=='intpick')return '';
+  const d=INT.draft||(INT.draft=intDraft());
+  const chip=([k,n,e])=>{const st=d.like.includes(k)?'on':d.dislike.includes(k)?'no':'';return `<button type="button" class="ichip ${st}" data-a="intchip" data-v="${k}" aria-pressed="${st==='on'}">${e} ${n}${st==='no'?' · 不想看':''}</button>`};
+  const hs=d.hiddenSources.length?`<div class="shd" style="margin-top:12px">已隐藏的来源</div><div class="ichips">${d.hiddenSources.map(o=>`<button type="button" class="ichip no" data-a="intunhide" data-v="${esc(o)}">${esc(typeof extSrcName==='function'?extSrcName({source:o}):o)} ✕</button>`).join('')}</div>`:'';
+  return `<h3>${s.first?'选几个你感兴趣的':'兴趣偏好'}</h3><p class="hint">点一下是「感兴趣」，再点一下是「不想看」，再点取消。之后也可以在 设置 → 兴趣偏好 里改。</p><div class="ichips">${INT_CATS.map(chip).join('')}</div>${hs}<div class="fr" style="margin-top:14px;gap:8px"><button class="pb s" data-a="intskip">${s.first?'跳过':'取消'}</button><button class="pb" data-a="intsave">保存</button></div>`;
+}
+function niItems(p){
+  if(!p||p.a==='me'||!intNet()||INT.sup===false)return '';
+  const id=esc(String(p.id));
+  return `<button class="mi" data-a="niset" data-v="post|${id}">🙈 不感兴趣</button>${p.category&&p.category!=='other'?`<button class="mi" data-a="niset" data-v="category|${id}">少推「${esc(intCatName(p.category))}」类内容</button>`:''}${p.source?`<button class="mi" data-a="niset" data-v="source|${id}">不看${esc((typeof extSrcLabel==='function'?extSrcLabel(p):'').replace(/^来自 /,'来自 ')||'这个来源')}的帖子</button>`:''}`;
+}
+function intFindPost(id){return (typeof feedSrc==='function'?feedSrc():D.p).find(x=>String(x.id)===String(id))||(typeof findPost==='function'?findPost(id):null)}
+function intDropLocal(pred){if(Array.isArray(S.posts)){S.posts=S.posts.filter(x=>!pred(x))}}
+Object.assign(A,{
+  intopen:()=>{INT.draft=intDraft();S.sh={t:'intpick'};if(INT.sup===null)return intLoad()},
+  intchip:v=>{const d=INT.draft||(INT.draft=intDraft());if(d.like.includes(v)){d.like=d.like.filter(x=>x!==v);d.dislike.push(v)}else if(d.dislike.includes(v)){d.dislike=d.dislike.filter(x=>x!==v)}else d.like.push(v)},
+  intunhide:v=>{const d=INT.draft||(INT.draft=intDraft());d.hiddenSources=d.hiddenSources.filter(x=>x!==v)},
+  intskip:async()=>{const first=S.sh&&S.sh.first;S.sh=null;INT.draft=null;if(first&&INT.sup)await intSave({onboarded:true})},
+  intsave:async()=>{const d=INT.draft||intDraft();S.sh=null;const ok=await intSave({like:d.like,dislike:d.dislike,hiddenSources:d.hiddenSources,onboarded:true});INT.draft=null;if(ok){T('已保存，「为你推荐」会多推你感兴趣的内容');if(typeof refreshFeedSafe==='function')refreshFeedSafe()}},
+  niset:async v=>{const[reason,id]=String(v).split('|');const p=intFindPost(id);S.sh=null;
+    sigPush(id,0,'hide');
+    if(reason==='post')intDropLocal(x=>String(x.id)===String(id));
+    else if(reason==='category'&&p&&p.category){intDropLocal(x=>x.category===p.category);if(INT.data&&!INT.data.dislike.includes(p.category)){INT.data.dislike.push(p.category);INT.data.like=INT.data.like.filter(x=>x!==p.category)}}
+    else if(reason==='source'&&p&&p.source){intDropLocal(x=>x.source===p.source);if(INT.data&&!INT.data.hiddenSources.includes(p.source))INT.data.hiddenSources.push(p.source)}
+    T(reason==='post'?'好的，以后少推类似内容':reason==='category'?'好的，以后少推这类内容':'好的，不再推这个来源的帖子');
+    let r;try{r=await api('POST','/api/feed/not-interested',{postId:sigId(id)||id,reason})}catch(e){r={s:0}}
+    /* 服务端 2.1.2 返回 {ok, interests}：用它刷新本地偏好 */
+    if(r.s===200&&r.j&&r.j.interests){const j=r.j.interests;INT.data={like:j.like||[],dislike:j.dislike||[],hiddenSources:j.hiddenSources||[],onboarded:!!j.onboarded}}
+  },
+});
+
+/* ---------- 行为上报 ---------- */
+const SIG={q:[],on:new Map(),acc:new Map(),off:false,timer:0,MAX:100,until:0};
+function sigOk(){return !SIG.off&&intNet()}
+/* 服务器帖子 id（po_xxx 或数字）；本地草稿 / 演示帖不报 */
+function sigId(id){if(id==null)return null;const s=String(id);if(/^\d+$/.test(s))return Number(s);return /^[A-Za-z0-9_-]{3,64}$/.test(s)&&!/^(local|tmp|demo|c_|l_)/.test(s)?s:null}
+function sigPush(postId,dwellMs,action){const id=sigId(postId);if(!id||!sigOk())return;SIG.q.push({postId:id,dwellMs:Math.max(0,Math.round(dwellMs||0)),action,at:Date.now()});if(SIG.q.length>=SIG.MAX*3)SIG.q=SIG.q.slice(-SIG.MAX*3)}
+function sigStop(id){const t=SIG.on.get(id);if(t==null)return;SIG.on.delete(id);SIG.acc.set(id,(SIG.acc.get(id)||0)+(performance.now()-t))}
+function sigStopAll(){[...SIG.on.keys()].forEach(sigStop)}
+function sigDrain(){for(const[id,ms] of SIG.acc){if(ms>=500)sigPush(id,ms,'view')}SIG.acc.clear()}
+async function sigFlush(useBeacon){
+  sigDrain();if(!SIG.q.length||!sigOk())return;
+  if(!useBeacon&&Date.now()<SIG.until)return;
+  while(SIG.q.length){
+    const events=SIG.q.splice(0,SIG.MAX);
+    if(useBeacon&&typeof fetch==='function'&&typeof apiUrl==='function'){
+      try{fetch(apiUrl('/api/feed/signals'),{method:'POST',keepalive:true,headers:{'Content-Type':'application/json',Authorization:'Bearer '+SESSION.token},body:JSON.stringify({events})}).catch(()=>{})}catch(e){}
+      continue;
+    }
+    let r;try{r=await api('POST','/api/feed/signals',{events})}catch(e){r={s:0}}
+    if(r.s===404||r.s===405||r.s===501){SIG.off=true;SIG.q=[];return}
+    if(r.s===429){SIG.until=Date.now()+90e3;SIG.q=events.concat(SIG.q).slice(0,SIG.MAX*3);return}
+    if(!r.s||r.s>=500){SIG.until=Date.now()+30e3;SIG.q=events.concat(SIG.q).slice(0,SIG.MAX*3);return}
+    if(r.s!==200&&r.s!==204){/* 400 BAD_ACTION / TOO_MANY_EVENTS 等：这批丢掉，不重试 */return}
+  }
+}
+if(typeof IntersectionObserver!=='undefined'){
+  const io=new IntersectionObserver(es=>es.forEach(en=>{const id=en.target.getAttribute('data-pid');if(!id||!sigId(id))return;
+    if(en.isIntersecting&&en.intersectionRatio>=.5&&document.visibilityState!=='hidden'){if(!SIG.on.has(id))SIG.on.set(id,performance.now())}else sigStop(id)}),{threshold:[0,.5,1]});
+  const seen=new WeakSet();
+  const scan=()=>{if(SIG.off)return;document.querySelectorAll('.fcard[data-pid]').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el)}});
+    /* 重绘后旧节点被替换：已不在页面里的计时停掉 */
+    for(const id of SIG.on.keys()){if(!document.querySelector(`.fcard[data-pid="${CSS.escape(id)}"]`))sigStop(id)}};
+  if(typeof MutationObserver!=='undefined'&&document.getElementById('app')){let q=0;new MutationObserver(()=>{if(q)return;q=1;requestAnimationFrame(()=>{q=0;scan()})}).observe(document.getElementById('app'),{childList:true,subtree:true})}
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){sigStopAll();sigFlush(true)}});
+  addEventListener('pagehide',()=>{sigStopAll();sigFlush(true)});
+  SIG.timer=setInterval(()=>{const live=[...SIG.on.keys()];sigStopAll();const now=performance.now();live.forEach(id=>SIG.on.set(id,now));sigFlush(false)},30000);
+}
+/* 动作信号：包一层现有动作（等 80_events.js 挂完再包） */
+setTimeout(()=>{
+  const wrap=(k,action,pick)=>{const f=A[k];if(typeof f!=='function')return;A[k]=function(v){try{const id=pick?pick(v):v;if(action)sigPush(id,0,action)}catch(e){}return f.apply(this,arguments)}};
+  wrap('post','open');wrap('xlike','like');wrap('xbm','save');wrap('xshare','share');
+  const fx=A.extlink;if(typeof fx==='function')A.extlink=function(v){try{const p=(S.posts||[]).find(x=>x.sourceUrl&&String(x.sourceUrl)===String(v||S._extUrl||''));if(p)sigPush(p.id,0,'open_origin')}catch(e){}return fx.apply(this,arguments)};
+  /* 登录后拉一次偏好（首次弹选择页） */
+  const tryLoad=()=>{if(INT.sup===null&&intNet()&&!INT.busy&&Array.isArray(S.posts))intLoad()};
+  setInterval(tryLoad,4000);tryLoad();
+},0);
+window.__sig=SIG;window.__int=INT;
 
 /* ===== 80_events.js ===== */
 Object.assign(A,{setlang:v=>setLang(v),authpane,authgo,agreetog,emailsug,authdemo,logout,todemo,toacct,retryconnect,maintretry,setskin,legal,deltog,delacctq,delacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,vipbuy:vipBuyGo,vipmethod:vipMethodGo,vippaid:vipPaidGo,vipord:vipOrdGo,vipshow:vipShowGo,vippayclose:vipPayClose,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen,rpreason,rptog,rpsubmit,reportp:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'post',targetId:v})},reportu:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'user',targetId:v,targetUserId:v})},reportcm:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'community',targetId:v})},reportcv:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'conversation',targetId:v,conversationId:v})},reportm:v=>{const p=String(v).split('|');const cid=p[1],mid=p[2];if(typeof reportOpen==='function')reportOpen({targetType:'message',targetId:mid,conversationId:cid,messageIds:[mid]})},blockq:blockAsk,block2:blockUser,unblock:unblockUser,safenum,safeok,e2eerev});

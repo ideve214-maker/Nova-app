@@ -74,7 +74,7 @@ test.before(async () => {
 });
 test.after(async () => { await browser?.close(); await S?.close(); });
 
-test('txSplit：Markdown 图片和图片直链拆出来，普通链接保留', async () => {
+test('txSplit：Markdown 图片和图片直链拆出来，普通链接放进链接卡片', async () => {
   const r = await page.evaluate(() => [
     txSplit('a ![x](https://i.imgur.com/abc.png) b'),
     txSplit('看 https://example.com/a.JPG?x=1，和 https://example.com/page'),
@@ -82,7 +82,7 @@ test('txSplit：Markdown 图片和图片直链拆出来，普通链接保留', a
     txSplit('纯文字'),
   ]);
   assert.deepEqual(r[0].imgs, ['https://i.imgur.com/abc.png']); assert.equal(r[0].t, 'a  b');
-  assert.deepEqual(r[1].imgs, ['https://example.com/a.JPG?x=1']); assert.match(r[1].t, /https:\/\/example\.com\/page/);
+  assert.deepEqual(r[1].imgs, ['https://example.com/a.JPG?x=1']); assert.doesNotMatch(r[1].t, /https:\/\/example\.com\/page/); assert.deepEqual(r[1].links, ['https://example.com/page']);
   assert.deepEqual(r[2].imgs, ['https://cdn.v2ex.com/x/y.gif']); assert.equal(r[2].t, 'label');
   assert.deepEqual(r[3], {t: '纯文字', imgs: []});
 });
