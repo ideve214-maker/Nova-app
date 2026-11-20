@@ -4,6 +4,7 @@ import { apiRequest, loadConfig, readErrorMessage, resolveBase, joinUrl, type En
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { AutoAdsTab } from "./auto-ads";
+import { MetaPills } from "./post-meta";
 import { ImportReviewCard } from "./import-review";
 import { zhipuModelLabel } from "@/lib/admin/ai-api";
 import { adjBody, normalizeStatPost, previewShown, STAT_KEYS, STAT_LABEL, type Quad, type StatKey, type StatPostV2 } from "@/lib/admin/personas";
@@ -339,7 +340,7 @@ function StatsTab() {
                 <div className="flex items-center gap-2 text-[12px] text-muted">
                   <span className="truncate font-semibold">{p.author ? sanitizeText(p.author.displayName) : "未知用户"}</span>
                   <span className="truncate">@{p.author?.username}</span>
-                  {adjusted ? <span className="ml-auto"><Pill tone="warn">已调整</Pill></span> : null}
+                  <span className="ml-auto flex shrink-0 gap-1"><MetaPills category={p.category} sourceLabel={p.sourceLabel} />{adjusted ? <Pill tone="warn">已调整</Pill> : null}</span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-[14px]">{sanitizeText(p.text) || "（无文字）"}</p>
                 {p.v2 ? <QuadTable p={p} /> : (

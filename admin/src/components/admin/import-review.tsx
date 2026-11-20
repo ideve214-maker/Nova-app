@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAdmin } from "@/lib/admin/store";
 import { Card, mk, Toggle } from "./marketing";
-import { Pill, PrimaryButton, Seg } from "./ui";
+import { IMPORT_SOURCES } from "@/lib/admin/post-category";
+import { inputClass, Pill, PrimaryButton, Seg } from "./ui";
 
 /* 管理端 2.0.8：外部导入帖（V2EX / HN）AI 审查。
    - 开关：导入时正文和评论都先交给 AI，不合格的不入库。
@@ -19,7 +20,8 @@ export type ImportReviewSettings = {
 export type BackfillJob = {
   id: string;
   status: "running" | "done" | "stopped" | "failed";
-  scope: "all" | "v2ex" | "hn";
+  /** "all" 或来源 id（服务端 2.1.2 IMPORT_SCOPES） */
+  scope: string;
   total: number;
   done: number;
   passedPosts: number;
@@ -42,11 +44,8 @@ export type ImportReviewStats = {
 };
 type ImportReviewRes = { settings: ImportReviewSettings; stats: ImportReviewStats; job: BackfillJob | null };
 
-const SCOPES = [
-  { id: "all", label: "全部来源" },
-  { id: "v2ex", label: "V2EX" },
-  { id: "hn", label: "HN" },
-];
+// 服务端 2.1.2：all + 每个来源 id；旧服务端只认 all / v2ex / hn，其他值会回 400 BAD_SCOPE
+const SCOPES = [{ id: "all", label: "全部来源" }, ...IMPORT_SOURCES.filter((s) => s.enabled).map((s) => ({ id: s.id, label: s.name }))];
 const JOB_TXT: Record<BackfillJob["status"], { t: string; tone: "ok" | "warn" | "danger" | "muted" }> = {
   running: { t: "补审中", tone: "warn" },
   done: { t: "已完成", tone: "ok" },
@@ -177,7 +176,9 @@ export function ImportReviewCard({ aiReady, onChanged }: { aiReady: boolean; onC
         )}
         {!running && (
           <div className="mt-2">
-            <Seg value={scope} options={SCOPES} onChange={setScope} />
+            <select className={inputClass + " h-10 text-[15px]"} aria-label="补审来源" value={scope} onChange={(e) => setScope(e.target.value)}>
+              {SCOPES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
           </div>
         )}
         <div className="mt-2">

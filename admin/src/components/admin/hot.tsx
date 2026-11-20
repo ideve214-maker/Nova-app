@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MetaPills } from "./post-meta";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { useAdmin } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
@@ -329,7 +330,7 @@ function AddHotSheet({
             <div key={item.id} className="flex items-start gap-2 border-b border-line py-2.5 last:border-b-0">
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 text-[15px] leading-5">{summary(item)}</p>
-                <p className="mt-0.5 text-[12px] text-muted">{sanitizeText(item.authorName)} · {item.time}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[12px] text-muted">{sanitizeText(item.authorName)} · {item.time}<MetaPills category={item.category} sourceLabel={item.sourceLabel} /></p>
               </div>
               {inHot ? (
                 <Pill tone="ok">已在热门</Pill>

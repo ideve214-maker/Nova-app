@@ -130,6 +130,10 @@ export type PostItem = {
   mood?: string;
   location?: string;
   media?: import("./backend").MappedMedia[];
+  /** 2.0.9：分类与外部帖来源（服务端 2.1.2；可能没有） */
+  category?: import("./post-category").PostCategory | null;
+  source?: string;
+  sourceLabel?: string;
 };
 
 export type ReportItem = {
@@ -336,7 +340,7 @@ export type AdminState = Persisted & {
   setPostStatus: (id: string, status: PostItem["status"], reason?: string) => Promise<string | null>;
   hideContent: (kind: "post" | "comment", id: string, reason?: string) => Promise<string | null>;
   restoreContent: (kind: "post" | "comment", id: string) => Promise<string | null>;
-  refreshContent: (opts?: { type?: string; status?: string; q?: string }) => Promise<void>;
+  refreshContent: (opts?: { type?: string; status?: string; q?: string; category?: string; source?: string }) => Promise<void>;
   refreshUsers: (opts?: { status?: string; q?: string }) => Promise<void>;
   refreshPayments: (opts?: { status?: string; q?: string }) => Promise<void>;
   refreshAudit: () => Promise<void>;
@@ -483,6 +487,9 @@ function toPost(c: import("./backend").MappedContent): PostItem {
     mood: c.mood,
     location: c.location,
     media: c.media,
+    category: c.category,
+    source: c.source || undefined,
+    sourceLabel: c.sourceLabel || undefined,
   };
 }
 
@@ -824,9 +831,11 @@ export const useAdmin = create<AdminState>((set, get) => ({
     const type = opts?.type;
     const status = opts?.status || "all";
     const q = opts?.q;
+    // 2.0.9：分类 / 来源参数先带上（服务端 2.1.2 还不认，会忽略；页面同时在本地过滤）
+    const meta = { category: opts?.category || undefined, source: opts?.source || undefined };
     if (!type || type === "all") {
       const [posts, comments] = await Promise.all([
-        remote.remoteContent({ type: "post", status, q, limit: 50 }),
+        remote.remoteContent({ type: "post", status, q, limit: 50, ...meta }),
         remote.remoteContent({ type: "comment", status, q, limit: 50 }),
       ]);
       const rows: PostItem[] = [];
@@ -837,7 +846,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
       if (!posts.ok && !comments.ok && posts) get().flash(posts.error);
       return;
     }
-    const result = await remote.remoteContent({ type, status, q, limit: 50 });
+    const result = await remote.remoteContent({ type, status, q, limit: 50, ...(type === "post" ? meta : {}) });
     if (!result.ok) {
       get().flash(result.error);
       return;

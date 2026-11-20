@@ -1,4 +1,5 @@
 import { resolveAvatar } from "./avatar.ts";
+import { readPostMeta, type PostCategory, type PostMeta } from "./post-category.ts";
 /**
  * VEXO 管理端 · 与用户端后端的适配层。
  *
@@ -1181,6 +1182,10 @@ export type MappedContent = {
   mood?: string;
   location?: string;
   media: MappedMedia[];
+  /** 2.0.9：分类（服务端 2.1.2）和外部帖来源；服务器没给时为 null / 空 */
+  category: PostCategory | null;
+  source: string;
+  sourceLabel: string;
 };
 
 export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" = "post"): MappedContent | null {
@@ -1232,6 +1237,7 @@ export function mapRemoteContent(raw: unknown, fallbackType: "post" | "comment" 
     mood: mood || undefined,
     location: location || undefined,
     media,
+    ...readPostMeta(raw),
   };
 }
 
@@ -1418,7 +1424,7 @@ export type MappedHotPost = {
   audienceLabel: string;
   /** 失效原因（中文），可用时为空。 */
   unavailableReason: string;
-};
+} & PostMeta;
 
 export const HOT_POSTS_DEFAULT_MAX = 20;
 
@@ -1460,6 +1466,7 @@ export function mapRemoteHotPost(raw: unknown): MappedHotPost | null {
     authorId: post ? asString(pick(post, "authorId", "author_id") ?? pick(author, "id")) : "",
     authorName: post ? asString(pick(post, "authorName") ?? pick(author, "displayName", "username", "name"), "") : "",
     postTime: post ? asTime(pick(post, "createdAtUtc", "createdAt", "created_at")) : "",
+    ...readPostMeta(post || raw),
   };
 }
 

@@ -3,6 +3,7 @@
  * 这里只放类型、纯函数和接口封装（makePersonasApi 接收 call，便于用假后端测试）。
  * 不依赖 React / 浏览器，node --test 可以直接跑。
  */
+import { readPostMeta, type PostMeta } from "./post-category.ts";
 
 export type PersonaDefaults = {
   postIntervalMinutes: number; actionIntervalMinutes: number;
@@ -198,7 +199,7 @@ export type StatPostV2 = {
   real: Quad; ai: Quad; adj: Quad; shown: Quad;
   /** 服务器返回了新结构（有 ai / shown 四项）；false = 旧服务器，按「填显示值」保存 */
   v2: boolean;
-};
+} & PostMeta;
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : 0);
 const quad = (o: unknown): Quad => {
   const r = (o && typeof o === "object" ? o : {}) as Record<string, unknown>;
@@ -211,7 +212,7 @@ export function normalizeStatPost(raw: Record<string, unknown>): StatPostV2 {
   const shown = raw.shown ? quad(raw.shown) : { views: real.views + adj.views, likes: real.likes + adj.likes, saves: real.saves + adj.saves, reposts: real.reposts + adj.reposts };
   return {
     id: String(raw.id ?? ""), text: String(raw.text ?? ""), createdAt: num(raw.createdAt),
-    author: (raw.author as StatPostV2["author"]) || null, real, ai, adj, shown, v2,
+    author: (raw.author as StatPostV2["author"]) || null, real, ai, adj, shown, v2, ...readPostMeta(raw),
   };
 }
 /** 调整量输入（允许负数，例如 -5）；非法返回 null */

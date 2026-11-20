@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { matchMeta, metaQuery, type MetaFilter } from "@/lib/admin/post-category";
+import { MetaFilterBar, MetaPills } from "./post-meta";
 import { useAdmin, type PostItem, type ReportItem } from "@/lib/admin/store";
 import { type MappedMedia } from "@/lib/admin/backend";
 import { DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
@@ -23,6 +25,8 @@ export function ContentScreen() {
   const hasMediaApi = useAdmin((s) => !!s.connection.available.adminMedia);
   const [kind, setKind] = useState<"all" | "post" | "comment" | "review">("all");
   const [status, setStatus] = useState<"all" | "visible" | "removed">("all");
+  const [meta, setMeta] = useState<MetaFilter>({ category: "", source: "" });
+  const metaOn = !!(meta.category || meta.source);
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,13 +36,15 @@ export function ContentScreen() {
 
   useEffect(() => {
     if (kind === "review") void refreshMediaReview();
-    else void refreshContent({ type: kind, status });
-  }, [kind, status, refreshContent, refreshMediaReview]);
+    else void refreshContent({ type: kind, status, ...metaQuery(meta) });
+  }, [kind, status, meta, refreshContent, refreshMediaReview]);
 
   const list = posts.filter((item) => {
     if (kind !== "all" && item.kind !== kind) return false;
     if (status === "removed" && item.status !== "removed") return false;
     if (status === "visible" && item.status === "removed") return false;
+    // 分类 / 来源只对帖子有意义；筛选时评论不显示
+    if (metaOn && (item.kind !== "post" || !matchMeta(item, meta))) return false;
     return true;
   });
   const target = posts.find((p) => p.id === reasonFor);
@@ -71,6 +77,9 @@ export function ContentScreen() {
           </button>
         ))}
       </div>}
+      {kind !== "review" && kind !== "comment" && (
+        <MetaFilterBar value={meta} onChange={setMeta} loaded={posts} note={metaOn ? "按分类 / 来源筛选的是已加载的最近 50 条帖子" : undefined} />
+      )}
       <div className="p-4">
         {kind === "review" ? (
           <MediaReviewList
@@ -104,6 +113,7 @@ export function ContentScreen() {
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="text-[15px] font-medium">{sanitizeText(post.title || post.excerpt) || (post.media?.length ? `媒体 ×${post.media.length}` : "")}</h2>
                     <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                      {post.kind === "post" && <MetaPills category={post.category} sourceLabel={post.sourceLabel} />}
                       {post.kind === "post" && post.audienceLabel && <Pill tone="muted">{post.audienceLabel}</Pill>}
                       <Status status={post.status} />
                     </span>
