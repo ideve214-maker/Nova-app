@@ -58,7 +58,9 @@ export type AutoAd = {
 export type AutoAdsSettings = { enabled: boolean; dailyCap: number; query: string; blockwords: string[] };
 export type AutoAdsStatus = {
   envEnabled: boolean; switchOn: boolean; configured: boolean; active: boolean; hour: number; timezone: string; lastRunDay: string | null;
-  todayPublished: number; dailyCap: number; capMax: number; ttlDays: number; running: boolean; defaultBlockwords: number;
+  todayPublished: number; dailyCap: number;
+  /** 服务器封顶（.env ADMIN_AI_AUTO_ADS_CAP_MAX）；服务端 2.1.1 起 0 = 不封顶，dailyCap 为 0 = 不限 */
+  capMax: number | null; ttlDays: number; running: boolean; defaultBlockwords: number;
 };
 export type AutoAdsOverview = { settings: AutoAdsSettings; status: AutoAdsStatus; ads: AutoAd[] };
 export type AutoAdsLogRow = { id: number; at: number; actorId: number | null; action: string; target: string | null; detail: Record<string, unknown> | null };
@@ -122,7 +124,7 @@ export const aiProviderTest = (id: string) =>
 // ---- AI 模型选择（管理端 2.0.8；服务端 2.1.0 的 GET/POST /api/admin/ai/model）
 /** 智谱预设模型编码；第一项是默认。free = 免费模型。 */
 export const ZHIPU_MODELS: { id: string; label: string; free?: boolean }[] = [
-  { id: "glm-5.3-flash", label: "GLM-5.3-Flash（默认）" },
+  { id: "glm-5.3-flash", label: "GLM-5.3-Flash（推荐）" },
   { id: "glm-5.3-flashx", label: "GLM-5.3-FlashX" },
   { id: "glm-5.3", label: "GLM-5.3" },
   { id: "glm-5.2", label: "GLM-5.2" },
@@ -133,9 +135,13 @@ export const ZHIPU_MODELS: { id: string; label: string; free?: boolean }[] = [
 ];
 export const DEFAULT_ZHIPU_MODEL = ZHIPU_MODELS[0].id;
 export const zhipuModelLabel = (id: string) => ZHIPU_MODELS.find((m) => m.id === id)?.label || id;
-/** 模型编码只允许字母、数字和 . _ : - ，最长 80 */
-export const isValidModelCode = (s: string) => /^[A-Za-z0-9][\w.:-]{0,79}$/.test(s.trim());
-export type AiModelSetting = { provider: string; model: string; updatedAt?: number | null };
+/** 模型编码只允许字母、数字和 . _ - : / [ ]，最长 80（与服务端 2.1.0 一致） */
+export const isValidModelCode = (s: string) => /^[A-Za-z0-9][\w.:/[\]-]{0,79}$/.test(s.trim());
+export type AiModelSetting = {
+  provider: string; model: string; updatedAt?: number | null;
+  /** 服务端 2.1.0：saved = 管理端是否保存过；source = admin / env / default；default = 服务器默认模型 */
+  saved?: boolean | string | null; source?: "admin" | "env" | "default" | string; default?: string; presets?: unknown;
+};
 export const aiModelGet = () => call<AiModelSetting>("adminAiModel");
 export const aiModelSave = (provider: string, model: string) => call<AiModelSetting>("adminAiModel", { body: { provider, model } });
 

@@ -50,7 +50,7 @@ export function AiModelCard() {
       <div className="flex items-center gap-2">
         <Cpu className="size-4 text-primary" />
         <span className="text-[15px] font-semibold">AI 模型（智谱）</span>
-        {cur && <span className="ml-auto truncate text-[12px] text-muted">当前：{sanitizeText(zhipuModelLabel(cur.model || DEFAULT_ZHIPU_MODEL))}</span>}
+        {cur && <span className="ml-auto truncate text-[12px] text-muted">当前：{sanitizeText(zhipuModelLabel(cur.model || DEFAULT_ZHIPU_MODEL))}{cur.source === "env" ? "（服务器 .env）" : cur.source === "default" ? "（服务器默认）" : ""}</span>}
       </div>
       {unsupported ? (
         <p className="mt-1 text-[13px] leading-5 text-muted">服务器还不支持选择模型，升级到服务端 2.1.0 后这里可以切换 GLM-5.3-Flash 等模型。</p>

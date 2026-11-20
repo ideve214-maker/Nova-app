@@ -13,6 +13,8 @@ export type ImportReviewSettings = {
   reviewComments: boolean;
   /** AI 不可用（没配密钥、限速、超时）时：skip = 本轮先不入库，下轮再审；keyword = 只过屏蔽词就入库 */
   onAiDown: "skip" | "keyword";
+  /** 服务端 2.1.0：每轮导入后顺手补审 10 条旧帖（默认开） */
+  autoBackfill?: boolean;
 };
 export type BackfillJob = {
   id: string;
@@ -27,6 +29,7 @@ export type BackfillJob = {
   startedAt: number;
   finishedAt: number | null;
   error: string | null;
+  actorId?: number | null;
 };
 export type ImportReviewStats = {
   /** 已发布、还没经过 AI 审查的外部帖 / 评论数 */
@@ -85,11 +88,11 @@ export function ImportReviewCard({ aiReady, onChanged }: { aiReady: boolean; onC
     setData(r.data); flash("已保存");
   };
   const startBackfill = async () => {
-    if (typeof window !== "undefined" && !window.confirm("对已发布的外部帖和评论重新做 AI 审查？不合格的帖子会被隐藏、评论会被删除。")) return;
+    if (typeof window !== "undefined" && !window.confirm("对已发布的外部帖和评论重新做 AI 审查？不合格的帖子会被隐藏，评论会被移除（可在管理端恢复）。")) return;
     setBusy(true);
     const r = await mk<{ job: BackfillJob }>("adminAiImportBackfill", { method: "POST", body: { scope }, timeoutMs: 20000 });
     setBusy(false);
-    if (!r.ok) { flash(r.error); return; }
+    if (!r.ok) { flash(r.status === 409 ? "已有补审任务在运行，已显示它的进度" : r.error); if (r.status === 409) void load(); return; }
     flash("已开始补审"); void load();
   };
   const stopBackfill = async () => {
@@ -124,6 +127,15 @@ export function ImportReviewCard({ aiReady, onChanged }: { aiReady: boolean; onC
             <span className="text-[13px]">评论也审查</span>
             <Toggle on={st.reviewComments} label="评论审查开关" onChange={(v) => void save({ reviewComments: v })} />
           </div>
+          {st.autoBackfill !== undefined && (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[13px]">自动补审旧帖</span>
+                <p className="text-[11px] leading-4 text-muted">每轮导入后顺手补审 10 条已发布的外部帖</p>
+              </div>
+              <Toggle on={!!st.autoBackfill} label="自动补审开关" onChange={(v) => void save({ autoBackfill: v })} />
+            </div>
+          )}
           <div className="mt-3">
             <span className="mb-1 block text-[12px] text-muted">AI 不可用时</span>
             <Seg
@@ -149,7 +161,7 @@ export function ImportReviewCard({ aiReady, onChanged }: { aiReady: boolean; onC
           {job && <Pill tone={JOB_TXT[job.status].tone}>{JOB_TXT[job.status].t}</Pill>}
         </div>
         <p className="mt-1 text-[12px] leading-4 text-muted">
-          还有 {stats.unreviewedPosts} 条帖子、{stats.unreviewedComments} 条评论没审过。不合格的帖子会被隐藏、评论会被删除，之后导入也不会再写回来。
+          还有 {stats.unreviewedPosts} 条帖子、{stats.unreviewedComments} 条评论没审过。不合格的帖子会被隐藏、评论会被移除（都可以在管理端恢复），之后导入也不会再写回来。
         </p>
         {job && (
           <div className="mt-2">
@@ -157,7 +169,7 @@ export function ImportReviewCard({ aiReady, onChanged }: { aiReady: boolean; onC
               <div className="h-full rounded-full bg-primary transition-all" style={{ width: pct + "%" }} />
             </div>
             <p className="mt-1 text-[12px] text-muted">
-              {job.done}/{job.total} · 通过 {job.passedPosts} · 隐藏帖子 {job.hiddenPosts} · 删除评论 {job.removedComments}
+              {job.done}/{job.total} · 通过 {job.passedPosts} · 隐藏帖子 {job.hiddenPosts} · 移除评论 {job.removedComments}
               {job.skipped ? ` · 跳过 ${job.skipped}（AI 不可用）` : ""}
             </p>
             {job.error && <p className="mt-1 break-all text-[12px] text-danger">{job.error}</p>}

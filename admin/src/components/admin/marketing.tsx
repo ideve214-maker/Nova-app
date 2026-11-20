@@ -531,7 +531,7 @@ const AI_FILTERS = [
   { id: "", label: "全部" }, { id: "block", label: "已拦截" }, { id: "flag", label: "已标记" }, { id: "fallback", label: "兜底" }, { id: "import", label: "外部帖" },
 ];
 const ORIGIN_TXT: Record<string, string> = { v2ex: "V2EX", hn: "HN" };
-const ACTION_TXT: Record<string, string> = { rejected: "未入库", hidden: "已隐藏", removed: "已删除", stored: "已入库" };
+const ACTION_TXT: Record<string, string> = { rejected: "未入库", hidden: "已隐藏", removed: "已移除（可恢复）", stored: "已入库" };
 const VERDICT: Record<string, { t: string; tone: "ok" | "warn" | "danger" | "muted" }> = {
   allow: { t: "通过", tone: "ok" }, block: { t: "拦截", tone: "danger" }, flag: { t: "标记", tone: "warn" }, fallback: { t: "兜底", tone: "muted" },
 };
