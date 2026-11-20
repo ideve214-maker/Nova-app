@@ -38,3 +38,14 @@
 - 外部帖头像：帖子和评论的 `author.avatar` 现在有 `image`（配置 `NOVA_PUBLIC_ORIGIN` 后是完整地址）、`path`（相对代理地址，客户端可用 `apiUrl()` 拼）、`fallback`（字母头像）。代理拉不到原图时返回默认人像，不再 404；头像在 `data/import-avatars/` 缓存 7 天。启动时把旧数据里的远程原图地址改成代理地址。
 - 私聊文件：支持 doc/docx/xls/xlsx/ppt/pptx/wps/csv/md/rar/7z，按文件头核对（docx 等必须是 ZIP，doc 等必须是 OLE 或 ZIP）；手机传 `application/octet-stream` 或文件名没扩展名时按文件头识别；可执行文件拒收；存储的 MIME 只用白名单里的。
 - 私聊视频：支持 .mov（`video/quicktime`）、.m4v、.3gp；老式 QuickTime 文件头也能识别。大小上限不变：普通 50 MB、VIP 100 MB，时长 3 / 5 分钟。
+
+## 4. 服务端 2.1.1：管理员自己改密码
+
+| 方法 | 路径 | 参数 | 返回 |
+|---|---|---|---|
+| POST | `/api/admin/me/password` | `{currentPassword, newPassword}` | `{ok: true}` |
+
+- 需要已登录的管理员会话（与其他 `/api/admin/*` 相同的 Bearer）。管理员与普通用户分表、分会话。
+- 先核对 `currentPassword`；错误返回 400 `WRONG_PASSWORD`。与登录共用同一把锁定：同一管理员账号累计失败 5 次后 429 `LOCKED`，15 分钟后再试。
+- `newPassword` 沿用现有规则（8–128 位，同时包含字母和数字）；不合格返回 400 `WEAK_PASSWORD`。新密码与当前密码相同返回 400 `SAME_PASSWORD`。
+- 成功后更新密码哈希，使该管理员的其他登录会话失效（当前会话保留），并写审计 `admin.self.change_password`（详情里不含密码）。

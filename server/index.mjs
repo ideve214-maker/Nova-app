@@ -1208,6 +1208,12 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const {admin} = adminAuth(req);
       return {admin};
     },
+    'POST /api/admin/me/password'(req, b) {
+      const {admin, token} = adminAuth(req);
+      const r = admins.changePassword(admin, token, b || {});
+      audit(admin.id, 'admin.self.change_password', 'admin:' + admin.id, ip(req));
+      return r;
+    },
     'GET /api/admin/reports'(req) {
       const {admin} = adminAuth(req);
       return reports.list(req.query || {});

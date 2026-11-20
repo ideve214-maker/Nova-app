@@ -17,6 +17,8 @@ export function createAdmins(db, {now} = {}) {
   const insSess = db.prepare('INSERT INTO admin_sessions(token_hash,admin_id,created_at,expires_at,ip,ua) VALUES(?,?,?,?,?,?)');
   const sess = db.prepare('SELECT * FROM admin_sessions WHERE token_hash=?');
   const delSess = db.prepare('DELETE FROM admin_sessions WHERE token_hash=?');
+  const delOtherSess = db.prepare('DELETE FROM admin_sessions WHERE admin_id=? AND token_hash<>?');
+  const setPw = db.prepare('UPDATE admins SET password_hash=? WHERE id=?');
   const attGet = db.prepare('SELECT * FROM login_attempts WHERE key=?');
   const attSet = db.prepare('INSERT INTO login_attempts(key,fails,locked_until) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET fails=excluded.fails, locked_until=excluded.locked_until');
   const attClr = db.prepare('DELETE FROM login_attempts WHERE key=?');
@@ -104,5 +106,28 @@ export function createAdmins(db, {now} = {}) {
     return {};
   }
 
-  return {create, seedFromEnv, login, fromToken, logout, pub, list: () => list.all().map(pub), passwordOk: PW_OK};
+  function changePassword(admin, token, body = {}) {
+    const current = String(body.currentPassword || '');
+    const next = String(body.newPassword || '');
+    const row = admin && admin.id ? byId.get(admin.id) : null;
+    if (!row || row.status !== 'active') throw new ApiError(401, 'UNAUTHORIZED', '登录已过期，请重新登录');
+    const key = 'admin:' + String(row.username).toLowerCase();
+    const a = attGet.get(key);
+    if (a && a.locked_until > nowFn()) {
+      throw new ApiError(429, 'LOCKED', `尝试次数过多，请 ${Math.ceil((a.locked_until - nowFn()) / 60e3)} 分钟后再试`);
+    }
+    if (!verifyPassword(current, row.password_hash)) {
+      const f = (a ? a.fails : 0) + 1;
+      attSet.run(key, f >= LOCK_FAILS ? 0 : f, f >= LOCK_FAILS ? nowFn() + LOCK_MS : 0);
+      throw new ApiError(400, 'WRONG_PASSWORD', '原密码不正确');
+    }
+    attClr.run(key);
+    if (!PW_OK(next)) throw new ApiError(400, 'WEAK_PASSWORD', '密码需 8–128 位，且同时包含字母和数字');
+    if (next === current) throw new ApiError(400, 'SAME_PASSWORD', '新密码不能与当前密码相同');
+    setPw.run(hashPassword(next), row.id);
+    if (token) delOtherSess.run(row.id, tokenHash(token));
+    return {ok: true};
+  }
+
+  return {create, seedFromEnv, login, fromToken, logout, changePassword, pub, list: () => list.all().map(pub), passwordOk: PW_OK};
 }

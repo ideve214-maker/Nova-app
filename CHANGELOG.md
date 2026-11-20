@@ -1,5 +1,11 @@
 # 更新日志（最新在上）
 
+## 服务端 2.1.1（20261121-0158-server-2.1.1-ai-ads-nocap）
+
+- 管理员可自己改密码：`POST /api/admin/me/password`，参数 `{currentPassword, newPassword}`。核对旧密码（错误 400 `WRONG_PASSWORD`，失败次数与登录共用锁定），新密码沿用 8–128 位且含字母和数字（400 `WEAK_PASSWORD`），不能与当前密码相同（400 `SAME_PASSWORD`）。成功后踢掉该管理员的其他会话、写审计 `admin.self.change_password`。
+- AI 发帖每日上限取消：`dailyCap` 默认 0 表示不限；每轮最多 50 条（`ADMIN_AI_AUTO_ADS_RUN_MAX`）。状态接口返回 `runMax`。
+
+
 ## 服务端 2.1.0（hot-update-2026-11-21 server-2.1.0）
 
 需要部署服务器并跑迁移 `064_import_ai_review.sql`。接口说明见 `docs/server-2.1.0-api.md`。
