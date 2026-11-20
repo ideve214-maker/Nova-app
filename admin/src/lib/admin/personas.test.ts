@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   adjBody, cleanOverrides, creatingText, diffSettings, makePersonasApi, normalizeStatPost, parseAdj, parseCount, parseTags,
-  pctToRate, previewShown, rateToPct, sourceErrorText, type CallFn, type PersonaSettings,
+  pctToRate, previewShown, rateToPct, resolvePersonaAvatar, sourceErrorText, type CallFn, type PersonaSettings,
 } from "./personas.ts";
 
 const base: PersonaSettings = {
@@ -150,5 +150,42 @@ describe("数据调整：新旧返回体", () => {
   it("预览显示值 = 真人 + AI + 调整，最小 0", () => {
     assert.equal(previewShown(v2, "views", "50"), 85);
     assert.equal(previewShown(v2, "likes", "-100"), 0);
+  });
+});
+
+describe("AI 账号头像（avatar.path / url / fallback）", () => {
+  it("path 走带令牌拉取，fallback data URI 作为备用图", () => {
+    const r = resolvePersonaAvatar({ kind: "image", path: "/api/import/avatar?u=https%3A%2F%2Fx%2Fa.png", fallback: "data:image/svg+xml;base64,AAA" }, "北岸阿杰");
+    assert.equal(r.path, "/api/import/avatar?u=https%3A%2F%2Fx%2Fa.png");
+    assert.deepEqual(r.direct, ["data:image/svg+xml;base64,AAA"]);
+    assert.equal(r.letter, "北");
+  });
+  it("完整 http(s) url 可直接显示，排在 fallback 前", () => {
+    const r = resolvePersonaAvatar({ url: "https://cdn.example/a.jpg", fallback: "data:image/png;base64,B" }, "x");
+    assert.equal(r.path, "");
+    assert.deepEqual(r.direct, ["https://cdn.example/a.jpg", "data:image/png;base64,B"]);
+  });
+  it("fallback 可以是文字或 {letter,color}", () => {
+    assert.equal(resolvePersonaAvatar({ fallback: "阿" }, "北岸").letter, "阿");
+    const o = resolvePersonaAvatar({ fallback: { letter: "L", color: "#5B6CFF" } }, "北岸");
+    assert.equal(o.letter, "L"); assert.equal(o.color, "#5B6CFF");
+  });
+  it("没有头像时用昵称首字；拒绝协议相对 / 外域路径当站内路径", () => {
+    assert.equal(resolvePersonaAvatar(null, "晴川").letter, "晴");
+    assert.equal(resolvePersonaAvatar({ path: "//evil.example/a.png" }, "a").path, "");
+    assert.equal(resolvePersonaAvatar({ path: "/\\evil" }, "a").path, "");
+    assert.equal(resolvePersonaAvatar({}, "").letter, "?");
+  });
+  it("不再把 md_ 拼成 /api/admin/media", () => {
+    const r = resolvePersonaAvatar({ kind: "image", image: "md_abc" }, "a");
+    assert.equal(r.path, ""); assert.deepEqual(r.direct, []);
+  });
+  it("apiBinary 的 rawPath 只接受站内相对路径", async () => {
+    const { isSafeRelativePath } = await import("./backend.ts");
+    assert.ok(isSafeRelativePath("/api/import/avatar?u=x"));
+    assert.ok(!isSafeRelativePath("//evil.example/x"));
+    assert.ok(!isSafeRelativePath("https://evil.example/x"));
+    assert.ok(!isSafeRelativePath("/a b"));
+    assert.ok(!isSafeRelativePath("/\\evil"));
   });
 });

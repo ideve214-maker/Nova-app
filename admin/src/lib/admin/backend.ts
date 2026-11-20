@@ -1702,6 +1702,11 @@ export function mapRemoteReport(raw: unknown): MappedReport | null {
   };
 }
 
+/** 站内相对路径：以单个 / 开头，不含协议、反斜杠和空白（防止把管理员令牌发到别的域名）。 */
+export function isSafeRelativePath(p: unknown): p is string {
+  return typeof p === "string" && /^\/(?![/\\])[^\s\\]*$/.test(p) && p.length <= 2048;
+}
+
 export type BinaryResult = {
   ok: boolean;
   status: number;
@@ -1721,9 +1726,14 @@ export async function apiBinary(
     baseUrl?: string;
     token?: string;
     timeoutMs?: number;
+    /** 2.0.9：直接拉服务器给的相对地址（例如 avatar.path）。只接受以单个 / 开头的站内路径，令牌只放请求头；401 不会退出登录。 */
+    rawPath?: string;
   } = {},
 ): Promise<BinaryResult> {
   const cfg = loadConfig();
+  if (options.rawPath !== undefined && !isSafeRelativePath(options.rawPath)) {
+    return { ok: false, status: 0, path: String(options.rawPath), url: "", blob: null, mime: "", error: "地址不安全" };
+  }
   const base = resolveBase(options.baseUrl ?? cfg.baseUrl);
   const token = options.token ?? cfg.token;
   const timeoutMs = options.timeoutMs ?? Math.max(cfg.timeoutMs, 15000);
@@ -1731,8 +1741,9 @@ export async function apiBinary(
     return { ok: false, status: 0, path: DEFAULT_ENDPOINT_MAP[name], url: "", blob: null, mime: "", error: "还没有服务器地址，请在高级设置里填写。" };
   }
   let last: BinaryResult | null = null;
-  for (const template of pathsFor(name, cfg.endpoints)) {
-    const path = pathTemplate(template, options.params);
+  const templates = options.rawPath !== undefined ? [options.rawPath] : pathsFor(name, cfg.endpoints);
+  for (const template of templates) {
+    const path = options.rawPath !== undefined ? template : pathTemplate(template, options.params);
     let url = joinUrl(base, path);
     if (options.query) {
       const qs = new URLSearchParams();
@@ -1757,7 +1768,7 @@ export async function apiBinary(
       if (res.status === 401) {
         const text = await res.text();
         const json = parseJsonSafe(text);
-        maybeUnauthorized(name, token, { ok: false, status: 401, path, url, json, headers: {}, error: readErrorMessage(json, "登录已过期") });
+        if (options.rawPath === undefined) maybeUnauthorized(name, token, { ok: false, status: 401, path, url, json, headers: {}, error: readErrorMessage(json, "登录已过期") });
         return { ok: false, status: 401, path, url, blob: null, mime: ct, error: readErrorMessage(json, "登录已过期，请重新登录") };
       }
       if (!res.ok) {

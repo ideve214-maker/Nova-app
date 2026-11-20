@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAdmin } from "@/lib/admin/store";
+import { apiBinary } from "@/lib/admin/backend";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { NEEDS_SERVER_UPDATE, personasApi as api, ZHIPU_MODELS, zhipuModelLabel } from "@/lib/admin/ai-api";
 import {
   CATEGORIES, categoryLabel, cleanOverrides, creatingText, DEFAULT_FIELDS, diffSettings, fmtTime, kindLabel, KIND_LABEL,
-  MODEL_SOURCE_LABEL, parseCount, parseTags, pctToRate, rateToPct, sourceErrorText, STATUS_LABEL, SUGGESTED_PERSONA_MODEL,
+  MODEL_SOURCE_LABEL, parseCount, resolvePersonaAvatar, parseTags, pctToRate, rateToPct, sourceErrorText, STATUS_LABEL, SUGGESTED_PERSONA_MODEL,
   type AvatarStyle, type PersonaAccount, type PersonaDefaults, type PersonaLogRow, type PersonaSettings, type PersonaSource,
   type PersonasOverview, type RunAction, type RunKind,
 } from "@/lib/admin/personas";
-import { Avatar, ConfirmSheet, EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
+import { ConfirmSheet, EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { Card, Toggle } from "./marketing";
 
 /* 管理端 2.0.9：运营营销 →「AI 内部账号」（设计文档 §8.1 / §10 Agen）。
@@ -54,10 +55,59 @@ function Check({ on, onChange, children }: { on: boolean; onChange: (v: boolean)
   );
 }
 
-function personaAvatar(a: PersonaAccount["avatar"]) {
-  if (!a) return undefined;
-  if (a.image && /^md_[\w-]+$/.test(a.image)) return `/api/admin/media/${a.image}/file`;
-  return a.image || undefined;
+// 头像：avatar.path 用管理员令牌（放请求头）拉成 blob → objectURL，按 path 缓存、没人用时释放；
+// 拉不到就依次用 avatar.url、avatar.fallback，最后用昵称首字。
+type BlobEntry = { url: string | null; refs: number; p: Promise<string | null> };
+const blobCache = new Map<string, BlobEntry>();
+function usePathBlob(path: string): string | null | undefined {
+  const [url, setUrl] = useState<string | null | undefined>(() => (path ? blobCache.get(path)?.url ?? undefined : null));
+  useEffect(() => {
+    if (!path) { setUrl(null); return; }
+    let e = blobCache.get(path);
+    if (!e) {
+      const entry: BlobEntry = { url: null, refs: 0, p: Promise.resolve(null) };
+      entry.p = apiBinary("adminAiPersonasAccounts", { rawPath: path, timeoutMs: 15000 }).then((r) => {
+        if (r.ok && r.blob && /^image\//.test(r.mime)) entry.url = URL.createObjectURL(r.blob);
+        return entry.url;
+      }).catch(() => null);
+      blobCache.set(path, entry);
+      e = entry;
+    }
+    const entry = e;
+    entry.refs += 1;
+    let alive = true;
+    void entry.p.then((u) => { if (alive) setUrl(u); });
+    return () => {
+      alive = false;
+      entry.refs -= 1;
+      if (entry.refs <= 0) {
+        // 稍等再释放，列表重渲染时不会反复下载
+        window.setTimeout(() => {
+          if (entry.refs > 0 || blobCache.get(path) !== entry) return;
+          if (entry.url) URL.revokeObjectURL(entry.url);
+          blobCache.delete(path);
+        }, 30000);
+      }
+    };
+  }, [path]);
+  return url;
+}
+
+function PersonaAvatarImg({ avatar, name, className }: { avatar: PersonaAccount["avatar"]; name: string; className: string }) {
+  const r = useMemo(() => resolvePersonaAvatar(avatar, name), [avatar, name]);
+  const blob = usePathBlob(r.path);
+  const list = useMemo(() => [...(blob ? [blob] : []), ...r.direct], [blob, r.direct]);
+  const [bad, setBad] = useState<Set<string>>(new Set());
+  const src = blob === undefined && r.path ? null : list.find((u) => !bad.has(u)) || null;
+  if (src) {
+    return <img src={src} alt="" className={"rounded-full bg-subtle object-cover " + className} onError={() => setBad((b) => new Set(b).add(src))} data-testid="persona-avatar-img" />;
+  }
+  const bg = /^#[0-9a-f]{3,8}$/i.test(r.color) ? r.color : undefined;
+  return (
+    <span role="img" aria-label={name} className={"grid place-items-center rounded-full text-[15px] font-semibold " + (bg ? "text-white " : "bg-primary text-on-primary ") + className} style={bg ? { backgroundColor: bg } : undefined} data-testid="persona-avatar-letter">
+      {r.letter}
+    </span>
+  );
 }
 
 // ---------------- 总览
@@ -406,7 +456,7 @@ function AccountsTab() {
           <li key={acc.userId} className="rounded-card bg-surface p-3 shadow-card">
             <button type="button" className="flex w-full items-center gap-2.5 text-left" onClick={() => setEdit(acc)}>
               <span className="relative shrink-0">
-                <Avatar src={personaAvatar(acc.avatar)} name={acc.displayName} className="size-10" color={acc.avatar?.color} letter={acc.avatar?.letter} />
+                <PersonaAvatarImg avatar={acc.avatar} name={acc.displayName} className="size-10" />
                 <span className="absolute -bottom-0.5 -right-0.5 rounded bg-primary px-0.5 text-[8px] font-bold leading-3 text-on-primary">AI</span>
               </span>
               <span className="min-w-0 flex-1">
@@ -488,7 +538,7 @@ function AccountSheet({ acc, onClose, onChanged }: { acc: PersonaAccount | null;
       <Sheet open={!!acc && !retireOpen} title={sanitizeText(acc.displayName) || "AI 账号"} onClose={onClose}>
         <div className={sheetBody} data-testid="personas-account-sheet">
           <div className="mb-3 flex items-center gap-3">
-            <Avatar src={personaAvatar(acc.avatar)} name={acc.displayName} className="size-12" color={acc.avatar?.color} letter={acc.avatar?.letter} />
+            <PersonaAvatarImg avatar={acc.avatar} name={acc.displayName} className="size-12" />
             <div className="min-w-0 flex-1 text-[12px] text-muted">
               <div>@{acc.username} · ID {acc.userId} · {STATUS_LABEL[acc.status] || acc.status}</div>
               <div>风格 {acc.style || "—"} · 下次 {fmtTime(acc.nextAt)}</div>

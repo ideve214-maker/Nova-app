@@ -33,11 +33,54 @@ export type PersonasOverview = {
 };
 export type PersonaAccount = {
   userId: number; username: string; displayName: string;
-  avatar: { kind: string; image?: string; color?: string; letter?: string } | null; style: string;
+  avatar: PersonaAvatar | null; style: string;
   status: "active" | "paused" | "retired" | "creating" | string; interests: string[];
   overrides: Partial<PersonaDefaults> | null; lastActionAt: number | null; nextAt: number | null;
   counts: { posts?: number; comments?: number; likes?: number };
 };
+/** 和 2.1.0 外部帖头像同格式：path = 站内相对地址（要管理员令牌），fallback = 字母头像（data URI / 文字 / {letter,color}）。 */
+export type PersonaAvatar = {
+  kind?: string; path?: string; url?: string; image?: string;
+  fallback?: string | { letter?: string; color?: string; url?: string } | null;
+  color?: string; letter?: string;
+};
+export type ResolvedPersonaAvatar = {
+  /** 需要带令牌拉取的站内相对路径 */
+  path: string;
+  /** 可以直接显示的地址（http(s) 或 data:image），按顺序尝试 */
+  direct: string[];
+  letter: string; color: string;
+};
+const isHttp = (v: unknown): v is string => typeof v === "string" && /^https?:\/\/\S+$/i.test(v.trim());
+const isDataImg = (v: unknown): v is string => typeof v === "string" && /^data:image\//i.test(v.trim());
+const isRel = (v: unknown): v is string => typeof v === "string" && /^\/(?![/\\])[^\s\\]*$/.test(v);
+/** 头像顺序：path（带令牌）→ url → fallback 图 → 字母（fallback.letter / 昵称首字）。 */
+export function resolvePersonaAvatar(a: PersonaAvatar | null | undefined, name: string): ResolvedPersonaAvatar {
+  const out: ResolvedPersonaAvatar = { path: "", direct: [], letter: "", color: "" };
+  const first = (s: unknown) => (typeof s === "string" ? Array.from(s.trim())[0] || "" : "");
+  if (a && typeof a === "object") {
+    if (isRel(a.path)) out.path = a.path;
+    else if (isHttp(a.path)) out.direct.push(String(a.path).trim());
+    if (isHttp(a.url)) out.direct.push(a.url.trim());
+    else if (!out.path && isRel(a.url)) out.path = a.url;
+    if (isHttp(a.image) || isDataImg(a.image)) out.direct.push(a.image.trim());
+    const fb = a.fallback;
+    if (typeof fb === "string") {
+      if (isHttp(fb) || isDataImg(fb)) out.direct.push(fb.trim());
+      else out.letter = first(fb);
+    } else if (fb && typeof fb === "object") {
+      if (isHttp(fb.url) || isDataImg(fb.url)) out.direct.push(String(fb.url).trim());
+      out.letter = first(fb.letter);
+      if (typeof fb.color === "string") out.color = fb.color;
+    }
+    if (!out.letter) out.letter = first(a.letter);
+    if (!out.color && typeof a.color === "string") out.color = a.color;
+  }
+  if (!out.letter) out.letter = first(name) || "?";
+  out.direct = [...new Set(out.direct)];
+  return out;
+}
+
 export type PersonaSource = {
   id: number; name: string; url: string; category: string; lang: string; enabled: boolean;
   lastOkAt: number | null; lastError: string | null; itemCount: number;
