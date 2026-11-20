@@ -96,6 +96,8 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminAiImportReview: "/api/admin/ai-moderation/import",
   adminAiImportBackfill: "/api/admin/ai-moderation/import/backfill",
   adminAiImportBackfillStop: "/api/admin/ai-moderation/import/backfill/stop",
+  // 管理端 2.0.8：智谱 AI 模型选择（服务端 2.1.0）
+  adminAiModel: "/api/admin/ai/model",
   // 管理端 2.0（ADMIN-2.0-SERVER.md）
   adminUserProfile: "/api/admin/users/:id/profile",
   adminUserFollowerBonus: "/api/admin/users/:id/follower-bonus",

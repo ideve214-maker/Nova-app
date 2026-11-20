@@ -4,10 +4,11 @@ import { useAdmin } from "@/lib/admin/store";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import {
   aiFailoverSet, aiProviderActivate, aiProviderDelete, aiProviderOrder, aiProviderRecheck, aiProviderSave, aiProviders, aiProviderTest, aiQuota, aiQuotaSave,
-  failoverReason, type AiProvider, type AiProvidersOverview, type AiQuotaItem, type AiQuotaOverview,
+  failoverReason, ZHIPU_MODELS, type AiProvider, type AiProvidersOverview, type AiQuotaItem, type AiQuotaOverview,
 } from "@/lib/admin/ai-api";
 import { cn, EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Sheet } from "./ui";
 import { Card, Toggle } from "./marketing";
+import { AiModelCard } from "./ai-model";
 
 /* 管理端 2.0.6 热更新：AI 额度（每家 AI 服务商还剩多少）+ AI 服务商管理（添加 / 测试 / 切换当前使用）。
    余额来自服务器：有官方余额接口的显示「实时」，没有的按“资源包总量 − 本地记录的已用 token”显示「估算」。密钥只显示打码。 */
@@ -321,6 +322,7 @@ export function AiProvidersScreen() {
           <p className="mt-1 text-[12px] leading-4 text-muted">智谱先扣资源包 / 免费额度，用完才扣现金，所以大数字显示资源包剩余，现金在下面。「实时」= 从智谱控制台接口查到；「估算」= 你填的资源包总量减去这台服务器记录的已用 token（资源包实时余量查不到时使用）。</p>
         </Card>
       )}
+      <AiModelCard />
       {prov && (
         <Card>
           <div className="flex items-center justify-between gap-3" data-testid="ai-failover-toggle">
@@ -389,7 +391,8 @@ export function AiProvidersScreen() {
             <Field label={draft.id ? `API 密钥（现在是 ${draft.keyMasked || "未设置"}，不改就留空）` : "API 密钥"}>
               <input className={inputClass} type="password" autoComplete="off" autoCapitalize="off" value={draft.apiKey} placeholder={draft.id ? "留空 = 不修改" : "粘贴密钥"} onChange={(e) => setDraft({ ...draft, apiKey: e.target.value.trim() })} />
             </Field>
-            <Field label="对话模型"><input className={inputClass} value={draft.model} autoCapitalize="off" autoCorrect="off" onChange={(e) => setDraft({ ...draft, model: e.target.value })} /></Field>
+            <Field label="对话模型"><input className={inputClass} value={draft.model} autoCapitalize="off" autoCorrect="off" list={draft.type === "zhipu" ? "zhipu-models" : undefined} onChange={(e) => setDraft({ ...draft, model: e.target.value })} /></Field>
+            {draft.type === "zhipu" && <datalist id="zhipu-models">{ZHIPU_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</datalist>}
             {t?.searchCapable && (
               <div className="mb-2.5 flex items-center justify-between gap-3">
                 <span className="text-[14px]">用它做联网搜索（找广告）</span>

@@ -119,6 +119,26 @@ export const aiFailoverSet = (enabled: boolean) => call<AiQuotaOverview>("adminA
 export const aiProviderTest = (id: string) =>
   call<{ test: { ok: boolean; status?: number; latencyMs?: number; error?: string; model?: string } }>("adminAiProviderTest", { params: { id }, body: {}, timeoutMs: 25000 });
 
+// ---- AI 模型选择（管理端 2.0.8；服务端 2.1.0 的 GET/POST /api/admin/ai/model）
+/** 智谱预设模型编码；第一项是默认。free = 免费模型。 */
+export const ZHIPU_MODELS: { id: string; label: string; free?: boolean }[] = [
+  { id: "glm-5.3-flash", label: "GLM-5.3-Flash（默认）" },
+  { id: "glm-5.3-flashx", label: "GLM-5.3-FlashX" },
+  { id: "glm-5.3", label: "GLM-5.3" },
+  { id: "glm-5.2", label: "GLM-5.2" },
+  { id: "glm-4.7-flash", label: "GLM-4.7-Flash（免费）", free: true },
+  { id: "glm-4.7-flashx", label: "GLM-4.7-FlashX" },
+  { id: "glm-4.7", label: "GLM-4.7" },
+  { id: "glm-4.6v-flash", label: "GLM-4.6V-Flash（视觉）" },
+];
+export const DEFAULT_ZHIPU_MODEL = ZHIPU_MODELS[0].id;
+export const zhipuModelLabel = (id: string) => ZHIPU_MODELS.find((m) => m.id === id)?.label || id;
+/** 模型编码只允许字母、数字和 . _ : - ，最长 80 */
+export const isValidModelCode = (s: string) => /^[A-Za-z0-9][\w.:-]{0,79}$/.test(s.trim());
+export type AiModelSetting = { provider: string; model: string; updatedAt?: number | null };
+export const aiModelGet = () => call<AiModelSetting>("adminAiModel");
+export const aiModelSave = (provider: string, model: string) => call<AiModelSetting>("adminAiModel", { body: { provider, model } });
+
 // ---- 管理端 2.0
 export type TagCount = { tag: string; count: number };
 export const listTags = () => call<{ tags: TagCount[]; presets?: string[] }>("adminTags");

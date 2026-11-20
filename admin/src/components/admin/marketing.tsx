@@ -5,6 +5,7 @@ import { sanitizeText } from "@/lib/admin/sanitize";
 import { EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { AutoAdsTab } from "./auto-ads";
 import { ImportReviewCard } from "./import-review";
+import { zhipuModelLabel } from "@/lib/admin/ai-api";
 
 /* r10 营销管理：营销帖 / AI 审查 / AI 发帖。
    2.0.8：「数据调整」「推流加热」拆成运营营销里的两个独立入口（PostStatsScreen / BoostScreen）。 */
@@ -614,7 +615,7 @@ function AiTab() {
             <Field label="模型">
               <select className={inputClass} value={st.model} onChange={(e) => void save({ model: e.target.value })}>
                 {Array.from(new Set([st.model, ...status.models])).map((m) => (
-                  <option key={m} value={m}>{m}{m === "glm-4-flash" ? "（免费，推荐）" : ""}</option>
+                  <option key={m} value={m}>{zhipuModelLabel(m) === m ? m : zhipuModelLabel(m) + " · " + m}</option>
                 ))}
               </select>
             </Field>
