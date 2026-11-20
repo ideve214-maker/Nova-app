@@ -92,6 +92,10 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminBoostSettings: "/api/admin/boost/settings",
   adminAiModeration: "/api/admin/ai-moderation",
   adminAiModerationTest: "/api/admin/ai-moderation/test",
+  // 管理端 2.0.8：外部导入帖（V2EX / HN）AI 审查与已发布外部帖补审（需服务端 2.1.0）
+  adminAiImportReview: "/api/admin/ai-moderation/import",
+  adminAiImportBackfill: "/api/admin/ai-moderation/import/backfill",
+  adminAiImportBackfillStop: "/api/admin/ai-moderation/import/backfill/stop",
   // 管理端 2.0（ADMIN-2.0-SERVER.md）
   adminUserProfile: "/api/admin/users/:id/profile",
   adminUserFollowerBonus: "/api/admin/users/:id/follower-bonus",

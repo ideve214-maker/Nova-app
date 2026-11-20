@@ -4,19 +4,18 @@ import { apiRequest, loadConfig, readErrorMessage, resolveBase, joinUrl, type En
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { AutoAdsTab } from "./auto-ads";
+import { ImportReviewCard } from "./import-review";
 
 /* r10 营销管理：营销帖 / 数据调整 / 推流加热 / AI 审查。 */
 
-type Res<T> = { ok: true; data: T } | { ok: false; error: string; nextWeight?: number };
+type Res<T> = { ok: true; data: T } | { ok: false; error: string; status?: number };
 export async function mk<T = Record<string, unknown>>(
   name: EndpointName,
   opts: { method?: string; body?: unknown; params?: Record<string, string>; query?: Record<string, string | number | undefined>; timeoutMs?: number } = {},
 ): Promise<Res<T>> {
   const r = await apiRequest(name, opts);
   if (!r.ok) {
-    const err = r.json && typeof r.json === "object" ? (r.json as { error?: { nextWeight?: unknown } }).error : undefined;
-    const nextWeight = err && typeof err.nextWeight === "number" ? err.nextWeight : undefined;
-    return { ok: false, error: r.error || readErrorMessage(r.json, "操作失败，请稍后再试"), nextWeight };
+    return { ok: false, error: r.error || readErrorMessage(r.json, "操作失败，请稍后再试"), status: r.status };
   }
   return { ok: true, data: r.json as T };
 }
@@ -72,7 +71,7 @@ export function MarketingScreen() {
 type Ad = {
   id: string; kind: "text" | "image" | "video" | "sdk"; advertiser: string; title: string; text: string;
   media: { url: string; kind: string }[]; linkUrl: string; cta: string; sdk: { provider: string; slot: string } | null;
-  enabled: boolean; weight: number; impressions: number; clicks: number; hides: number; ctr: number;
+  enabled: boolean; weight?: number; impressions: number; clicks: number; hides: number; ctr: number;
   source?: "manual" | "ai"; sourceUrl?: string; takenDownAt?: number | null;
 };
 type AdSettings = { enabled: boolean; every: number; perFeed: number; dailyCap: number };
@@ -82,9 +81,9 @@ type AdForm = {
   advertiser: string; title: string; text: string;
   media: { url: string; kind: string }[];
   linkUrl: string; cta: string; sdkProvider: string; sdkSlot: string;
-  weight: number; enabled: boolean;
+  enabled: boolean;
 };
-const emptyAd: AdForm = { kind: "text", advertiser: "", title: "", text: "", media: [], linkUrl: "", cta: "", sdkProvider: "revive", sdkSlot: "", weight: 0, enabled: true };
+const emptyAd: AdForm = { kind: "text", advertiser: "", title: "", text: "", media: [], linkUrl: "", cta: "", sdkProvider: "revive", sdkSlot: "", enabled: true };
 
 function AdsTab() {
   const flash = useAdmin((s) => s.flash);
@@ -94,13 +93,10 @@ function AdsTab() {
   const [edit, setEdit] = useState<null | { id?: string; f: AdForm }>(null);
   const [busy, setBusy] = useState(false);
   const [formErr, setFormErr] = useState("");
-  const [nextWeight, setNextWeight] = useState(1);
-  const [suggestWeight, setSuggestWeight] = useState<number | undefined>(undefined);
   const load = useCallback(async () => {
-    const r = await mk<{ ads: Ad[]; settings: AdSettings; nextWeight?: number }>("adminMarketingAds");
+    const r = await mk<{ ads: Ad[]; settings: AdSettings }>("adminMarketingAds");
     if (!r.ok) { setErr(r.error); return; }
     setErr(""); setAds(r.data.ads || []); setSt(r.data.settings);
-    if (typeof r.data.nextWeight === "number" && r.data.nextWeight >= 1) setNextWeight(r.data.nextWeight);
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -120,15 +116,15 @@ function AdsTab() {
   };
   const submit = async () => {
     if (!edit) return;
-    setBusy(true); setFormErr(""); setSuggestWeight(undefined);
+    setBusy(true); setFormErr("");
     const f = edit.f;
     const body: Record<string, unknown> = { kind: f.kind, advertiser: f.advertiser, title: f.title, text: f.text, media: f.media, linkUrl: f.linkUrl, cta: f.cta, sdkProvider: f.sdkProvider, sdkSlot: f.sdkSlot, enabled: f.enabled };
-    if (f.weight >= 1) body.weight = f.weight;
+    // 2.0.8：营销帖不再有权重，所有营销帖等概率随机展示，不提交 weight。
     const r = edit.id
       ? await mk("adminMarketingAd", { method: "POST", params: { id: edit.id }, body })
       : await mk("adminMarketingAds", { method: "POST", body });
     setBusy(false);
-    if (!r.ok) { setFormErr(r.error); setSuggestWeight(r.nextWeight); return; }
+    if (!r.ok) { setFormErr(r.error); return; }
     setEdit(null); flash(edit.id ? "已保存" : "已发布营销帖"); void load();
   };
   const toggle = async (ad: Ad) => {
@@ -158,11 +154,11 @@ function AdsTab() {
             <SettingNum label="每次刷新每人最多" value={st.perFeed} onSave={(v) => void saveSettings({ perFeed: v })} />
             <SettingNum label="每人每天上限（0 不限）" value={st.dailyCap} onSave={(v) => void saveSettings({ dailyCap: v })} />
           </div>
-          <p className="mt-2 text-[12px] leading-4 text-muted">每个用户随机挑选；点过「不感兴趣」的不会再给他看；只有一条时会重复出现。</p>
+          <p className="mt-2 text-[12px] leading-4 text-muted">所有营销帖等概率随机展示，同一次刷新里不会重复出现；营销帖数量少于上限时只出现现有的条数。点过「不感兴趣」的不会再给他看。</p>
         </Card>
       )}
       <div className="px-4 pt-4">
-        <PrimaryButton onClick={() => { setFormErr(""); setSuggestWeight(undefined); setEdit({ f: { ...emptyAd, weight: nextWeight } }); }}>发布营销帖</PrimaryButton>
+        <PrimaryButton onClick={() => { setFormErr(""); setEdit({ f: { ...emptyAd } }); }}>发布营销帖</PrimaryButton>
       </div>
       {ads.length === 0 && !err && <EmptyState title="还没有营销帖" hint="发布后按上面的频率出现在用户的信息流里，带「推广」标记。" />}
       <ul className="mt-3 space-y-3 px-4">
@@ -173,7 +169,6 @@ function AdsTab() {
               <Pill tone="muted">{KIND_LABEL[ad.kind] || ad.kind}</Pill>
               {ad.source === "ai" && <Pill tone="ok">AI 发布</Pill>}
               {!ad.enabled && <Pill tone="warn">{ad.takenDownAt ? "已下架" : "已停用"}</Pill>}
-              <span className="ml-auto text-[11px] text-muted">权重 {ad.weight}</span>
             </div>
             {ad.title && <div className="mt-2 text-[15px] font-semibold">{sanitizeText(ad.title)}</div>}
             {ad.text && <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[13px] text-muted">{sanitizeText(ad.text)}</p>}
@@ -186,7 +181,7 @@ function AdsTab() {
               <Stat n={ad.impressions} l="曝光" /><Stat n={ad.clicks} l="点击" /><Stat n={ad.ctr + "%"} l="点击率" /><Stat n={ad.hides} l="不感兴趣" />
             </div>
             <div className="mt-2 flex gap-2">
-              <button type="button" className="h-9 flex-1 rounded-full bg-subtle text-[13px] font-semibold" onClick={() => { setFormErr(""); setSuggestWeight(undefined); setEdit({ id: ad.id, f: { kind: ad.kind, advertiser: ad.advertiser, title: ad.title, text: ad.text, media: ad.media, linkUrl: ad.linkUrl, cta: ad.cta, sdkProvider: ad.sdk?.provider || "revive", sdkSlot: ad.sdk?.slot || "", weight: ad.weight, enabled: ad.enabled } }); }}>编辑</button>
+              <button type="button" className="h-9 flex-1 rounded-full bg-subtle text-[13px] font-semibold" onClick={() => { setFormErr(""); setEdit({ id: ad.id, f: { kind: ad.kind, advertiser: ad.advertiser, title: ad.title, text: ad.text, media: ad.media, linkUrl: ad.linkUrl, cta: ad.cta, sdkProvider: ad.sdk?.provider || "revive", sdkSlot: ad.sdk?.slot || "", enabled: ad.enabled } }); }}>编辑</button>
               <button type="button" className="h-9 flex-1 rounded-full bg-subtle text-[13px] font-semibold" onClick={() => void toggle(ad)}>{ad.enabled ? "停用" : "启用"}</button>
               <button type="button" className="h-9 flex-1 rounded-full nova-danger-soft text-[13px] font-semibold" onClick={() => void remove(ad)}>删除</button>
             </div>
@@ -241,30 +236,8 @@ function AdsTab() {
                 <Field label="按钮文字（可选）"><input className={inputClass} placeholder="了解详情" value={edit.f.cta} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, cta: e.target.value } })} /></Field>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="广告主（仅后台可见）"><input className={inputClass} value={edit.f.advertiser} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, advertiser: e.target.value } })} /></Field>
-              <Field label="权重">
-                <input
-                  className={inputClass}
-                  inputMode="numeric"
-                  placeholder={"自动（" + nextWeight + "）"}
-                  value={edit.f.weight >= 1 ? String(edit.f.weight) : ""}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, "");
-                    setEdit({ ...edit, f: { ...edit.f, weight: raw === "" ? 0 : Math.max(1, Math.round(Number(raw))) } });
-                  }}
-                />
-              </Field>
-            </div>
-            <p className="mb-2 text-[11px] leading-4 text-muted">不填则自动设为当前最大权重 + 1（现在是 {nextWeight}）。数字越大，信息流里被抽到的机会越高。已有营销帖不能用同一个权重。</p>
-            {formErr && (
-              <p className="mb-2 text-sm text-danger">
-                {formErr}
-                {suggestWeight != null && suggestWeight >= 1 && (
-                  <button type="button" className="ml-2 font-semibold underline" onClick={() => { setEdit({ ...edit, f: { ...edit.f, weight: suggestWeight } }); setFormErr(""); setSuggestWeight(undefined); }}>改用 {suggestWeight}</button>
-                )}
-              </p>
-            )}
+            <Field label="广告主（仅后台可见）"><input className={inputClass} value={edit.f.advertiser} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, advertiser: e.target.value } })} /></Field>
+            {formErr && <p className="mb-2 text-sm text-danger">{formErr}</p>}
             <PrimaryButton disabled={busy} onClick={() => void submit()}>{busy ? "正在处理…" : edit.id ? "保存" : "发布"}</PrimaryButton>
           </div>
         )}
@@ -525,7 +498,7 @@ function SlotsInput({ value, onSave }: { value: number[]; onSave: (v: number[]) 
   );
 }
 
-/* ---------- AI 审查（Groq） ---------- */
+/* ---------- AI 审查（智谱 AI / OpenAI 兼容接口；2.0.8 加外部帖审查与补审） ---------- */
 type AiSettings = { enabled: boolean; mode: "block" | "flag"; model: string; rules: string; timeoutMs: number };
 type AiStatus = {
   provider: string; keyConfigured: boolean; rpm: number; rpd: number; usedLastMinute: number; usedToday: number;
@@ -534,18 +507,26 @@ type AiStatus = {
 type AiLog = {
   id: number; kind: string; username: string | null; postId: string | null; excerpt: string; verdict: string;
   category: string | null; reason: string | null; source: string; model: string | null; latencyMs: number | null; error: string | null; createdAt: number;
+  /** 2.0.8：外部导入审查记录带来源站和原帖链接（服务端 2.1.0） */
+  origin?: "v2ex" | "hn" | null; originUrl?: string | null; action?: "rejected" | "hidden" | "removed" | "stored" | null;
 };
 const AI_FILTERS = [
-  { id: "", label: "全部" }, { id: "block", label: "已拦截" }, { id: "flag", label: "已标记" }, { id: "fallback", label: "兜底" },
+  { id: "", label: "全部" }, { id: "block", label: "已拦截" }, { id: "flag", label: "已标记" }, { id: "fallback", label: "兜底" }, { id: "import", label: "外部帖" },
 ];
+const ORIGIN_TXT: Record<string, string> = { v2ex: "V2EX", hn: "HN" };
+const ACTION_TXT: Record<string, string> = { rejected: "未入库", hidden: "已隐藏", removed: "已删除", stored: "已入库" };
 const VERDICT: Record<string, { t: string; tone: "ok" | "warn" | "danger" | "muted" }> = {
   allow: { t: "通过", tone: "ok" }, block: { t: "拦截", tone: "danger" }, flag: { t: "标记", tone: "warn" }, fallback: { t: "兜底", tone: "muted" },
 };
 const FALLBACK_WHY: Record<string, string> = {
-  no_key: "未配置密钥", rate_limited: "Groq 限速冷却中", timeout: "超时", bad_json: "返回格式不对", bad_verdict: "返回格式不对",
+  no_key: "未配置密钥", rate_limited: "AI 限速冷却中", timeout: "超时", bad_json: "返回格式不对", bad_verdict: "返回格式不对",
   local_limit_rpm: "本地每分钟限额", local_limit_rpd: "本地每日限额",
 };
-const KIND_TXT: Record<string, string> = { post: "发帖", edit: "编辑", test: "测试" };
+const KIND_TXT: Record<string, string> = {
+  post: "发帖", edit: "编辑", test: "测试",
+  import: "外部帖导入", import_comment: "外部评论导入", backfill: "外部帖补审", backfill_comment: "外部评论补审",
+};
+const PROVIDER_TXT: Record<string, string> = { zhipu: "智谱 AI", "openai-compatible": "AI 接口" };
 function fmtTime(t: number) {
   const d = new Date(t);
   const p = (n: number) => String(n).padStart(2, "0");
@@ -564,11 +545,13 @@ function AiTab() {
   const [busy, setBusy] = useState(false);
   const [showDefault, setShowDefault] = useState(false);
   const load = useCallback(async (f: string) => {
-    const r = await mk<{ settings: AiSettings; status: AiStatus; logs: AiLog[] }>("adminAiModeration", { query: { verdict: f || undefined } });
+    const q = f === "import" ? { kind: "import" } : { verdict: f || undefined };
+    const r = await mk<{ settings: AiSettings; status: AiStatus; logs: AiLog[] }>("adminAiModeration", { query: q });
     if (!r.ok) { setErr(r.error); return; }
     setErr(""); setSt(r.data.settings); setStatus(r.data.status); setLogs(r.data.logs || []); setRules(r.data.settings.rules || "");
   }, []);
   useEffect(() => { void load(filter); }, [load, filter]);
+  const reloadLogs = useCallback(() => { void load(filter); }, [load, filter]);
   const save = async (body: Partial<AiSettings>) => {
     const r = await mk<{ settings: AiSettings; status: AiStatus }>("adminAiModeration", { method: "POST", body });
     if (!r.ok) { flash(r.error); return; }
@@ -595,7 +578,7 @@ function AiTab() {
       {err && <p className="px-4 pt-3 text-sm text-danger">{err}</p>}
       {status && !status.keyConfigured && (
         <div className="mx-4 mt-3 rounded-card border border-warn/40 bg-warn/10 p-3 text-[13px] leading-5">
-          服务器还没配置 <span className="font-mono">GROQ_API_KEY</span>，AI 审查不会调用，发帖只走屏蔽词过滤。在服务器环境变量里设置后重启服务即可生效。
+          服务器还没配置 AI 密钥（<span className="font-mono">AI_API_KEY</span> 或 <span className="font-mono">ZHIPU_API_KEY</span>），AI 审查不会调用，发帖只走屏蔽词过滤，外部帖补审也无法进行。在服务器环境变量里设置后重启服务即可生效。
         </div>
       )}
       {st && status && (
@@ -615,7 +598,7 @@ function AiTab() {
             <Field label="模型">
               <select className={inputClass} value={st.model} onChange={(e) => void save({ model: e.target.value })}>
                 {Array.from(new Set([st.model, ...status.models])).map((m) => (
-                  <option key={m} value={m}>{m}{m === "openai/gpt-oss-20b" ? "（推荐）" : m === "openai/gpt-oss-safeguard-20b" ? "（审核专用，限速低）" : ""}</option>
+                  <option key={m} value={m}>{m}{m === "glm-4-flash" ? "（免费，推荐）" : ""}</option>
                 ))}
               </select>
             </Field>
@@ -623,11 +606,12 @@ function AiTab() {
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Stat n={`${status.usedLastMinute}/${status.rpm}`} l="本分钟" />
             <Stat n={`${status.usedToday}/${status.rpd}`} l="今日" />
-            <Stat n={status.cooldownUntil ? "冷却中" : status.keyConfigured ? "正常" : "未配置"} l="Groq" />
+            <Stat n={status.cooldownUntil ? "冷却中" : status.keyConfigured ? "正常" : "未配置"} l={PROVIDER_TXT[status.provider] || "AI"} />
           </div>
           {status.lastError && <p className="mt-2 break-all text-[11px] text-muted">最近一次失败：{FALLBACK_WHY[status.lastError] || status.lastError}（已自动改用屏蔽词过滤）</p>}
         </Card>
       )}
+      {status && <ImportReviewCard aiReady={status.keyConfigured} onChanged={reloadLogs} />}
       {st && status && (
         <Card>
           <div className="flex items-center justify-between">
@@ -658,7 +642,7 @@ function AiTab() {
         </Card>
       )}
       <div className="mt-3"><Seg value={filter} options={AI_FILTERS} onChange={setFilter} /></div>
-      {logs.length === 0 && !err && <EmptyState title="还没有审查记录" hint="开启后，新帖的判断结果会显示在这里。" />}
+      {logs.length === 0 && !err && <EmptyState title="还没有审查记录" hint={filter === "import" ? "开启外部帖审查或补审后，外部帖的判断结果会显示在这里。" : "开启后，新帖的判断结果会显示在这里。"} />}
       <ul className="mt-2 space-y-2 px-4">
         {logs.map((l) => {
           const v = VERDICT[l.verdict] || VERDICT.fallback;
@@ -667,6 +651,8 @@ function AiTab() {
               <div className="flex items-center gap-2 text-[12px] text-muted">
                 <Pill tone={v.tone}>{v.t}</Pill>
                 <span>{KIND_TXT[l.kind] || l.kind}</span>
+                {l.origin && <Pill tone="muted">{ORIGIN_TXT[l.origin] || l.origin}</Pill>}
+                {l.action && <span className={l.action === "stored" ? "" : "text-danger"}>{ACTION_TXT[l.action] || l.action}</span>}
                 {l.username && <span className="truncate">@{sanitizeText(l.username)}</span>}
                 <span className="ml-auto shrink-0">{fmtTime(l.createdAt)}</span>
               </div>
@@ -675,6 +661,9 @@ function AiTab() {
                 {l.source === "fallback" ? "AI 不可用（" + (FALLBACK_WHY[l.error || ""] || l.error || "未知") + "），已用屏蔽词过滤" : (l.category ? l.category + " · " : "") + (l.reason || "未发现问题")}
                 {l.latencyMs != null && l.source === "ai" ? ` · ${l.latencyMs}ms` : ""}
               </p>
+              {l.originUrl && /^https?:\/\//i.test(l.originUrl) && (
+                <a className="mt-1 block truncate text-[12px] text-primary" href={l.originUrl} target="_blank" rel="noopener noreferrer">原帖：{l.originUrl}</a>
+              )}
               {l.verdict === "flag" && l.postId && (
                 <div className="mt-2 flex justify-end">
                   <button type="button" className="rounded-full border border-danger/50 px-3 py-1 text-[13px] font-semibold text-danger" onClick={() => void delPost(l)}>删除该帖</button>
