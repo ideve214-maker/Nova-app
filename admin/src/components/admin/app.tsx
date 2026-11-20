@@ -19,6 +19,7 @@ import { BoostScreen, MarketingScreen, PostStatsScreen } from "./marketing";
 import { AppealsScreen, EventsScreen } from "./appeals";
 import { AssistantScreen } from "./assistant";
 import { AdsScreen } from "./ads";
+import { AiPersonasScreen } from "./ai-personas";
 import { AiProvidersScreen } from "./ai-quota";
 import { AiReportScreen, NotifyScreen, TagsScreen, V2Screen } from "./ops2";
 import { Sparkles } from "lucide-react";
@@ -148,6 +149,7 @@ export function AdminApp() {
       {name === "marketing" && <MarketingScreen />}
       {name === "poststats" && <PostStatsScreen />}
       {name === "boost" && <BoostScreen />}
+      {name === "personas" && <AiPersonasScreen />}
       {name === "reports" && <ReportsScreen />}
       {name === "stats" && <StatsScreen />}
       {name === "settings" && <SettingsScreen />}

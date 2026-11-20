@@ -25,6 +25,7 @@ export const PAGE_NAMES = [
   "poststats",
   "password",
   "boost",
+  "personas",
   "events",
   "appeals",
   "ai",

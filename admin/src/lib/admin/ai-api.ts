@@ -4,6 +4,10 @@
  * 只展示服务器返回的真实数据，不做任何本地假数据。
  */
 import { apiRequest, readErrorMessage, type EndpointName } from "./backend";
+import { makePersonasApi, type CallFn } from "./personas";
+
+/** 接口还没上线（404）时的统一提示。 */
+export const NEEDS_SERVER_UPDATE = "需服务端更新";
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; status: number; code?: string };
 
@@ -19,7 +23,7 @@ export async function call<T = Record<string, unknown>>(
     ok: false,
     status: res.status,
     code: j && j.error ? j.error.code : undefined,
-    error: missing && /^adminAi(Quota|Provider)/.test(name) ? "服务器还没有更新到支持 AI 额度和服务商切换的版本" : missing && name.startsWith("adminAi") ? "服务器还没有更新到带 AI 助手的版本" : readErrorMessage(res.json, res.error || "请求失败"),
+    error: missing && name.startsWith("adminAiPersonas") ? NEEDS_SERVER_UPDATE : missing && /^adminAi(Quota|Provider)/.test(name) ? "服务器还没有更新到支持 AI 额度和服务商切换的版本" : missing && name.startsWith("adminAi") ? "服务器还没有更新到带 AI 助手的版本" : readErrorMessage(res.json, res.error || "请求失败"),
   };
 }
 
@@ -167,3 +171,6 @@ export const aiReportGenerate = (date?: string) => call<Record<string, unknown>>
 export type V2Kind = "polls" | "activities" | "exchange" | "projects";
 export const v2List = (kind: V2Kind) => call<Record<string, unknown>>("adminV2List", { params: { kind }, query: { limit: 100 } });
 export const v2Act = (kind: V2Kind, id: string, act: "remove" | "restore") => call(act === "remove" ? "adminV2Remove" : "adminV2Restore", { params: { kind, id }, body: {} });
+
+// ---- 2.0.9 AI 内部账号（设计文档 §8.1；接口 404 时提示「需服务端更新」）
+export const personasApi = makePersonasApi(call as CallFn);

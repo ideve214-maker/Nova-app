@@ -72,6 +72,7 @@ export type PageName =
   | "poststats"
   | "password"
   | "boost"
+  | "personas"
   | "events"
   | "appeals"
   | "ai"
