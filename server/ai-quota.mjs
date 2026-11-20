@@ -14,7 +14,7 @@ import {ApiError} from './errors.mjs';
 import {ENV_ID, maskKey, typeInfo} from './ai-providers.mjs';
 
 /** 智谱免费模型（调用不扣现金，见 bigmodel.cn 定价页“免费模型”）：不按现金余额判断是否用完。 */
-export const ZHIPU_FREE_MODELS = ['glm-4-flash', 'glm-4-flash-250414', 'glm-4.5-flash', 'glm-4v-flash', 'glm-z1-flash', 'glm-4.1v-thinking-flash', 'cogview-3-flash', 'cogvideox-flash'];
+export const ZHIPU_FREE_MODELS = ['glm-4.7-flash', 'glm-4.6v-flash', 'glm-4-flash', 'glm-4-flash-250414', 'glm-4.5-flash', 'glm-4v-flash', 'glm-z1-flash', 'glm-4.1v-thinking-flash', 'cogview-3-flash', 'cogvideox-flash'];
 export const isZhipuFreeModel = m => ZHIPU_FREE_MODELS.includes(String(m || '').trim().toLowerCase());
 // 智谱资源包余量（控制台“资源包管理” https://bigmodel.cn/finance-center/resource-package/package-mgmt 用的接口，没写进公开文档）。
 // 旧地址 /api/biz/tokenAccounts/list 2025-10 起 404（linux.do 1047311）；现在控制台用 /api/biz/tokenAccounts/list/my（cc-toolkit 2026-06 脚本）。

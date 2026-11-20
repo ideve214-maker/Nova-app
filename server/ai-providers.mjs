@@ -13,13 +13,14 @@ import {createCipheriv, createDecipheriv, createHash, randomBytes} from 'node:cr
 import {existsSync, readFileSync, writeFileSync, chmodSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {ApiError} from './errors.mjs';
+import {DEFAULT_AI_MODEL} from './ai-model.mjs';
 
 export const ZHIPU_BASE = 'https://open.bigmodel.cn/api/paas/v4';
 export const ENV_ID = 'env';
 
 /** 支持的服务商类型。balance = 有没有官方 / 控制台余额接口（见 ai-quota.mjs 的 BALANCE_ADAPTERS）。 */
 export const PROVIDER_TYPES = [
-  {type: 'zhipu', name: '智谱 AI', base: ZHIPU_BASE, model: 'glm-4-flash', search: true, balance: true, currency: 'CNY', note: '支持联网搜索；余额来自智谱控制台接口'},
+  {type: 'zhipu', name: '智谱 AI', base: ZHIPU_BASE, model: DEFAULT_AI_MODEL, search: true, balance: true, currency: 'CNY', note: '支持联网搜索；余额来自智谱控制台接口'},
   {type: 'moonshot', name: 'Kimi（月之暗面）', base: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k', search: false, balance: true, currency: 'CNY', note: '官方余额接口'},
   {type: 'siliconflow', name: '硅基流动', base: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct', search: false, balance: true, currency: 'CNY', note: '余额接口（官方可能已停用，失败时改为估算）'},
   {type: 'openrouter', name: 'OpenRouter', base: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', search: false, balance: true, currency: 'USD', note: '官方 Credits / Key 额度接口'},
@@ -82,7 +83,7 @@ function checkBase(raw) {
   return normBase(u.href);
 }
 
-export function createAiProviders(db, {env = process.env, now = Date.now, dbPath} = {}) {
+export function createAiProviders(db, {env = process.env, now = Date.now, dbPath, aiModel = null} = {}) {
   const box = createKeyBox({secret: env.ADMIN_AI_KEY_SECRET, dbPath});
   const q = {
     all: db.prepare('SELECT * FROM ai_providers ORDER BY created_at, rowid'),
@@ -99,7 +100,8 @@ export function createAiProviders(db, {env = process.env, now = Date.now, dbPath
   function envProvider() {
     const key = String(env.AI_API_KEY || env.ZHIPU_API_KEY || '').trim();
     const base = normBase(env.AI_API_BASE || ZHIPU_BASE);
-    const model = String(env.ADMIN_AI_MODEL || env.AI_MODEL || 'glm-4-flash').trim();
+    // 2.1.0：服务器默认（智谱）的模型读管理端「AI 模型」设置；没设置时用 .env 原有变量，再没有用 glm-4.7-flash
+    const model = aiModel ? aiModel.model(env.ADMIN_AI_MODEL || env.AI_MODEL) : (String(env.ADMIN_AI_MODEL || env.AI_MODEL || '').trim() || DEFAULT_AI_MODEL);
     return {id: ENV_ID, type: 'zhipu', name: '智谱（服务器默认）', base, model, key, search: true, enabled: true, builtin: true,
       usable: !!key && !banned(base) && !banned(model), keyBroken: false};
   }
@@ -176,7 +178,7 @@ export function createAiProviders(db, {env = process.env, now = Date.now, dbPath
       order: order(),
       activeId: a ? a.id : null, selectedId: aid, fallback: !!a && a.id !== aid,
       searchProviderId: s ? s.id : null,
-      types: PROVIDER_TYPES.map(t => ({type: t.type, name: t.name, baseUrl: t.base, model: t.model, searchCapable: t.search, balanceApi: t.balance, blocked: !!t.blocked, note: t.note})),
+      types: PROVIDER_TYPES.map(t => ({type: t.type, name: t.name, baseUrl: t.base, model: t.type === 'zhipu' ? envProvider().model : t.model, searchCapable: t.search, balanceApi: t.balance, blocked: !!t.blocked, note: t.note})),
       keyStorage: env.ADMIN_AI_KEY_SECRET ? 'env_secret' : (dbPath && dbPath !== ':memory:' ? 'secret_file' : 'memory'),
     };
   }

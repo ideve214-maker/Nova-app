@@ -1,9 +1,10 @@
-// 2.0.1 AI 助手功能（全部走智谱 glm-4-flash，免费；不使用 DeepSeek）：
+// 2.0.1 AI 助手功能（全部走智谱；2.1.0 起模型读管理端「AI 模型」设置，默认免费的 glm-4.7-flash；不使用 DeepSeek）：
 // - 翻译：中 ⇄ 英，只翻译用户点了翻译的那一段文字；不写数据库、不记日志正文。
 // - 技能交换匹配：先用规则（分类 + 字词重叠）挑候选，再让 AI 排序并写一句理由；AI 失败时用规则结果。
 // - 官方助手：只根据 assistant-faq.md 回答 VEXO 的使用问题；AI 失败时按关键词返回最相关的帮助段落。
-// 密钥与接口跟 AI 审查共用：AI_API_KEY 或 ZHIPU_API_KEY，AI_API_BASE（默认智谱）；模型 AI_ASSIST_MODEL / AI_MODEL，默认 glm-4-flash。
+// 密钥与接口跟 AI 审查共用：AI_API_KEY 或 ZHIPU_API_KEY，AI_API_BASE（默认智谱）；模型 AI_ASSIST_MODEL / AI_MODEL，管理端设置优先，默认 glm-4.7-flash。
 // 限额：全站 AI_ASSIST_RPM（默认 20 次/分钟）、AI_ASSIST_RPD（默认 1500 次/天），另有每人每小时限额（见 LIMITS）。
+import {DEFAULT_AI_MODEL, zhipuThinkingExtras, minTokensFor} from './ai-model.mjs';
 import {readFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -41,11 +42,12 @@ export function detectTarget(text) {
   return han * 2 >= latin ? 'en' : 'zh';
 }
 
-export function createAiAssist(db, {now = Date.now, env = process.env, fetchImpl, exchange, friends, faqPath} = {}) {
+export function createAiAssist(db, {now = Date.now, env = process.env, fetchImpl, exchange, friends, faqPath, aiModel = null} = {}) {
   const doFetch = fetchImpl || ((...a) => fetch(...a));
   const base = String(env.AI_API_BASE || DEFAULT_BASE).trim().replace(/\/+$/, '');
   const apiKey = () => String(env.AI_API_KEY || env.ZHIPU_API_KEY || '').trim();
-  const model = String(env.AI_ASSIST_MODEL || env.AI_MODEL || 'glm-4-flash').trim();
+  // 2.1.0：模型读管理端「AI 模型」设置（ai-model.mjs），每次调用时取，改了立即生效
+  const modelOf = () => aiModel ? aiModel.model(env.AI_ASSIST_MODEL || env.AI_MODEL) : (String(env.AI_ASSIST_MODEL || env.AI_MODEL || '').trim() || DEFAULT_AI_MODEL);
   const rpm = Math.max(1, Number(env.AI_ASSIST_RPM) || 20), rpd = Math.max(1, Number(env.AI_ASSIST_RPD) || 1500);
   const win = []; let day = '', dayCount = 0, cooldownUntil = 0, lastError = '';
   const perUser = new Map();           // `${kind}:${uid}` -> [时间]
@@ -55,7 +57,7 @@ export function createAiAssist(db, {now = Date.now, env = process.env, fetchImpl
 
   const dayKey = () => new Date(now() + 8 * 3600e3).toISOString().slice(0, 10);
   function aiReady() {
-    if (!apiKey() || banned(base) || banned(model)) return false;
+    if (!apiKey() || banned(base) || banned(modelOf())) return false;
     const t = now(); if (t < cooldownUntil) return false;
     while (win.length && win[0] < t - 60e3) win.shift();
     if (day !== dayKey()) { day = dayKey(); dayCount = 0; }
@@ -77,7 +79,7 @@ export function createAiAssist(db, {now = Date.now, env = process.env, fetchImpl
     try {
       res = await doFetch(base + '/chat/completions', {method: 'POST', signal: ctl.signal,
         headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey()},
-        body: JSON.stringify({model, temperature, max_tokens: maxTokens, messages, ...(json ? {response_format: {type: 'json_object'}} : {})})});
+        body: JSON.stringify({model: modelOf(), temperature, max_tokens: minTokensFor(modelOf(), maxTokens), messages, ...zhipuThinkingExtras(modelOf(), base), ...(json ? {response_format: {type: 'json_object'}} : {})})});
     } catch (e) { clearTimeout(timer); lastError = e && e.name === 'AbortError' ? 'timeout' : 'network'; throw new Error(lastError); }
     clearTimeout(timer);
     if (res.status === 429) { cooldownUntil = now() + 20e3; lastError = 'rate_limited'; throw new Error(lastError); }
@@ -191,6 +193,6 @@ export function createAiAssist(db, {now = Date.now, env = process.env, fetchImpl
       return {answer: en ? "I couldn't answer that right now. Please try again later, or contact us via the email in the Privacy Policy." : '暂时无法回答这个问题，请稍后再试，或通过隐私政策里的联系邮箱联系官方。', source: 'none'};
     }
   }
-  function status() { return {provider: /bigmodel\.cn/.test(base) ? 'zhipu' : 'openai-compatible', model, keyOk: !!apiKey(), lastError, rpm, rpd, usedToday: day === dayKey() ? dayCount : 0}; }
+  function status() { return {provider: /bigmodel\.cn/.test(base) ? 'zhipu' : 'openai-compatible', model: modelOf(), keyOk: !!apiKey(), lastError, rpm, rpd, usedToday: day === dayKey() ? dayCount : 0}; }
   return {translate, match, ask, status, faqSections: () => sections};
 }

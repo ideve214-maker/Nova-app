@@ -57,6 +57,7 @@ import {createMarketing} from './marketing.mjs';
 import {createPostStats} from './post-stats.mjs';
 import {createBoost} from './boost.mjs';
 import {createAiModeration} from './ai-moderation.mjs';
+import {createAiModel} from './ai-model.mjs';
 import {createAlerts} from './alerts.mjs';
 import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
@@ -146,7 +147,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
 
   const db = openDb(dbPath);
   // 2.0.7 AI 服务商 + 用量统计：所有 AI 对话 / 联网搜索请求都经过 meterFetch 记一行 ai_usage（只记服务商、模型、token 数）。
-  const aiProviders = createAiProviders(db, {env: aiEnv || process.env, now: () => clock(), dbPath});
+  // 2.1.0 全站 AI 模型设置（管理端可选 GLM-5.3-Flash 等；所有 AI 调用都读它，没设置时默认 glm-4.7-flash）
+  const aiModel = createAiModel(db, {now: () => clock(), env: aiEnv || process.env});
+  const aiProviders = createAiProviders(db, {env: aiEnv || process.env, now: () => clock(), dbPath, aiModel});
   const aiUsage = createAiUsage(db, {now: () => clock()});
   const meterOpts = {record: r => aiUsage.record(r), attribute: u => aiProviders.attribute(u)};
   const rawAiFetch = aiFetch;
@@ -191,7 +194,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const blockwords = createBlockwords(db, {now});
   const marketing = createMarketing(db, {now, blockwords, dataDir: pathJoin(mediaRoot, '..', 'marketing')});
   const postStats = createPostStats(db, {now, posts, comments});
-  const aiMod = createAiModeration(db, {now, env: aiEnv || process.env, fetchImpl: aiFetch});
+  const aiMod = createAiModeration(db, {now, env: aiEnv || process.env, fetchImpl: aiFetch, aiModel});
   const presence = createPresence(db, {now, friends, events, chats: null});
   const chats = createChats(db, {profile, vip, now, friends, media, stickers, onEvent, blockwords});
   presence.attach({chats, events, friends});
@@ -239,7 +242,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   postStats.onView((row, user) => boost.onView(row, user));
   posts.attach({boostOf: (id, me) => boost.badgeFor(id, me)});
   const adminOps = createAdminOps(db, {now, vip, profile, pay, audit, notifications});
-  const adminV2 = createAdminV2(db, {now, profile, audit, notifications, adminOps, env: aiEnv || process.env, fetchImpl: aiFetch});
+  const adminV2 = createAdminV2(db, {now, profile, audit, notifications, adminOps, env: aiEnv || process.env, fetchImpl: aiFetch, aiModel});
   const featured = createFeatured(db, {now, posts, pubPost: adminOps.pubPost, audit});
   const secEvents = createSecurityEvents(db, {now});
   const alerts = createAlerts({webhook: alertWebhook, now, dataDir: dbPath && dbPath !== ':memory:' ? dbPath : '.'});
@@ -257,7 +260,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const activities = createActivities(db, {now, notifications: notifyProxy, authorOf: id => chats.authorOf(id)});
   posts.attach({activityOf: (id, me) => activities.ofPost(id, me)});
   const exchange = createExchange(db, {now, authorOf: id => chats.authorOf(id), friends, chats});
-  const aiAssist = createAiAssist(db, {now, env: aiEnv || process.env, fetchImpl: aiFetch, exchange, friends});
+  const aiAssist = createAiAssist(db, {now, env: aiEnv || process.env, fetchImpl: aiFetch, exchange, friends, aiModel});
   const projects = createProjects(db, {now, authorOf: id => chats.authorOf(id), chats, notifications: notifyProxy});
   chats.setRoleHook((cvId, uid, role) => projects.syncFromChat(cvId, uid, role));
   media.attachLook(id => communities.look.isLookMedia(id) || activities.isCoverMedia(id));
@@ -1608,7 +1611,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/activities/:id/cancel'(req) { const {user} = auth(req); return activities.cancel(user, req.params.id); },
     'GET /api/activities/:id/signups'(req) { const {user} = auth(req); return activities.signups(user, req.params.id); },
     // ---- VEXO 2.0 技能交换 ----
-    // ---- 2.0.1 AI：翻译、技能匹配、官方助手（智谱 glm-4-flash；失败时有兜底） ----
+    // ---- 2.0.1 AI：翻译、技能匹配、官方助手（智谱，模型读管理端「AI 模型」设置；失败时有兜底） ----
     async 'POST /api/ai/translate'(req, b) { const {user} = auth(req); return aiAssist.translate(user, b || {}); },
     async 'GET /api/exchange/match'(req) { const {user} = auth(req); return aiAssist.match(user); },
     async 'POST /api/assistant/ask'(req, b) { const {user} = auth(req); return aiAssist.ask(user, b || {}); },
@@ -1736,7 +1739,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'GET /api/admin/ai-assistant/report'(req) {
       const {admin} = adminAuth(req);
       const stats = adminV2.collectStats((req.query || {}).date);
-      return {stats, report: null, model: 'glm-4-flash', provider: 'zhipu', providerLabel: '智谱'};
+      const cfg = adminV2.aiInfo();
+      return {stats, report: null, model: cfg.model, provider: cfg.provider, providerLabel: cfg.providerLabel};
     },
     async 'POST /api/admin/ai-assistant/report'(req, b) {
       const {admin} = adminAuth(req);
@@ -1789,6 +1793,15 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       return {settings: st, status: aiMod.status()};
     },
     // 2.1.0 外部导入帖 AI 审查（管理端 2.0.8「外部帖审查」卡片）
+    // 2.1.0 全站 AI 模型设置（管理端「AI 接口与额度」页的模型下拉框）
+    'GET /api/admin/ai/model'(req) { adminAuth(req); return aiModel.get(); },
+    'POST /api/admin/ai/model'(req, b) {
+      const {admin} = adminAuth(req);
+      const before = aiModel.get();
+      const after = aiModel.set(b || {});
+      audit(admin.id, 'admin.ai.model', 'ai_model', ip(req), {before: {provider: before.provider, model: before.model, saved: before.saved}, after: {provider: after.provider, model: after.model, saved: after.saved}});
+      return after;
+    },
     ...importReviewRoutes({aiReview, adminAuth, audit, ip, bad}),
     async 'POST /api/admin/ai-moderation/test'(req, b) {
       adminAuth(req);

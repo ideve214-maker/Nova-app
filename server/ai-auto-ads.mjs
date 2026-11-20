@@ -1,5 +1,5 @@
 // 2.0.6 AI 自动找广告并发布营销帖。
-// 流程：智谱联网搜索（web_search）→ 逐条过滤 → glm-4-flash 只按搜索结果写广告卡片文案 → 写入营销管理的广告位（marketing_ads，走 marketing.create 同一套校验）。
+// 流程：智谱联网搜索（web_search）→ 逐条过滤 → 当前 AI 模型（管理端「AI 模型」设置，默认 glm-4.7-flash）只按搜索结果写广告卡片文案 → 写入营销管理的广告位（marketing_ads，走 marketing.create 同一套校验）。
 //
 // 安全规则（全部在服务端执行）：
 // 1. 默认关闭：必须同时满足 环境变量 ADMIN_AI_AUTO_ADS=1 + 管理端开关（admin_ai_settings 的 autoads.enabled=1）+ 已配置智谱密钥，才会自动发布。

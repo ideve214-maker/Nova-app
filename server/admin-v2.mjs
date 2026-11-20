@@ -1,5 +1,6 @@
 // 管理端 2.0：编辑资料、粉丝加成、站内通知、标签、注销账号、AI 助理日报。
-// 模型只用智谱 glm-4-flash；拒绝 DeepSeek。密钥只从环境变量读取，绝不打印。
+// 模型读管理端「AI 模型」设置（2.1.0，默认 glm-4.7-flash）；拒绝 DeepSeek。密钥只从环境变量读取，绝不打印。
+import {DEFAULT_AI_MODEL, zhipuThinkingExtras, minTokensFor} from './ai-model.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {hashPassword} from './auth.mjs';
@@ -9,7 +10,7 @@ export const DELETE_CONFIRM = '确认删除';
 const MAX_TAG = 20;
 const MAX_NOTIFY = 2000;
 const DEFAULT_BASE = 'https://open.bigmodel.cn/api/paas/v4';
-const DEFAULT_MODEL = 'glm-4-flash';
+const DEFAULT_MODEL = DEFAULT_AI_MODEL; // 2.1.0：管理端「AI 模型」设置优先
 
 function asInt(v) {
   const n = Number(v);
@@ -49,13 +50,13 @@ export function localReport(stats) {
     `待处理举报 ${s.openReports ?? 0} 条，今日已处理 ${s.decidedReports ?? 0} 条；付款待核对 ${s.pendingPayments ?? 0} 笔，今日确认 ${s.confirmedPayments ?? 0} 笔。`,
     `今日封禁 ${s.bans ?? 0} 人，注销 ${s.deletes ?? 0} 人。新社区 ${s.newCommunities ?? 0}，新技能交换 ${s.newExchange ?? 0}，新共创项目 ${s.newProjects ?? 0}，活动报名 ${s.activitySignups ?? 0} 次。`,
     s.aiChecks != null ? `AI 审查今日调用 ${s.aiChecks} 次（拦截 ${s.aiBlocks ?? 0}，标记 ${s.aiFlags ?? 0}）。` : '',
-    '以上为根据后台统计自动整理的摘要。配置智谱（glm-4-flash）后可生成更完整的工作建议。',
+    '以上为根据后台统计自动整理的摘要。配置智谱 AI 后可生成更完整的工作建议。',
   ];
   return lines.filter(Boolean).join('\n');
 }
 
 export function createAdminV2(db, {
-  now, profile, audit, notifications, adminOps, env = process.env, fetchImpl,
+  now, profile, audit, notifications, adminOps, env = process.env, fetchImpl, aiModel = null,
 } = {}) {
   const nowFn = now || Date.now;
   const doFetch = fetchImpl || fetch;
@@ -261,7 +262,7 @@ export function createAdminV2(db, {
   function aiConfig() {
     const e = env || process.env;
     const base = String(e.AI_API_BASE || e.ZHIPU_API_BASE || DEFAULT_BASE).replace(/\/+$/, '');
-    const model = String(e.AI_MODEL || e.ZHIPU_MODEL || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+    const model = aiModel ? aiModel.model(e.AI_MODEL || e.ZHIPU_MODEL) : (String(e.AI_MODEL || e.ZHIPU_MODEL || DEFAULT_MODEL).trim() || DEFAULT_MODEL);
     const key = String(e.AI_API_KEY || e.ZHIPU_API_KEY || '').trim();
     return {base, model, keyConfigured: !!key, key, provider: /bigmodel\.cn/.test(base) ? 'zhipu' : 'openai-compatible', providerLabel: /bigmodel\.cn/.test(base) ? '智谱' : '兼容接口'};
   }
@@ -285,7 +286,7 @@ export function createAdminV2(db, {
         const res = await doFetch(cfg.base + '/chat/completions', {
           method: 'POST', signal: ctl.signal,
           headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key},
-          body: JSON.stringify({model: cfg.model, temperature: 0.3, max_tokens: 800, messages: [{role: 'system', content: sys}, {role: 'user', content: user}]}),
+          body: JSON.stringify({model: cfg.model, temperature: 0.3, max_tokens: minTokensFor(cfg.model, 800), ...zhipuThinkingExtras(cfg.model, cfg.base), messages: [{role: 'system', content: sys}, {role: 'user', content: user}]}),
         });
         if (!res.ok) {
           let t = ''; try { t = (await res.text()).slice(0, 160); } catch {}
@@ -314,6 +315,7 @@ export function createAdminV2(db, {
 
   return {
     editProfile, setFollowerBonus, addTag, removeTag, setTags, listTags, bulkDeleteTag,
-    notifyOne, notifyMany, deleteUser, collectStats, generateReport, tagsOf, PRESET_TAGS, DELETE_CONFIRM,
+    notifyOne, notifyMany, deleteUser, collectStats, generateReport, tagsOf,
+    aiInfo: () => { const c = aiConfig(); return {model: c.model, provider: c.provider, providerLabel: c.providerLabel}; }, PRESET_TAGS, DELETE_CONFIRM,
   };
 }

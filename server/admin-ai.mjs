@@ -8,7 +8,7 @@
 //    执行时按存下来的请求原样重放，走与手动操作完全相同的管理端接口（同样的校验和审计）。
 // 4. 提出 / 确认 / 执行 / 取消 / 过期 / 失败 / 拒绝都写 audit_log（admin.ai.*）。
 // 2.0.7 起走管理端选定的“当前 AI 服务商”（ai-providers.mjs）；没选或不可用时退回服务器默认：AI_API_KEY 或 ZHIPU_API_KEY、AI_API_BASE，
-// 模型 ADMIN_AI_MODEL（默认 AI_MODEL，再默认 glm-4-flash）。联网搜索只有智谱支持，当前这家不支持时改用智谱。绝不打印密钥。
+// 模型：管理端「AI 模型」设置 > ADMIN_AI_MODEL > AI_MODEL > glm-4.7-flash（2.1.0）。联网搜索只有智谱支持，当前这家不支持时改用智谱。绝不打印密钥。
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {tokenHash} from './auth.mjs';
@@ -16,6 +16,7 @@ import {createAds} from './admin-ads.mjs';
 import {createWebSearch} from './ai-web-search.mjs';
 import {createAutoAds} from './ai-auto-ads.mjs';
 import {createAiProviders} from './ai-providers.mjs';
+import {DEFAULT_AI_MODEL, zhipuThinkingExtras, minTokensFor} from './ai-model.mjs';
 import {billingReason, BillingError} from './ai-failover.mjs';
 
 export const PENDING_TTL_MS = 5 * 60e3;
@@ -223,7 +224,7 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
   const doFetch = fetchImpl || ((...a) => fetch(...a));
   const prov = providers || createAiProviders(db, {env, now});
   const cur = () => { const p = prov.active(); return p && !banned(p.base) && !banned(p.model) ? p : null; };
-  const model = () => (cur() || prov.envProvider()).model || 'glm-4-flash';
+  const model = () => (cur() || prov.envProvider()).model || DEFAULT_AI_MODEL;
   const ready = () => !!cur();
   const perAdmin = new Map();
   function take(kind, adminId, max) {
@@ -240,9 +241,9 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
     if (banned(p.base) || banned(p.model)) throw new ApiError(503, 'AI_NOT_CONFIGURED', '不使用 DeepSeek');
     let res;
     try {
-      res = await doFetch(p.base + '/chat/completions', {method: 'POST', signal: AbortSignal.timeout(25000),
+      res = await doFetch(p.base + '/chat/completions', {method: 'POST', signal: AbortSignal.timeout(/^glm-5/i.test(String(p.model)) ? 60000 : 25000),
         headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + p.key},
-        body: JSON.stringify({model: p.model, temperature, max_tokens: maxTokens, messages,
+        body: JSON.stringify({model: p.model, temperature, max_tokens: minTokensFor(p.model, maxTokens), messages, ...zhipuThinkingExtras(p.model, p.base),
           ...(tools ? {tools, tool_choice: 'auto'} : {}), ...(json ? {response_format: {type: 'json_object'}} : {})})});
     } catch { throw new ApiError(503, 'AI_UNAVAILABLE', 'AI 暂时连不上，请稍后再试'); }
     if (!res.ok) {
