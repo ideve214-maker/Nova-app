@@ -84,3 +84,13 @@ export function metaQuery(f: MetaFilter): Record<string, string> {
   if (f.source) q.source = f.source;
   return q;
 }
+
+/** 改分类失败的提示：404（旧服务端没有接口）→「需服务端更新」；BAD_CATEGORY →「分类不对」 */
+export function categoryFailure(status: number, json: unknown, fallback = "修改分类失败"): string {
+  const r = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+  const e = r.error && typeof r.error === "object" ? (r.error as Record<string, unknown>) : {};
+  const code = String(e.code ?? r.code ?? (typeof r.error === "string" ? r.error : "") ?? "");
+  if (code === "BAD_CATEGORY") return "分类不对";
+  if (status === 404 && (!code || code === "NOT_FOUND")) return "需服务端更新";
+  return (typeof e.message === "string" && e.message) || fallback;
+}

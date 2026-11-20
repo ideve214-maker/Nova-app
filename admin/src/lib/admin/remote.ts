@@ -3,6 +3,7 @@
  * 路径仍走 backend.ts 的对照表与别名，便于以后换版本。
  */
 import { clearAuthStorage } from "./storage-keys";
+import { categoryFailure, normalizeCategory, type PostCategory } from "./post-category";
 import {
   apiBinary,
   receiptFailure,
@@ -207,6 +208,16 @@ export async function remoteRestoreContent(type: string, id: string): Promise<Re
   const rec = asRecord(res.json);
   const item = mapRemoteContent(rec && rec.item ? rec.item : res.json, type === "comment" ? "comment" : "post");
   return item ? ok(res, item) : fail(res, "恢复失败");
+}
+
+/** 2.0.9：改帖子分类；成功返回服务端确认后的分类（没回就用提交的值） */
+export async function remoteSetPostCategory(id: string, category: PostCategory | null): Promise<{ ok: true; category: PostCategory | null } | { ok: false; error: string }> {
+  const res = await apiRequest("adminPostCategory", { method: "POST", params: { id }, body: { category }, timeoutMs: 8000 });
+  if (!res.ok) return { ok: false, error: categoryFailure(res.status, res.json) };
+  const rec = asRecord(res.json);
+  const post = rec && asRecord(rec.post);
+  const got = post && "category" in post ? normalizeCategory(post.category) : rec && "category" in rec ? normalizeCategory(rec.category) : category;
+  return { ok: true, category: got };
 }
 
 export async function remotePayments(query?: Record<string, string | number | undefined>): Promise<Remote<MappedPayment[]>> {

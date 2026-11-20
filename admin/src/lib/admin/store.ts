@@ -340,6 +340,7 @@ export type AdminState = Persisted & {
   setPostStatus: (id: string, status: PostItem["status"], reason?: string) => Promise<string | null>;
   hideContent: (kind: "post" | "comment", id: string, reason?: string) => Promise<string | null>;
   restoreContent: (kind: "post" | "comment", id: string) => Promise<string | null>;
+  setPostCategory: (id: string, category: import("./post-category").PostCategory | null) => Promise<string | null>;
   refreshContent: (opts?: { type?: string; status?: string; q?: string; category?: string; source?: string }) => Promise<void>;
   refreshUsers: (opts?: { status?: string; q?: string }) => Promise<void>;
   refreshPayments: (opts?: { status?: string; q?: string }) => Promise<void>;
@@ -816,6 +817,17 @@ export const useAdmin = create<AdminState>((set, get) => ({
     }
     set((s) => ({ posts: upsertPost(s.posts, toPost(result.data)) }));
     get().flash("已恢复");
+    void get().refreshAudit();
+    return null;
+  },
+  setPostCategory: async (id, category) => {
+    const result = await remote.remoteSetPostCategory(id, category);
+    if (!result.ok) {
+      get().flash(result.error);
+      return result.error;
+    }
+    set((s) => ({ posts: s.posts.map((p) => (p.id === id && p.kind === "post" ? { ...p, category: result.category } : p)) }));
+    get().flash(result.category ? "分类已改" : "已清空分类");
     void get().refreshAudit();
     return null;
   },

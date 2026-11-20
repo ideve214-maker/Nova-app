@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { matchMeta, metaQuery, type MetaFilter } from "@/lib/admin/post-category";
+import { CATEGORY_LABEL, matchMeta, metaQuery, normalizeCategory, POST_CATEGORIES, type MetaFilter } from "@/lib/admin/post-category";
 import { MetaFilterBar, MetaPills } from "./post-meta";
 import { useAdmin, type PostItem, type ReportItem } from "@/lib/admin/store";
 import { type MappedMedia } from "@/lib/admin/backend";
-import { DemoBanner, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
+import { DemoBanner, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
 import { hapticLight } from "@/lib/admin/native";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import { AdminMediaThumb, MediaScanMeta, MediaStrip, MediaViewerSheet } from "./media-view";
@@ -26,6 +26,8 @@ export function ContentScreen() {
   const [kind, setKind] = useState<"all" | "post" | "comment" | "review">("all");
   const [status, setStatus] = useState<"all" | "visible" | "removed">("all");
   const [meta, setMeta] = useState<MetaFilter>({ category: "", source: "" });
+  const setPostCategory = useAdmin((s) => s.setPostCategory);
+  const [catBusy, setCatBusy] = useState<string | null>(null);
   const metaOn = !!(meta.category || meta.source);
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -165,6 +167,26 @@ export function ContentScreen() {
                   {post.adminReason && <p className="mt-1 text-[12px] text-warn">删除原因：{sanitizeText(post.adminReason)}</p>}
                 </div>
               </div>
+              {post.kind === "post" && (
+                <label className="mt-2 flex items-center gap-2 text-[13px] text-muted">
+                  分类
+                  <select
+                    className={inputClass + " h-9 flex-1 text-[14px]"}
+                    aria-label="修改分类"
+                    disabled={catBusy === post.id}
+                    value={post.category || ""}
+                    onChange={async (e) => {
+                      const v = normalizeCategory(e.target.value);
+                      setCatBusy(post.id);
+                      await setPostCategory(post.id, v);
+                      setCatBusy(null);
+                    }}
+                  >
+                    <option value="">未分类</option>
+                    {POST_CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
+                  </select>
+                </label>
+              )}
               {post.status === "removed" ? (
                 <button
                   type="button"

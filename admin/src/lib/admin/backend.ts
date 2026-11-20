@@ -43,6 +43,8 @@ export const DEFAULT_ENDPOINT_MAP = {
   adminContentItem: "/api/admin/content/:type/:id",
   adminContentDelete: "/api/admin/content/:type/:id/delete",
   adminContentRestore: "/api/admin/content/:type/:id/restore",
+  /** 2.0.9：管理员改帖子分类（服务端 2.1.2）；body {category}，null = 清空 */
+  adminPostCategory: "/api/admin/posts/:id/category",
   adminPayments: "/api/admin/payments",
   adminPayment: "/api/admin/payments/:id",
   adminPaymentConfirm: "/api/admin/payments/:id/confirm",

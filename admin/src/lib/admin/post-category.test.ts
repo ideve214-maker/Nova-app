@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchMeta, metaQuery, normalizeCategory, readPostMeta, sourceOptions } from "./post-category.ts";
+import { categoryFailure, matchMeta, metaQuery, normalizeCategory, readPostMeta, sourceOptions } from "./post-category.ts";
 import { mapRemoteContent } from "./backend.ts";
 
 test("readPostMeta: 2.1.2 外部帖 / 无字段降级", () => {
@@ -25,4 +25,10 @@ test("mapRemoteContent 带上分类和来源", () => {
   const m = mapRemoteContent({ id: 1, text: "a", category: "finance", source: "wallstcn" }, "post");
   assert.equal(m!.category, "finance");
   assert.equal(m!.sourceLabel, "华尔街见闻");
+});
+test("categoryFailure: 404 → 需服务端更新；BAD_CATEGORY → 分类不对", () => {
+  assert.equal(categoryFailure(404, { error: { code: "NOT_FOUND" } }), "需服务端更新");
+  assert.equal(categoryFailure(404, null), "需服务端更新");
+  assert.equal(categoryFailure(400, { error: { code: "BAD_CATEGORY", message: "x" } }), "分类不对");
+  assert.equal(categoryFailure(404, { error: { code: "POST_NOT_FOUND", message: "帖子不存在" } }), "帖子不存在");
 });
