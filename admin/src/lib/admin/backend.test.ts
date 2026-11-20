@@ -743,3 +743,15 @@ describe("AI 额度用完自动切换接口登记", () => {
     assert.equal(DEFAULT_ENDPOINT_MAP.adminAiFailover, "/api/admin/ai/failover");
   });
 });
+
+describe("付款截图 404 = 没传截图", () => {
+  it("404 是中性提示「没有付款截图」，其他错误保留原文", async () => {
+    const { receiptFailure, NO_RECEIPT_TEXT, DEFAULT_ENDPOINT_MAP } = await import("./backend.ts");
+    assert.deepEqual(receiptFailure(404, "接口不存在"), { none: true, message: NO_RECEIPT_TEXT });
+    assert.equal(NO_RECEIPT_TEXT, "没有付款截图");
+    assert.notEqual(receiptFailure(404).message, "需服务端更新");
+    assert.deepEqual(receiptFailure(500, "服务器出错"), { none: false, message: "服务器出错" });
+    assert.deepEqual(receiptFailure(0, "连接超时"), { none: false, message: "连接超时" });
+    assert.equal(DEFAULT_ENDPOINT_MAP.adminPaymentReceipt, "/api/admin/payments/:id/receipt");
+  });
+});

@@ -348,7 +348,7 @@ export type AdminState = Persisted & {
   confirmPayment: (id: string, note?: string) => Promise<string | null>;
   rejectPayment: (id: string, reason: string) => Promise<string | null>;
   refundPayment: (id: string, reason?: string) => Promise<string | null>;
-  fetchReceiptUrl: (id: string) => Promise<{ url: string; mime: string } | { error: string }>;
+  fetchReceiptUrl: (id: string) => Promise<{ url: string; mime: string } | { error: string; none?: boolean }>;
   resolveReport: (id: string, resolution: string) => Promise<string | null>;
   grantVip: (id: string, days: number, reason: string) => Promise<string | null>;
   revokeVip: (id: string, reason: string) => Promise<string | null>;
@@ -949,7 +949,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
   },
   fetchReceiptUrl: async (id) => {
     const result = await remote.remoteReceipt(id);
-    if (!result.ok) return { error: result.error };
+    if (!result.ok) return { error: result.error, none: !!result.missing };
     return { url: result.data.objectUrl, mime: result.data.mime };
   },
   resolveReport: async (id, resolution) => {

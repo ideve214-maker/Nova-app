@@ -5,6 +5,7 @@
 import { clearAuthStorage } from "./storage-keys";
 import {
   apiBinary,
+  receiptFailure,
   apiRequest,
   extractList,
   mapRemoteAnnouncement,
@@ -261,7 +262,8 @@ export async function remoteRefundPayment(id: string, reason?: string): Promise<
 export async function remoteReceipt(id: string): Promise<Remote<{ objectUrl: string; mime: string }>> {
   const res = await apiBinary("adminPaymentReceipt", { params: { id }, timeoutMs: 20000 });
   if (!res.ok || !res.blob) {
-    return { ok: false, error: res.error || "没有付款截图", status: res.status, json: null };
+    const f = receiptFailure(res.status, res.error);
+    return { ok: false, error: f.message, status: res.status, json: null, missing: f.none };
   }
   const objectUrl = URL.createObjectURL(res.blob);
   return { ok: true, data: { objectUrl, mime: res.mime }, json: null, status: res.status };

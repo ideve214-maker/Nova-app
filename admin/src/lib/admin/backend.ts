@@ -1707,6 +1707,13 @@ export function isSafeRelativePath(p: unknown): p is string {
   return typeof p === "string" && /^\/(?![/\\])[^\s\\]*$/.test(p) && p.length <= 2048;
 }
 
+/** 付款截图是选填的：收据接口 404 = 这笔订单没传截图（中性提示，不算出错，也不是「需服务端更新」）。 */
+export const NO_RECEIPT_TEXT = "没有付款截图";
+export function receiptFailure(status: number, error?: string): { none: boolean; message: string } {
+  if (status === 404) return { none: true, message: NO_RECEIPT_TEXT };
+  return { none: false, message: error || "无法获取付款截图" };
+}
+
 export type BinaryResult = {
   ok: boolean;
   status: number;

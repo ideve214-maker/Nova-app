@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { paymentStatusLabel, VIP_PRICES, type MappedPayment, type PaymentStatus } from "@/lib/admin/backend";
+import { NO_RECEIPT_TEXT, paymentStatusLabel, VIP_PRICES, type MappedPayment, type PaymentStatus } from "@/lib/admin/backend";
 import { hapticLight } from "@/lib/admin/native";
 import { useAdmin } from "@/lib/admin/store";
 import { Field, inputClass, PendingApi, Pill, PrimaryButton, Screen, Seg, Sheet } from "./ui";
@@ -38,6 +38,7 @@ export function PaymentsScreen() {
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [receiptErr, setReceiptErr] = useState("");
+  const [receiptNone, setReceiptNone] = useState(false);
 
   useEffect(() => {
     void refreshPayments({ status: tab === "all" ? undefined : tab });
@@ -62,9 +63,11 @@ export function PaymentsScreen() {
     if (receipt?.url) URL.revokeObjectURL(receipt.url);
     setReceipt(null);
     setReceiptErr("");
+    setReceiptNone(false);
     if (p.hasReceipt) {
       const got = await fetchReceiptUrl(p.id);
       if ("url" in got) setReceipt(got);
+      else if (got.none) setReceiptNone(true);
       else setReceiptErr(got.error);
     }
   }
@@ -133,6 +136,8 @@ export function PaymentsScreen() {
               <p className="mb-1.5 text-[13px] text-muted">付款截图</p>
               {receipt ? (
                 <img src={receipt.url} alt="付款截图" className="max-h-64 w-full rounded-xl object-contain bg-subtle" />
+              ) : receiptNone ? (
+                <p className="text-[13px] text-muted" data-testid="receipt-none">{NO_RECEIPT_TEXT}</p>
               ) : receiptErr ? (
                 <p className="text-[13px] text-danger">{receiptErr}</p>
               ) : active.hasReceipt ? (
