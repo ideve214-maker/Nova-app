@@ -65,6 +65,7 @@ import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} fro
 import {createTldr, TldrError} from './tldr.mjs';
 import {createImportFeed, isReservedImportIdentity, IMPORT_DELAY_MS, setImportPublicOrigin, DEFAULT_IMPORT_AVATAR_SVG} from './import-feed.mjs';
 import {createAiReview} from './ai-review.mjs';
+import {createFeedPersonalize, isRecQuery} from './feed-personalize.mjs';
 import {importReviewRoutes} from './admin-import-review.mjs';
 import {appVersion} from './version.mjs';
 import {mkdirSync} from 'node:fs';
@@ -115,6 +116,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   weatherFetch, weatherEnv, weatherIpLookup,
   importFetch, importAuto, importDelayMs, importLimit, importCommentLimit, importIntervalMs,
   importTimeoutMs, importRepliesTimeoutMs, importRetries, importRetryDelayMs, publicOrigin,
+  feedEnv,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -161,6 +163,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const stickers = createStickers({vip});
   const profile = createProfile(db, {now});
   const posts = createPosts(db, {vip, profile, now});
+  const feed = createFeedPersonalize(db, {now, env: feedEnv || process.env});
   const comments = createComments(db, {profile, vip, posts, now});
   posts.attach(comments);
   const follows = createFollows(db, {profile, vip, now});
@@ -551,6 +554,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     // 个人收藏（M2.5.3）：私有额度，服务端执行；与公共置顶无关。
     'GET /api/me/saved'(req) { const {user} = auth(req); return saved.list(user); },
+    'GET /api/me/interests'(req) { const {user} = auth(req); return feed.getInterests(user); },
+    'PUT /api/me/interests'(req, b) { const {user} = auth(req); return feed.putInterests(user, b || {}); },
+    'POST /api/feed/not-interested'(req, b) { const {user} = auth(req); return feed.notInterested(user, b || {}); },
+    'POST /api/feed/signals'(req, b) { const {user} = auth(req); return feed.ingestSignals(user, b || {}); },
     'POST /api/me/saved'(req, b) { const {user} = auth(req); const r = saved.add(user, b || {}); audit(user.id, 'saved.add', 'saved:' + r.item.id, ip(req), {kind: r.item.kind}); return r; },
     'POST /api/me/saved/remove'(req, b) { const {user} = auth(req); const r = saved.remove(user, b || {}); audit(user.id, 'saved.remove', 'saved:' + r.removed.id, ip(req)); return r; },
     // 文本长度（M2.5.4）：前端提示与服务端限制必须一致。scope = post | chat | channel。
@@ -605,7 +612,8 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         q.authors = ids;
       }
       // feed=topic 由 posts.list 按话题/标签过滤，并套用受众权限。
-      const r = posts.list(user, q);
+      // feed=rec（默认「为你推荐」）按偏好、兴趣分和新鲜度排序；关注流 / 话题流 / 指定作者不走这套。
+      const r = isRecQuery(q) ? feed.recommend(user, q, posts) : posts.list(user, q);
       // r10 营销帖：推荐 / 关注流的第一页附带为这个用户随机挑选的广告，客户端每 every 条普通帖插 1 条。
       if (!q.cursor && q.feed !== 'topic' && !q.author) {
         const m = marketing.pickFor(user);
@@ -2263,7 +2271,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.importFeed = importFeed; server.aiReview = aiReview; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.importFeed = importFeed; server.aiReview = aiReview; server.feed = feed; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();

@@ -8,6 +8,8 @@
 - 停用并保留原因：36氪（RSS 地址返回 HTML）、虎嗅/Lobsters（超时）、Reddit/微博/知乎（被拦，公共 RSSHub 403）、BlockBeats（超时）、CoinDesk/游民星空（403）、财联社（404）、雪球（防火墙页）。
 - 币圈、财经来源的 AI 审查额外拦截喊单、交易信号、交易所和空投推广；不会按「广告」放宽规则改判放行。
 - 帖子新增字段 `category`（`tech` / `game` / `crypto` / `finance` / `news` / `life` / `other`）。外部帖默认用来源分类，AI 审查可改判；用户发帖和 AI 内部账号发帖可直接传 `category`，接口 payload 带上这个字段。
+- 用户偏好与行为上报：`GET/PUT /api/me/interests`、`POST /api/feed/not-interested`、`POST /api/feed/signals`（迁移 `067_feed_interests.sql`）。
+- 「为你推荐」按偏好、按分类汇总的兴趣分和新鲜度排序，大约两成位置探索；关注流和话题流不变。新用户没有数据时仍按时间倒序。兴趣分只给真人算。
 
 
 ## 服务端 2.1.1（20261121-0158-server-2.1.1-ai-ads-nocap）

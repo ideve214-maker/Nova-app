@@ -335,5 +335,10 @@ export function createPosts(db, {vip, profile, now}) {
     const last = rows[rows.length - 1];
     return {posts: rows.map(r => pub(r, user)), nextCursor: more && last ? last.id : null};
   }
-  return {create, get, edit, remove, list, pub, byId, attach, canSee, normAud};
+  // 「为你推荐」候选池：按可见性取最近的一批，排序交给 feed-personalize。
+  function candidates(user, {limit = 300} = {}) {
+    const take = Math.min(Math.max(Number(limit) || 300, 1), 1000);
+    return newest.all(null, null, ...visArgs(user), take);
+  }
+  return {create, get, edit, remove, list, candidates, pub, byId, attach, canSee, normAud};
 }
