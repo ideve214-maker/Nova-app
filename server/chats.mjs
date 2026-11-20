@@ -1,4 +1,5 @@
 // M4.3 单聊/群聊：会话、成员、消息。权限在服务端校验，不信任客户端角色。
+import {isInternalAccount, INTERNAL_ACCOUNT_MSG} from './internal-account.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {parseCiphertext} from './e2ee.mjs';
@@ -110,7 +111,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     const u = userBy.get(Number(id));
     if (!u) return {id: Number(id), username: 'unknown', displayName: 'unknown'};
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active), badge: u.badge || null};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active), badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   function pair(a, b) {
     a = Number(a); b = Number(b);
@@ -209,6 +210,7 @@ export function createChats(db, {profile, vip, now, friends, onEvent, media, sti
     if (oid === Number(user.id)) throw new ApiError(400, 'SELF_DM', '不能和自己发起私聊');
     const other = userBy.get(oid);
     if (!other || other.status !== 'active') throw new ApiError(404, 'NOT_FOUND', '找不到这位用户');
+    if (isInternalAccount(other, db)) throw new ApiError(403, 'INTERNAL_ACCOUNT', INTERNAL_ACCOUNT_MSG);
     checkDmGate(user.id, oid);
     const [lo, hi] = pair(user.id, oid);
     let row = byPair.get(lo, hi);

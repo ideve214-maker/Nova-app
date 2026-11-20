@@ -41,6 +41,9 @@ import {createPay} from './pay.mjs';
 import {createAdminOps} from './admin-ops.mjs';
 import {createAdminV2} from './admin-v2.mjs';
 import {createAdminAi} from './admin-ai.mjs';
+import {createAiPersonas, AVATAR_ROUTE_RE} from './ai-personas.mjs';
+import {createUserActions} from './user-actions.mjs';
+import {isInternalAccount, INTERNAL_LOGIN_MSG} from './internal-account.mjs';
 import {createAiProviders} from './ai-providers.mjs';
 import {createAiUsage, createAiQuota, meterFetch, aiQuotaRoutes} from './ai-quota.mjs';
 import {createAiRouter} from './ai-failover.mjs';
@@ -218,7 +221,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   const reports = createReports(db, {now, notifications, profile, moderation: () => adminOps});
 
   // vip 是否有效由服务端按到期时间算出，不信任任何客户端字段。
-  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, badge: u.badge || null, mustChangePw: !!u.must_change_pw, createdAt: u.created_at, legalVersion: u.legal_version || null, legalAgreedAt: u.legal_agreed_at || null, skin: u.ui_skin || null, profile: profile.publicOf(u)}; };
+  const pubUser = u => { const v = vip.status(u); return {id: u.id, username: u.username, email: u.email, role: u.role, vip: v.active, vipUntil: v.active ? v.until : null, badge: u.badge || null, ai: isInternalAccount(u, db), mustChangePw: !!u.must_change_pw, createdAt: u.created_at, legalVersion: u.legal_version || null, legalAgreedAt: u.legal_agreed_at || null, skin: u.ui_skin || null, profile: profile.publicOf(u)}; };
   const q = {
     userBy: db.prepare('SELECT * FROM users WHERE id=?'),
     userByLogin: db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE OR email = ?'),
@@ -304,6 +307,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     const r = db.prepare('SELECT author_id FROM posts WHERE id=? AND deleted_at IS NULL').get(postId);
     return r ? r.author_id : null;
   };
+  const userActions = createUserActions({
+    db, posts, comments, saved, postStats, communities, blockwords, hashtags,
+    notifications, audit, polls, activities, aiMod,
+    assertPollText, assertV2Text, postAuthor: srvPostAuthor, now,
+  });
 
   const validate = {
     username: v => /^[\p{L}\p{N}_]{3,20}$/u.test(v || ''),
@@ -429,6 +437,11 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       const u = q.userByLogin.get(id, id);
       // 导入系统账号不能登录；仍走同样的失败路径，避免暴露这个账号。
       const reserved = u && isReservedImportIdentity(u.username, u.email);
+      if (u && !reserved && isInternalAccount(u, db)) {
+        verifyPassword(pw, u.password_hash);
+        audit(u.id, 'auth.login_internal', key, ip(req));
+        throw bad('INTERNAL_ACCOUNT', INTERNAL_LOGIN_MSG, 403);
+      }
       // 账号不存在时也做一次哈希，避免通过耗时判断账号是否存在
       const ok = (u && !reserved) ? verifyPassword(pw, u.password_hash) : (verifyPassword(pw, 'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$' + 'A'.repeat(86) + '=='), false);
       if (!ok) {
@@ -580,28 +593,9 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     // ---- 动态（M4.1）帖子真实入库；发布成功以服务端响应为准 ----
     async 'POST /api/posts'(req, b) {
       const {user} = auth(req);
-      const body = b || {};
-      if (body.poll) { polls.assertCanCreate(user); polls.validateSpec(body.poll); }
-      if (body.poll && !body.activity && !String(body.text || '').trim()) body.text = String(body.poll.question || '').trim();
-      if (body.activity) {
-        activities.assertCanCreate(user); activities.validateSpec(body.activity, user); assertV2Text(activities.textOf(body.activity));
-        if (!String(body.text || '').trim()) body.text = String(body.activity.title || '').trim();
-      }
-      if (body.text) blockwords.assertPlatform(body.text);
-      if (body.poll) assertPollText(body.poll);
-      // r10 AI 审查：关键词过滤之后再交给 AI；AI 不可用时已由上面的关键词过滤兜底。
-      const aiText = [body.text, body.poll && body.poll.question, ...((body.poll && body.poll.options) || []).map(o => (o && o.text) || o), body.activity && activities.textOf(body.activity)].filter(x => typeof x === 'string' && x.trim()).join('\n');
-      const ai = await aiMod.enforce(aiText, {user, kind: 'post'});
-      const r = posts.create(user, body);
-      aiMod.linkPost(ai, r.post.id);
-      if (body.poll && !r.idempotent) {
-        const pr = polls.createForPost(user, r.post.id, body.poll);
-        r.post.poll = pr.poll;
-      }
-      if (body.activity && !r.idempotent) r.post.activity = activities.createForPost(user, r.post.id, body.activity).activity;
-      r.post.hashtags = hashtags.syncPost(user, r.post);
-      audit(user.id, 'post.create', 'post:' + r.post.id, ip(req));
-      return r;
+      const body = {...(b || {})};
+      delete body.skipAiReview;
+      return await userActions.createPost(user, body, {ip: ip(req)});
     },
     'GET /api/posts'(req) {
       const {user} = auth(req);
@@ -657,15 +651,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/posts/:id/comments'(req, b) {
       const {user} = auth(req);
-      if (b && b.text) blockwords.assertPlatform(b.text);
-      const r = comments.add(user, req.params.id, b || {});
-      audit(user.id, 'post.comment', 'comment:' + r.comment.id, ip(req));
-      const post = srvPostAuthor(req.params.id);
-      if (post) notifications.push(post, {
-        kind: 'comment', title: '有人评论了你的动态', body: String((r.comment && r.comment.text) || '').slice(0, 120),
-        refType: 'post', refId: req.params.id, actorId: user.id, dedupeKey: 'comment:' + r.comment.id,
-      });
-      return r;
+      return userActions.addComment(user, req.params.id, b || {}, {ip: ip(req)});
     },
     'POST /api/comments/:id/delete'(req) {
       const {user} = auth(req);
@@ -687,15 +673,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/posts/:id/react'(req, b) {
       const {user} = auth(req);
-      const r = comments.react(user, req.params.id, b || {});
-      if (r && (r.myReaction != null && r.myReaction >= 0 || r.reacted)) {
-        const post = srvPostAuthor(req.params.id);
-        if (post) notifications.push(post, {
-          kind: 'react', title: '有人对你的动态表态', body: '',
-          refType: 'post', refId: req.params.id, actorId: user.id, dedupeKey: 'react:' + req.params.id + ':' + user.id,
-        });
-      }
-      return r;
+      return userActions.react(user, req.params.id, b || {}, {ip: ip(req)});
     },
     'POST /api/follows'(req, b) {
       const {user} = auth(req);
@@ -791,9 +769,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
         'POST /api/communities/:id/join'(req, b) {
       const {user} = auth(req);
-      const r = communities.join(user, req.params.id, b || {});
-      audit(user.id, 'community.join', 'community:' + req.params.id, ip(req));
-      return r;
+      return userActions.joinCommunity(user, req.params.id, b || {}, {ip: ip(req)});
     },
     'POST /api/communities/:id/leave'(req) {
       const {user} = auth(req);
@@ -853,9 +829,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     },
     'POST /api/channels/:id/messages'(req, b) {
       const {user} = auth(req);
-      const r = communities.postMessage(user, req.params.id, b || {});
-      audit(user.id, 'community.message', 'channel:' + req.params.id, ip(req));
-      return r;
+      return userActions.postChannelMessage(user, req.params.id, b || {}, {ip: ip(req)});
     },
     'POST /api/communities/:id/invites'(req, b) {
       const {user} = auth(req);
@@ -1837,7 +1811,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     'POST /api/admin/boost/orders/:id/stop'(req, b) { const {admin} = adminAuth(req); const r = boost.stop(admin, req.params.id, b || {}); audit(admin.id, 'admin.boost.stop', 'boost:' + req.params.id, ip(req), {refund: !!(b && b.refund)}); return r; },
     'POST /api/admin/boost/settings'(req, b) { const {admin} = adminAuth(req); const r = boost.saveSettings(b || {}); audit(admin.id, 'admin.boost.settings', 'boost', ip(req)); return r; },
     // ---- r10 数据调整 ----
-    'POST /api/posts/:id/view'(req) { const {user} = auth(req); return postStats.view(user, req.params.id); },
+    'POST /api/posts/:id/view'(req) { const {user} = auth(req); return userActions.viewPost(user, req.params.id); },
     'GET /api/admin/marketing/posts'(req) { adminAuth(req); return postStats.search(req.query || {}); },
     'POST /api/admin/marketing/posts/:id/stats'(req, b) {
       const {admin} = adminAuth(req);
@@ -2012,6 +1986,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     }});
   Object.assign(routes, adminAi.routes({adminAuth, ip}));
   Object.assign(routes, aiQuotaRoutes({adminAuth, ip, audit, providers: aiProviders, quota: aiQuota, router: aiRouter, meteredFetch: adminAiFetch, now}));
+  const aiPersonas = createAiPersonas(db, {
+    now, env: aiEnv || process.env,
+    posts, comments, saved, postStats, communities, notifications, profile, media,
+    blockwords, hashtags, adminAi, userActions,
+    llm: (messages, opts) => adminAi.llm(messages, opts),
+    audit,
+  });
+  Object.assign(routes, aiPersonas.routes({adminAuth, ip}));
 
   function findRoute(method, path) {
     const exact = routes[method + ' ' + path];
@@ -2224,6 +2206,17 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
         return;
       }
     }
+    const personaAvatar = AVATAR_ROUTE_RE.exec(path);
+    if ((req.method === 'GET' || req.method === 'HEAD') && personaAvatar) {
+      return aiPersonas.serveAvatar(req, res, personaAvatar[1], {
+        adminAuth,
+        headers: {...corsHeaders(req), ...securityHeaders({hsts: !!hsts})},
+        sendError: e => {
+          if (e && (e.s || e.code)) return send(e.s || 401, {error: {code: e.code, message: e.message, ...(e.extra || {})}});
+          return send(500, {error: {code: 'INTERNAL', message: '服务器开小差了'}});
+        },
+      });
+    }
     const found = findRoute(req.method, path);
     if (!found) return send(404, {error: {code: 'NOT_FOUND', message: '接口不存在'}});
     const fn = found.fn; req.params = found.params;
@@ -2271,13 +2264,14 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
       }
     });
   });
-  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.importFeed = importFeed; server.aiReview = aiReview; server.feed = feed; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
+  server.db = db; server.vip = vip; server.saved = saved; server.profile = profile; server.posts = posts; server.comments = comments; server.follows = follows; server.communities = communities; server.chats = chats; server.friends = friends; server.events = events; server.media = media; server.notifications = notifications; server.search = search; server.admins = admins; server.reports = reports; server.e2ee = e2ee; server.adminSeed = adminSeed; server.pay = pay; server.adminOps = adminOps; server.adminV2 = adminV2; server.featured = featured; server.polls = polls; server.activities = activities; server.exchange = exchange; server.projects = projects; server.hashtags = hashtags; server.schedule = schedule; server.blockwords = blockwords; server.flags = flags; server.marketing = marketing; server.postStats = postStats; server.boost = boost; server.aiMod = aiMod; server.aiAssist = aiAssist; server.presence = presence; server.exporter = exporter; server.account = account; server.secEvents = secEvents; server.alerts = alerts; server.rate = rate; server.tldr = tldr; server.weather = weather; server.importFeed = importFeed; server.aiReview = aiReview; server.feed = feed; server.userActions = userActions; server.aiPersonas = aiPersonas; server.backupOpen = (dest) => backupOpen(db, dest); server.adminAi = adminAi;
 
   const autoSched = scheduleAuto != null ? !!scheduleAuto : (dbPath !== ':memory:');
   if (autoSched) schedule.start();
   if (autoSched && process.env.ADMIN_AI_ADS_DAILY !== '0') adminAi.ads.start();
   // 2.0.6：AI 自动发布营销帖的定时器只在 ADMIN_AI_AUTO_ADS=1 时启动（默认不启动）；还要管理端开关打开才会真的搜索和发布。
   if (autoSched && adminAi.autoAds) adminAi.autoAds.start();
+  if (autoSched && String((aiEnv || process.env).AI_PERSONAS || '') === '1') aiPersonas.start();
   const autoImport = importAuto != null ? !!importAuto
     : (dbPath !== ':memory:' && process.env.NOVA_IMPORT_AUTO !== '0' && !process.env.NODE_TEST_CONTEXT);
   if (autoImport) importFeed.start();
@@ -2287,6 +2281,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     try { adminAi.ads.stop(); } catch {}
     try { adminAi.autoAds && adminAi.autoAds.stop(); } catch {}
     try { importFeed.stop(); } catch {}
+    try { aiPersonas.stop(); } catch {}
     try { events.closeAll(); } catch {}
     return _close(cb);
   };

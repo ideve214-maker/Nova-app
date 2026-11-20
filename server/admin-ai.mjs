@@ -237,13 +237,15 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
   const route = router ? (kind, fn) => router.call(kind, fn)
     : async (kind, fn) => { const p = cur(); if (!p) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'AI 助手还没有配置智谱密钥（或管理端选定的 AI 服务商不可用）'); return fn(p); };
   const llm = (messages, opts = {}) => route('chat', p => llmOn(p, messages, opts));
-  async function llmOn(p, messages, {tools, json = false, maxTokens = 800, temperature = 0.2} = {}) {
+  async function llmOn(p, messages, {tools, json = false, maxTokens = 800, temperature = 0.2, model: modelOverride} = {}) {
     if (banned(p.base) || banned(p.model)) throw new ApiError(503, 'AI_NOT_CONFIGURED', '不使用 DeepSeek');
+    const model = String(modelOverride || p.model);
+    if (banned(model)) throw new ApiError(503, 'AI_NOT_CONFIGURED', '不使用 DeepSeek');
     let res;
     try {
-      res = await doFetch(p.base + '/chat/completions', {method: 'POST', signal: AbortSignal.timeout(/^glm-5/i.test(String(p.model)) ? 60000 : 25000),
+      res = await doFetch(p.base + '/chat/completions', {method: 'POST', signal: AbortSignal.timeout(/^glm-5/i.test(model) ? 60000 : 25000),
         headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + p.key},
-        body: JSON.stringify({model: p.model, temperature, max_tokens: minTokensFor(p.model, maxTokens), messages, ...zhipuThinkingExtras(p.model, p.base),
+        body: JSON.stringify({model, temperature, max_tokens: minTokensFor(model, maxTokens), messages, ...zhipuThinkingExtras(model, p.base),
           ...(tools ? {tools, tool_choice: 'auto'} : {}), ...(json ? {response_format: {type: 'json_object'}} : {})})});
     } catch { throw new ApiError(503, 'AI_UNAVAILABLE', 'AI 暂时连不上，请稍后再试'); }
     if (!res.ok) {

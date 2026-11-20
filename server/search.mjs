@@ -1,4 +1,5 @@
 // M4.7 搜索：用户/帖子/社区/消息。范围受权限约束。E2EE 私聊明文不建服务端索引（目前私聊尚未加密，只搜用户可见的已有明文；M4.11 接入后密文不得进入此索引）。
+import {isInternalAccount} from './internal-account.mjs';
 import {ApiError} from './errors.mjs';
 
 const lim = (q, d = 20) => Math.min(Math.max(Number(q) || d, 1), 50);
@@ -34,7 +35,7 @@ export function createSearch(db, {profile, vip, now} = {}) {
     const u = userBy.get(Number(id));
     if (!u) return {id: Number(id), username: 'unknown', displayName: 'unknown'};
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active), badge: u.badge || null};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!(vip && vip.status(u).active), badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   function like(q) {
     const s = String(q).replace(/([\\%_])/g, '\\$1');

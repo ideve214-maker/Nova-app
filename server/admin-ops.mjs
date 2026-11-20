@@ -1,5 +1,6 @@
 // 管理端用户、内容、公告与统计。路径对齐 Agen nova-admin 的 DEFAULT_ENDPOINT_MAP。
 import {randomBytes} from 'node:crypto';
+import {createInternalHints} from './internal-account.mjs';
 import {ApiError} from './errors.mjs';
 import {hashPassword} from './auth.mjs';
 
@@ -335,18 +336,20 @@ export function createAdminOps(db, {now, vip, profile, pay, audit, notifications
     try { return Number(db.prepare(sql).get(...args).n) || 0; } catch { return 0; }
   }
   const VISIBLE_USER = "u.status!='deleted' AND u.deleted_at IS NULL";
-  const activeSince = since => countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.status='active'
+  const hints = createInternalHints(db);
+  const REAL_USER = VISIBLE_USER + ' AND ' + hints.notSql('u.id');
+  const activeSince = since => countSafe(`SELECT COUNT(*) n FROM users u WHERE ${REAL_USER} AND u.status='active'
     AND (u.last_login_at>=? OR EXISTS (SELECT 1 FROM user_presence pr WHERE pr.user_id=u.id AND pr.last_seen>=?))`, since, since);
 
   function stats() {
     const t = nowFn();
     const d8 = new Date(t + 8 * 3600e3);
     const todayStart = Date.UTC(d8.getUTCFullYear(), d8.getUTCMonth(), d8.getUTCDate()) - 8 * 3600e3;
-    const all = countSafe('SELECT COUNT(*) n FROM users');
-    const users = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER}`);
-    const banned = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.status='banned'`);
-    const normal = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.status='active'`);
-    const vipN = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${VISIBLE_USER} AND u.vip_until IS NOT NULL AND u.vip_until>?`, t);
+    const all = countSafe('SELECT COUNT(*) n FROM users u WHERE ' + hints.notSql('u.id'));
+    const users = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${REAL_USER}`);
+    const banned = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${REAL_USER} AND u.status='banned'`);
+    const normal = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${REAL_USER} AND u.status='active'`);
+    const vipN = countSafe(`SELECT COUNT(*) n FROM users u WHERE ${REAL_USER} AND u.vip_until IS NOT NULL AND u.vip_until>?`, t);
     const activeToday = activeSince(todayStart);
     const active7d = activeSince(t - 7 * 86400e3);
     const onlineNow = activeSince(t - 5 * 60e3);

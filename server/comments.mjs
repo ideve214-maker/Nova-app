@@ -1,4 +1,5 @@
 // M4.1.3 评论、回复、反应。关系与计数由服务端维护；删除和权限在服务端校验。
+import {isInternalAccount} from './internal-account.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {extAuthorPayload, SOURCE_LABEL} from './import-feed.mjs';
@@ -35,7 +36,7 @@ export function createComments(db, {profile, vip, posts, now}) {
     const u = userBy.get(id);
     if (!u) return {id, username: 'unknown', displayName: 'unknown', avatar: null, vip: false};
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   const adjLikes = db.prepare('SELECT adj_likes FROM posts WHERE id=?');
   function reactOf(postId, me) {

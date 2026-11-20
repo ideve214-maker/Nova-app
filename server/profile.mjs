@@ -1,4 +1,5 @@
 // M2.6 个人资料、颜色文字头像、隐私设置。每项都有默认值；写入服务端校验。
+import {isInternalAccount} from './internal-account.mjs';
 import {ApiError} from './errors.mjs';
 import {randomBytes} from 'node:crypto';
 import {createLook} from './look.mjs';
@@ -197,6 +198,7 @@ export function createProfile(db, {now}) {
       avatar: p.avatar,
       cover: p.cover || null,
       badge: target.badge || null,
+      ai: isInternalAccount(target, db),
       vip: !!(target.vip_until && target.vip_until > now()),
       isFriend,
       isSelf: !!self,

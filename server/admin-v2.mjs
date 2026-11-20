@@ -1,5 +1,6 @@
 // 管理端 2.0：编辑资料、粉丝加成、站内通知、标签、注销账号、AI 助理日报。
 // 模型读管理端「AI 模型」设置（2.1.0，默认 glm-4.7-flash）；拒绝 DeepSeek。密钥只从环境变量读取，绝不打印。
+import {createInternalHints} from './internal-account.mjs';
 import {DEFAULT_AI_MODEL, zhipuThinkingExtras, minTokensFor} from './ai-model.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
@@ -255,7 +256,7 @@ export function createAdminV2(db, {
       aiChecks: countSafe('SELECT COUNT(*) n FROM ai_moderation_log WHERE created_at>=? AND created_at<?', start, end),
       aiBlocks: countSafe("SELECT COUNT(*) n FROM ai_moderation_log WHERE created_at>=? AND created_at<? AND verdict='block'", start, end),
       aiFlags: countSafe("SELECT COUNT(*) n FROM ai_moderation_log WHERE created_at>=? AND created_at<? AND verdict='flag'", start, end),
-      usersTotal: countSafe("SELECT COUNT(*) n FROM users WHERE status!='deleted' AND deleted_at IS NULL"),
+      usersTotal: countSafe("SELECT COUNT(*) n FROM users u WHERE u.status!='deleted' AND u.deleted_at IS NULL AND " + createInternalHints(db).notSql("u.id")),
     };
   }
 

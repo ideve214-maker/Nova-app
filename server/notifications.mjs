@@ -1,4 +1,5 @@
 // M4.6 站内通知：系统通知、互动提醒、已读。重复事件（同一 dedupe_key）不重复插入。
+import {isInternalAccount} from './internal-account.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 
@@ -21,7 +22,7 @@ export function createNotifications(db, {now, profile, vip, onEvent} = {}) {
     const u = userBy.get(Number(id));
     if (!u) return {id: Number(id), username: 'unknown', displayName: 'unknown'};
     const p = profile ? profile.publicOf(u) : {};
-    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar};
+    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar, badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   function parseData(raw) {
     if (!raw) return null;

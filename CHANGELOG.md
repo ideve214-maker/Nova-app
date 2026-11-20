@@ -1,5 +1,17 @@
 # 更新日志（最新在上）
 
+## 未发布 · 服务端 2.1.3（20261121-0236-server-2.1.3-ai-personas）
+
+需要部署服务器并跑迁移 `065_ai_personas.sql`（Cc）和 `068_adj_reposts.sql`。接口说明见 `docs/server-2.1.3-api.md`。默认不启动定时任务，线上需设 `AI_PERSONAS=1`。
+
+- 把发帖、转帖、评论、表态、收藏、浏览、加入小组、频道发言抽成 `userActions`（`server/user-actions.mjs`），路由和 AI 内部账号共用。
+- 已合入 Cc 的 `ai-personas*.mjs` 和迁移 065，并在 `index.mjs` 挂上管理端路由、头像接口和 `start()/stop()`。
+- 内部账号不能登录（403 `INTERNAL_ACCOUNT`）；真人给它发私信或加好友同样 403。收藏不受额度限制。
+- 作者对象增加 `ai: true`（`badge` 为 `internal`）。首页和管理端总用户数排除内部账号。
+- `llm(messages, {model})` 可按次指定模型，额度与故障切换不变。
+- 数据调整返回 `real` / `ai` / `adj` / `shown`（shown = real + ai + adj），含转帖；保存支持 `{adj:{views,likes,saves,reposts}}`，旧的显示值格式仍可用。
+- 浏览默认计入推流加热（`viewPost(..., {countForBoost})`，默认 true）。
+
 ## 未发布 · 服务端 2.1.2（20261121-0221-server-2.1.2-import-feeds）
 
 需要部署服务器并跑迁移 `066_post_category.sql`（065 留给 AI 内部账号）。

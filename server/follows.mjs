@@ -1,4 +1,5 @@
 // M4.1.4 单向关注。不是好友：好友是双向申请关系，见 M4.10。
+import {isInternalAccount} from './internal-account.mjs';
 import {ApiError} from './errors.mjs';
 
 export function createFollows(db, {profile, vip, now}) {
@@ -22,7 +23,7 @@ export function createFollows(db, {profile, vip, now}) {
     const u = userBy.get(id);
     if (!u) return null;
     const p = profile.publicOf(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   function uid(v) {
     const n = Number(v);

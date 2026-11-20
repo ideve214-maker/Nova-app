@@ -1,4 +1,5 @@
 // M4.2 社区：创建/加入/角色/频道/邀请。权限在服务端校验，不信任客户端角色字段。
+import {isInternalAccount} from './internal-account.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {createLook} from './look.mjs';
@@ -49,7 +50,7 @@ export function createCommunities(db, {profile, vip, now, notifications, blockwo
     const u = userBy.get(id); if (!u) return {id, username: 'unknown', displayName: 'unknown'};
     const p = profile.publicOf(u);
     const dn = p && p.displayName != null ? String(p.displayName).trim() : '';
-    return {id: u.id, username: u.username, displayName: dn || u.username, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null};
+    return {id: u.id, username: u.username, displayName: dn || u.username, avatar: p.avatar, vip: !!vip.status(u).active, badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   function roleOf(cmId, userId) {
     const m = mem.get(cmId, userId);

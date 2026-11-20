@@ -1,4 +1,5 @@
 // M7 陌生人消息请求。接受前不建立正常会话；接受前不向发送者泄露已读。
+import {isInternalAccount, INTERNAL_ACCOUNT_MSG} from './internal-account.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 
@@ -24,7 +25,7 @@ export function createMessageRequests(db, {now, profile, friends, chats, follows
     const u = userBy.get(id);
     if (!u) return {id, username: 'unknown', displayName: 'unknown', avatar: null};
     const p = profile ? profile.publicOf(u) : {};
-    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar};
+    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar, ai: isInternalAccount(u, db)};
   }
   function mutualFollow(a, b) {
     if (!follows) return false;
@@ -100,6 +101,7 @@ export function createMessageRequests(db, {now, profile, friends, chats, follows
     if (!Number.isInteger(oid) || oid <= 0 || oid === Number(user.id)) throw new ApiError(400, 'BAD_USER', '请选择要发消息的用户');
     const other = userBy.get(oid);
     if (!other || other.status !== 'active') throw new ApiError(404, 'NOT_FOUND', '找不到这位用户');
+    if (isInternalAccount(other, db)) throw new ApiError(403, 'INTERNAL_ACCOUNT', INTERNAL_ACCOUNT_MSG);
     if (friends && friends.isBlocked && friends.isBlocked(user.id, oid)) throw new ApiError(403, 'BLOCKED', '因拉黑无法发送');
     if (canDirect(user.id, oid)) throw new ApiError(409, 'DIRECT_OK', '你们已经可以正常聊天');
     const text = String((body && body.text) != null ? body.text : '').trim();

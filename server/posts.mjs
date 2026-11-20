@@ -1,5 +1,6 @@
 // M4.1 动态：发帖入库，权限在服务端校验。显示成功必须等服务端确认。
 // M7：audience（public/followers/friends/self）在列表与详情上做服务端过滤。
+import {isInternalAccount} from './internal-account.mjs';
 import {randomBytes} from 'node:crypto';
 import {ApiError} from './errors.mjs';
 import {extAuthorPayload, SOURCE_LABEL} from './import-feed.mjs';
@@ -102,7 +103,7 @@ export function createPosts(db, {vip, profile, now}) {
     if (!u) return {id, username: 'unknown', displayName: 'unknown', avatar: null, vip: false};
     const p = profile.publicOf(u);
     const v = vip.status(u);
-    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!v.active, badge: u.badge || null};
+    return {id: u.id, username: u.username, displayName: p.displayName, avatar: p.avatar, vip: !!v.active, badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   let extras = null;
   function attach(ex) { extras = Object.assign(extras || {}, ex); }
@@ -165,7 +166,7 @@ export function createPosts(db, {vip, profile, now}) {
       bookmarkCount: Math.max(0, saveCnt.get(row.id).n + (row.adj_saves || 0)),
       category: row.category || null,
     };
-    if (repostCnt) out.repostCount = repostCnt.get(row.id).n;
+    if (repostCnt) out.repostCount = Math.max(0, (repostCnt.get(row.id).n || 0) + (row.adj_reposts || 0));
     if (myPlainRepost && me && me.id) { const mr = myPlainRepost.get(row.id, Number(me.id)); out.myRepost = mr ? mr.id : null; }
     if (!embedded) {
       const ri = repostInfo(row);

@@ -1,4 +1,5 @@
 // 双向好友：申请/同意/拒绝/取消/删除。M4.3.3 的门槛判断仍用 areFriends / isBlocked。
+import {isInternalAccount, INTERNAL_ACCOUNT_MSG} from './internal-account.mjs';
 import {ApiError} from './errors.mjs';
 
 export function createFriends(db, {now, profile} = {}) {
@@ -78,7 +79,7 @@ export function createFriends(db, {now, profile} = {}) {
     const u = userBy.get(Number(id));
     if (!u) return {id: Number(id), username: 'unknown', displayName: 'unknown'};
     const p = profile ? profile.publicOf(u) : {};
-    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar, badge: u.badge || null};
+    return {id: u.id, username: u.username, displayName: p.displayName || u.username, avatar: p.avatar, badge: u.badge || null, ai: isInternalAccount(u, db)};
   }
   function pub(row, me) {
     if (!row) return null;
@@ -111,6 +112,7 @@ export function createFriends(db, {now, profile} = {}) {
     const targetId = Number(body && (body.userId != null ? body.userId : body.id));
     if (!Number.isInteger(targetId) || targetId === Number(user.id)) throw new ApiError(400, 'BAD_USER', '请选择要申请的用户');
     const target = requireUser(targetId);
+    if (isInternalAccount(target, db)) throw new ApiError(403, 'INTERNAL_ACCOUNT', INTERNAL_ACCOUNT_MSG);
     if (isBlocked(user.id, targetId)) throw new ApiError(403, 'BLOCKED', '无法向对方发送好友申请');
     if (profile && typeof profile.privacyOf === 'function') {
       const priv = profile.privacyOf(target);

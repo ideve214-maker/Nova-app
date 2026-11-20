@@ -34,9 +34,9 @@ test('阅读每人只算一次；管理端按关键词/用户名搜索并修改�
   assert.equal(s.j.posts[0].real.views, 1);
   s = await call('GET', '/api/admin/marketing/posts?q=' + a.u, null, adm);
   assert.equal(s.j.posts[0].id, p.id);
-  const up = await call('POST', `/api/admin/marketing/posts/${p.id}/stats`, {views: 1200, likes: 88, saves: 30}, adm);
+  const up = await call('POST', `/api/admin/marketing/posts/${p.id}/stats`, {views: 1200, likes: 88, saves: 30, reposts: 0}, adm);
   assert.equal(up.s, 200, JSON.stringify(up.j));
-  assert.deepEqual(up.j.post.shown, {views: 1200, likes: 88, saves: 30});
+  assert.deepEqual(up.j.post.shown, {views: 1200, likes: 88, saves: 30, reposts: 0});
   const g = (await call('GET', `/api/posts/${p.id}`, null, b.tok)).j.post;
   assert.equal(g.viewCount, 1200);
   assert.equal(g.bookmarkCount, 30);
@@ -46,6 +46,6 @@ test('阅读每人只算一次；管理端按关键词/用户名搜索并修改�
   assert.equal((await call('POST', `/api/posts/${p.id}/view`, {}, c.tok)).j.viewCount, 1201);
   assert.equal((await call('POST', `/api/admin/marketing/posts/${p.id}/stats`, {views: -5}, adm)).s, 400);
   const rs = await call('POST', `/api/admin/marketing/posts/${p.id}/stats`, {reset: true}, adm);
-  assert.deepEqual(rs.j.post.shown, {views: 2, likes: 1, saves: 0});
+  assert.deepEqual(rs.j.post.shown, {views: 2, likes: 1, saves: 0, reposts: 0});
   assert.equal((await call('GET', '/api/admin/marketing/posts', null, a.tok)).s, 403);
 });

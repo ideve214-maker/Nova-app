@@ -1,5 +1,6 @@
 // 个人收藏（M2.5.3）：只扩展用户自己的私有收藏额度，与群聊/社区公共置顶完全分开。
 import {VipError} from './vip.mjs';
+import {isInternalAccount} from './internal-account.mjs';
 
 const KINDS = new Set(['post', 'message', 'channel']);
 const kindName = {post: '动态', message: '消息', channel: '频道消息'};
@@ -36,14 +37,16 @@ export function createSaved(db, {vip, now}) {
     const q = quota(user);
     return {items: listQ.all(user.id).map(pub), count: q.count, limit: q.limit, plan: q.plan};
   }
-  function add(user, {kind, target, title, excerpt}) {
+  function add(user, {kind, target, title, excerpt, skipQuota} = {}) {
     if (!KINDS.has(kind)) throw new VipError(400, 'BAD_KIND', '收藏类型不正确');
     const tgt = String(target || '').trim();
     if (!tgt || tgt.length > 80 || !/^[\w.:-]+$/.test(tgt)) throw new VipError(400, 'BAD_TARGET', '收藏对象不正确');
     const exist = getQ.get(user.id, kind, tgt);
     if (exist) { const q = quota(user); return {item: pub(exist), count: q.count, limit: q.limit, plan: q.plan, existed: true, saved: true, bookmarkCount: postCount(kind, tgt)}; }
     const q = quota(user);
-    vip.requireQuota(user, 'personal_saved_items_plus', {used: q.count, add: 1});
+    if (!(skipQuota || isInternalAccount(user, db))) {
+      vip.requireQuota(user, 'personal_saved_items_plus', {used: q.count, add: 1});
+    }
     const r = ins.run(user.id, kind, tgt, clip(title, 80) || (kindName[kind] || kind), clip(excerpt, 200), now());
     const row = getId.get(Number(r.lastInsertRowid), user.id);
     return {item: pub(row), count: q.count + 1, limit: q.limit, plan: q.plan, existed: false, saved: true, bookmarkCount: postCount(kind, tgt)};
