@@ -52,7 +52,7 @@ test('翻译：自动判断方向、走智谱 glm-4-flash、结果缓存、AI �
   assert.equal(r.s, 200, JSON.stringify(r.j));
   assert.equal(r.j.to, 'en');
   assert.equal(r.j.text, 'Hello, nice weather today');           // 去掉了引号
-  assert.equal(AI.calls[0].model, 'glm-4-flash');
+  assert.equal(AI.calls[0].model, 'glm-4.7-flash');
   assert.match(AI.calls[0].url, /open\.bigmodel\.cn\/api\/paas\/v4\/chat\/completions$/);
   assert.equal(AI.calls[0].auth, 'Bearer test-key');
   const again = await call('POST', '/api/ai/translate', {text: '你好，今天天气不错'}, a.tok);

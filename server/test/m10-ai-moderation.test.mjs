@@ -48,7 +48,7 @@ test('AI 审查：默认关闭；开启后拦截违规、放行正常；设置�
   assert.equal((await call('GET', '/api/admin/ai-moderation', null, u.tok)).s, 403);
   const st = await call('POST', '/api/admin/ai-moderation', {enabled: true, rules: '禁止推销保健品'}, adm);
   assert.equal(st.j.settings.enabled, true);
-  assert.equal(st.j.settings.model, 'glm-4-flash');
+  assert.equal(st.j.settings.model, 'glm-4.7-flash');
   assert.equal(st.j.status.provider, 'zhipu');
   assert.equal(st.j.status.keyConfigured, true);
   assert.ok(!JSON.stringify(st.j).includes('test-key-not-real'), '不返回密钥');
@@ -58,7 +58,7 @@ test('AI 审查：默认关闭；开启后拦截违规、放行正常；设置�
   const c = calls.at(-1);
   assert.equal(c.url, 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
   assert.equal(c.auth, 'Bearer test-key-not-real');
-  assert.equal(c.body.model, 'glm-4-flash');
+  assert.equal(c.body.model, 'glm-4.7-flash');
   assert.equal(c.body.temperature, 0);
   assert.equal(c.body.reasoning_effort, undefined);
   assert.equal(c.body.response_format.type, 'json_object');
@@ -158,11 +158,11 @@ test('AI 审查：不使用 DeepSeek——地址或模型带 deepseek 都不调�
   sv.close();
 });
 
-test('AI 审查：以前存过的 Groq 模型自动换回 glm-4-flash', async () => {
+test('AI 审查：以前存过的 Groq 模型自动换回 glm-4.7-flash（2.1.0 默认）', async () => {
   const {sv, c, a} = await mini({AI_API_KEY: 'k'}, async () => Response.json({choices: [{message: {content: '{"verdict":"allow"}'}}]}), 'ops_ai5');
   sv.db.prepare("INSERT INTO app_flags(key,value,updated_at) VALUES('ai.moderation',?,0) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify({enabled: true, model: 'openai/gpt-oss-20b'}));
   const st = await c('GET', '/api/admin/ai-moderation', null, a);
-  assert.equal(st.j.settings.model, 'glm-4-flash');
+  assert.equal(st.j.settings.model, 'glm-4.7-flash');
   assert.ok(!st.j.status.models.some(m => /gpt-oss|deepseek/.test(m)));
   sv.close();
 });

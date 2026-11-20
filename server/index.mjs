@@ -63,7 +63,7 @@ import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
 import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} from './legal.mjs';
 import {createTldr, TldrError} from './tldr.mjs';
-import {createImportFeed, isReservedImportIdentity, IMPORT_DELAY_MS} from './import-feed.mjs';
+import {createImportFeed, isReservedImportIdentity, IMPORT_DELAY_MS, setImportPublicOrigin, DEFAULT_IMPORT_AVATAR_SVG} from './import-feed.mjs';
 import {createAiReview} from './ai-review.mjs';
 import {importReviewRoutes} from './admin-import-review.mjs';
 import {appVersion} from './version.mjs';
@@ -114,7 +114,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   tldrFetch,
   weatherFetch, weatherEnv, weatherIpLookup,
   importFetch, importAuto, importDelayMs, importLimit, importCommentLimit, importIntervalMs,
-  importTimeoutMs, importRepliesTimeoutMs, importRetries, importRetryDelayMs,
+  importTimeoutMs, importRepliesTimeoutMs, importRetries, importRetryDelayMs, publicOrigin,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -389,7 +389,10 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     repliesTimeoutMs: importRepliesTimeoutMs,
     retries: importRetries,
     retryDelayMs: importRetryDelayMs,
+    avatarDir: pathJoin(mediaRoot, '..', 'import-avatars'),
   });
+  // 2.1.0：外部帖头像返回完整地址（App 里相对地址加载不到）。生产 .env 设 NOVA_PUBLIC_ORIGIN=http://47.239.0.90（没设时用 NOVA_API_BASE）
+  setImportPublicOrigin(publicOrigin != null ? publicOrigin : (process.env.NOVA_PUBLIC_ORIGIN || process.env.NOVA_API_BASE || ''));
   const routes = {
     'POST /api/auth/register'(req, b) {
       if (flags.read().registrationOpen === false) throw bad('REGISTRATION_CLOSED', '暂不开放注册', 403);
@@ -2101,14 +2104,15 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && path === '/api/import/avatar') {
       importFeed.avatar(req.query.u || req.query.url || '').then(f => {
-        if (!f) return send(404, {error: {code: 'NOT_FOUND', message: '头像不可用'}});
+        // 2.1.0：拉不到原图时回默认人像（不再 404，客户端不会显示破图 / 问号）
+        if (!f) return sendRanged(req, res, Buffer.from(DEFAULT_IMPORT_AVATAR_SVG), {...corsHeaders(req), 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=600', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'"});
         return sendRanged(req, res, f.buf, {
           ...corsHeaders(req),
           'Content-Type': f.mime,
           'Cache-Control': 'public, max-age=86400',
           'X-Content-Type-Options': 'nosniff',
         });
-      }, () => send(404, {error: {code: 'NOT_FOUND', message: '头像不可用'}}));
+      }, () => sendRanged(req, res, Buffer.from(DEFAULT_IMPORT_AVATAR_SVG), {...corsHeaders(req), 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=600', 'X-Content-Type-Options': 'nosniff'}));
       return;
     }
     const mediaFile = /^\/api\/media\/([^/]+)\/(file|preview|cover)$/.exec(path);

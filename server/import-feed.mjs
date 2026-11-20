@@ -1,6 +1,8 @@
 // V2EX / Hacker News 导入：把官方公开接口里的帖子和评论写成 posts、post_comments 里的真实行。
 // 不冒充本站用户。界面显示原作者名、头像、来源标记和原帖链接。管理端删/藏/设热帖沿用现有逻辑。
-import {randomBytes} from 'node:crypto';
+import {randomBytes, createHash} from 'node:crypto';
+import {mkdirSync, readFileSync, writeFileSync, statSync, existsSync} from 'node:fs';
+import {join as pathJoin} from 'node:path';
 import {hashPassword} from './auth.mjs';
 
 export const IMPORT_USERNAME = 'vexo_import';
@@ -87,6 +89,33 @@ export function proxyAvatarPath(origin) {
   if (!u || !isAllowedAvatarHost(u)) return '';
   return '/api/import/avatar?u=' + encodeURIComponent(u);
 }
+
+// 2.1.0：外部帖头像显示成问号的原因——库里存的是相对地址 /api/import/avatar?u=…，App（Capacitor）里相对地址会指到
+// 手机本地（http://localhost/…），图片加载失败。现在接口返回完整地址：服务端配置 NOVA_PUBLIC_ORIGIN（或 NOVA_API_BASE）时
+// 拼成 http(s)://域名/api/import/avatar?u=…；同时带上 avatar.path（相对地址，客户端可以自己用 apiUrl 拼）和 avatar.fallback（字母头像）。
+let PUBLIC_ORIGIN = '';
+export function setImportPublicOrigin(o) {
+  const s = String(o || '').trim().replace(/\/+$/, '');
+  PUBLIC_ORIGIN = /^https?:\/\/[A-Za-z0-9.\-\[\]:]+$/.test(s) ? s : '';
+  return PUBLIC_ORIGIN;
+}
+export const importPublicOrigin = () => PUBLIC_ORIGIN;
+/** 库里存的头像 → 相对的代理地址（远程原图一律改走我们自己的代理，App 和网页都能显示，也不受防盗链影响）。 */
+export function avatarPathOf(stored) {
+  const s = String(stored || '').trim();
+  if (!s) return '';
+  if (s.startsWith('/api/import/avatar?')) return s;
+  if (s.startsWith('data:image/')) return '';
+  return proxyAvatarPath(s);
+}
+/** 给客户端的头像地址：有公网地址时返回完整 URL，否则返回相对代理地址。 */
+export function avatarUrlOf(stored) {
+  const p = avatarPathOf(stored);
+  if (!p) return '';
+  return PUBLIC_ORIGIN ? PUBLIC_ORIGIN + p : p;
+}
+/** 头像拉不到时的默认图（人像剪影，不用问号）。 */
+export const DEFAULT_IMPORT_AVATAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" rx="40" fill="#3A465C"/><circle cx="40" cy="31" r="14" fill="#C9D1DC"/><path d="M14 70c3-15 14-22 26-22s23 7 26 22" fill="#C9D1DC"/></svg>';
 
 function sourceLabelOf(src) { return SOURCE_LABEL[src] || ('来自 ' + src); }
 
@@ -197,6 +226,7 @@ export function createImportFeed(db, {
   retries = FETCH_RETRIES,
   retryDelayMs,
   log = (...a) => console.error(...a),
+  avatarDir = null,        // 2.1.0：头像磁盘缓存目录
 } = {}) {
   const backoffMs = retryDelayMs != null ? retryDelayMs : (delayMs > 0 ? RETRY_BASE_MS : 0);
   const jsonOpts = {timeoutMs, retries, retryDelayMs: backoffMs, log};
@@ -208,6 +238,16 @@ export function createImportFeed(db, {
   const insCmt = db.prepare(`INSERT INTO post_comments(id,post_id,author_id,parent_id,text,created_at,source,source_id,source_url,ext_author_name,ext_author_avatar)
     VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
   const avatarCache = new Map(); // url -> {buf, mime, at}
+  // 2.1.0：头像磁盘缓存（重启后不用再去 V2EX 拉），7 天过期
+  if (avatarDir) { try { mkdirSync(avatarDir, {recursive: true}); } catch { avatarDir = null; } }
+  // 2.1.0：补齐旧数据——以前存的远程原图地址（cdn.v2ex.com 等）统一改成走代理的相对地址
+  try {
+    for (const t of ['posts', 'post_comments']) {
+      const rows = db.prepare(`SELECT id, ext_author_avatar a FROM ${t} WHERE source IS NOT NULL AND (ext_author_avatar LIKE 'http%' OR ext_author_avatar LIKE '//%')`).all();
+      const up = db.prepare(`UPDATE ${t} SET ext_author_avatar=? WHERE id=?`);
+      for (const r of rows) up.run(proxyAvatarPath(r.a) || null, r.id);
+    }
+  } catch {}
   let timer = null;
   let running = false;
   let last = {at: 0, v2ex: null, hn: null};
@@ -560,6 +600,21 @@ export function createImportFeed(db, {
     if (!isAllowedAvatarHost(u)) return null;
     const hit = avatarCache.get(u);
     if (hit && (now() - hit.at) < 24 * 3600 * 1000) return hit;
+    const h = createHash('sha256').update(u).digest('hex').slice(0, 40);
+    const fp = avatarDir ? pathJoin(avatarDir, h + '.img') : null;
+    if (fp && existsSync(fp)) {
+      try {
+        const st = statSync(fp);
+        if (Date.now() - st.mtimeMs < 7 * 24 * 3600 * 1000) {
+          const raw = readFileSync(fp); const nl = raw.indexOf(10);
+          const mime = raw.slice(0, nl).toString('latin1');
+          if (nl > 0 && /^image\/(png|jpeg|gif|webp)$/.test(mime)) {
+            const rec = {buf: raw.slice(nl + 1), mime, at: now()};
+            avatarCache.set(u, rec); return rec;
+          }
+        }
+      } catch {}
+    }
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort(), 10000);
     try {
@@ -580,6 +635,7 @@ export function createImportFeed(db, {
         avatarCache.delete(first);
       }
       avatarCache.set(u, rec);
+      if (fp && /^image\/(png|jpeg|gif|webp)$/.test(mime)) { try { writeFileSync(fp, Buffer.concat([Buffer.from(mime + '\n', 'latin1'), buf])); } catch {} }
       return rec;
     } catch { return null; }
     finally { clearTimeout(t); }
@@ -594,14 +650,18 @@ export function createImportFeed(db, {
 export function extAuthorPayload(row, source) {
   const src = source || row.source;
   const name = row.ext_author_name || 'unknown';
-  const avatarUrl = row.ext_author_avatar || null;
+  const stored = row.ext_author_avatar || '';
+  const avatarUrl = avatarUrlOf(stored) || null;
+  const fallback = letterAvatarData(name);
   return {
     id: extAuthorId(src, name),
     username: name,
     displayName: name,
     avatar: {
       kind: 'image',
-      image: avatarUrl || letterAvatarData(name),
+      image: avatarUrl || fallback,
+      path: avatarPathOf(stored) || null,
+      fallback,
       color: colorOf(name),
       letter: letterOf(name),
     },

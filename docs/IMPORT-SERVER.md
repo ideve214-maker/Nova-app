@@ -18,9 +18,9 @@
 
 ## 定时拉取
 
-- 默认每 15 分钟跑一轮。启动后大约 20 秒开始第一次（避免和别的启动任务挤在一起）。
+- 默认每 2 分钟跑一轮（2.1.0 起；以前 15 分钟）。每个来源每轮最多新入库 20 帖、每帖最多 20 条评论，入库前先过 AI 审查（见 docs/server-2.1.0-api.md）。启动后大约 20 秒开始第一次（避免和别的启动任务挤在一起）。
 - 测试或临时关掉：`NOVA_IMPORT_AUTO=0`。
-- 间隔：`NOVA_IMPORT_INTERVAL_MS`（毫秒，默认 `900000`）。
+- 间隔：`NOVA_IMPORT_INTERVAL_MS`（毫秒，默认 `120000`）；每轮新帖上限 `NOVA_IMPORT_LIMIT`（默认 20）；每帖评论上限 `NOVA_IMPORT_COMMENT_LIMIT`（默认 20）；V2EX 每小时请求预算 `NOVA_IMPORT_V2EX_PER_HOUR`（默认 100）；头像完整地址 `NOVA_PUBLIC_ORIGIN`（例如 `http://47.239.0.90`）。
 - 每一轮每个来源最多约 20 条，每条最多导入约 10 条评论。请求带固定 UA（`VEXO/2.0.6 (feed-import; …)`），条目之间间隔约 800ms。V2EX 评论接口单独用 45 秒超时，失败（含超时中断）会在当轮按 1s/2s 退避重试最多 3 次；仍失败则留下帖子、记下日志，下一轮会给还缺评论的已导入帖补评论。
 - 接口：
   - V2EX：`https://www.v2ex.com/api/topics/hot.json`，评论 `https://www.v2ex.com/api/replies/show.json?topic_id=`
@@ -36,7 +36,8 @@ V2EX 头像经本站代理并在内存缓存：`GET /api/import/avatar?u=<原始
 
 ```
 # NOVA_IMPORT_AUTO=0
-# NOVA_IMPORT_INTERVAL_MS=900000
+# NOVA_IMPORT_INTERVAL_MS=120000
+# NOVA_PUBLIC_ORIGIN=http://47.239.0.90
 ```
 
 不需要密钥，也不要把密钥或 `.env` 写进仓库或热更新包。

@@ -62,12 +62,12 @@ test('免费模型列表；资源包接口解析（只算有效的）', async ()
   assert.ok(rows[0].expiresAt > Date.parse('2027-05-19T00:00:00+08:00'));
 });
 
-test('截图原样：智谱默认 glm-4-flash、现金 ¥0.00、充值+赠送 ¥0、停用线 ¥1、资源包估算 500 万 → 不跳过，照常调用', async () => {
+test('截图原样：智谱默认 glm-4.7-flash（2.1.0）、现金 ¥0.00、充值+赠送 ¥0、停用线 ¥1、资源包估算 500 万 → 不跳过，照常调用', async () => {
   await call('POST', '/api/admin/ai/quota/env/settings', {stopBalance: 1, budgetTokens: 5_000_000, lowBalance: 10});
   adv();
   const r = await chat();
   assert.equal(r.s, 200, r.text);
-  assert.match(r.j.reply, /glm-4-flash/);
+  assert.match(r.j.reply, /glm-4\.7-flash/);
   assert.deepEqual(hits, [ENV_KEY]);
   const q = await item('env');
   assert.equal(q.exhausted, false);

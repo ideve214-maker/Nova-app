@@ -253,14 +253,32 @@ export function sniffMagic(buf) {
   if (str(0, 'GIF87a') || str(0, 'GIF89a')) return {kind: 'image', mime: 'image/gif'};
   if (str(0, 'RIFF') && str(8, 'WEBP')) return {kind: 'image', mime: 'image/webp'};
   if (str(0, '%PDF')) return {kind: 'file', mime: 'application/pdf'};
-  if (at(0, 0x50, 0x4b, 0x03, 0x04) || at(0, 0x50, 0x4b, 0x05, 0x06)) return {kind: 'file', mime: 'application/zip'};
+  if (at(0, 0x50, 0x4b, 0x03, 0x04) || at(0, 0x50, 0x4b, 0x05, 0x06)) {
+    // 2.1.0：docx / xlsx / pptx 本质是 ZIP，里面有 [Content_Types].xml 和 word/、xl/、ppt/ 目录
+    const head = b.slice(0, Math.min(b.length, 64 * 1024)).toString('latin1');
+    if (head.includes('[Content_Types].xml') || /(^|\0|[^\w])(word|xl|ppt)\//.test(head)) {
+      const sub = /word\//.test(head) ? 'docx' : /xl\//.test(head) ? 'xlsx' : /ppt\//.test(head) ? 'pptx' : null;
+      return {kind: 'file', mime: 'application/zip', office: sub || 'ooxml'};
+    }
+    return {kind: 'file', mime: 'application/zip'};
+  }
+  // 2.1.0：旧版 Office / WPS（doc、xls、ppt、wps、et、dps）是 OLE 复合文档，文件头 D0 CF 11 E0 A1 B1 1A E1
+  if (at(0, 0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1)) return {kind: 'file', mime: 'application/x-ole-storage', ole: true};
+  if (str(0, 'Rar!\x1a\x07')) return {kind: 'file', mime: 'application/vnd.rar'};
+  if (at(0, 0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c)) return {kind: 'file', mime: 'application/x-7z-compressed'};
+  // 可执行文件：单独标出来，通用文件里拒收
+  if (str(0, 'MZ') || at(0, 0x7f, 0x45, 0x4c, 0x46) || at(0, 0xcf, 0xfa, 0xed, 0xfe) || at(0, 0xfe, 0xed, 0xfa, 0xcf)) return {kind: null, mime: 'application/x-executable', exec: true};
   if (str(0, 'ftyp') || (b.length > 8 && str(4, 'ftyp'))) {
     // mp4 / qt / m4a
     const brand = b.slice(8, 12).toString('ascii');
-    if (/mp4|isom|iso2|avc1|dash|msnv|ndas|ndsc|mmp4/i.test(brand)) return {kind: 'video', mime: 'video/mp4'};
+    if (/^qt/i.test(brand)) return {kind: 'video', mime: 'video/quicktime'};
+    if (/^3g/i.test(brand)) return {kind: 'video', mime: 'video/3gpp'};
+    if (/mp4|isom|iso2|avc1|dash|msnv|ndas|ndsc|mmp4|M4V/i.test(brand)) return {kind: 'video', mime: 'video/mp4'};
     if (/M4A|M4B|M4P/i.test(brand)) return {kind: 'audio', mime: 'audio/mp4'};
     return {kind: 'video', mime: 'video/mp4'};
   }
+  // 2.1.0：老的 QuickTime .mov 第一个盒子不一定是 ftyp（可能是 wide / mdat / moov / free）
+  if (b.length > 8 && ['moov', 'mdat', 'wide', 'free', 'skip', 'pnot'].includes(b.slice(4, 8).toString('latin1'))) return {kind: 'video', mime: 'video/quicktime'};
   if (str(0, '\x1aE\xdf\xa3') || (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3)) return {kind: 'video', mime: 'video/webm'};
   if (str(0, 'OggS')) return {kind: 'audio', mime: 'audio/ogg'};
   if (at(0, 0x49, 0x44, 0x33) || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return {kind: 'audio', mime: 'audio/mpeg'};
@@ -272,8 +290,9 @@ export function sniffMagic(buf) {
   return {kind: null, mime: null};
 }
 
-export function assertMagic(buffer, claimedKind, claimedMime) {
+export function assertMagic(buffer, claimedKind, claimedMime, name = '') {
   const sniff = sniffMagic(buffer);
+  const ext = String(name || '').includes('.') ? String(name).split('.').pop().toLowerCase() : '';
   const kind = claimedKind;
   const mime = String(claimedMime || '').toLowerCase().split(';')[0].trim();
   if (kind === 'image') {
@@ -289,6 +308,11 @@ export function assertMagic(buffer, claimedKind, claimedMime) {
     return sniff;
   }
   // 通用文件：若自称 pdf/zip 必须匹配；html/js 伪装成图片已在上面拒绝
+  if (sniff.exec) throw new ApiError(400, 'BAD_TYPE', '不能发送可执行程序');
+  // 2.1.0：Office 文档按扩展名核对文件头：docx/xlsx/pptx 必须是 ZIP，doc/xls/ppt/wps/et/dps 必须是 OLE 或 ZIP（WPS 另存的“doc”有时其实是 docx）
+  if (['docx', 'xlsx', 'pptx'].includes(ext) && sniff.mime !== 'application/zip') throw new ApiError(400, 'BAD_TYPE', '文件内容不是有效的 Office 文档');
+  if (['doc', 'xls', 'ppt', 'wps', 'et', 'dps'].includes(ext) && !sniff.ole && sniff.mime !== 'application/zip') throw new ApiError(400, 'BAD_TYPE', '文件内容不是有效的 Office 文档');
+  if (ext === 'pdf' && sniff.mime !== 'application/pdf') throw new ApiError(400, 'BAD_TYPE', '文件内容不是 PDF');
   if (mime === 'application/pdf' && sniff.mime !== 'application/pdf') {
     throw new ApiError(400, 'BAD_TYPE', '文件内容不是 PDF');
   }

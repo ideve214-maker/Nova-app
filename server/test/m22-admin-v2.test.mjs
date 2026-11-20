@@ -132,7 +132,7 @@ test('AI 助理日报：无密钥时返回本地汇总，服务商标识为智�
   const r = await call('POST', '/api/admin/ai-assistant/report', {date: '2026-11-15'}, AH());
   assert.equal(r.s, 200, JSON.stringify(r.j));
   assert.equal(r.j.providerLabel, '智谱');
-  assert.equal(r.j.model, 'glm-4-flash');
+  assert.equal(r.j.model, 'glm-4.7-flash');
   assert.equal(r.j.source, 'local');
   assert.ok(r.j.report && r.j.report.includes('2026-11-15'));
   assert.ok(r.j.stats && r.j.stats.timezone === 'Asia/Shanghai');

@@ -5,7 +5,7 @@ import {join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {ApiError} from './errors.mjs';
-import {assertMagic} from './security.mjs';
+import {assertMagic, sniffMagic} from './security.mjs';
 import {processUploadImage, makeCoverVariant} from './image-pipeline.mjs';
 
 const nid = () => 'md_' + randomBytes(18).toString('base64url');
@@ -21,36 +21,48 @@ export const MEDIA_LIMITS = Object.freeze({
     basic: 10 * 1024 * 1024, vip: 20 * 1024 * 1024,
   }),
   video: Object.freeze({
-    mime: Object.freeze(['video/mp4', 'video/webm']),
-    ext: Object.freeze(['mp4', 'webm']),
+    // 2.1.0：苹果手机录的视频是 .mov（video/quicktime），安卓有的是 .3gp / .m4v；以前不在白名单里，私聊发视频直接报“不支持的文件类型”
+    mime: Object.freeze(['video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp', 'video/3gpp2', 'video/x-m4v']),
+    ext: Object.freeze(['mp4', 'webm', 'mov', 'm4v', '3gp', '3g2']),
     basic: 50 * 1024 * 1024, vip: 100 * 1024 * 1024,
     maxDurationMs: 3 * 60 * 1000, vipDurationMs: 5 * 60 * 1000,
   }),
   audio: Object.freeze({
-    mime: Object.freeze(['audio/mpeg', 'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/webm;codecs=opus']),
-    ext: Object.freeze(['mp3', 'webm', 'ogg', 'm4a', 'wav']),
+    mime: Object.freeze(['audio/mpeg', 'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/webm;codecs=opus', 'audio/aac', 'audio/x-m4a']),
+    ext: Object.freeze(['mp3', 'webm', 'ogg', 'm4a', 'wav', 'aac']),
     basic: 10 * 1024 * 1024, vip: 20 * 1024 * 1024,
     maxDurationMs: 2 * 60 * 1000, vipDurationMs: 5 * 60 * 1000,
   }),
   file: Object.freeze({
-    mime: Object.freeze(['application/pdf', 'application/zip', 'text/plain', 'application/json',
-      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
-    ext: Object.freeze(['pdf', 'zip', 'txt', 'json', 'doc', 'docx']),
+    // 2.1.0：补齐 Office 文档（doc/docx/xls/xlsx/ppt/pptx）、WPS 和压缩包常见的 MIME；内容由 security.mjs 的 assertMagic 按文件头核对
+    mime: Object.freeze(['application/pdf', 'application/zip', 'application/x-zip-compressed', 'text/plain', 'application/json', 'text/csv', 'text/markdown',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/kswps', 'application/wps-office.doc', 'application/wps-office.docx', 'application/wps-office.xls', 'application/wps-office.xlsx',
+      'application/wps-office.ppt', 'application/wps-office.pptx', 'application/x-rar-compressed', 'application/vnd.rar', 'application/x-7z-compressed']),
+    ext: Object.freeze(['pdf', 'zip', 'txt', 'json', 'csv', 'md', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'wps', 'et', 'dps', 'rar', '7z']),
     basic: 20 * 1024 * 1024, vip: 50 * 1024 * 1024,
   }),
 });
 // 总量额度（暂定，M4.5.6）：免费 200MB，VIP 2GB。已上传在到期后保留，超额不能新上传。
 export const MEDIA_QUOTA = Object.freeze({basic: 200 * 1024 * 1024, vip: 2 * 1024 * 1024 * 1024});
 
-function mimeKind(mime, name = '') {
+function mimeKind(mime, name = '', buffer = null) {
   const m = String(mime || '').toLowerCase().split(';')[0].trim();
-  const ext = String(name).split('.').pop().toLowerCase();
+  const ext = String(name).includes('.') ? String(name).split('.').pop().toLowerCase() : '';
   // 先按 MIME 判断，再按扩展名：audio/webm 的语音不能因为扩展名 .webm 被当成视频。
   for (const [k, v] of Object.entries(MEDIA_LIMITS)) {
     if (v.mime.some(x => x.split(';')[0] === m)) return k;
   }
   for (const [k, v] of Object.entries(MEDIA_LIMITS)) {
-    if (v.ext.includes(ext)) return k;
+    if (ext && v.ext.includes(ext)) return k;
+  }
+  // 2.1.0：手机文件管理器常给 application/octet-stream、文件名还没有扩展名（例如 content:// 里的 document:123）。
+  // 这时按文件头判断：只认图片 / 视频 / 音频和 PDF、ZIP（含 docx 等）、旧版 Office（OLE），纯文本不猜。
+  if (buffer) {
+    const sn = sniffMagic(buffer);
+    if (sn.kind && !sn.weak && MEDIA_LIMITS[sn.kind]) return sn.kind;
   }
   return null;
 }
@@ -158,20 +170,26 @@ export function createMedia(db, {now, vip, profile, secret, mediaDir, scanImpl} 
   async function upload(user, {buffer, mime, name, kind: forceKind, durationHint}) {
     if (!buffer || !Buffer.isBuffer(buffer) || !buffer.length) throw new ApiError(400, 'NO_FILE', '请选择要上传的文件');
     const name0 = String(name || 'file').slice(0, 120);
-    const kind = forceKind || mimeKind(mime, name0);
+    const kind = forceKind || mimeKind(mime, name0, buffer);
     if (!kind) throw new ApiError(400, 'BAD_TYPE', '不支持的文件类型');
     const lim = MEDIA_LIMITS[kind];
     const max = isVip(user) ? lim.vip : lim.basic;
     if (buffer.length > max) throw new ApiError(400, 'TOO_LARGE', `文件过大，最多 ${Math.round(max / 1024 / 1024)} MB`, {max, kind});
     // 魔数校验：不能只靠扩展名或客户端声明的 MIME
-    assertMagic(buffer, kind, mime);
+    const sniffed = assertMagic(buffer, kind, mime, name0);
     const q = quotaOf(user), usedN = usageOf(user);
     if (usedN + buffer.length > q) throw new ApiError(403, 'QUOTA', '媒体存储额度已满', {used: usedN, quota: q});
 
     const id = nid();
     const sha = createHash('sha256').update(buffer).digest('hex');
     let width = null, height = null, duration = null;
-    let storePath = id + '.bin', storeSize = buffer.length, storeMime = String(mime || 'application/octet-stream').split(';')[0];
+    let storePath = id + '.bin', storeSize = buffer.length, storeMime = String(mime || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+    // 2.1.0：存下来的 MIME 只用白名单里的（取文件时按它回 Content-Type）；客户端声明的不在白名单里就用文件头判断的，再不行用 octet-stream，
+    // 避免把 text/html 之类当成“文件”存进来再被浏览器直接打开
+    if (kind !== 'image' && !lim.mime.some(x => x.split(';')[0] === storeMime)) {
+      const sm = sniffed && sniffed.mime;
+      storeMime = sm && lim.mime.some(x => x.split(';')[0] === sm) ? sm : (kind === 'video' ? 'video/mp4' : 'application/octet-stream');
+    }
     let preview = null;
     let scanBuffer = null;
 
