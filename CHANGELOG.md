@@ -1,5 +1,15 @@
 # 更新日志（最新在上）
 
+## 未发布 · 服务端 2.1.2（20261121-0221-server-2.1.2-import-feeds）
+
+需要部署服务器并跑迁移 `066_post_category.sql`（065 留给 AI 内部账号）。
+
+- 新增外部帖来源（都能走 `import-feed.mjs` 统一入库和 2.1.0 AI 审查）：少数派、IT之家、掘金热榜、Solidot、GitHub Trending、Product Hunt、B站热门、PANews、Cointelegraph、机核、IGN、华尔街见闻。
+- 停用并保留原因：36氪（RSS 地址返回 HTML）、虎嗅/Lobsters（超时）、Reddit/微博/知乎（被拦，公共 RSSHub 403）、BlockBeats（超时）、CoinDesk/游民星空（403）、财联社（404）、雪球（防火墙页）。
+- 币圈、财经来源的 AI 审查额外拦截喊单、交易信号、交易所和空投推广；不会按「广告」放宽规则改判放行。
+- 帖子新增字段 `category`（`tech` / `game` / `crypto` / `finance` / `news` / `life` / `other`）。外部帖默认用来源分类，AI 审查可改判；用户发帖和 AI 内部账号发帖可直接传 `category`，接口 payload 带上这个字段。
+
+
 ## 服务端 2.1.1（20261121-0158-server-2.1.1-ai-ads-nocap）
 
 - 管理员可自己改密码：`POST /api/admin/me/password`，参数 `{currentPassword, newPassword}`。核对旧密码（错误 400 `WRONG_PASSWORD`，失败次数与登录共用锁定），新密码沿用 8–128 位且含字母和数字（400 `WEAK_PASSWORD`），不能与当前密码相同（400 `SAME_PASSWORD`）。成功后踢掉该管理员的其他会话、写审计 `admin.self.change_password`。

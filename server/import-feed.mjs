@@ -4,11 +4,16 @@ import {randomBytes, createHash} from 'node:crypto';
 import {mkdirSync, readFileSync, writeFileSync, statSync, existsSync} from 'node:fs';
 import {join as pathJoin} from 'node:path';
 import {hashPassword} from './auth.mjs';
+import {normalizePostCategory} from './post-category.mjs';
+import {
+  FEED_SOURCES, SOURCE_LABEL, AVATAR_HOSTS, enabledFeedSources, feedSourceById,
+  sourceCategoryOf, parseSourcePayload,
+} from './import-sources.mjs';
+export {FEED_SOURCES, SOURCE_LABEL, AVATAR_HOSTS, enabledFeedSources, feedSourceById, sourceCategoryOf};
 
 export const IMPORT_USERNAME = 'vexo_import';
 export const IMPORT_EMAIL = 'vexo-import@vexo.invalid';
 export const IMPORT_UA = 'VEXO/2.1.0 (feed-import; +https://github.com/ideve214-maker/VEXOold)';
-export const SOURCE_LABEL = Object.freeze({v2ex: '来自 V2EX', hn: '来自 HN'});
 export const V2EX_HOT = 'https://www.v2ex.com/api/topics/hot.json';
 export const V2EX_LATEST = 'https://www.v2ex.com/api/topics/latest.json';
 export const v2exRepliesUrl = id => 'https://www.v2ex.com/api/replies/show.json?topic_id=' + encodeURIComponent(id);
@@ -16,10 +21,6 @@ export const HN_TOP = 'https://hacker-news.firebaseio.com/v0/topstories.json';
 export const HN_NEW = 'https://hacker-news.firebaseio.com/v0/newstories.json';
 export const HN_BEST = 'https://hacker-news.firebaseio.com/v0/beststories.json';
 export const hnItemUrl = id => 'https://hacker-news.firebaseio.com/v0/item/' + encodeURIComponent(id) + '.json';
-export const AVATAR_HOSTS = Object.freeze([
-  'v2ex.com', 'www.v2ex.com', 'cdn.v2ex.com', 'cdn.v2ex.co', 'i.v2ex.co',
-]);
-
 const nid = (p = 'po_') => p + randomBytes(12).toString('base64url');
 const sleep = ms => ms > 0 ? new Promise(r => setTimeout(r, ms)) : Promise.resolve();
 
@@ -185,6 +186,51 @@ async function fetchJson(fetchFn, url, {
   throw lastErr;
 }
 
+
+async function fetchText(fetchFn, url, {
+  timeoutMs = FETCH_TIMEOUT_MS, headers, retries = FETCH_RETRIES, retryDelayMs = RETRY_BASE_MS, log,
+  accept = 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html;q=0.8, */*;q=0.5',
+} = {}) {
+  const attempts = Math.max(1, Number(retries) || 1);
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      const res = await fetchFn(url, {
+        method: 'GET',
+        headers: {'User-Agent': IMPORT_UA, Accept: accept, ...(headers || {})},
+        signal: ac.signal,
+        redirect: 'follow',
+      });
+      if (!res || !res.ok) {
+        const err = new Error('fetch ' + url + ' -> ' + (res && res.status));
+        err.status = res && res.status;
+        throw err;
+      }
+      const contentType = String((res.headers && res.headers.get && res.headers.get('content-type')) || '');
+      const text = await res.text();
+      return {text, contentType, status: res.status};
+    } catch (e) {
+      lastErr = e;
+      if (isRetryable(e) && attempt < attempts) {
+        const wait = Math.max(0, Number(retryDelayMs) || 0) * Math.pow(2, attempt - 1);
+        if (log) log('import fetch retry', describeFetchError(e, url, timeoutMs), 'attempt', attempt + '/' + attempts, 'waitMs', wait);
+        if (wait) await sleep(wait);
+        continue;
+      }
+      if (isAbortError(e)) {
+        const err = new Error(describeFetchError(e, url, timeoutMs));
+        err.aborted = true;
+        err.timeoutMs = timeoutMs;
+        throw err;
+      }
+      throw e;
+    } finally { clearTimeout(t); }
+  }
+  throw lastErr;
+}
+
 export function ensureImportUser(db, {now}) {
   const get = db.prepare('SELECT * FROM users WHERE username=? COLLATE NOCASE');
   let u = get.get(IMPORT_USERNAME);
@@ -233,8 +279,8 @@ export function createImportFeed(db, {
   const repliesOpts = {timeoutMs: repliesTimeoutMs, retries, retryDelayMs: backoffMs, log};
   const selPost = db.prepare('SELECT * FROM posts WHERE source=? AND source_id=?');
   const selCmt = db.prepare('SELECT * FROM post_comments WHERE source=? AND source_id=?');
-  const insPost = db.prepare(`INSERT INTO posts(id,author_id,text,created_at,updated_at,client_id,audience,source,source_id,source_url,ext_author_name,ext_author_avatar)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const insPost = db.prepare(`INSERT INTO posts(id,author_id,text,created_at,updated_at,client_id,audience,source,source_id,source_url,ext_author_name,ext_author_avatar,category)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`);
   const insCmt = db.prepare(`INSERT INTO post_comments(id,post_id,author_id,parent_id,text,created_at,source,source_id,source_url,ext_author_name,ext_author_avatar)
     VALUES(?,?,?,?,?,?,?,?,?,?,?)`);
   const avatarCache = new Map(); // url -> {buf, mime, at}
@@ -326,7 +372,8 @@ export function createImportFeed(db, {
         commentFetchedAt.delete(post.source + ':' + post.sid);
         return 'pending';
       }
-      const up = upsertPost({source: post.source, sourceId: post.sid, sourceUrl: post.url, authorName: post.name, authorAvatar: post.avatar, text: post.text, createdAt: post.createdAt});
+      const topic = normalizePostCategory(v && v.topic) || normalizePostCategory(post.category) || sourceCategoryOf(post.source);
+      const up = upsertPost({source: post.source, sourceId: post.sid, sourceUrl: post.url, authorName: post.name, authorAvatar: post.avatar, text: post.text, createdAt: post.createdAt, category: topic});
       if (up.skipped === 'deleted') { out.deletedKept++; return 'kept'; }
       if (up.imported) out.imported++; else out.skipped++;
       postId = up.row && up.row.id;
@@ -369,7 +416,7 @@ export function createImportFeed(db, {
     return Number(countImportedComments.get(postId).n) < commentLimit;
   }
 
-  function upsertPost({source, sourceId, sourceUrl, authorName, authorAvatar, text, createdAt}) {
+  function upsertPost({source, sourceId, sourceUrl, authorName, authorAvatar, text, createdAt, category}) {
     const existed = selPost.get(source, String(sourceId));
     if (existed) {
       if (blocked(existed)) return {row: existed, skipped: 'deleted', imported: false};
@@ -379,7 +426,7 @@ export function createImportFeed(db, {
     const t = Number(createdAt) > 0 ? Number(createdAt) : now();
     const av = authorAvatar ? (proxyAvatarPath(authorAvatar) || absUrl(authorAvatar)) : null;
     try {
-      insPost.run(id, ownerId(), text, t, t, null, 'public', source, String(sourceId), sourceUrl || '', authorName || '', av);
+      insPost.run(id, ownerId(), text, t, t, null, 'public', source, String(sourceId), sourceUrl || '', authorName || '', av, normalizePostCategory(category) || sourceCategoryOf(source) || null);
     } catch (e) {
       if (/UNIQUE/i.test(String(e.message))) {
         const again = selPost.get(source, String(sourceId));
@@ -551,6 +598,54 @@ export function createImportFeed(db, {
     return out;
   }
 
+  function formatFeedItem(src, it) {
+    const title = String(it.title || '').trim();
+    const body = htmlToText(it.summary || '');
+    const text = title && body && !body.startsWith(title) ? title + '\n\n' + body : (title || body);
+    return {
+      source: src.id,
+      sid: it.sid,
+      url: it.url,
+      name: it.name || src.name,
+      avatar: it.avatar || null,
+      text: text || title || src.name,
+      createdAt: it.createdAt,
+      category: src.category,
+    };
+  }
+
+  async function loadCatalogItems(src) {
+    if (src.kind === 'rss' || src.kind === 'atom' || src.kind === 'github_trending') {
+      const got = await fetchText(fetchFn, src.url, jsonOpts);
+      return parseSourcePayload(src, {text: got.text, contentType: got.contentType});
+    }
+    const json = await fetchJson(fetchFn, src.url, jsonOpts);
+    return parseSourcePayload(src, {json});
+  }
+
+  async function importCatalogSource(src, state) {
+    const out = newOut();
+    let items = [];
+    try {
+      items = await loadCatalogItems(src);
+    } catch (e) {
+      out.ok = false;
+      out.error = describeFetchError(e, src.url, timeoutMs);
+      return out;
+    }
+    if (!Array.isArray(items)) { out.ok = false; out.error = src.id + ' is not a list'; return out; }
+    out.fetched = items.length;
+    for (const raw of items) {
+      if (out.imported + out.rejected + out.pending >= sourceLimit) break;
+      if (out.scanned >= scanLimit) break;
+      const post = formatFeedItem(src, raw);
+      if (!post.sid || !String(post.text || '').trim()) continue;
+      out.scanned++;
+      await ingest(post, async () => [], out, state);
+    }
+    return out;
+  }
+
   async function run() {
     if (running) return last;
     running = true;
@@ -558,9 +653,15 @@ export function createImportFeed(db, {
     try {
       runCount++;
       const state = {aiDown: false, refreshed: 0};
-      const v2ex = await importV2ex(state);
+      const results = {};
+      results.v2ex = await importV2ex(state);
       state.refreshed = 0;
-      const hn = await importHn(state);
+      results.hn = await importHn(state);
+      for (const src of enabledFeedSources()) {
+        if (src.kind === 'builtin') continue;
+        state.refreshed = 0;
+        results[src.id] = await importCatalogSource(src, state);
+      }
       let backfill = null;
       if (review) {
         review.pruneLogs();
@@ -570,8 +671,8 @@ export function createImportFeed(db, {
           catch (e) { log('import backfill', e.message || e); }
         }
       }
-      const sum = k => (v2ex[k] || 0) + (hn[k] || 0);
-      last = {at: started, durationMs: now() - started, v2ex, hn,
+      const sum = k => Object.values(results).reduce((n, o) => n + (o && o[k] || 0), 0);
+      last = {at: started, durationMs: now() - started, ...results,
         total: {imported: sum('imported'), comments: sum('comments'), rejected: sum('rejected'), pending: sum('pending'),
           commentsRejected: sum('commentsRejected'), commentsPending: sum('commentsPending')},
         aiDown: state.aiDown, backfill};

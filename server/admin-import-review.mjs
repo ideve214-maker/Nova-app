@@ -1,6 +1,7 @@
 // 服务端 2.1.0：管理端「外部帖审查」接口（管理端 2.0.8 对接，见 docs/server-2.1.0-api.md）。
 // 业务逻辑在 ai-review.mjs，这里只做鉴权、参数和审计。
 import {ApiError} from './errors.mjs';
+import {isImportScope} from './import-sources.mjs';
 
 export function importReviewRoutes({aiReview, adminAuth, audit, ip}) {
   return {
@@ -20,11 +21,11 @@ export function importReviewRoutes({aiReview, adminAuth, audit, ip}) {
       audit(admin.id, 'admin.ai_moderation.import', 'ai', ip(req), st);
       return aiReview.state();
     },
-    // body: {scope: 'all'|'v2ex'|'hn'} → {job}；后台异步补审；已有任务在跑时 409 JOB_RUNNING（error.job 带当前任务）
+    // body: {scope: 'all'|来源 id} → {job}；后台异步补审；已有任务在跑时 409 JOB_RUNNING（error.job 带当前任务）
     'POST /api/admin/ai-moderation/import/backfill'(req, b) {
       const {admin} = adminAuth(req);
       const scope = String((b && b.scope) || 'all');
-      if (!['all', 'v2ex', 'hn'].includes(scope)) throw new ApiError(400, 'BAD_SCOPE', 'scope 只能是 all、v2ex 或 hn');
+      if (!isImportScope(scope)) throw new ApiError(400, 'BAD_SCOPE', 'scope 只能是 all 或已配置的来源 id');
       let job;
       try { job = aiReview.startBackfill({scope, actorId: admin.id}); }
       catch (e) {

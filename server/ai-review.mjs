@@ -6,11 +6,12 @@
 // - 已发布外部帖补审：后台任务审还没审过的外部帖和评论；不合格帖按管理端「隐藏」处理（deleted_at + admin_hidden），
 //   不合格评论删除（deleted_at + admin_hidden，管理端「恢复」可撤销）。每条结果写进 ai_moderation_log（kind=backfill / backfill_comment）。
 import {localDeathCheck} from './ai-moderation.mjs';
+import {normalizePostCategory} from './post-category.mjs';
+import {isImportScope, sourceNeedsFinanceReview} from './import-sources.mjs';
 
 const FLAG_KEY = 'ai.import_review';
 const DEFAULTS = {enabled: true, reviewComments: true, onAiDown: 'skip', autoBackfill: true};
 const KEEP_LOG_DAYS = 30;
-const SCOPES = new Set(['all', 'v2ex', 'hn']);
 const AUTO_BACKFILL_PER_RUN = 10;
 
 export function createAiReview(db, {aiMod, blockwords = null, now = Date.now, log: logErr = (...a) => console.error(...a)} = {}) {
@@ -23,6 +24,7 @@ export function createAiReview(db, {aiMod, blockwords = null, now = Date.now, lo
   const selReject = db.prepare('SELECT 1 FROM import_review_rejects WHERE source=? AND source_id=?');
   const prune = db.prepare("DELETE FROM ai_moderation_log WHERE created_at<? AND kind IN ('import','import_comment','backfill','backfill_comment')");
   const markPost = db.prepare('UPDATE posts SET ai_review=?, ai_reviewed_at=? WHERE id=?');
+  const setCategory = db.prepare('UPDATE posts SET category=? WHERE id=?');
   const markCmt = db.prepare('UPDATE post_comments SET ai_review=?, ai_reviewed_at=? WHERE id=?');
   const hidePost = db.prepare("UPDATE posts SET deleted_at=COALESCE(deleted_at,?), admin_hidden=1, admin_reason=?, ai_review='block', ai_reviewed_at=? WHERE id=?");
   const removeCmt = db.prepare("UPDATE post_comments SET deleted_at=COALESCE(deleted_at,?), admin_hidden=1, admin_reason=?, ai_review='block', ai_reviewed_at=? WHERE id=?");
@@ -116,8 +118,9 @@ export function createAiReview(db, {aiMod, blockwords = null, now = Date.now, lo
   async function reviewImport({post = null, comments = []} = {}) {
     const st = settings();
     const items = [];
-    if (post) items.push({key: 'p:' + post.sourceId, text: post.text});
-    if (st.reviewComments) for (const c of comments) items.push({key: 'c:' + c.sourceId, text: c.text});
+    const financeOf = (src) => sourceNeedsFinanceReview(src);
+    if (post) items.push({key: 'p:' + post.sourceId, text: post.text, finance: financeOf(post.source)});
+    if (st.reviewComments) for (const c of comments) items.push({key: 'c:' + c.sourceId, text: c.text, finance: financeOf(c.source || (post && post.source))});
     const r = await review(items);
     const p = post ? r.results.get('p:' + post.sourceId) : null;
     const cm = new Map();
@@ -149,8 +152,9 @@ export function createAiReview(db, {aiMod, blockwords = null, now = Date.now, lo
     const st = settings();
     const cms = st.reviewComments ? cmtsOf.all(p.id) : [];
     const items = [];
-    if (!p.ai_review) items.push({key: 'p:' + p.id, text: p.text});
-    for (const c of cms) items.push({key: 'c:' + c.id, text: c.text});
+    const finance = sourceNeedsFinanceReview(p.source);
+    if (!p.ai_review) items.push({key: 'p:' + p.id, text: p.text, finance});
+    for (const c of cms) items.push({key: 'c:' + c.id, text: c.text, finance});
     if (!items.length) return res;
     const r = await review(items);
     res.aiDown = !!r.aiDown;
@@ -165,6 +169,8 @@ export function createAiReview(db, {aiMod, blockwords = null, now = Date.now, lo
       }
       if (pv.verdict === 'allow') {
         if (pv.source !== 'keyword') markPost.run('pass', now(), p.id);
+        const topic = normalizePostCategory(pv.topic);
+        if (topic) setCategory.run(topic, p.id);
         res.passedPosts++;
         record({kind: 'backfill', postId: p.id, text: p.text, r: pv, origin: p.source, originUrl: p.source_url, action: null});
       } else {
@@ -189,9 +195,9 @@ export function createAiReview(db, {aiMod, blockwords = null, now = Date.now, lo
 
   function pubJob(j = job) { return j ? {...j} : null; }
 
-  /* 启动后台补审任务。scope: all | v2ex | hn。已有任务在跑时抛 409。返回 job */
+  /* 启动后台补审任务。scope: all 或来源 id。已有任务在跑时抛 409。返回 job */
   function startBackfill({scope = 'all', actorId = null} = {}) {
-    const sc = SCOPES.has(String(scope)) ? String(scope) : 'all';
+    const sc = isImportScope(scope) ? String(scope) : 'all';
     if (job && job.status === 'running') {
       const e = new Error('已有补审任务在进行'); e.status = 409; e.code = 'JOB_RUNNING'; e.job = pubJob(); throw e;
     }
