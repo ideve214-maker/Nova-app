@@ -256,8 +256,10 @@ export function createAiPersonas(db, deps = {}) {
     for (const r of q.userCounts.all(row.user_id)) c[r.kind] = r.n;
     return {
       userId: row.user_id, username: pr.username || null, displayName: name, bio: pr.bio || '',
-      avatar: {kind: pr.avatar_image ? 'image' : 'default', image: pr.avatar_image || null, path: pr.avatar_image ? avatarPathOf(row.user_id) : null,
-        fallback: letterAvatarData(name), color: colorOf(name), letter: letterOf(name)},
+      // 形状同 2.1.0 外部帖头像 {kind,image,path,fallback,color,letter}：path 是相对地址，管理端带管理员令牌（请求头）取图；
+      // 没有头像时 path 也照样可取（服务端回字母 SVG），fallback 是字母头像 data URL。mediaId 只供排查。
+      avatar: {kind: pr.avatar_image ? 'image' : 'letter', image: pr.avatar_image ? avatarPathOf(row.user_id) : letterAvatarData(name), path: avatarPathOf(row.user_id),
+        fallback: letterAvatarData(name), color: colorOf(name), letter: letterOf(name), mediaId: pr.avatar_image || null},
       style: row.avatar_style, status: row.status, interests: p.interests || [], tone: p.tone || '',
       overrides: overridesOf(row), lastActionAt: row.last_action_at, nextAt: row.next_at, nextPostAt: row.next_post_at, createdAt: row.created_at,
       counts: {posts: c.post || 0, comments: (c.comment || 0) + (c.reply || 0), likes: c.like || 0, favorites: c.favorite || 0, reposts: c.repost || 0, views: c.browse || 0, groupPosts: c.group_post || 0},

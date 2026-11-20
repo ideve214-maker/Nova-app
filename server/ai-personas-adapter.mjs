@@ -8,7 +8,7 @@
 import {randomBytes} from 'node:crypto';
 import {hashPassword} from './auth.mjs';
 
-/** 帖子分类列名（Dift 的 066 迁移定为 posts.category）。改名只改这里。 */
+/** 帖子分类字段（Dift 2.1.2：迁移 066 的 posts.category，POST /api/posts 的 body.category）。 */
 export const POST_CATEGORY_FIELD = 'category';
 
 /** Dift 的公共函数名映射：左边是本文件用的名字，右边是 userActions 里的名字。他发了正式名字后只改右边。 */
@@ -25,8 +25,7 @@ export const DIFT = Object.freeze({
 
 /** 还在等 Dift 的函数（他推上来之前用的是临时实现）。 */
 export const PENDING = Object.freeze([
-  {fn: 'createPost', waitsFor: 'userActions.createPost（发帖路由抽出来：屏蔽词 → 建帖 → 话题 → 审计；AI 账号跳过 AI 审查）'},
-  {fn: 'setPostCategory', waitsFor: '066 迁移的 posts.category 列（列不存在时临时实现直接跳过）'},
+  {fn: 'createPost', waitsFor: 'userActions.createPost（发帖路由抽出来：屏蔽词 → 建帖(含 category) → 话题 → 审计；AI 账号跳过 AI 审查）。分类已用 2.1.2 的 posts.create({category})'},
   {fn: 'repost', waitsFor: 'userActions.repost 或 createPost({repostOf})，含转帖通知'},
   {fn: 'comment', waitsFor: 'userActions.addComment（含评论 / 回复通知、审计）'},
   {fn: 'like', waitsFor: 'userActions.react（含表态通知）'},
@@ -50,7 +49,6 @@ export function createPersonaAdapter(deps = {}) {
   const postAuthor = db.prepare('SELECT author_id FROM posts WHERE id=? AND deleted_at IS NULL');
   const commentRow = db.prepare('SELECT author_id, post_id FROM post_comments WHERE id=?');
   const auditIns = db.prepare('INSERT INTO audit_log(at,actor_id,action,target,ip,detail) VALUES(?,?,?,?,?,?)');
-  const hasCategoryCol = () => { try { db.prepare(`SELECT ${POST_CATEGORY_FIELD} FROM posts LIMIT 1`).get(); return true; } catch { return false; } };
 
   function audit(actorId, action, target, detail) {
     if (typeof deps.audit === 'function') return deps.audit(actorId, action, target, null, detail);
@@ -83,20 +81,15 @@ export function createPersonaAdapter(deps = {}) {
 
   function createPost(user, {text, category}) {
     let r;
+    // 2.1.2 起 posts.create / POST /api/posts 直接接受 category（迁移 066），非法值抛 400 BAD_CATEGORY。
     if (has('createPost')) r = ua[DIFT.createPost](user, {text, category, skipAiReview: true}, meta);
     else {
       assertText(text);                       // ideve：AI 内容只过屏蔽词，不走 AI 审查
-      r = posts.create(user, {text});
+      r = posts.create(user, {text, category});
       try { if (hashtags) r.post.hashtags = hashtags.syncPost(user, r.post); } catch { /* 话题表在旧库可能没有 */ }
-      audit(user.id, 'post.create', 'post:' + r.post.id, {via: 'ai-persona'});
+      audit(user.id, 'post.create', 'post:' + r.post.id, {via: 'ai-persona', category: category || null});
     }
-    if (category) setPostCategory(r.post.id, category);
     return r.post;
-  }
-  function setPostCategory(postId, category) {
-    if (!hasCategoryCol()) return false;
-    db.prepare(`UPDATE posts SET ${POST_CATEGORY_FIELD}=? WHERE id=?`).run(category, postId);
-    return true;
   }
   function repost(user, postId) {
     let r;
@@ -172,6 +165,6 @@ export function createPersonaAdapter(deps = {}) {
   }
 
   return {audit, notify, isAi, createUser, setBadge, getUser, saveProfile, closeRequests, setAvatar,
-    createPost, setPostCategory, repost, comment, like, favorite, view, joinGroup, channelMessage, removePost, llm,
+    createPost, repost, comment, like, favorite, view, joinGroup, channelMessage, removePost, llm,
     get usingDift() { return !!ua; }};
 }

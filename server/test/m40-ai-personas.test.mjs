@@ -70,9 +70,9 @@ test('建号：内部标识、简介「官方内部账号」、头像、拒绝�
     assert.equal(u.badge, PERSONA_BADGE);
     assert.match(a.bio, /^官方内部账号/);
     assert.match(a.username, /^vx_in_/);
-    assert.ok(a.avatar.image, '有头像');
+    assert.ok(a.avatar.mediaId, '有头像'); assert.equal(a.avatar.kind, 'image'); assert.equal(a.avatar.image, a.avatar.path);
     assert.equal(a.avatar.path, avatarPathOf(a.userId));
-    assert.ok(AVATAR_ROUTE_RE.test(a.avatar.path));
+    assert.ok(AVATAR_ROUTE_RE.test(a.avatar.path)); assert.ok(a.avatar.path.startsWith('/'));
     assert.match(a.avatar.fallback, /^data:image\/svg\+xml/);
     assert.ok(a.avatar.letter && a.avatar.color);
   }
@@ -165,6 +165,8 @@ test('发帖：读新闻写自己的看法 + 来源链接；照抄原文会被�
   const p = srv.db.prepare('SELECT * FROM posts WHERE id=?').get(a.refId);
   assert.match(p.text, /\n\n来源：https:\/\/www\.chinanews\.com\.cn\/a\/2\.shtml$/);
   assert.ok([...p.text].length <= 280);
+  assert.equal(p.category, 'news', '用 2.1.2 的 posts.category');
+  assert.equal(srv.posts.get(srv.db.prepare('SELECT * FROM users WHERE id=?').get(ai.userId), a.refId).post.category, 'news');
 });
 
 test('来源：政治类只允许中新网；没有 ESPN；分类映射', async () => {
@@ -227,7 +229,7 @@ test('退役多余账号；PENDING 列表完整', async () => {
   assert.equal(r.retired, 2);
   assert.equal(P.listAccounts({status: 'retired'}).accounts.length, 2);
   P.saveSettings({id: 1}, {enabled: false});
-  assert.deepEqual(PENDING.map(p => p.fn), ['createPost', 'setPostCategory', 'repost', 'comment', 'like', 'favorite', 'view', 'joinGroup', 'channelMessage', 'llm', 'audit']);
+  assert.deepEqual(PENDING.map(p => p.fn), ['createPost', 'repost', 'comment', 'like', 'favorite', 'view', 'joinGroup', 'channelMessage', 'llm', 'audit']);
   assert.equal(DEFAULT_SETTINGS.limits.aiConcurrency, 2);
 });
 

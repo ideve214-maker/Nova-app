@@ -10,7 +10,9 @@ import {createHash} from 'node:crypto';
 export const PERSONA_CATEGORIES = Object.freeze(['news', 'politics', 'sports', 'economy', 'tech', 'game', 'crypto', 'life']);
 export const CATEGORY_LABEL = Object.freeze({news: '综合', politics: '时政', sports: '体育', economy: '经济', tech: '科技', game: '游戏', crypto: '币圈', life: '生活'});
 /** 帖子分类（Dift 定的 posts.category 取值）：tech / game / crypto / finance / news / life / other。 */
-export const POST_CATEGORIES = Object.freeze(['tech', 'game', 'crypto', 'finance', 'news', 'life', 'other']);
+// 帖子分类取值以 Dift 2.1.2 的 post-category.mjs 为准（迁移 066 的 posts.category）。
+import {POST_CATEGORIES} from './post-category.mjs';
+export {POST_CATEGORIES};
 /** 内部账号分类 → 帖子分类。改映射只改这里。 */
 export const PERSONA_TO_POST_CATEGORY = Object.freeze({news: 'news', politics: 'news', sports: 'news', economy: 'finance', tech: 'tech', game: 'game', crypto: 'crypto', life: 'life'});
 export const postCategoryOf = c => PERSONA_TO_POST_CATEGORY[String(c || '')] || 'other';
