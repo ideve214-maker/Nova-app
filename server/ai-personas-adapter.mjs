@@ -164,7 +164,9 @@ export function createPersonaAdapter(deps = {}) {
     const fn = typeof deps.llm === 'function' ? deps.llm : (adminAi && adminAi.llm);
     if (!fn) { const e = new Error('AI 没有配置'); e.code = 'AI_NOT_CONFIGURED'; throw e; }
     const msg = await fn(messages, {model, json, maxTokens, temperature});
-    return {content: typeof msg.content === 'string' ? msg.content : '', model: model || null, tokens: null};
+    const u = msg && msg.usage;
+    const tokens = u && Number.isFinite(Number(u.total_tokens)) ? Number(u.total_tokens) : null;
+    return {content: typeof msg.content === 'string' ? msg.content : '', model: (msg && msg.model) || model || null, tokens};
   }
 
   return {audit, notify, isAi, createUser, setBadge, getUser, saveProfile, closeRequests, setAvatar,

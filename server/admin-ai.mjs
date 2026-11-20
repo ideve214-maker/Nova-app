@@ -239,7 +239,8 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
   const llm = (messages, opts = {}) => route('chat', p => llmOn(p, messages, opts));
   async function llmOn(p, messages, {tools, json = false, maxTokens = 800, temperature = 0.2, model: modelOverride} = {}) {
     if (banned(p.base) || banned(p.model)) throw new ApiError(503, 'AI_NOT_CONFIGURED', '不使用 DeepSeek');
-    const model = String(modelOverride || p.model);
+    // 指定的模型名（如 glm-4.7-flash）只对智谱有效；备用服务商不是智谱时忽略，用它自己的模型。
+    const model = String((modelOverride && /bigmodel\.cn/.test(String(p.base || ''))) ? modelOverride : p.model);
     if (banned(model)) throw new ApiError(503, 'AI_NOT_CONFIGURED', '不使用 DeepSeek');
     let res;
     try {
@@ -257,6 +258,9 @@ export function createAdminAi(db, {now = Date.now, env = process.env, fetchImpl,
     const j = await res.json().catch(() => null);
     const msg = j && j.choices && j.choices[0] && j.choices[0].message;
     if (!msg) throw new ApiError(503, 'AI_UNAVAILABLE', 'AI 没有返回结果');
+    // usage 不可枚举：调用方能读 msg.usage 记用量，但把 msg 放回 messages 再发时不会带上。
+    if (j.usage && typeof j.usage === 'object') Object.defineProperty(msg, 'usage', {value: j.usage, enumerable: false, configurable: true});
+    if (j.model) Object.defineProperty(msg, 'model', {value: j.model, enumerable: false, configurable: true});
     return msg;
   }
   const chatText = async (messages, opts) => { const m = await llm(messages, opts); const c = typeof m.content === 'string' ? m.content.trim() : ''; if (!c) throw new Error('empty'); return c; };

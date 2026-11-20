@@ -12,6 +12,7 @@ export function createUserActions(deps = {}) {
 
   const commentRow = db && db.prepare('SELECT author_id, post_id FROM post_comments WHERE id=?');
   const viewIns = db && db.prepare('INSERT OR IGNORE INTO post_views(post_id,user_id,at) VALUES(?,?,?)');
+  const userById = db && db.prepare('SELECT * FROM users WHERE id=?');
 
   function ipOf(meta) { return meta && meta.ip != null ? meta.ip : null; }
   function detailOf(meta, extra) {
@@ -21,6 +22,11 @@ export function createUserActions(deps = {}) {
   }
   function notify(toUserId, payload) {
     if (!notifications || toUserId == null || typeof notifications.push !== 'function') return;
+    // 收件人是 AI 内部账号时不发：没人看，只会堆数据。
+    try {
+      const to = userById && userById.get(Number(toUserId));
+      if (to && isInternalAccount(to, db)) return;
+    } catch { /* ignore */ }
     try { notifications.push(toUserId, payload); } catch { /* ignore */ }
   }
 
