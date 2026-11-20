@@ -107,7 +107,7 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     return {
       envEnabled: envOn(), switchOn: switchOn(), configured: !!configured(), active: active(),
       hour: hour(), timezone: 'Asia/Shanghai', lastRunDay: setting('autoads.lastRunDay'),
-      todayPublished: todayPublished(), dailyCap: dailyCap(), capMax: capMax(), ttlDays: ttlDays(), running,
+      todayPublished: todayPublished(), dailyCap: dailyCap(), capMax: capMax(), runMax: runMax(), ttlDays: ttlDays(), running,
       defaultBlockwords: DEFAULT_BLOCKWORDS.length,
     };
   }
