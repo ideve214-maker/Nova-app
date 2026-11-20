@@ -25,7 +25,17 @@ export function AssistantScreen() {
   const [, tick] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { saved = msgs; listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [msgs]);
+  // 滚动发生在 Screen 的内容区（listRef 的外层），不是 listRef 本身；键盘弹出、内容区变矮后也要停在最新一条
+  const toBottom = (smooth: boolean) => {
+    const sc = listRef.current?.closest("[data-nova-content-scroll]");
+    if (sc instanceof HTMLElement) sc.scrollTo({ top: sc.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  };
+  useEffect(() => { saved = msgs; toBottom(true); }, [msgs]);
+  useEffect(() => {
+    const onKb = () => window.setTimeout(() => toBottom(false), 30);
+    window.addEventListener("nova-keyboard", onKb);
+    return () => window.removeEventListener("nova-keyboard", onKb);
+  }, []);
   useEffect(() => { void aiStatus().then((r) => (r.ok ? setStatus(r.data) : setStatusErr(r.error))); }, []);
   useEffect(() => { const t = window.setInterval(() => tick((n) => n + 1), 1000); return () => window.clearInterval(t); }, []);
 

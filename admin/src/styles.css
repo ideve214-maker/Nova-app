@@ -123,6 +123,28 @@ html {
   margin-bottom: var(--nova-keyboard, 0px);
 }
 
+/* 2.0.8 键盘让位：--nova-keyboard 由 src/lib/admin/keyboard.ts 写入。
+   弹窗里的列表不再重复让位（弹窗本身已经让过）。 */
+.nova-sheet .nova-scroll,
+[data-nova-modal] .nova-scroll {
+  margin-bottom: 0;
+}
+
+/* Screen 的底栏跟着键盘上移；带输入框的底栏（AI 助手）贴在键盘上方。 */
+.nova-footer {
+  bottom: var(--nova-keyboard, 0px);
+}
+
+/* 键盘打开时：只有按钮的底栏先收起，把空间留给正在输入的内容；底部安全区也不用再垫。 */
+html.nova-kb-open .nova-footer:not(:has(input, textarea, select)) {
+  display: none;
+}
+
+html.nova-kb-open .nova-footer .pb-safe,
+html.nova-kb-open .nova-sheet .pb-safe {
+  padding-bottom: 0.5rem;
+}
+
 .nova-scroll-x {
   overflow-x: auto;
   overflow-y: hidden;
@@ -296,6 +318,12 @@ html[data-theme="light"] .nova-splash {
 
 .nova-toast {
   bottom: calc(5rem + max(var(--nova-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)));
+}
+
+/* 键盘打开时提示条移到顶栏下面，不挡正在输入的框。 */
+html.nova-kb-open .nova-toast {
+  bottom: auto;
+  top: calc(52px + max(var(--nova-safe-top, 0px), env(safe-area-inset-top, 0px)));
 }
 
 .nova-toast > div {

@@ -534,7 +534,7 @@ function AnnouncementPreview({ title, body, onClose }: { title: string; body: st
       <div role="dialog" aria-modal="true" aria-label="预览弹窗" className="w-full max-w-[340px] rounded-2xl bg-surface p-5 shadow-card" onClick={(e) => e.stopPropagation()}>
         <p className="mb-1 text-center text-[12px] text-muted">用户看到的样子</p>
         <h2 className="text-center text-[18px] font-semibold">{title || "（未填写标题）"}</h2>
-        <div className="mt-3 max-h-[50dvh] overflow-y-auto whitespace-pre-wrap text-[15px] leading-6">{body || "（未填写正文）"}</div>
+        <div className="mt-3 max-h-[calc(50dvh-var(--nova-keyboard,0px))] overflow-y-auto whitespace-pre-wrap text-[15px] leading-6">{body || "（未填写正文）"}</div>
         <button type="button" className="mt-4 h-11 w-full rounded-full bg-primary text-[16px] font-semibold text-on-primary" onClick={onClose}>
           知道了
         </button>

@@ -144,7 +144,7 @@ export function TagsScreen() {
         </div>
       )}
       <Sheet open={!!users} title={users ? `标签：${users.tag}` : ""} onClose={() => setUsers(null)}>
-        <div className="nova-scroll max-h-[60dvh] pb-2">
+        <div className="nova-scroll max-h-[calc(60dvh-var(--nova-keyboard,0px))] pb-2">
           {users && users.list.length === 0 && <p className="py-6 text-center text-sm text-muted">没有用户</p>}
           {users?.list.map((x) => (
             <button key={x.id} type="button" className="block w-full border-b border-line py-2.5 text-left text-[15px]" onClick={() => { setUsers(null); go("user", String(x.id)); }}>

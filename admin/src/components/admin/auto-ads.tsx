@@ -185,7 +185,7 @@ export function AutoAdsTab() {
         </>
       )}
       <Sheet open={logOpen} title="AI 发帖操作日志" onClose={() => setLogOpen(false)}>
-        <div className="max-h-[70dvh] overflow-y-auto px-4 pb-6">
+        <div className="max-h-[calc(70dvh-var(--nova-keyboard,0px))] overflow-y-auto px-4 pb-6">
           {logErr && <p className="text-sm text-danger">{logErr}</p>}
           {!log && !logErr && <p className="py-6 text-center text-[13px] text-muted">加载中…</p>}
           {log && log.length === 0 && <EmptyState title="还没有记录" />}

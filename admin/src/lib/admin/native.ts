@@ -3,13 +3,14 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Keyboard, KeyboardResize } from "@capacitor/keyboard";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { getStoredSkin, resolvedTheme, themeColor, type SkinId } from "./theme";
+import { installKeyboardInset } from "./keyboard";
 
 
 /** Web / Safari viewport lock. Keeps the layout at device width and prevents
  *  iOS from auto-zooming out when content is slightly taller or wider than
  *  the visible window (the "fat / squashed webpage" look). */
 export const WEB_VIEWPORT =
-  "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover";
+  "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content";
 
 export function lockWebViewport() {
   if (typeof document === "undefined") return;
@@ -22,6 +23,12 @@ export function lockWebViewport() {
   if (meta.getAttribute("content") !== WEB_VIEWPORT) {
     meta.setAttribute("content", WEB_VIEWPORT);
   }
+}
+
+/** 浏览器 / PWA（非原生）也要给键盘让位：用 visualViewport 计算。返回卸载函数。 */
+export function installWebKeyboardInset(): () => void {
+  if (typeof window === "undefined" || Capacitor.isNativePlatform()) return () => {};
+  return installKeyboardInset({ iosNative: false, androidNative: false }).dispose;
 }
 
 /**
@@ -41,9 +48,10 @@ export async function lockNativeViewport() {
   } catch {
     /* same */
   }
-  const setInset = (height: number) => {
-    document.documentElement.style.setProperty("--nova-keyboard", `${Math.max(0, height)}px`);
-  };
+  // 2.0.8：让位高度统一由 keyboard.ts 计算（iOS 用插件高度；Android 扣掉系统已缩掉的高度，避免重复让位）
+  const platform = Capacitor.getPlatform();
+  const kb = installKeyboardInset({ iosNative: platform === "ios", androidNative: platform === "android" });
+  const setInset = (height: number) => kb.setNativeHeight(height);
   await Keyboard.addListener("keyboardWillShow", (info) => setInset(info.keyboardHeight));
   await Keyboard.addListener("keyboardDidShow", (info) => setInset(info.keyboardHeight));
   await Keyboard.addListener("keyboardWillHide", () => setInset(0));

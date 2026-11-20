@@ -377,7 +377,7 @@ export function AiProvidersScreen() {
 
       <Sheet open={!!draft} title={draft?.id ? "编辑 AI 接口" : "添加 AI 接口"} onClose={() => setDraft(null)}>
         {draft && prov && (
-          <div className="max-h-[72dvh] overflow-y-auto px-4 pb-6">
+          <div className="max-h-[calc(72dvh-var(--nova-keyboard,0px))] overflow-y-auto px-4 pb-6">
             {!draft.id && (
               <Field label="服务商">
                 <select className={inputClass} value={draft.type} onChange={(e) => { const nt = typeOf(e.target.value); if (nt) setDraft({ ...draft, type: nt.type, name: nt.name, baseUrl: nt.baseUrl, model: nt.model, search: nt.searchCapable }); }}>

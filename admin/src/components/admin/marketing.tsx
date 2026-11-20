@@ -207,7 +207,7 @@ function AdsTab() {
       </ul>
       <Sheet open={!!edit} title={edit?.id ? "编辑营销帖" : "发布营销帖"} onClose={() => setEdit(null)}>
         {edit && (
-          <div className="max-h-[70dvh] overflow-y-auto px-4 pb-4">
+          <div className="max-h-[calc(70dvh-var(--nova-keyboard,0px))] overflow-y-auto px-4 pb-4">
             <Field label="类型">
               <select className={inputClass} value={edit.f.kind} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, kind: e.target.value as AdForm["kind"], media: [] } })}>
                 <option value="text">文字</option><option value="image">图片</option><option value="video">视频</option><option value="sdk">广告位 SDK（Revive 等）</option>
@@ -488,7 +488,7 @@ function BoostTab() {
       </Sheet>
       <Sheet open={!!planEdit} title="编辑推流套餐" onClose={() => setPlanEdit(null)}>
         {planEdit && (
-          <div className="max-h-[70dvh] overflow-y-auto px-4 pb-4">
+          <div className="max-h-[calc(70dvh-var(--nova-keyboard,0px))] overflow-y-auto px-4 pb-4">
             {planEdit.map((p, i) => (
               <div key={i} className="mb-2 grid grid-cols-[1fr_1fr_1fr_0.7fr_auto] items-end gap-1.5">
                 <Field label="名称"><input className={inputClass} value={p.name} onChange={(e) => setPlanEdit(planEdit.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} /></Field>

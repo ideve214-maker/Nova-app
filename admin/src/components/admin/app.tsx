@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { installFieldScroll, installScrollLock } from "@/lib/admin/scroll-lock";
-import { hapticLight, lockNativeViewport, lockWebViewport, syncNativeChrome } from "@/lib/admin/native";
+import { hapticLight, installWebKeyboardInset, lockNativeViewport, lockWebViewport, syncNativeChrome } from "@/lib/admin/native";
 import { getStoredSkin, resolvedTheme, subscribeAppearance } from "@/lib/admin/theme";
 import { hydrateAdmin, markAppBooted, useAdmin, type PageName } from "@/lib/admin/store";
 import { usePagePullToRefresh } from "@/lib/admin/pull-to-refresh";
@@ -61,6 +61,7 @@ export function AdminApp() {
     const unlock = installScrollLock();
     const unfocus = installFieldScroll();
     lockWebViewport();
+    const unKeyboard = installWebKeyboardInset();
     void lockNativeViewport();
     const unsubChrome = subscribeAppearance(() => {
       void syncNativeChrome(getStoredSkin(), resolvedTheme());
@@ -68,6 +69,7 @@ export function AdminApp() {
     return () => {
       unlock();
       unfocus();
+      unKeyboard();
       unsubChrome();
     };
   }, []);

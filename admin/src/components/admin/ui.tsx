@@ -116,7 +116,7 @@ export function Screen({
       <div className="absolute inset-x-0 top-0 z-30">
         <TopBar title={title} onBack={onBack} right={right} />
       </div>
-      {footer && <div className="nova-bar absolute inset-x-0 bottom-0 z-30 border-t border-line">{footer}</div>}
+      {footer && <div className="nova-footer nova-bar absolute inset-x-0 bottom-0 z-30 border-t border-line">{footer}</div>}
     </section>
   );
 }
@@ -244,7 +244,7 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="nova-sheet max-h-[85dvh] w-full max-w-[430px] rounded-t-2xl bg-surface pt-3 shadow-card"
+        className="nova-sheet max-h-[calc(85dvh-var(--nova-keyboard,0px))] w-full max-w-[430px] rounded-t-2xl bg-surface pt-3 shadow-card"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-2 flex items-center justify-between">

@@ -317,7 +317,7 @@ function AddHotSheet({
       {sheetMsg && (
         <p className={`mb-2 text-[13px] leading-5 ${sheetMsg.ok ? "text-primary" : "text-danger"}`}>{sheetMsg.text}</p>
       )}
-      <div className="max-h-[55dvh] overflow-y-auto pb-2">
+      <div className="max-h-[calc(55dvh-var(--nova-keyboard,0px))] overflow-y-auto pb-2">
         {state === "loading" && rows.length === 0 && <p className="py-6 text-center text-[14px] text-muted">正在读取…</p>}
         {state === "error" && <p className="py-6 text-center text-[14px] text-muted">暂时读不到动态，请稍后再试</p>}
         {state === "ok" && rows.length === 0 && <p className="py-6 text-center text-[14px] text-muted">{q.trim() ? "没有找到相关帖子" : "还没有动态"}</p>}

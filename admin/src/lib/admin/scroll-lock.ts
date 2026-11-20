@@ -91,23 +91,62 @@ export function installScrollLock() {
   };
 }
 
-/** 只滚动离输入框最近的内容区，不用 scrollIntoView（它会把整页顶上去）。 */
+/** 内容区上方被顶栏盖住的高度（Screen 的顶栏浮在内容区上面）。 */
+function coveredTop(scroller: HTMLElement): number {
+  const spacer = scroller.querySelector(":scope > .nova-top-spacer");
+  return spacer instanceof HTMLElement ? spacer.offsetHeight : 0;
+}
+/** 内容区下方被底栏盖住的高度（Screen 的底栏浮在内容区上面）。 */
+function coveredBottom(scroller: HTMLElement): number {
+  const footer = scroller.parentElement?.querySelector(":scope > .nova-footer");
+  if (!(footer instanceof HTMLElement) || footer.offsetParent === null) return 0;
+  const sb = scroller.getBoundingClientRect();
+  const fb = footer.getBoundingClientRect();
+  return Math.max(0, sb.bottom - fb.top);
+}
+
+/**
+ * 只滚动输入框所在的内容区（以及外层的弹窗），不用 scrollIntoView（它会把整页顶上去）。
+ * 2.0.8：逐层往外滚（弹窗里的列表 → 弹窗本身），并扣掉浮在上面的顶栏 / 底栏。
+ */
 export function scrollFieldWithinContent(el: HTMLElement) {
-  const scroller = nearestScroller(el, "y");
-  if (!scroller) return;
-  const box = scroller.getBoundingClientRect();
-  const field = el.getBoundingClientRect();
   const pad = 16;
-  if (field.bottom > box.bottom - pad) scroller.scrollTop += field.bottom - (box.bottom - pad);
-  else if (field.top < box.top + pad) scroller.scrollTop -= box.top + pad - field.top;
+  let scroller = nearestScroller(el, "y");
+  let guard = 0;
+  while (scroller && guard++ < 4) {
+    const box = scroller.getBoundingClientRect();
+    const field = el.getBoundingClientRect();
+    const top = box.top + coveredTop(scroller) + pad;
+    const bottom = box.bottom - coveredBottom(scroller) - pad;
+    if (field.bottom > bottom) scroller.scrollTop += Math.min(field.bottom - bottom, field.top - top);
+    else if (field.top < top) scroller.scrollTop -= top - field.top;
+    scroller = nearestScroller(scroller.parentElement, "y");
+  }
+}
+
+function isField(t: EventTarget | null): t is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
+  if (t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return true;
+  if (!(t instanceof HTMLInputElement)) return false;
+  return !["checkbox", "radio", "button", "submit", "reset", "file", "range", "color", "hidden"].includes(t.type);
 }
 
 export function installFieldScroll() {
-  const onFocus = (event: FocusEvent) => {
-    const t = event.target;
-    if (!(t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement)) return;
-    window.setTimeout(() => scrollFieldWithinContent(t), 60);
+  const timers: number[] = [];
+  const run = () => {
+    const t = document.activeElement;
+    if (isField(t)) scrollFieldWithinContent(t);
   };
+  // 键盘弹出要 250ms 左右，内容区在这之后才变矮：聚焦时、键盘高度变化后各对一次位置
+  const onFocus = (event: FocusEvent) => {
+    if (!isField(event.target)) return;
+    for (const ms of [60, 300, 600]) timers.push(window.setTimeout(run, ms));
+  };
+  const onKeyboard = () => { timers.push(window.setTimeout(run, 30)); };
   document.addEventListener("focusin", onFocus);
-  return () => document.removeEventListener("focusin", onFocus);
+  window.addEventListener("nova-keyboard", onKeyboard);
+  return () => {
+    document.removeEventListener("focusin", onFocus);
+    window.removeEventListener("nova-keyboard", onKeyboard);
+    timers.forEach((t) => window.clearTimeout(t));
+  };
 }

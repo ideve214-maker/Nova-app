@@ -128,7 +128,7 @@ export function AdsScreen() {
 
       <Sheet open={!!draft} title={draft?.id ? "编辑推广项目" : "添加推广项目"} onClose={() => setDraft(null)}>
         {draft && (
-          <div className="nova-scroll max-h-[70dvh]">
+          <div className="nova-scroll max-h-[calc(70dvh-var(--nova-keyboard,0px))]">
             <Field label="项目名称"><input className={inputClass} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="例如 VEXO 社区" /></Field>
             <Field label="广告原网址（文案会配上它）"><input className={inputClass} inputMode="url" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://" /></Field>
             <Field label="真实卖点（AI 只会用这里和网页标题 / 简介里的信息）">
