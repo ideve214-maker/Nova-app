@@ -73,6 +73,12 @@ document.addEventListener('touchcancel',()=>{RD_DRAG=0},{capture:true,passive:tr
 ['click','keydown','submit','change'].forEach(t=>document.addEventListener(t,()=>{RD_CLICK++;setTimeout(()=>{RD_CLICK=Math.max(0,RD_CLICK-1)},0)},{capture:true,passive:true}));
 function scrollBusy(){return RD_DRAG||performance.now()-RD_SCROLL<160}
 function render(force){
+  /* 2.0.7：边缘右滑返回进行中不重绘。之前滑到一半时评论加载完 / 推送到达触发重绘，手指下的节点被换掉，
+     touchend 发到已删除的节点上、传不到 document，页面就停在半路，要再滑一次。 */
+  if(!force&&typeof window!=='undefined'&&typeof window.__ebBusy==='function'&&window.__ebBusy()){
+    if(!RD_T)RD_T=setTimeout(function wait(){if(window.__ebBusy()){RD_T=setTimeout(wait,80);return}RD_T=null;render()},80);
+    return;
+  }
   if(!force&&!RD_CLICK&&MODE!=='boot'&&MODE!=='gate'&&scrollBusy()){
     if(!RD_T)RD_T=setTimeout(function wait(){if(scrollBusy()){RD_T=setTimeout(wait,120);return}RD_T=null;render()},120);
     return;
@@ -84,7 +90,10 @@ function render(force){
   if(anim&&pv.key!==key&&oldPg)gp=ghostOf(oldPg);
   if(anim&&oldSh&&!S.sh){gs=ghostOf(oldSh);go=oldOv?ghostOf(oldOv):null}
   cleanGhostExcept([gp,gs,go]);
+  /* 2.0.7：横向滑动的频道栏等，重绘后保持原来的横向位置（之前点了最右边的频道，整栏会弹回开头） */
+  const hsKeep=[...document.querySelectorAll('#v .pg .chs,#v .pg [data-hs]')].map(e=>e.scrollLeft);
   renderCore();
+  hsRestore(key,pv&&pv.key,hsKeep);
   S.noAnim=0;
   const now={key,tab:S.tab,depth:S.st.length};
   const newPg=$('#v .pg'),newSh=$('#v .pn'),newOv=$('#v .ov');
@@ -111,12 +120,32 @@ function render(force){
   VIEW=now;
   if(typeof afterRender==='function')afterRender();
 }
+function hsRestore(key,pkey,keep){
+  try{
+    const els=[...document.querySelectorAll('#v .pg .chs,#v .pg [data-hs]')];
+    els.forEach((e,i)=>{
+      if(key===pkey&&keep[i])e.scrollLeft=keep[i];
+      /* 选中的那一项不在可视范围时，横向滚到能完整看见（只改 scrollLeft，不动外层） */
+      const on=e.querySelector(':scope > .on');
+      if(on&&e.scrollWidth>e.clientWidth){
+        const l=on.getBoundingClientRect().left-e.getBoundingClientRect().left+e.scrollLeft,r=l+on.offsetWidth;
+        if(l<e.scrollLeft)e.scrollLeft=Math.max(0,l-12);
+        else if(r>e.scrollLeft+e.clientWidth)e.scrollLeft=r-e.clientWidth+12;
+      }
+    });
+  }catch(e){}
+}
 function cleanGhostExcept(keep){document.querySelectorAll('#app>.ghost').forEach(g=>{if(!keep.includes(g))g.remove()})}
 
 /* ---- 边缘右滑返回（从屏幕左缘 24px 内向右拖） ---- */
 const viewHTML=k=>k?page(k):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='chat'?tChat():tMe();
 let eb=null;
+window.__ebBusy=()=>!!(eb&&eb.lock);
+/* 兜底：上一次右滑没收到 touchend（节点被换掉、系统手势打断），新的触摸开始时先按当时的距离收尾，不让页面卡在半路 */
+let ebWatch=null;
+const ebKick=()=>{clearTimeout(ebWatch);ebWatch=setTimeout(()=>{if(eb&&eb.lock&&Date.now()-(eb.tm||0)>1400)ebEnd(eb.dx>eb.w*.33)},1500)};
 document.addEventListener('touchstart',e=>{
+  if(eb&&eb.lock)ebEnd(eb.dx>eb.w*.33);else eb=null;
   if(e.touches.length!==1||!S.st.length||S.sh||S.crop)return;const t=e.touches[0],a=$('#app').getBoundingClientRect();
   if(t.clientX-a.left>24)return;eb={x:t.clientX,y:t.clientY,lock:0,pg:$('#v .pg'),under:null,dx:0,t0:Date.now(),w:a.width};
 },{passive:true});
@@ -128,15 +157,16 @@ document.addEventListener('touchmove',e=>{
       $('#app').appendChild(u);const usc=u.querySelector('.sc');if(usc&&typeof scrollKey==='function'&&typeof peekScroll==='function')usc.scrollTop=peekScroll(scrollKey(k));
       eb.under=u;eb.pg.style.position='relative';eb.pg.style.zIndex=2}
     else if(Math.abs(dy)>8){eb=null;return}else return}
-  if(e.cancelable)e.preventDefault();eb.dx=Math.max(0,dx);const p=Math.min(1,eb.dx/eb.w);
+  if(e.cancelable)e.preventDefault();eb.dx=Math.max(0,dx);eb.tm=Date.now();ebKick();const p=Math.min(1,eb.dx/eb.w);
   eb.pg.style.transform=T3(eb.dx+'px');eb.pg.style.boxShadow='-10px 0 24px rgba(0,0,0,.28)';
   eb.under.style.transform=T3((-26+26*p)+'%');eb.under.style.opacity=.55+.45*p;
 },{passive:false});
 const ebEnd=commit=>{
+  clearTimeout(ebWatch);
   if(!eb)return;const b=eb;eb=null;if(!b.lock)return;
   const fin=()=>{b.under&&b.under.remove();b.pg.style.cssText=''};
   if(commit){feel('snap');
-    run(b.pg,[{transform:T3(b.dx+'px')},{transform:T3('100%')}],{duration:200,easing:'cubic-bezier(.3,.6,.4,1)'},()=>{b.under&&b.under.remove();S.noAnim=1;A.back();render()});
+    run(b.pg,[{transform:T3(b.dx+'px')},{transform:T3('100%')}],{duration:200,easing:'cubic-bezier(.3,.6,.4,1)'},()=>{b.under&&b.under.remove();S.noAnim=1;A.back();render(true)});
     run(b.under,[{transform:b.under.style.transform,opacity:b.under.style.opacity},{transform:'none',opacity:1}],{duration:200})}
   else{run(b.pg,[{transform:T3(b.dx+'px')},{transform:'none'}],{duration:240},fin);run(b.under,[{transform:b.under.style.transform},{transform:T3('-26%')}],{duration:240})}
 };

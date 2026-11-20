@@ -55,10 +55,16 @@ function bootKeyboard(){
   if(native&&N.Keyboard){
     N.Keyboard.setResizeMode({mode:N.KeyboardResize.None}).catch(()=>{});
     N.Keyboard.setScroll({isDisabled:true}).catch(()=>{});
-    N.Keyboard.addListener('keyboardWillShow', info=>setKb(info&&info.keyboardHeight)).catch(()=>{});
-    N.Keyboard.addListener('keyboardDidShow', info=>setKb(info&&info.keyboardHeight)).catch(()=>{});
-    N.Keyboard.addListener('keyboardWillHide', ()=>setKb(0)).catch(()=>{});
-    N.Keyboard.addListener('keyboardDidHide', ()=>setKb(0)).catch(()=>{});
+    /* 2.0.7：Android 上系统可能已经把 WebView 缩小（adjustResize），这时再按整个键盘高度让位会让两遍；
+       iOS（resize:none）WebView 不变，直接用键盘高度。做法和管理端 2.0.8 keyboard.ts 一致。 */
+    const android=N.Capacitor.getPlatform&&N.Capacitor.getPlatform()==='android';
+    let base=window.innerHeight,nat=0;
+    const kbOf=h=>{nat=Math.max(0,h||0);return android&&nat>0?nat-Math.max(0,base-window.innerHeight):nat};
+    window.addEventListener('resize',()=>{if(!nat)base=window.innerHeight;else setKb(kbOf(nat))});
+    N.Keyboard.addListener('keyboardWillShow', info=>setKb(kbOf(info&&info.keyboardHeight))).catch(()=>{});
+    N.Keyboard.addListener('keyboardDidShow', info=>setKb(kbOf(info&&info.keyboardHeight))).catch(()=>{});
+    N.Keyboard.addListener('keyboardWillHide', ()=>setKb(kbOf(0))).catch(()=>{});
+    N.Keyboard.addListener('keyboardDidHide', ()=>setKb(kbOf(0))).catch(()=>{});
   }else if(window.visualViewport){
     const sync=()=>{
       const vv=window.visualViewport;

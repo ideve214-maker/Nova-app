@@ -56,9 +56,21 @@ function cbMedia(md){
 }
 function cbParse(v){const p=String(v||'').split('|');return p[0]==='ch'?{type:'ch',cm:p[1],ch:p[2],rest:p.slice(3)}:{type:'cv',id:p[1],rest:p.slice(2)}}
 function cbKey(v){const t=cbParse(v);return t.type==='ch'?'ch|'+t.cm+'|'+t.ch:'cv|'+t.id}
+const CB_FILE_ACCEPT=['.pdf','.txt','.zip','.rar','.7z','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.wps','.csv','.md','.json',
+  'application/pdf','application/zip','application/x-zip-compressed','application/x-rar-compressed','application/vnd.rar','application/x-7z-compressed',
+  'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-works','application/kswps','text/plain','text/csv','text/markdown','application/json'].join(',');
+const CB_MAX_BYTES=100*1024*1024; /* 服务器 nginx 上限 100 MB（VIP 视频上限）；普通用户 50 MB 由服务器判断并提示 */
 async function cbUpload(blob,name,durMs){
-  const r=await fetch(apiUrl('/api/media'),{method:'POST',headers:{Authorization:'Bearer '+SESSION.token,'Content-Type':(blob.type||'application/octet-stream').split(';')[0],'X-File-Name':encodeURIComponent(name||'file'),...(durMs?{'X-Media-Duration':String(Math.round(durMs))}:{})},body:blob});
+  if(blob&&blob.size>CB_MAX_BYTES)throw new Error('文件太大：最大 100 MB（普通用户 50 MB）');
+  /* 2.0.7：聊天里发的文件 / 视频也走 prepUpload：iPhone 的 .mov 按 mp4 声明（旧服务器不认 video/quicktime，直接报“不支持的文件类型”），HEIC 图片转 JPEG */
+  let body=blob,type=(blob.type||'').split(';')[0],nm=name||'file';
+  if(!durMs&&typeof prepUpload==='function'&&blob instanceof Blob){try{const f=blob.name?blob:new File([blob],nm,{type:blob.type||''});const u=await prepUpload(f);body=u.file;type=u.type||type;nm=u.name||nm}catch(e){}}
+  const r=await fetch(apiUrl('/api/media'),{method:'POST',headers:{Authorization:'Bearer '+SESSION.token,'Content-Type':type||'application/octet-stream','X-File-Name':encodeURIComponent(nm),...(durMs?{'X-Media-Duration':String(Math.round(durMs))}:{})},body});
   let j=null;try{j=await r.json()}catch(e){}
+  if(r.status===413)throw new Error((j&&j.error&&j.error.message)||'文件太大：普通用户最大 50 MB，VIP 100 MB');
   if(r.status!==200)throw new Error((j&&j.error&&j.error.message)||'上传失败');
   return j.media;
 }
@@ -88,7 +100,9 @@ async function cbSendMedia(target,blob,name,ok,durMs){
 function cbPickFile(target,mode){
   if(typeof usingNet!=='function'||!usingNet()||!SESSION)return T('演示模式暂不支持此功能');
   const inp=document.createElement('input');inp.type='file';
-  if(mode==='file')inp.accept='.pdf,.txt,.zip,.doc,.docx,.json,application/pdf,application/zip,text/plain';
+  /* 2.0.7：安卓 WebView 的文件选择器只认 MIME 类型、不认扩展名，之前只写了 pdf/zip/txt 的 MIME，doc/docx 在安卓上选不了（只能发压缩包）。
+     扩展名和 MIME 都列全，和服务端 2.1.0 的白名单一致。 */
+  if(mode==='file')inp.accept=CB_FILE_ACCEPT;
   else inp.accept='image/*,video/mp4,video/webm,video/quicktime';
   if(mode==='camera')inp.setAttribute('capture','environment');
   inp.style.display='none';document.body.appendChild(inp);

@@ -139,7 +139,7 @@ function mediaHTML(list,det,pid){
   const show=det?media:media.slice(0,4),n=Math.min(show.length,4);
   const extra=!det&&media.length>4?media.length-4:0;
   const cells=show.map((m,i)=>{
-    const src=m.url?` src="${esc(m.url)}"`:` data-mid="${esc(m.id)}"`;
+    const src=m.url?` src="${esc(m.url)}"${/^https?:/i.test(m.url)?' referrerpolicy="no-referrer"':''}`:` data-mid="${esc(m.id)}"`;
     let c;
     if(mKind(m)==='video')c=`<span class="mv"${det||!pid?'':` data-a="post" data-v="${esc(pid)}"`}><video${src} muted playsinline preload="metadata"${det?' controls':''}></video><i class="vtag">视频</i></span>`;
     else c=`<img class="zoomimg" loading="lazy" decoding="async"${src} alt="">`;
@@ -271,7 +271,7 @@ function pStory(a,idx){
   const bars=g.items.map((x,j)=>`<i class="${j<i?'done':j===i?'on':''}"><b></b></i>`).join('');
   let body;
   if(m){
-    const src=m.url?` src="${esc(m.url)}"`:` data-mid="${esc(m.id)}"`;
+    const src=m.url?` src="${esc(m.url)}"${/^https?:/i.test(m.url)?' referrerpolicy="no-referrer"':''}`:` data-mid="${esc(m.id)}"`;
     body=mKind(m)==='video'?`<video${src} autoplay muted playsinline></video>`:`<img${src} alt="">`;
     if(p.x)body+=`<div class="cap">${esc(p.x)}</div>`;
   }else body=`<div class="tx">${esc(p.x||'')}</div>`;
@@ -292,8 +292,8 @@ function storyCur(){const c=S.st[S.st.length-1]||'';const[t,a,i]=String(c).split
 function pStoryNew(){
   const c=S.stc||(S.stc={media:null});
   const m=c.media;
-  const prev=m?(m.kind==='video'?`<video src="${esc(m.url)}" muted playsinline autoplay loop></video>`:`<img src="${esc(m.url)}" alt="">`)+`<button class="x" data-a="stcrm" aria-label="移除">✕</button>`:`<div class="tx">${esc((S.d.stx||'').trim()||tr('写一句话，或选一张照片/一段视频'))}</div>`;
-  return `<div class="pg stc-pg"><div class="top sub"><button class="ib tx" data-a="stcx">取消</button><h1>发日常</h1><button class="pb" data-a="stpub">发布</button></div><div class="sc"><div class="stc-prev" style="background:${m?'#000':ST_BG[0]}">${prev}</div><textarea class="fld cta" data-d="stx" data-max="200" rows="2" placeholder="${m?'加一句说明（可不填）':'写点什么…'}"></textarea><div class="stc-tools"><button class="pb s" data-a="stcpick">${typeof icLine==='function'?icLine('photo'):''} 选照片 / 视频</button></div><p class="stc-hint">🌐 公开，所有人可见。日常只出现在首页顶部那一排，24 小时后自动消失；不会出现在帖子列表里，也不计入帖子数。</p></div></div>`;
+  const prev=m?(m.kind==='video'?`<video src="${esc(m.url)}" muted playsinline autoplay loop></video>`:`<img src="${esc(m.url)}" alt="">`)+`<button class="x" data-a="stcrm" aria-label="移除">✕</button>`:((S.d.stx||'').trim()?`<div class="tx">${esc((S.d.stx||'').trim())}</div>`:`<div class="tx ph">${tr('写一句话，或选一张照片/一段视频')}</div>`);
+  return `<div class="pg stc-pg"><div class="top sub"><button class="ib tx" data-a="stcx">取消</button><h1>发日常</h1><button class="pb" data-a="stpub">发布</button></div><div class="sc"><div class="stc-prev" style="background:${m?'#000':ST_BG[0]}">${prev}</div><textarea class="fld cta" data-d="stx" data-max="200" rows="2" placeholder="${m?'加一句说明（可不填）':'写点什么…'}"></textarea><div class="stc-tools"><button class="pb s" data-a="stcpick">${typeof icLine==='function'?icLine('photo'):''}<span>选照片 / 视频</span></button></div><p class="stc-hint">🌐 公开，所有人可见。日常只出现在首页顶部那一排，24 小时后自动消失；不会出现在帖子列表里，也不计入帖子数。</p></div></div>`;
 }
 async function publishStory(){
   const c=S.stc||{},x=(S.d.stx||'').trim();
@@ -346,6 +346,8 @@ Object.assign(A,{
 /* ---- 6. 媒体加载失败：换成小占位，不再出现大黑框加问号 ---- */
 function mediaFail(el){
   if(!el||el.dataset.failed)return;el.dataset.failed='1';
+  /* 2.0.7：正文里的外部图片（对方图床打不开）换成可点的「查看图片」，不留占位框 */
+  if(el.tagName==='IMG'&&el.hasAttribute('referrerpolicy')&&/^https?:/i.test(el.getAttribute('src')||'')){const a=document.createElement('button');a.type='button';a.className='lk txlink';a.dataset.a='extlink';a.dataset.v=el.getAttribute('src');a.textContent='🖼 查看图片';el.replaceWith(a);return}
   const wrap=el.closest('.mv')||el;
   const f=document.createElement('div');f.className='mfail';
   f.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M3 3l18 18"/></svg><span>'+(el.tagName==='VIDEO'?'视频':'图片')+'暂时无法显示</span>';
@@ -397,13 +399,15 @@ function rpEmbed(p,det){
   if(r.deleted)return `<div class="rpc del"><span>原帖已删除</span></div>`;
   const o=findPost(r.id);if(!o)return `<div class="rpc del"><span>原帖已删除</span></div>`;
   const u=P(o.a),tm=typeof fmtTime==='function'&&o.at?fmtTime(o.at):(o.t||'');
-  const media=typeof mediaHTML==='function'?mediaHTML(Array.isArray(o.media)?o.media:[],false,o.id):'';
+  const otx=typeof txSplit==='function'?txSplit(o.x):{t:o.x||'',imgs:[]};
+  const media=typeof mediaHTML==='function'?mediaHTML((Array.isArray(o.media)?o.media:[]).concat(otx.imgs),false,o.id):'';
   const srcL=o.sourceLabel||'';
-  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${o.x?`<div class="rpx${det?'':' clamp'}">${esc(o.x)}</div>`:''}${media}</div>`;
+  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${otx.t?`<div class="rpx${det?'':' clamp'}">${esc(otx.t)}</div>`:''}${media}</div>`;
 }
 function rpCardWrap(p,det,k){
   const plain=!(p.x||'').trim();
-  const body=plain?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
+  const ptx=typeof txSplit==='function'?txSplit(p.x):{t:p.x||'',imgs:[]};
+  const body=plain||!ptx.t?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(ptx.t)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
   const head=plain
     ?`<div class="rptop"><span data-a="user" data-v="${p.a}">${xic('rt')}<b>${esc(p.a==='me'?'你':k.u.n)}</b> 转帖了</span><small>${esc(k.tm)}</small><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`
     :`<div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(k.u)}</b><small>${esc(k.tm)}${k.tm?' · ':''}${k.aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`;

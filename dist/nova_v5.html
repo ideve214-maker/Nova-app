@@ -99,7 +99,7 @@ small{color:var(--t2);font-size:13px}
 .cb{background:var(--s2);border-radius:16px;padding:8px 12px;display:inline-block;max-width:100%;word-break:break-word}.cb b{display:block;font-size:14px}
 .lk{font-size:13px;color:var(--t2);font-weight:600;padding:8px 2px}.lk.on{color:var(--ac)}
 .ban{flex:none;background:var(--s2);padding:8px 16px;border-bottom:1px solid var(--ln);font-size:13px;color:var(--t2)}.ban b{display:block;color:var(--dg);font-size:15px}
-.mr{display:flex;gap:8px;padding:4px 12px;align-items:flex-end}.mr.me{flex-direction:row-reverse}
+.mr{display:flex;gap:8px;padding:4px 12px;align-items:flex-start}.mr.me{flex-direction:row-reverse}
 .bub{max-width:100%;padding:9px 13px;border-radius:18px;background:var(--s2);word-break:break-word;white-space:pre-wrap}.me .bub{background:var(--ac);color:var(--onac)}
 .mw{max-width:75%;display:flex;flex-direction:column}.me .mw{align-items:flex-end}.mt{font-size:11px;color:var(--t3);margin-top:2px}
 .ph2{border:1px dashed var(--t3);border-radius:12px;padding:20px 28px;margin-bottom:4px;text-align:center;font-size:13px}
@@ -798,7 +798,7 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 .vxq{display:flex;flex-wrap:wrap;gap:8px;padding:8px 16px 4px 52px}
 .vxq .chipb{height:auto;min-height:32px;white-space:normal;text-align:left;padding:6px 12px;line-height:1.35}
 .vxnote{font-size:11px;color:var(--t3);text-align:center;padding:10px 24px 4px}
-.vxbar{display:flex;gap:8px;align-items:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--ln);background:var(--bg)}
+.vxbar{display:flex;gap:8px;align-items:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px) + var(--kb,0px));border-top:1px solid var(--ln);background:var(--bg)}
 .vxbar .fld{flex:1;margin:0}
 .vxbar .pb{flex:none;height:44px;min-width:64px;border-radius:12px}
 .vxdots{display:inline-flex;gap:4px;padding:12px 14px}
@@ -896,6 +896,25 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 /* 2.0.3：「更换头像」是头像右下角的小圆形相机角标，压在头像边缘上（外圈用页面底色描边，和头像分开） */
 .pf.ovl .avw .cam.avcam{left:auto!important;right:-2px!important;bottom:-2px!important;top:auto!important;width:30px;height:30px;min-width:30px;padding:0!important;border-radius:50%;display:grid;place-items:center;background:var(--s3,#23262C);color:var(--tx);border:2px solid var(--sf);box-shadow:0 1px 4px rgba(0,0,0,.35);font-size:0;line-height:0;z-index:2}
 .pf.ovl .avw .cam.avcam svg{width:16px;height:16px;display:block}
+/* 2.0.7 评论翻译 / 输入框「译」/ 评论里的图片 / 分享卡片与分享图片 */
+.cm .trb{margin:6px 0 2px}
+.inrow .trin{flex:0 0 auto;width:36px;height:36px;font-size:16px;font-weight:600;color:var(--ac)}
+.inrow .trin.busy{opacity:.6}
+.cimg .fmedia{margin:6px 0 2px;max-width:260px}
+.lk.txlink{display:inline-block;margin:6px var(--pad,16px);font-size:14px}
+.shcard{display:flex;flex-direction:column;gap:4px;margin:0 0 10px;padding:12px 14px;border-radius:14px;background:var(--s2)}
+.shcard b{font-size:15px;line-height:1.4;word-break:break-word}
+.shcard small{color:var(--t2);font-size:12px}
+.shcard .v2shu{margin:2px 0 0}
+a.mi{text-decoration:none;color:inherit;display:block}
+img.shposter{display:block;width:72%;max-width:300px;height:auto;margin:4px auto 8px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+/* 2.0.7：键盘弹出时，表单页（资料编辑、账号安全等）底部留出键盘高度，靠下的输入框才能滚到键盘上方 */
+html.kb-open #v .pg>.sc:last-child:not(.game-frame){padding-bottom:calc(var(--kb,0px) + 24px)!important}
+/* 2.0.7 发日常：按钮图标和文字同一行居中；空白预览的提示一行显示 */
+.stc-tools .pb{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;white-space:nowrap;line-height:1}
+.stc-tools .pb svg{display:block;flex:none;width:20px;height:20px;margin:0}
+.stc-tools .pb span{display:block;line-height:20px}
+.stc-prev .tx.ph{padding:0 16px;font-size:15px;font-weight:500;letter-spacing:.02em;white-space:nowrap;color:rgba(255,255,255,.82);text-shadow:0 1px 6px rgba(0,0,0,.18)}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>
 <link rel="stylesheet" href="assets/vendor/photoswipe.css">
@@ -909,11 +928,7 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 <div id="app"><div id="v"></div><div id="tt" role="status"></div></div>
 <script>
 /* 部署配置：页面里若已设置 window.NOVA_*，以其为准。 */
-window.NOVA_API_BASE = window.NOVA_API_BASE || "https://47.239.0.90";
-window.NOVA_DISABLE_DEMO = window.NOVA_DISABLE_DEMO === undefined ? true : window.NOVA_DISABLE_DEMO;
-window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "2.0.6";
-window.NOVA_SHARE_URL = window.NOVA_SHARE_URL || "https://47.239.0.90";
-window.NOVA_UPDATE_MANIFEST_URL = window.NOVA_UPDATE_MANIFEST_URL || "https://47.239.0.90/updates/user/manifest.json";
+window.NOVA_APP_VERSION = window.NOVA_APP_VERSION || "2.0.7";
 </script>
 <script>
 /* vendored @kinsh/vodozemac-wasm 0.4.2, Apache-2.0; crypto is official vodozemac (Olm). */
@@ -2748,6 +2763,7 @@ async function delacct(){
   S.d.delpw='';S.d.delok='';
   if(r.s!==200){S.delerr=errMsg(r,'注销失败');return}
   T('账号已注销');
+  try{if(typeof e2eeForget==='function'&&SESSION&&SESSION.user)e2eeForget(SESSION.user.id,{wipe:true})}catch(e){}
   logout();
 }
 async function legal(kind){
@@ -2821,6 +2837,8 @@ function rememberAuthor(a){
   /* r10：别人的图片头像 / 背景（服务器返回 avatar.image、cover）。 */
   D.uph=D.uph||{};
   if(a.avatar&&Object.prototype.hasOwnProperty.call(a.avatar,'image'))D.uph[id]=a.avatar.image||'';
+  /* 2.0.7 外部作者（id 以 ext: 开头）头像字段兼容：avatar.image → avatar.url → avatar（字符串）→ avatarUrl → avatar_url；都没有时显示首字母头像 */
+  if(id.startsWith('ext:')){const av0=a.avatar,o=av0&&typeof av0==='object'?av0:null;/* 服务端 2.1.0：avatar.path 是相对代理地址（App 里用 apiUrl 拼成完整地址，不依赖服务器配置的公网域名），avatar.fallback 是字母头像 */const pick=(o&&o.path)||(o&&(o.image||o.url))||(typeof av0==='string'&&av0)||a.avatarUrl||a.avatar_url||(o&&o.fallback)||'';D.uph[id]=String(pick||'');if(o&&o.fallback){D.ufb=D.ufb||{};D.ufb[id]=String(o.fallback)}}
   if(Object.prototype.hasOwnProperty.call(a,'cover')){D.ubg=D.ubg||{};D.ubg[id]=a.cover||''}
 }
 function adoptPost(p){
@@ -2982,10 +3000,14 @@ function cssUrl(src){return String(src||'').replace(/["'\\\n\r<>]/g,'')}
 function bgCss(src){const s=cssUrl(src);if(!s)return 'background:#1a1c20';if(s.startsWith('linear-gradient')||s.startsWith('#'))return 'background:'+s;return "background-color:#1a1c20;background-image:url('"+s+"');background-size:cover;background-position:center"}
 /* r10：头像只有两种——官方默认头像，或者从相册导入的图片（存服务器，别人也能看到）。去掉了「颜色 + 文字」头像。 */
 const DEF_AV='assets/av-default.svg';
-const avSrcOf=id=>{if(id==='me')return (D.pf&&D.pf.me&&D.pf.me.ph)||'';return (D.uph&&D.uph[id])||''};
+/* 2.0.7：外部作者头像是服务器代理的相对地址（/api/import/avatar?u=…）。App 里页面不在服务器域名下，相对地址会指到本地 → 显示不出来；这里按 API 根补全。 */
+const avAbs=s=>{s=String(s||'');if(/^\/api\//.test(s)&&typeof apiUrl==='function')return apiUrl(s);return s};
+const avSrcOf=id=>{if(id==='me')return (D.pf&&D.pf.me&&D.pf.me.ph)||'';return avAbs((D.uph&&D.uph[id])||'')};
 const lookImg=(src,s)=>isMediaId(src)?`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${(typeof imcSync==='function'&&imcSync(src,'f'))||DEF_AV}" data-avm="${esc(src)}" alt=""></span>`:phImg(src,s);
 const av=(id,s,opt)=>{const src=avSrcOf(id);
   let h=src?lookImg(src,s):(MODE!=='account'&&PH[id])?phImg(PH[id],s):phImg(DEF_AV,s);
+  /* 2.0.7：外部帖（V2EX / HN）的发帖人和评论人：没有头像时用名字首字母头像；头像加载失败（对方图床不可达）时也换成首字母头像 */
+  if(String(id).startsWith('ext:')&&typeof extLetterAv==='function'){const fb=(D.ufb&&/^data:image\//.test(D.ufb[id]||'')&&D.ufb[id])||extLetterAv(P(id).n||String(id).replace(/^ext:[^:]+:/,''));h=src&&!isMediaId(src)?phImg(src,s).replace('<img ',`<img data-fb="${esc(fb)}" referrerpolicy="no-referrer" `):src?h:phImg(fb,s)}
   const deco=opt&&Object.prototype.hasOwnProperty.call(opt,'dec')?!!opt.dec:(id==='me'&&typeof vipDecoOn==='function'&&vipDecoOn());
   if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');return h};
 const gface=(c,s)=>{const src=c&&c.gp||'';if(isMediaId(src))return lookImg(src,s).replace(DEF_AV,PH.group);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('blob:')||String(src).startsWith('assets/'))?src:PH.group,s)};
@@ -3007,12 +3029,14 @@ function audLabel(p){const from=p&&(p.audienceLabel||p.audience_label);if(from)r
 const pc=(p,det)=>{const u=P(p.a),n=typeof ncm==='function'?ncm(p.id):(p.commentCount||0),aud=audLabel(p),tm=typeof fmtTime==='function'&&p.at?fmtTime(p.at):(p.t||'');
 const nLike=(p.r||[]).reduce((a,b)=>a+(b||0),0),nC=p.commentCount!=null?p.commentCount:n;
 const media=Array.isArray(p.media)?p.media:[];
-const mediaH=typeof mediaHTML==='function'?mediaHTML(media,det,p.id):'';
+/* 2.0.7：正文里的图片链接（外部帖常见：Markdown 图片、图床直链）当成图片显示，正文里去掉这些链接 */
+const tx=typeof txSplit==='function'?txSplit(p.x):{t:p.x||'',imgs:[]},txT=tx.t;
+const mediaH=typeof mediaHTML==='function'?mediaHTML(media.concat(tx.imgs),det,p.id):'';
 const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:'';
 const chips=[p.boost?(p.boost.label==='推流中'?`🚀 推流中 · 已曝光 ${Number(p.boost.delivered)||0}/${Number(p.boost.impressions)||0}`:'🔥 曝光中'):'',S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
 if(p.rp&&typeof rpCardWrap==='function')return rpCardWrap(p,det,{u,tm,aud,chips,mediaH,nLike,nC});
 const ext=!!(p.source||p.ext);const who=ext?'extauthor':'user';const srcL=p.sourceLabel||'';const srcMeta=ext?`<div class="fsrc"><span class="srclbl">${esc(srcL||(p.source==='hn'?'来自 HN':'来自 V2EX'))}</span>${p.sourceUrl?`<button type="button" class="srclnk" data-a="extlink" data-v="${esc(p.sourceUrl)}">查看原帖</button>`:''}</div>`:'';
-return `<article class="fcard${ext?' ext':''}" data-pid="${p.id}"${p.source?` data-src="${esc(p.source)}"`:''}><div class="fhd"><div data-a="${who}" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="${who}" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${ext?esc(srcL||aud):aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${srcMeta}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
+return `<article class="fcard${ext?' ext':''}" data-pid="${p.id}"${p.source?` data-src="${esc(p.source)}"`:''}><div class="fhd"><div data-a="${who}" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="${who}" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${ext?esc(srcL||aud):aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)&&txT?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(txT)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${srcMeta}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['co','共创','spark'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
 function riskNoticeText(id){
   const u=S.userView&&String(S.userView.id)===String(id)&&S.userView.user;
@@ -3923,11 +3947,20 @@ async function safetyNumber(edA,edB){
 }
 
 function e2eeKey(userId){return E2EE_STORE_PREFIX+String(userId)}
-function e2eeForget(userId){
+/* 2.0.7：退出登录不再删除本机加密身份和已解密的消息。
+   之前退出时删掉了设备密钥，重新登录会生成新设备，旧消息（只加密给旧设备）全部变成「无法解密」；
+   而且 Olm 的消息密钥用过一次就作废，已经解开过的消息不能再解第二次，所以解开的内容要留在本机。
+   现在：密钥和解密结果按账号分开存在本机，退出只清内存；同一台设备再登录同一账号，历史消息照常显示。
+   只有显式 wipe（注销账号、撤销本机加密设备）才删除。 */
+const E2EE_PLAIN_PREFIX='nova_e2ee_plain_v1_';
+const E2EE_PLAIN_MAX=6000;
+function e2eeForget(userId,opt){
+  try{e2eePlainFlush()}catch(e){}
   try{
     const id=userId!=null?userId:_uid;
-    if(id!=null)localStorage.removeItem(e2eeKey(id));
+    if(id!=null&&opt&&opt.wipe){localStorage.removeItem(e2eeKey(id));localStorage.removeItem(E2EE_PLAIN_PREFIX+String(id))}
   }catch(e){}
+  try{if(typeof S!=='undefined'){S.e2eePlain=null;S.e2eePlainUid=null}}catch(e){}
   _acct=null;_store=null;_uid=null;_ready=null;
 }
 function loadStore(userId){
@@ -3948,7 +3981,38 @@ function newDeviceId(){
 
 let _ready=null, _acct=null, _uid=null, _store=null;
 
-function e2eePlainCache(){S.e2eePlain=S.e2eePlain||{};return S.e2eePlain}
+/* 已解密消息的本机缓存（按账号持久化，最多 E2EE_PLAIN_MAX 条，超出丢最早的） */
+let _plainDirty=null;
+function e2eePlainFlush(){
+  const d=_plainDirty;_plainDirty=null;clearTimeout(e2eePlainSaveSoon.t);
+  if(!d)return;
+  try{
+    const obj=d.obj,ks=Object.keys(obj);
+    if(ks.length>E2EE_PLAIN_MAX){ks.slice(0,ks.length-E2EE_PLAIN_MAX).forEach(k=>delete obj[k]);}
+    localStorage.setItem(E2EE_PLAIN_PREFIX+String(d.uid),JSON.stringify(obj));
+  }catch(e){console.warn('e2ee plain cache save failed',e)}
+}
+function e2eePlainSaveSoon(uid,obj){
+  _plainDirty={uid,obj};
+  clearTimeout(e2eePlainSaveSoon.t);
+  e2eePlainSaveSoon.t=setTimeout(e2eePlainFlush,200);
+}
+if(typeof window!=='undefined'){
+  window.addEventListener('pagehide',e2eePlainFlush);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)e2eePlainFlush()});
+}
+function e2eePlainCache(){
+  const uid=typeof SESSION!=='undefined'&&SESSION&&SESSION.user?SESSION.user.id:null;
+  if(uid==null){S.e2eePlain=S.e2eePlain||{};return S.e2eePlain}
+  if(S.e2eePlain&&S.e2eePlainUid===uid)return S.e2eePlain;
+  let raw={};
+  try{raw=JSON.parse(localStorage.getItem(E2EE_PLAIN_PREFIX+String(uid))||'{}')||{}}catch(e){raw={}}
+  /* 之前在内存里已经解开的（本次运行），并进来一起保存 */
+  if(S.e2eePlain&&S.e2eePlainUid==null)Object.assign(raw,S.e2eePlain);
+  S.e2eePlain=new Proxy(raw,{set(t,k,v){t[k]=v;e2eePlainSaveSoon(uid,t);return true},deleteProperty(t,k){delete t[k];e2eePlainSaveSoon(uid,t);return true}});
+  S.e2eePlainUid=uid;
+  return S.e2eePlain;
+}
 
 async function e2eeInitWasm(){
   if(!globalThis.Vodozemac) throw new Error('vodozemac 未加载');
@@ -4728,10 +4792,16 @@ function bootKeyboard(){
   if(native&&N.Keyboard){
     N.Keyboard.setResizeMode({mode:N.KeyboardResize.None}).catch(()=>{});
     N.Keyboard.setScroll({isDisabled:true}).catch(()=>{});
-    N.Keyboard.addListener('keyboardWillShow', info=>setKb(info&&info.keyboardHeight)).catch(()=>{});
-    N.Keyboard.addListener('keyboardDidShow', info=>setKb(info&&info.keyboardHeight)).catch(()=>{});
-    N.Keyboard.addListener('keyboardWillHide', ()=>setKb(0)).catch(()=>{});
-    N.Keyboard.addListener('keyboardDidHide', ()=>setKb(0)).catch(()=>{});
+    /* 2.0.7：Android 上系统可能已经把 WebView 缩小（adjustResize），这时再按整个键盘高度让位会让两遍；
+       iOS（resize:none）WebView 不变，直接用键盘高度。做法和管理端 2.0.8 keyboard.ts 一致。 */
+    const android=N.Capacitor.getPlatform&&N.Capacitor.getPlatform()==='android';
+    let base=window.innerHeight,nat=0;
+    const kbOf=h=>{nat=Math.max(0,h||0);return android&&nat>0?nat-Math.max(0,base-window.innerHeight):nat};
+    window.addEventListener('resize',()=>{if(!nat)base=window.innerHeight;else setKb(kbOf(nat))});
+    N.Keyboard.addListener('keyboardWillShow', info=>setKb(kbOf(info&&info.keyboardHeight))).catch(()=>{});
+    N.Keyboard.addListener('keyboardDidShow', info=>setKb(kbOf(info&&info.keyboardHeight))).catch(()=>{});
+    N.Keyboard.addListener('keyboardWillHide', ()=>setKb(kbOf(0))).catch(()=>{});
+    N.Keyboard.addListener('keyboardDidHide', ()=>setKb(kbOf(0))).catch(()=>{});
   }else if(window.visualViewport){
     const sync=()=>{
       const vv=window.visualViewport;
@@ -5633,10 +5703,10 @@ const cmts=id=>{
 };
 /* 回复某条评论后，展开它所在的一级评论 */
 function cmRootOf(cid){const all=(S.comments&&S.commentPost)?S.comments:D.c;let c=all.find(x=>x.id==cid),n=0;while(c&&c.pa&&n++<50){const up=all.find(x=>x.id==c.pa);if(!up)break;c=up}return c?c.id:cid}
-const ci=(c,depth)=>{const s=depth>=1,collapse=(c.depth!=null?c.depth:depth)>=2,rt=c.replyTo,who=rt&&(rt.author&&(rt.author.displayName||rt.author.username)||'');const hint=collapse&&who?`<span class="hint">回复 @${esc(who)}</span> `:((c.depth>=1||s)&&who&&depth>=2?`<span class="hint">回复 @${esc(who)}</span> `:'');const tm=typeof fmtTime==='function'&&c.at?fmtTime(c.at):(c.t||'');return `<div class="cm${s?' sub':''}" data-cid="${c.id}" data-depth="${c.depth||depth||0}">${c.ext||(c.a&&String(c.a).startsWith('ext:'))?`<span data-a="extauthor" data-v="${c.a}">${av(c.a,s?28:34)}</span>`:av(c.a,s?28:34)}<div class="gr"><div class="cb"><b class="nmb"${c.ext||(c.a&&String(c.a).startsWith('ext:'))?` data-a="extauthor" data-v="${c.a}"`:''}>${nmB(P(c.a))}</b> ${hint}${c.deleted?'<i style="color:var(--t3)">'+(esc(c.x)||'（已删除）')+'</i>':esc(c.x)}</div>${c.deleted&&!(c.replyCount)?`<small style="display:block;padding-left:4px">${tm}</small>`:`<small style="display:block;padding-left:4px">${tm}${c.deleted?'':` · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button> · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>`}${c.a=='me'&&!c.deleted?` · <button class="lk dg" data-a="delc" data-v="${c.id}">删除</button>`:''}</small>`}</div></div>`};
+const ci=(c,depth)=>{const s=depth>=1,collapse=(c.depth!=null?c.depth:depth)>=2,rt=c.replyTo,who=rt&&(rt.author&&(rt.author.displayName||rt.author.username)||'');const hint=collapse&&who?`<span class="hint">回复 @${esc(who)}</span> `:((c.depth>=1||s)&&who&&depth>=2?`<span class="hint">回复 @${esc(who)}</span> `:'');const tm=typeof fmtTime==='function'&&c.at?fmtTime(c.at):(c.t||'');const ctx=!c.deleted&&typeof txSplit==='function'?txSplit(c.x):{t:c.x||'',imgs:[]};const cimg=ctx.imgs.length&&typeof mediaHTML==='function'?mediaHTML(ctx.imgs,0,''):'';const ctr=!c.deleted&&(ctx.t||'').trim()&&typeof trCan==='function'&&trCan();return `<div class="cm${s?' sub':''}" data-cid="${c.id}" data-depth="${c.depth||depth||0}">${c.ext||(c.a&&String(c.a).startsWith('ext:'))?`<span data-a="extauthor" data-v="${c.a}">${av(c.a,s?28:34)}</span>`:av(c.a,s?28:34)}<div class="gr"><div class="cb"><b class="nmb"${c.ext||(c.a&&String(c.a).startsWith('ext:'))?` data-a="extauthor" data-v="${c.a}"`:''}>${nmB(P(c.a))}</b> ${hint}${c.deleted?'<i style="color:var(--t3)">'+(esc(c.x)||'（已删除）')+'</i>':esc(ctx.t)}</div>${cimg?`<div class="cimg">${cimg}</div>`:''}${!c.deleted&&typeof trBox==='function'?trBox('c:'+c.id):''}${c.deleted&&!(c.replyCount)?`<small style="display:block;padding-left:4px">${tm}</small>`:`<small style="display:block;padding-left:4px">${tm}${c.deleted?'':` · <button class="lk${c.ml?' on':''}" data-a="cl" data-v="${c.id}">赞${c.l?' '+c.l:''}</button> · <button class="lk" data-a="rp" data-v="${c.id}">回复</button>${ctr?` · <button class="lk" data-a="trc" data-v="${c.id}">${trLabel('c:'+c.id)}</button>`:''}`}${c.a=='me'&&!c.deleted?` · <button class="lk dg" data-a="delc" data-v="${c.id}">删除</button>`:''}</small>`}</div></div>`};
 const inbar=(k,ph,btn,v,extra='')=>{if(Array.isArray(extra))return cbBar(k,ph,btn,v,extra);return `<div class="inrow">${extra}<textarea class="inta" rows="1" data-grow="5" enterkeyhint="enter" data-d="${k}" data-max="${k=='chin'?textLimit('chat'):k=='cmin'?textLimit('channel'):k=='cin'?280:textLimit('post')}" placeholder="${ph}" autocomplete="off"></textarea><button class="pb" data-a="${btn}" data-v="${v}" data-for="${k}" disabled>发送</button></div>`};
 const pPost=id=>{const p=(typeof feedSrc==='function'?feedSrc():D.p).find(x=>x.id==id)||D.p.find(x=>x.id==id)||(S.postCache&&S.postCache[String(id)]);if(!p)return sub('帖子')+'<p class="em">帖子不存在</p>';const all=typeof commentsOf==='function'?commentsOf(id):D.c;const rc=S.reply&&all.find(c=>c.id==S.reply);
-return `<div class="pg">${sub('帖子')}<div class="sc">${pc(p,1)}<div class="shd">评论</div>${cmts(id)}</div>${rc?`<div class="rt">回复 ${esc(P(rc.a).n)}<button class="lk" data-a="rpx">取消</button></div>`:''}${inbar('cin',rc?'写一条回复':'写一条评论','cs',id)}</div>`};
+return `<div class="pg">${sub('帖子')}<div class="sc">${pc(p,1)}<div class="shd">评论</div>${cmts(id)}</div>${rc?`<div class="rt">回复 ${esc(P(rc.a).n)}<button class="lk" data-a="rpx">取消</button></div>`:''}${inbar('cin',rc?'写一条回复':'写一条评论','cs',id,typeof trInBtn==='function'?trInBtn(id):'')}</div>`};
 const pUser=id=>{
   const hid=S.userView&&String(S.userView.id)===String(id)&&S.userView.hidden;
   if(hid)return `<div class="pg">${sub('用户资料')}<div class="sc"><p class="em">${esc(S.userView.message||'该用户资料不可见')}</p></div></div>`;
@@ -5778,6 +5848,7 @@ if(s.t=='fwd'){
 if(s.t=='cmedit')h=`<h3>编辑小组资料</h3><input class="fld" data-d="cmn" data-af placeholder="名称（2–20 字）"><textarea class="fld" data-d="cmd" data-max="80" rows="3" placeholder="简介（最多 80 字）"></textarea><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="cmedit2" data-v="${s.id}">保存</button></div>`;
 if(s.t=='gnick')h=`<h3>我在本群的昵称</h3><p class="lab" style="margin-bottom:8px">只在这个群里显示，不影响账号名。</p><input class="fld" data-d="gnick" data-af placeholder="最多 20 个字，留空则使用账号名"><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb" data-a="gnick2" data-v="${s.id}">保存</button></div>`;
 if(s.t=='gdis'){const gc=typeof cvf==='function'?cvf(s.id):null;h=`<h3>解散这个群聊？</h3><p style="color:var(--t2);margin-bottom:8px">${gc&&gc.projectId?'所有成员将被移出项目群聊，此操作不可撤销。项目本身不会取消，但之后不再有项目群聊。':'所有成员将被移出，此操作不可撤销。'}</p><div class="fr"><button class="pb s" data-a="x">取消</button><button class="pb d" data-a="gdis2" data-v="${s.id}">解散群聊</button></div>`;}
+if(!h&&typeof v207Sheet==='function')h=v207Sheet(s)||'';
 if(!h&&typeof v2Sheet==='function')h=v2Sheet(s)||'';
 if(!h&&typeof r7Sheet==='function')h=r7Sheet(s)||'';
 return `<div class="ov" data-a="x"></div><div class="pn${full?' full':''}" role="dialog">${h}</div>`};
@@ -5878,6 +5949,12 @@ document.addEventListener('touchcancel',()=>{RD_DRAG=0},{capture:true,passive:tr
 ['click','keydown','submit','change'].forEach(t=>document.addEventListener(t,()=>{RD_CLICK++;setTimeout(()=>{RD_CLICK=Math.max(0,RD_CLICK-1)},0)},{capture:true,passive:true}));
 function scrollBusy(){return RD_DRAG||performance.now()-RD_SCROLL<160}
 function render(force){
+  /* 2.0.7：边缘右滑返回进行中不重绘。之前滑到一半时评论加载完 / 推送到达触发重绘，手指下的节点被换掉，
+     touchend 发到已删除的节点上、传不到 document，页面就停在半路，要再滑一次。 */
+  if(!force&&typeof window!=='undefined'&&typeof window.__ebBusy==='function'&&window.__ebBusy()){
+    if(!RD_T)RD_T=setTimeout(function wait(){if(window.__ebBusy()){RD_T=setTimeout(wait,80);return}RD_T=null;render()},80);
+    return;
+  }
   if(!force&&!RD_CLICK&&MODE!=='boot'&&MODE!=='gate'&&scrollBusy()){
     if(!RD_T)RD_T=setTimeout(function wait(){if(scrollBusy()){RD_T=setTimeout(wait,120);return}RD_T=null;render()},120);
     return;
@@ -5889,7 +5966,10 @@ function render(force){
   if(anim&&pv.key!==key&&oldPg)gp=ghostOf(oldPg);
   if(anim&&oldSh&&!S.sh){gs=ghostOf(oldSh);go=oldOv?ghostOf(oldOv):null}
   cleanGhostExcept([gp,gs,go]);
+  /* 2.0.7：横向滑动的频道栏等，重绘后保持原来的横向位置（之前点了最右边的频道，整栏会弹回开头） */
+  const hsKeep=[...document.querySelectorAll('#v .pg .chs,#v .pg [data-hs]')].map(e=>e.scrollLeft);
   renderCore();
+  hsRestore(key,pv&&pv.key,hsKeep);
   S.noAnim=0;
   const now={key,tab:S.tab,depth:S.st.length};
   const newPg=$('#v .pg'),newSh=$('#v .pn'),newOv=$('#v .ov');
@@ -5916,12 +5996,32 @@ function render(force){
   VIEW=now;
   if(typeof afterRender==='function')afterRender();
 }
+function hsRestore(key,pkey,keep){
+  try{
+    const els=[...document.querySelectorAll('#v .pg .chs,#v .pg [data-hs]')];
+    els.forEach((e,i)=>{
+      if(key===pkey&&keep[i])e.scrollLeft=keep[i];
+      /* 选中的那一项不在可视范围时，横向滚到能完整看见（只改 scrollLeft，不动外层） */
+      const on=e.querySelector(':scope > .on');
+      if(on&&e.scrollWidth>e.clientWidth){
+        const l=on.getBoundingClientRect().left-e.getBoundingClientRect().left+e.scrollLeft,r=l+on.offsetWidth;
+        if(l<e.scrollLeft)e.scrollLeft=Math.max(0,l-12);
+        else if(r>e.scrollLeft+e.clientWidth)e.scrollLeft=r-e.clientWidth+12;
+      }
+    });
+  }catch(e){}
+}
 function cleanGhostExcept(keep){document.querySelectorAll('#app>.ghost').forEach(g=>{if(!keep.includes(g))g.remove()})}
 
 /* ---- 边缘右滑返回（从屏幕左缘 24px 内向右拖） ---- */
 const viewHTML=k=>k?page(k):S.tab=='home'?tHome():S.tab=='cm'?tCm():S.tab=='chat'?tChat():tMe();
 let eb=null;
+window.__ebBusy=()=>!!(eb&&eb.lock);
+/* 兜底：上一次右滑没收到 touchend（节点被换掉、系统手势打断），新的触摸开始时先按当时的距离收尾，不让页面卡在半路 */
+let ebWatch=null;
+const ebKick=()=>{clearTimeout(ebWatch);ebWatch=setTimeout(()=>{if(eb&&eb.lock&&Date.now()-(eb.tm||0)>1400)ebEnd(eb.dx>eb.w*.33)},1500)};
 document.addEventListener('touchstart',e=>{
+  if(eb&&eb.lock)ebEnd(eb.dx>eb.w*.33);else eb=null;
   if(e.touches.length!==1||!S.st.length||S.sh||S.crop)return;const t=e.touches[0],a=$('#app').getBoundingClientRect();
   if(t.clientX-a.left>24)return;eb={x:t.clientX,y:t.clientY,lock:0,pg:$('#v .pg'),under:null,dx:0,t0:Date.now(),w:a.width};
 },{passive:true});
@@ -5933,15 +6033,16 @@ document.addEventListener('touchmove',e=>{
       $('#app').appendChild(u);const usc=u.querySelector('.sc');if(usc&&typeof scrollKey==='function'&&typeof peekScroll==='function')usc.scrollTop=peekScroll(scrollKey(k));
       eb.under=u;eb.pg.style.position='relative';eb.pg.style.zIndex=2}
     else if(Math.abs(dy)>8){eb=null;return}else return}
-  if(e.cancelable)e.preventDefault();eb.dx=Math.max(0,dx);const p=Math.min(1,eb.dx/eb.w);
+  if(e.cancelable)e.preventDefault();eb.dx=Math.max(0,dx);eb.tm=Date.now();ebKick();const p=Math.min(1,eb.dx/eb.w);
   eb.pg.style.transform=T3(eb.dx+'px');eb.pg.style.boxShadow='-10px 0 24px rgba(0,0,0,.28)';
   eb.under.style.transform=T3((-26+26*p)+'%');eb.under.style.opacity=.55+.45*p;
 },{passive:false});
 const ebEnd=commit=>{
+  clearTimeout(ebWatch);
   if(!eb)return;const b=eb;eb=null;if(!b.lock)return;
   const fin=()=>{b.under&&b.under.remove();b.pg.style.cssText=''};
   if(commit){feel('snap');
-    run(b.pg,[{transform:T3(b.dx+'px')},{transform:T3('100%')}],{duration:200,easing:'cubic-bezier(.3,.6,.4,1)'},()=>{b.under&&b.under.remove();S.noAnim=1;A.back();render()});
+    run(b.pg,[{transform:T3(b.dx+'px')},{transform:T3('100%')}],{duration:200,easing:'cubic-bezier(.3,.6,.4,1)'},()=>{b.under&&b.under.remove();S.noAnim=1;A.back();render(true)});
     run(b.under,[{transform:b.under.style.transform,opacity:b.under.style.opacity},{transform:'none',opacity:1}],{duration:200})}
   else{run(b.pg,[{transform:T3(b.dx+'px')},{transform:'none'}],{duration:240},fin);run(b.under,[{transform:b.under.style.transform},{transform:T3('-26%')}],{duration:240})}
 };
@@ -6395,7 +6496,7 @@ function mediaHTML(list,det,pid){
   const show=det?media:media.slice(0,4),n=Math.min(show.length,4);
   const extra=!det&&media.length>4?media.length-4:0;
   const cells=show.map((m,i)=>{
-    const src=m.url?` src="${esc(m.url)}"`:` data-mid="${esc(m.id)}"`;
+    const src=m.url?` src="${esc(m.url)}"${/^https?:/i.test(m.url)?' referrerpolicy="no-referrer"':''}`:` data-mid="${esc(m.id)}"`;
     let c;
     if(mKind(m)==='video')c=`<span class="mv"${det||!pid?'':` data-a="post" data-v="${esc(pid)}"`}><video${src} muted playsinline preload="metadata"${det?' controls':''}></video><i class="vtag">视频</i></span>`;
     else c=`<img class="zoomimg" loading="lazy" decoding="async"${src} alt="">`;
@@ -6527,7 +6628,7 @@ function pStory(a,idx){
   const bars=g.items.map((x,j)=>`<i class="${j<i?'done':j===i?'on':''}"><b></b></i>`).join('');
   let body;
   if(m){
-    const src=m.url?` src="${esc(m.url)}"`:` data-mid="${esc(m.id)}"`;
+    const src=m.url?` src="${esc(m.url)}"${/^https?:/i.test(m.url)?' referrerpolicy="no-referrer"':''}`:` data-mid="${esc(m.id)}"`;
     body=mKind(m)==='video'?`<video${src} autoplay muted playsinline></video>`:`<img${src} alt="">`;
     if(p.x)body+=`<div class="cap">${esc(p.x)}</div>`;
   }else body=`<div class="tx">${esc(p.x||'')}</div>`;
@@ -6548,8 +6649,8 @@ function storyCur(){const c=S.st[S.st.length-1]||'';const[t,a,i]=String(c).split
 function pStoryNew(){
   const c=S.stc||(S.stc={media:null});
   const m=c.media;
-  const prev=m?(m.kind==='video'?`<video src="${esc(m.url)}" muted playsinline autoplay loop></video>`:`<img src="${esc(m.url)}" alt="">`)+`<button class="x" data-a="stcrm" aria-label="移除">✕</button>`:`<div class="tx">${esc((S.d.stx||'').trim()||tr('写一句话，或选一张照片/一段视频'))}</div>`;
-  return `<div class="pg stc-pg"><div class="top sub"><button class="ib tx" data-a="stcx">取消</button><h1>发日常</h1><button class="pb" data-a="stpub">发布</button></div><div class="sc"><div class="stc-prev" style="background:${m?'#000':ST_BG[0]}">${prev}</div><textarea class="fld cta" data-d="stx" data-max="200" rows="2" placeholder="${m?'加一句说明（可不填）':'写点什么…'}"></textarea><div class="stc-tools"><button class="pb s" data-a="stcpick">${typeof icLine==='function'?icLine('photo'):''} 选照片 / 视频</button></div><p class="stc-hint">🌐 公开，所有人可见。日常只出现在首页顶部那一排，24 小时后自动消失；不会出现在帖子列表里，也不计入帖子数。</p></div></div>`;
+  const prev=m?(m.kind==='video'?`<video src="${esc(m.url)}" muted playsinline autoplay loop></video>`:`<img src="${esc(m.url)}" alt="">`)+`<button class="x" data-a="stcrm" aria-label="移除">✕</button>`:((S.d.stx||'').trim()?`<div class="tx">${esc((S.d.stx||'').trim())}</div>`:`<div class="tx ph">${tr('写一句话，或选一张照片/一段视频')}</div>`);
+  return `<div class="pg stc-pg"><div class="top sub"><button class="ib tx" data-a="stcx">取消</button><h1>发日常</h1><button class="pb" data-a="stpub">发布</button></div><div class="sc"><div class="stc-prev" style="background:${m?'#000':ST_BG[0]}">${prev}</div><textarea class="fld cta" data-d="stx" data-max="200" rows="2" placeholder="${m?'加一句说明（可不填）':'写点什么…'}"></textarea><div class="stc-tools"><button class="pb s" data-a="stcpick">${typeof icLine==='function'?icLine('photo'):''}<span>选照片 / 视频</span></button></div><p class="stc-hint">🌐 公开，所有人可见。日常只出现在首页顶部那一排，24 小时后自动消失；不会出现在帖子列表里，也不计入帖子数。</p></div></div>`;
 }
 async function publishStory(){
   const c=S.stc||{},x=(S.d.stx||'').trim();
@@ -6602,6 +6703,8 @@ Object.assign(A,{
 /* ---- 6. 媒体加载失败：换成小占位，不再出现大黑框加问号 ---- */
 function mediaFail(el){
   if(!el||el.dataset.failed)return;el.dataset.failed='1';
+  /* 2.0.7：正文里的外部图片（对方图床打不开）换成可点的「查看图片」，不留占位框 */
+  if(el.tagName==='IMG'&&el.hasAttribute('referrerpolicy')&&/^https?:/i.test(el.getAttribute('src')||'')){const a=document.createElement('button');a.type='button';a.className='lk txlink';a.dataset.a='extlink';a.dataset.v=el.getAttribute('src');a.textContent='🖼 查看图片';el.replaceWith(a);return}
   const wrap=el.closest('.mv')||el;
   const f=document.createElement('div');f.className='mfail';
   f.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M3 3l18 18"/></svg><span>'+(el.tagName==='VIDEO'?'视频':'图片')+'暂时无法显示</span>';
@@ -6653,13 +6756,15 @@ function rpEmbed(p,det){
   if(r.deleted)return `<div class="rpc del"><span>原帖已删除</span></div>`;
   const o=findPost(r.id);if(!o)return `<div class="rpc del"><span>原帖已删除</span></div>`;
   const u=P(o.a),tm=typeof fmtTime==='function'&&o.at?fmtTime(o.at):(o.t||'');
-  const media=typeof mediaHTML==='function'?mediaHTML(Array.isArray(o.media)?o.media:[],false,o.id):'';
+  const otx=typeof txSplit==='function'?txSplit(o.x):{t:o.x||'',imgs:[]};
+  const media=typeof mediaHTML==='function'?mediaHTML((Array.isArray(o.media)?o.media:[]).concat(otx.imgs),false,o.id):'';
   const srcL=o.sourceLabel||'';
-  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${o.x?`<div class="rpx${det?'':' clamp'}">${esc(o.x)}</div>`:''}${media}</div>`;
+  return `<div class="rpc" data-a="rpopen" data-v="${esc(String(o.id))}" role="link" tabindex="0"><div class="rph">${av(o.a,22)}<b class="nmb">${nmB(u)}</b><small>${esc(tm)}${srcL?' · '+esc(srcL):''}</small></div>${otx.t?`<div class="rpx${det?'':' clamp'}">${esc(otx.t)}</div>`:''}${media}</div>`;
 }
 function rpCardWrap(p,det,k){
   const plain=!(p.x||'').trim();
-  const body=plain?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
+  const ptx=typeof txSplit==='function'?txSplit(p.x):{t:p.x||'',imgs:[]};
+  const body=plain||!ptx.t?'':`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(ptx.t)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`;
   const head=plain
     ?`<div class="rptop"><span data-a="user" data-v="${p.a}">${xic('rt')}<b>${esc(p.a==='me'?'你':k.u.n)}</b> 转帖了</span><small>${esc(k.tm)}</small><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`
     :`<div class="fhd"><div data-a="user" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="user" data-v="${p.a}"><b class="fn nmb">${nmB(k.u)}</b><small>${esc(k.tm)}${k.tm?' · ':''}${k.aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>`;
@@ -7041,9 +7146,21 @@ function cbMedia(md){
 }
 function cbParse(v){const p=String(v||'').split('|');return p[0]==='ch'?{type:'ch',cm:p[1],ch:p[2],rest:p.slice(3)}:{type:'cv',id:p[1],rest:p.slice(2)}}
 function cbKey(v){const t=cbParse(v);return t.type==='ch'?'ch|'+t.cm+'|'+t.ch:'cv|'+t.id}
+const CB_FILE_ACCEPT=['.pdf','.txt','.zip','.rar','.7z','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.wps','.csv','.md','.json',
+  'application/pdf','application/zip','application/x-zip-compressed','application/x-rar-compressed','application/vnd.rar','application/x-7z-compressed',
+  'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-works','application/kswps','text/plain','text/csv','text/markdown','application/json'].join(',');
+const CB_MAX_BYTES=100*1024*1024; /* 服务器 nginx 上限 100 MB（VIP 视频上限）；普通用户 50 MB 由服务器判断并提示 */
 async function cbUpload(blob,name,durMs){
-  const r=await fetch(apiUrl('/api/media'),{method:'POST',headers:{Authorization:'Bearer '+SESSION.token,'Content-Type':(blob.type||'application/octet-stream').split(';')[0],'X-File-Name':encodeURIComponent(name||'file'),...(durMs?{'X-Media-Duration':String(Math.round(durMs))}:{})},body:blob});
+  if(blob&&blob.size>CB_MAX_BYTES)throw new Error('文件太大：最大 100 MB（普通用户 50 MB）');
+  /* 2.0.7：聊天里发的文件 / 视频也走 prepUpload：iPhone 的 .mov 按 mp4 声明（旧服务器不认 video/quicktime，直接报“不支持的文件类型”），HEIC 图片转 JPEG */
+  let body=blob,type=(blob.type||'').split(';')[0],nm=name||'file';
+  if(!durMs&&typeof prepUpload==='function'&&blob instanceof Blob){try{const f=blob.name?blob:new File([blob],nm,{type:blob.type||''});const u=await prepUpload(f);body=u.file;type=u.type||type;nm=u.name||nm}catch(e){}}
+  const r=await fetch(apiUrl('/api/media'),{method:'POST',headers:{Authorization:'Bearer '+SESSION.token,'Content-Type':type||'application/octet-stream','X-File-Name':encodeURIComponent(nm),...(durMs?{'X-Media-Duration':String(Math.round(durMs))}:{})},body});
   let j=null;try{j=await r.json()}catch(e){}
+  if(r.status===413)throw new Error((j&&j.error&&j.error.message)||'文件太大：普通用户最大 50 MB，VIP 100 MB');
   if(r.status!==200)throw new Error((j&&j.error&&j.error.message)||'上传失败');
   return j.media;
 }
@@ -7073,7 +7190,9 @@ async function cbSendMedia(target,blob,name,ok,durMs){
 function cbPickFile(target,mode){
   if(typeof usingNet!=='function'||!usingNet()||!SESSION)return T('演示模式暂不支持此功能');
   const inp=document.createElement('input');inp.type='file';
-  if(mode==='file')inp.accept='.pdf,.txt,.zip,.doc,.docx,.json,application/pdf,application/zip,text/plain';
+  /* 2.0.7：安卓 WebView 的文件选择器只认 MIME 类型、不认扩展名，之前只写了 pdf/zip/txt 的 MIME，doc/docx 在安卓上选不了（只能发压缩包）。
+     扩展名和 MIME 都列全，和服务端 2.1.0 的白名单一致。 */
+  if(mode==='file')inp.accept=CB_FILE_ACCEPT;
   else inp.accept='image/*,video/mp4,video/webm,video/quicktime';
   if(mode==='camera')inp.setAttribute('capture','environment');
   inp.style.display='none';document.body.appendChild(inp);
@@ -8095,6 +8214,145 @@ function imcBoot(){
     },{timeout:4000}),2500);
   },{timeout:3000}),800);
 }
+
+/* ===== 79f_v207.js ===== */
+/* ===== VEXO 用户端 2.0.7 =====
+   1. 评论区翻译：每条评论「翻译」（中↔英自动判断），评论输入框「译」把草稿翻成另一种语言再发；和帖子翻译同一套 /api/ai/translate。
+   2. 微信分享：链接改为公开分享页 /s/<帖子>（微信卡片显示标题、摘要和图标），系统分享带上标题；另可生成图片卡片。
+   3. 正文里的图片链接（Markdown 图片、图床直链）显示成图片。
+   4. 首页每 2 分钟自动刷新一次（只在首页、App 在前台时；滑到下面时只显示「有 N 条新动态」，不打断阅读）。
+   5. 外部帖发帖人 / 评论人头像：相对地址按 API 根补全；没有或加载失败时显示首字母头像。 */
+
+/* ---------- 5. 外部作者头像 ---------- */
+const EXT_AV_PAL=['#2F6F5E','#5C4A3A','#243044','#6B3A4A','#3A465C','#6A5A3C'];
+function extLetterAv(name){
+  const s=String(name||'').trim()||'?',l=[...s][0].replace(/[<&"']/g,'')||'?';
+  const c=EXT_AV_PAL[[...s].reduce((a,ch)=>a+ch.charCodeAt(0),0)%EXT_AV_PAL.length];
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" rx="40" fill="${c}"/><text x="40" y="52" text-anchor="middle" fill="#fff" font-size="36" font-family="system-ui,sans-serif">${l.toUpperCase()}</text></svg>`;
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+if(typeof document!=='undefined')document.addEventListener('error',e=>{
+  const t=e.target;if(!t||t.tagName!=='IMG')return;
+  if(t.dataset&&t.dataset.fb&&t.src!==t.dataset.fb){t.src=t.dataset.fb;return}
+},true);
+
+/* ---------- 3. 正文里的图片链接 ---------- */
+const TX_IMG_EXT=/\.(png|jpe?g|gif|webp|bmp|avif)$/i;
+const TX_IMG_HOST=/^(i\.imgur\.com|i\.v2ex\.co|cdn\.v2ex\.com|imgur\.la|pbs\.twimg\.com|i\.loli\.net|s2\.loli\.net|tvax\d\.sinaimg\.cn|wx\d\.sinaimg\.cn)$/i;
+function txIsImg(u){try{const x=new URL(u);if(!/^https?:$/.test(x.protocol))return false;return TX_IMG_EXT.test(x.pathname)||(TX_IMG_HOST.test(x.hostname)&&x.pathname.length>1)}catch(e){return false}}
+const TX_CACHE=new Map();
+function txSplit(text){
+  const s=String(text==null?'':text);
+  if(!/https?:\/\//i.test(s))return {t:s,imgs:[]};
+  const hit=TX_CACHE.get(s);if(hit)return hit;
+  const imgs=[];const add=u=>{if(!imgs.includes(u)&&imgs.length<9)imgs.push(u)};
+  let t=s.replace(/!\[[^\]\n]*\]\(\s*<?(https?:\/\/[^\s)>]+)>?(?:\s+"[^"]*")?\s*\)/gi,(m,u)=>{add(u);return ''});
+  t=t.replace(/(^|[\s(（\[【:：])(https?:\/\/[^\s<>"'）)\]】，。；！？、]+)/gi,(m,pre,u)=>{const clean=u.replace(/[.,;!?，。；！？、]+$/,'');if(!txIsImg(clean))return m;add(clean);return pre+u.slice(clean.length)});
+  t=t.replace(/[(（]\s*[)）]/g,'').replace(/\[\s*\]/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  const out={t,imgs};
+  if(TX_CACHE.size>500)TX_CACHE.delete(TX_CACHE.keys().next().value);
+  TX_CACHE.set(s,out);return out;
+}
+/* ---------- 1. 评论翻译 ---------- */
+function trHasCjk(s){return /[\u3400-\u9fff\uf900-\ufaff]/.test(String(s||''))}
+function trInBtn(pid){return typeof trCan==='function'&&trCan()?`<button type="button" class="ib trin${S.trin?' busy':''}" data-a="trcin" data-v="${esc(String(pid))}" aria-label="翻译输入内容（中文↔英文）" title="中文↔英文">${S.trin?'…':'译'}</button>`:''}
+Object.assign(A,{
+  trc:v=>{const all=typeof commentsOf==='function'&&S.commentPost!=null?commentsOf(S.commentPost):(D.c||[]);const c=all.find(x=>String(x.id)===String(v));if(!c)return;const src=typeof txSplit==='function'?txSplit(c.x).t:c.x;return trRun('c:'+v,src)},
+  trcin:async v=>{
+    const src=String(S.d.cin||'').trim();if(!src)return T('先写好评论，再点「译」');
+    if(S.trin)return;S.trin=1;if(typeof render==='function')render();
+    const to=trHasCjk(src)?'en':'zh';
+    const r=await api('POST','/api/ai/translate',{text:[...src].slice(0,2000).join(''),to});
+    S.trin=0;
+    if(r.s!==200){T(r.s===429?errMsg(r,'翻译次数太多了，请稍后再试'):r.s===503?'翻译暂时不可用，请稍后再试':errMsg(r,'翻译失败'));return}
+    S.d.cin=String(r.j.text||'').slice(0,280);T(to==='en'?'已翻译成英文，确认后点发送':'已翻译成中文，确认后点发送');
+  },
+});
+
+/* ---------- 2. 分享 ---------- */
+/* 帖子的公开分享页 /s/<id>（微信卡片的标题、摘要、缩略图取自这页）由服务端提供；
+   服务端在 GET /api/health 里返回 features.postSharePage=true 后才用它，否则沿用原来的 /#/post/<id> 链接。 */
+let POST_SHARE_PAGE=null;
+async function postSharePageProbe(){
+  if(POST_SHARE_PAGE!==null)return POST_SHARE_PAGE;
+  try{const r=await fetch(apiUrl('/api/health'),{cache:'no-store'});const j=r.ok?await r.json():null;POST_SHARE_PAGE=!!(j&&j.features&&j.features.postSharePage)}catch(e){POST_SHARE_PAGE=false}
+  return POST_SHARE_PAGE;
+}
+function postShareLink(id){
+  const b=typeof v2shareBase==='function'?v2shareBase():'';
+  if(POST_SHARE_PAGE&&/^https?:\/\//i.test(b))return b+'/s/'+encodeURIComponent(id);
+  return typeof postLink==='function'?postLink(id):'';
+}
+function postShareInfo(p){
+  const u=p?P(p.a):{n:''},name=(u&&u.n)||'VEXO 用户';
+  const tx=typeof txSplit==='function'?txSplit(p&&p.x):{t:(p&&p.x)||'',imgs:[]};
+  const first=((tx.t||'').split('\n').find(l=>l.trim())||'').trim();
+  const head=[...first].slice(0,36).join('')+([...first].length>36?'…':'');
+  return {name,text:tx.t||'',imgs:tx.imgs,title:(head||name+' 的动态')+' · VEXO',src:(p&&p.sourceLabel)||''};
+}
+async function sharePoster(p){
+  try{
+    if(typeof document==='undefined'||typeof File==='undefined')return null;
+    const W=1080,H=1440,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');if(!g)return null;
+    const info=postShareInfo(p),F='"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif';
+    const load=src=>new Promise(res=>{if(!src)return res(null);const im=new Image();if(/^https?:/i.test(src))im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;setTimeout(()=>res(null),4000)});
+    const gr=g.createLinearGradient(0,0,W,H);gr.addColorStop(0,'#4F6EF7');gr.addColorStop(1,'#8A5CF6');g.fillStyle=gr;g.fillRect(0,0,W,H);
+    const rr=(x,y,w,h,r)=>{g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()};
+    g.fillStyle='#fff';rr(56,56,W-112,H-112,44);g.fill();
+    /* 头像 */
+    let avSrc=typeof avSrcOf==='function'?avSrcOf(p.a):'';if(avSrc&&typeof isMediaId==='function'&&isMediaId(avSrc))avSrc=typeof imcSync==='function'?imcSync(avSrc,'f'):'';
+    const avIm=await load(avSrc)||await load(String(p.a).startsWith('ext:')?extLetterAv(info.name):'');
+    g.save();g.beginPath();g.arc(176,196,64,0,Math.PI*2);g.closePath();g.clip();
+    if(avIm)g.drawImage(avIm,112,132,128,128);else{g.fillStyle='#3A465C';g.fillRect(112,132,128,128);g.fillStyle='#fff';g.font='bold 60px '+F;g.textAlign='center';g.fillText([...info.name][0]||'V',176,218);g.textAlign='left'}
+    g.restore();
+    g.fillStyle='#13151C';g.font='bold 48px '+F;g.fillText([...info.name].slice(0,16).join(''),272,186);
+    g.fillStyle='#8A90A2';g.font='34px '+F;g.fillText(info.src||'VEXO 动态',272,236);
+    /* 正文 */
+    const wrap=(t,font,max,lh,y,color,maxL)=>{g.font=font;g.fillStyle=color;let line='',n=0;for(const ch of [...String(t||'')]){if(ch==='\n'){g.fillText(line,112,y);y+=lh;line='';if(++n>=maxL)return y;continue}if(g.measureText(line+ch).width>max){g.fillText(line,112,y);y+=lh;line=ch;if(++n>=maxL-1){g.fillText(line+'…',112,y);return y+lh}}else line+=ch}if(line){g.fillText(line,112,y);y+=lh}return y};
+    /* 配图：已缓存的媒体或外部图片（允许跨域时） */
+    const media=(Array.isArray(p.media)?p.media:[]).map(x=>typeof mItem==='function'?mItem(x):x).filter(x=>!x.kind||x.kind==='image');
+    let picSrc='';if(media[0]){picSrc=media[0].url||(typeof imcSync==='function'?imcSync(media[0].id,'c')||imcSync(media[0].id,'f')||imcSync(media[0].id,'p'):'')}if(!picSrc&&info.imgs[0])picSrc=info.imgs[0];
+    const pic=await load(picSrc);
+    let y=330;y=wrap(info.text||'分享了一条动态','42px '+F,W-224,62,y,'#2A2E3A',pic?6:13)+10;
+    if(pic){const bw=W-224,bh=Math.min(H-y-230,Math.round(bw*pic.height/Math.max(1,pic.width)));if(bh>120){g.save();rr(112,y,bw,bh,24);g.clip();const sc=Math.max(bw/pic.width,bh/pic.height),dw=pic.width*sc,dh=pic.height*sc;g.drawImage(pic,112+(bw-dw)/2,y+(bh-dh)/2,dw,dh);g.restore()}}
+    /* 底部 */
+    g.fillStyle='#EEF0F6';g.fillRect(112,H-230,W-224,2);
+    g.fillStyle='#4F6EF7';g.font='bold 44px '+F;g.fillText('VEXO',112,H-160);
+    g.fillStyle='#8A90A2';g.font='30px '+F;g.fillText('打开 VEXO 查看全文、点赞和评论',112,H-110);
+    const blob=await new Promise(res=>{try{c.toBlob(res,'image/png')}catch(e){res(null)}});if(!blob)return null;
+    return new File([blob],'vexo-post.png',{type:'image/png'});
+  }catch(e){return null}
+}
+function v207Sheet(s){
+  if(s.t==='xshare7'){const p=typeof findPost==='function'?findPost(s.id):null;const url=postShareLink(s.id),info=postShareInfo(p);const sys=typeof navigator!=='undefined'&&!!navigator.share;
+    return `<h3>分享帖子</h3><div class="shcard"><b data-ut>${esc(info.title)}</b><small data-ut>${esc(info.name)}${info.src?' · '+esc(info.src):''}</small>${url?`<span class="v2shu" data-ut>${esc(url)}</span>`:''}</div>${sys&&/^https?:/i.test(url)?`<button class="mi" data-a="xwx" data-v="${esc(s.id)}">💬 分享到微信 / 其他应用（链接卡片）</button>`:''}<button class="mi" data-a="xposter" data-v="${esc(s.id)}">🖼 生成分享图片</button><button class="mi" data-a="xcopylink" data-v="${esc(s.id)}">🔗 复制链接（粘贴到微信）</button>${p&&p.x?`<button class="mi" data-a="xcopytext" data-v="${esc(s.id)}">📋 复制正文</button>`:''}<button class="mi" data-a="x" style="color:var(--t2)">取消</button>`}
+  if(s.t==='xposter'){return `<h3>分享图片</h3>${s.busy?'<p class="em">正在生成…</p>':s.url?`<img class="shposter" src="${esc(s.url)}" alt="分享图片"><p class="hint" style="text-align:center">长按图片保存，或发送给微信好友</p>${s.canFiles?`<button class="mi" data-a="xpostershare">📤 发送图片</button>`:''}<a class="mi" href="${esc(s.url)}" download="vexo-post.png">⬇️ 保存图片</a>`:'<p class="em">生成失败，请稍后再试</p>'}<button class="mi" data-a="x" style="color:var(--t2)">关闭</button>`}
+  return '';
+}
+Object.assign(A,{
+  xshare:v=>{S.sh={t:'xshare7',id:v};if(POST_SHARE_PAGE===null)return postSharePageProbe()},
+  xcopylink:async v=>{S.sh=null;const ok=await copyText(postShareLink(v));T(ok?'已复制链接，可以粘贴到微信':'复制失败，请长按手动复制')},
+  /* 微信不接受「文字 + 链接」混合，这里只给标题 + 链接；标题会显示在分享面板和部分应用的卡片上，微信卡片的标题/摘要/缩略图取自分享页 */
+  xwx:async v=>{S.sh=null;const p=findPost(v),u=postShareLink(v),info=postShareInfo(p);if(!/^https?:/i.test(u)){const ok=await copyText(u);T(ok?'已复制帖子链接':'复制失败');return}try{await navigator.share({title:info.title,url:u})}catch(e){if(e&&e.name==='AbortError')return;const ok=await copyText(u);T(ok?'已复制链接，可以粘贴到微信':'复制失败')}},
+  xposter:async v=>{const p=findPost(v);if(!p)return;S.sh={t:'xposter',id:v,busy:1};if(typeof render==='function')render();const f=await sharePoster(p);if(!S.sh||S.sh.t!=='xposter')return;
+    let can=false;try{can=!!(f&&navigator.canShare&&navigator.canShare({files:[f]}))}catch(e){}
+    S.sh={t:'xposter',id:v,url:f?URL.createObjectURL(f):'',file:f,canFiles:can}},
+  xpostershare:async()=>{const s=S.sh;if(!s||!s.file)return;try{await navigator.share({files:[s.file]})}catch(e){if(e&&e.name==='AbortError')return;T('当前系统不支持直接发送图片，请长按保存')}},
+});
+
+/* ---------- 4. 首页每 2 分钟自动刷新 ---------- */
+const FEED_AUTO_MS=(()=>{try{const n=Number(window.NOVA_FEED_REFRESH_MS);if(n>=30000)return n}catch(e){}return 120000})();
+function feedAutoTick(){
+  try{
+    if(typeof document!=='undefined'&&document.hidden)return;
+    if(typeof usingNet!=='function'||!usingNet()||!SESSION)return;
+    const cur=S.st&&S.st[S.st.length-1];if(cur||S.tab!=='home'||S.sh)return;
+    if(typeof ptrBlocked==='function'&&ptrBlocked())return;
+    S.feedAutoAt=Date.now();
+    if(typeof refreshFeedSafe==='function')refreshFeedSafe();
+  }catch(e){}
+}
+if(typeof window!=='undefined'&&!window.__vexoFeedAuto){window.__vexoFeedAuto=setInterval(feedAutoTick,FEED_AUTO_MS)}
 
 /* ===== 80_events.js ===== */
 Object.assign(A,{setlang:v=>setLang(v),authpane,authgo,agreetog,emailsug,authdemo,logout,todemo,toacct,retryconnect,maintretry,setskin,legal,deltog,delacctq,delacct,vip:vipOpen,vipretry:vipRetry,viptoggle:vipTog,vtheme:vipTheme,vipbuy:vipBuyGo,vipmethod:vipMethodGo,vippaid:vipPaidGo,vipord:vipOrdGo,vipshow:vipShowGo,vippayclose:vipPayClose,saved:savedOpen,savp,savm,unsav,stkp,stkuse,priv:privOpen,privset,privtog,sec:secOpen,chpw,revothersq,revothers,revsess,avcol,avlet,frequest,faccept,fdecline,fcancel,funfriend,friends:friendsOpen,rpreason,rptog,rpsubmit,reportp:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'post',targetId:v})},reportu:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'user',targetId:v,targetUserId:v})},reportcm:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'community',targetId:v})},reportcv:v=>{if(typeof reportOpen==='function')reportOpen({targetType:'conversation',targetId:v,conversationId:v})},reportm:v=>{const p=String(v).split('|');const cid=p[1],mid=p[2];if(typeof reportOpen==='function')reportOpen({targetType:'message',targetId:mid,conversationId:cid,messageIds:[mid]})},blockq:blockAsk,block2:blockUser,unblock:unblockUser,safenum,safeok,e2eerev});

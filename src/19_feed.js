@@ -30,6 +30,8 @@ function rememberAuthor(a){
   /* r10：别人的图片头像 / 背景（服务器返回 avatar.image、cover）。 */
   D.uph=D.uph||{};
   if(a.avatar&&Object.prototype.hasOwnProperty.call(a.avatar,'image'))D.uph[id]=a.avatar.image||'';
+  /* 2.0.7 外部作者（id 以 ext: 开头）头像字段兼容：avatar.image → avatar.url → avatar（字符串）→ avatarUrl → avatar_url；都没有时显示首字母头像 */
+  if(id.startsWith('ext:')){const av0=a.avatar,o=av0&&typeof av0==='object'?av0:null;/* 服务端 2.1.0：avatar.path 是相对代理地址（App 里用 apiUrl 拼成完整地址，不依赖服务器配置的公网域名），avatar.fallback 是字母头像 */const pick=(o&&o.path)||(o&&(o.image||o.url))||(typeof av0==='string'&&av0)||a.avatarUrl||a.avatar_url||(o&&o.fallback)||'';D.uph[id]=String(pick||'');if(o&&o.fallback){D.ufb=D.ufb||{};D.ufb[id]=String(o.fallback)}}
   if(Object.prototype.hasOwnProperty.call(a,'cover')){D.ubg=D.ubg||{};D.ubg[id]=a.cover||''}
 }
 function adoptPost(p){

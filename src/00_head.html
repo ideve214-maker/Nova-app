@@ -99,7 +99,7 @@ small{color:var(--t2);font-size:13px}
 .cb{background:var(--s2);border-radius:16px;padding:8px 12px;display:inline-block;max-width:100%;word-break:break-word}.cb b{display:block;font-size:14px}
 .lk{font-size:13px;color:var(--t2);font-weight:600;padding:8px 2px}.lk.on{color:var(--ac)}
 .ban{flex:none;background:var(--s2);padding:8px 16px;border-bottom:1px solid var(--ln);font-size:13px;color:var(--t2)}.ban b{display:block;color:var(--dg);font-size:15px}
-.mr{display:flex;gap:8px;padding:4px 12px;align-items:flex-end}.mr.me{flex-direction:row-reverse}
+.mr{display:flex;gap:8px;padding:4px 12px;align-items:flex-start}.mr.me{flex-direction:row-reverse}
 .bub{max-width:100%;padding:9px 13px;border-radius:18px;background:var(--s2);word-break:break-word;white-space:pre-wrap}.me .bub{background:var(--ac);color:var(--onac)}
 .mw{max-width:75%;display:flex;flex-direction:column}.me .mw{align-items:flex-end}.mt{font-size:11px;color:var(--t3);margin-top:2px}
 .ph2{border:1px dashed var(--t3);border-radius:12px;padding:20px 28px;margin-bottom:4px;text-align:center;font-size:13px}
@@ -798,7 +798,7 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 .vxq{display:flex;flex-wrap:wrap;gap:8px;padding:8px 16px 4px 52px}
 .vxq .chipb{height:auto;min-height:32px;white-space:normal;text-align:left;padding:6px 12px;line-height:1.35}
 .vxnote{font-size:11px;color:var(--t3);text-align:center;padding:10px 24px 4px}
-.vxbar{display:flex;gap:8px;align-items:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--ln);background:var(--bg)}
+.vxbar{display:flex;gap:8px;align-items:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px) + var(--kb,0px));border-top:1px solid var(--ln);background:var(--bg)}
 .vxbar .fld{flex:1;margin:0}
 .vxbar .pb{flex:none;height:44px;min-width:64px;border-radius:12px}
 .vxdots{display:inline-flex;gap:4px;padding:12px 14px}
@@ -896,5 +896,24 @@ html[data-lang=en] .pb{white-space:normal;line-height:1.2}
 /* 2.0.3：「更换头像」是头像右下角的小圆形相机角标，压在头像边缘上（外圈用页面底色描边，和头像分开） */
 .pf.ovl .avw .cam.avcam{left:auto!important;right:-2px!important;bottom:-2px!important;top:auto!important;width:30px;height:30px;min-width:30px;padding:0!important;border-radius:50%;display:grid;place-items:center;background:var(--s3,#23262C);color:var(--tx);border:2px solid var(--sf);box-shadow:0 1px 4px rgba(0,0,0,.35);font-size:0;line-height:0;z-index:2}
 .pf.ovl .avw .cam.avcam svg{width:16px;height:16px;display:block}
+/* 2.0.7 评论翻译 / 输入框「译」/ 评论里的图片 / 分享卡片与分享图片 */
+.cm .trb{margin:6px 0 2px}
+.inrow .trin{flex:0 0 auto;width:36px;height:36px;font-size:16px;font-weight:600;color:var(--ac)}
+.inrow .trin.busy{opacity:.6}
+.cimg .fmedia{margin:6px 0 2px;max-width:260px}
+.lk.txlink{display:inline-block;margin:6px var(--pad,16px);font-size:14px}
+.shcard{display:flex;flex-direction:column;gap:4px;margin:0 0 10px;padding:12px 14px;border-radius:14px;background:var(--s2)}
+.shcard b{font-size:15px;line-height:1.4;word-break:break-word}
+.shcard small{color:var(--t2);font-size:12px}
+.shcard .v2shu{margin:2px 0 0}
+a.mi{text-decoration:none;color:inherit;display:block}
+img.shposter{display:block;width:72%;max-width:300px;height:auto;margin:4px auto 8px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+/* 2.0.7：键盘弹出时，表单页（资料编辑、账号安全等）底部留出键盘高度，靠下的输入框才能滚到键盘上方 */
+html.kb-open #v .pg>.sc:last-child:not(.game-frame){padding-bottom:calc(var(--kb,0px) + 24px)!important}
+/* 2.0.7 发日常：按钮图标和文字同一行居中；空白预览的提示一行显示 */
+.stc-tools .pb{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;white-space:nowrap;line-height:1}
+.stc-tools .pb svg{display:block;flex:none;width:20px;height:20px;margin:0}
+.stc-tools .pb span{display:block;line-height:20px}
+.stc-prev .tx.ph{padding:0 16px;font-size:15px;font-weight:500;letter-spacing:.02em;white-space:nowrap;color:rgba(255,255,255,.82);text-shadow:0 1px 6px rgba(0,0,0,.18)}
 </style></head><body>
 <div id="vxsplash" aria-hidden="true"><div class="vxs-sky"></div><div class="vxs-neb"></div><div class="vxs-earth"></div><div class="vxs-mid"><div class="vxs-logo"><svg class="vxs-orbit" viewBox="0 0 300 130" preserveAspectRatio="none"><ellipse class="b" cx="150" cy="65" rx="146" ry="58"/><ellipse class="c" cx="150" cy="65" rx="146" ry="58" pathLength="970"/></svg><img src="assets/brand/vexo-v.png" alt=""></div><img class="vxs-word" src="assets/brand/vexo-word.png" alt="VEXO"><div class="vxs-tag">Beyond Connection.</div></div><div class="vxs-load"><div class="vxs-spin"></div><span>Loading...</span></div></div>

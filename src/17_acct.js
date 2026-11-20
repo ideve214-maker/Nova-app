@@ -125,6 +125,7 @@ async function delacct(){
   S.d.delpw='';S.d.delok='';
   if(r.s!==200){S.delerr=errMsg(r,'注销失败');return}
   T('账号已注销');
+  try{if(typeof e2eeForget==='function'&&SESSION&&SESSION.user)e2eeForget(SESSION.user.id,{wipe:true})}catch(e){}
   logout();
 }
 async function legal(kind){

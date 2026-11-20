@@ -75,7 +75,7 @@ test('热更新把清单里的 session_key 传给 download', async () => {
   assert.equal(calls[0].version, '1.0.1');
 });
 
-test('退出登录会清会话、加密密钥、草稿、最近位置和本地缓存', () => {
+test('退出登录会清会话、草稿、最近位置和本地缓存；加密身份只清内存（2.0.7：重新登录后历史消息仍可解密）', () => {
   const auth = src('12_auth.js');
   const e2ee = src('26_e2ee.js');
   assert.match(auth, /e2eeForget\(uid\)/);
@@ -86,6 +86,7 @@ test('退出登录会清会话、加密密钥、草稿、最近位置和本地�
   assert.match(e2ee, /function e2eeKey/);
   assert.match(e2ee, /function e2eeForget/);
   assert.match(e2ee, /e2eeKey, e2eeForget/);
+  assert.match(e2ee, /opt&&opt\.wipe/);
 });
 
 test('版本是 VEXO 1.0.0，图标资源不再是占位说明', () => {

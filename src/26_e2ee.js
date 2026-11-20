@@ -35,11 +35,20 @@ async function safetyNumber(edA,edB){
 }
 
 function e2eeKey(userId){return E2EE_STORE_PREFIX+String(userId)}
-function e2eeForget(userId){
+/* 2.0.7：退出登录不再删除本机加密身份和已解密的消息。
+   之前退出时删掉了设备密钥，重新登录会生成新设备，旧消息（只加密给旧设备）全部变成「无法解密」；
+   而且 Olm 的消息密钥用过一次就作废，已经解开过的消息不能再解第二次，所以解开的内容要留在本机。
+   现在：密钥和解密结果按账号分开存在本机，退出只清内存；同一台设备再登录同一账号，历史消息照常显示。
+   只有显式 wipe（注销账号、撤销本机加密设备）才删除。 */
+const E2EE_PLAIN_PREFIX='nova_e2ee_plain_v1_';
+const E2EE_PLAIN_MAX=6000;
+function e2eeForget(userId,opt){
+  try{e2eePlainFlush()}catch(e){}
   try{
     const id=userId!=null?userId:_uid;
-    if(id!=null)localStorage.removeItem(e2eeKey(id));
+    if(id!=null&&opt&&opt.wipe){localStorage.removeItem(e2eeKey(id));localStorage.removeItem(E2EE_PLAIN_PREFIX+String(id))}
   }catch(e){}
+  try{if(typeof S!=='undefined'){S.e2eePlain=null;S.e2eePlainUid=null}}catch(e){}
   _acct=null;_store=null;_uid=null;_ready=null;
 }
 function loadStore(userId){
@@ -60,7 +69,38 @@ function newDeviceId(){
 
 let _ready=null, _acct=null, _uid=null, _store=null;
 
-function e2eePlainCache(){S.e2eePlain=S.e2eePlain||{};return S.e2eePlain}
+/* 已解密消息的本机缓存（按账号持久化，最多 E2EE_PLAIN_MAX 条，超出丢最早的） */
+let _plainDirty=null;
+function e2eePlainFlush(){
+  const d=_plainDirty;_plainDirty=null;clearTimeout(e2eePlainSaveSoon.t);
+  if(!d)return;
+  try{
+    const obj=d.obj,ks=Object.keys(obj);
+    if(ks.length>E2EE_PLAIN_MAX){ks.slice(0,ks.length-E2EE_PLAIN_MAX).forEach(k=>delete obj[k]);}
+    localStorage.setItem(E2EE_PLAIN_PREFIX+String(d.uid),JSON.stringify(obj));
+  }catch(e){console.warn('e2ee plain cache save failed',e)}
+}
+function e2eePlainSaveSoon(uid,obj){
+  _plainDirty={uid,obj};
+  clearTimeout(e2eePlainSaveSoon.t);
+  e2eePlainSaveSoon.t=setTimeout(e2eePlainFlush,200);
+}
+if(typeof window!=='undefined'){
+  window.addEventListener('pagehide',e2eePlainFlush);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)e2eePlainFlush()});
+}
+function e2eePlainCache(){
+  const uid=typeof SESSION!=='undefined'&&SESSION&&SESSION.user?SESSION.user.id:null;
+  if(uid==null){S.e2eePlain=S.e2eePlain||{};return S.e2eePlain}
+  if(S.e2eePlain&&S.e2eePlainUid===uid)return S.e2eePlain;
+  let raw={};
+  try{raw=JSON.parse(localStorage.getItem(E2EE_PLAIN_PREFIX+String(uid))||'{}')||{}}catch(e){raw={}}
+  /* 之前在内存里已经解开的（本次运行），并进来一起保存 */
+  if(S.e2eePlain&&S.e2eePlainUid==null)Object.assign(raw,S.e2eePlain);
+  S.e2eePlain=new Proxy(raw,{set(t,k,v){t[k]=v;e2eePlainSaveSoon(uid,t);return true},deleteProperty(t,k){delete t[k];e2eePlainSaveSoon(uid,t);return true}});
+  S.e2eePlainUid=uid;
+  return S.e2eePlain;
+}
 
 async function e2eeInitWasm(){
   if(!globalThis.Vodozemac) throw new Error('vodozemac 未加载');

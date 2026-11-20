@@ -16,10 +16,14 @@ function cssUrl(src){return String(src||'').replace(/["'\\\n\r<>]/g,'')}
 function bgCss(src){const s=cssUrl(src);if(!s)return 'background:#1a1c20';if(s.startsWith('linear-gradient')||s.startsWith('#'))return 'background:'+s;return "background-color:#1a1c20;background-image:url('"+s+"');background-size:cover;background-position:center"}
 /* r10：头像只有两种——官方默认头像，或者从相册导入的图片（存服务器，别人也能看到）。去掉了「颜色 + 文字」头像。 */
 const DEF_AV='assets/av-default.svg';
-const avSrcOf=id=>{if(id==='me')return (D.pf&&D.pf.me&&D.pf.me.ph)||'';return (D.uph&&D.uph[id])||''};
+/* 2.0.7：外部作者头像是服务器代理的相对地址（/api/import/avatar?u=…）。App 里页面不在服务器域名下，相对地址会指到本地 → 显示不出来；这里按 API 根补全。 */
+const avAbs=s=>{s=String(s||'');if(/^\/api\//.test(s)&&typeof apiUrl==='function')return apiUrl(s);return s};
+const avSrcOf=id=>{if(id==='me')return (D.pf&&D.pf.me&&D.pf.me.ph)||'';return avAbs((D.uph&&D.uph[id])||'')};
 const lookImg=(src,s)=>isMediaId(src)?`<span class="av ph" style="width:${s}px;height:${s}px"><img src="${(typeof imcSync==='function'&&imcSync(src,'f'))||DEF_AV}" data-avm="${esc(src)}" alt=""></span>`:phImg(src,s);
 const av=(id,s,opt)=>{const src=avSrcOf(id);
   let h=src?lookImg(src,s):(MODE!=='account'&&PH[id])?phImg(PH[id],s):phImg(DEF_AV,s);
+  /* 2.0.7：外部帖（V2EX / HN）的发帖人和评论人：没有头像时用名字首字母头像；头像加载失败（对方图床不可达）时也换成首字母头像 */
+  if(String(id).startsWith('ext:')&&typeof extLetterAv==='function'){const fb=(D.ufb&&/^data:image\//.test(D.ufb[id]||'')&&D.ufb[id])||extLetterAv(P(id).n||String(id).replace(/^ext:[^:]+:/,''));h=src&&!isMediaId(src)?phImg(src,s).replace('<img ',`<img data-fb="${esc(fb)}" referrerpolicy="no-referrer" `):src?h:phImg(fb,s)}
   const deco=opt&&Object.prototype.hasOwnProperty.call(opt,'dec')?!!opt.dec:(id==='me'&&typeof vipDecoOn==='function'&&vipDecoOn());
   if(deco)h=h.replace(/class="av([^"]*)"/,'class="av dec$1" data-dec="gold"');return h};
 const gface=(c,s)=>{const src=c&&c.gp||'';if(isMediaId(src))return lookImg(src,s).replace(DEF_AV,PH.group);return phImg(src&&(String(src).startsWith('data:')||String(src).startsWith('blob:')||String(src).startsWith('assets/'))?src:PH.group,s)};
@@ -41,12 +45,14 @@ function audLabel(p){const from=p&&(p.audienceLabel||p.audience_label);if(from)r
 const pc=(p,det)=>{const u=P(p.a),n=typeof ncm==='function'?ncm(p.id):(p.commentCount||0),aud=audLabel(p),tm=typeof fmtTime==='function'&&p.at?fmtTime(p.at):(p.t||'');
 const nLike=(p.r||[]).reduce((a,b)=>a+(b||0),0),nC=p.commentCount!=null?p.commentCount:n;
 const media=Array.isArray(p.media)?p.media:[];
-const mediaH=typeof mediaHTML==='function'?mediaHTML(media,det,p.id):'';
+/* 2.0.7：正文里的图片链接（外部帖常见：Markdown 图片、图床直链）当成图片显示，正文里去掉这些链接 */
+const tx=typeof txSplit==='function'?txSplit(p.x):{t:p.x||'',imgs:[]},txT=tx.t;
+const mediaH=typeof mediaHTML==='function'?mediaHTML(media.concat(tx.imgs),det,p.id):'';
 const mood=p.mood&&!(typeof isStory==='function'&&p.mood===STORY_MARK)?p.mood:'';
 const chips=[p.boost?(p.boost.label==='推流中'?`🚀 推流中 · 已曝光 ${Number(p.boost.delivered)||0}/${Number(p.boost.impressions)||0}`:'🔥 曝光中'):'',S.feed==='topic'&&S.hotMode&&p.hotPosition&&!det?`🔥 热门 ${p.hotPosition}`:'',mood?esc(typeof moodLabel==='function'?moodLabel(mood):'😊 '+mood):'',p.location?`📍 ${esc(p.location)}`:'',(p.tagged&&p.tagged.length)?`👥 和 ${esc(typeof taggedNames==='function'?taggedNames(p.tagged):p.tagged.length+' 人')} 在一起`:''].filter(Boolean);
 if(p.rp&&typeof rpCardWrap==='function')return rpCardWrap(p,det,{u,tm,aud,chips,mediaH,nLike,nC});
 const ext=!!(p.source||p.ext);const who=ext?'extauthor':'user';const srcL=p.sourceLabel||'';const srcMeta=ext?`<div class="fsrc"><span class="srclbl">${esc(srcL||(p.source==='hn'?'来自 HN':'来自 V2EX'))}</span>${p.sourceUrl?`<button type="button" class="srclnk" data-a="extlink" data-v="${esc(p.sourceUrl)}">查看原帖</button>`:''}</div>`:'';
-return `<article class="fcard${ext?' ext':''}" data-pid="${p.id}"${p.source?` data-src="${esc(p.source)}"`:''}><div class="fhd"><div data-a="${who}" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="${who}" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${ext?esc(srcL||aud):aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(p.x)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${srcMeta}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
+return `<article class="fcard${ext?' ext':''}" data-pid="${p.id}"${p.source?` data-src="${esc(p.source)}"`:''}><div class="fhd"><div data-a="${who}" data-v="${p.a}">${av(p.a,40)}</div><div class="gr" data-a="${who}" data-v="${p.a}"><b class="fn nmb">${nmB(u)}</b><small>${esc(tm)}${tm?' · ':''}${ext?esc(srcL||aud):aud}</small></div><button class="ib" data-a="more" data-v="${p.id}" aria-label="更多">${ic('more')}</button></div>${p.x&&!(p.activity&&p.x===p.activity.title)&&txT?`<div class="fbd"${det?'':` data-a="post" data-v="${p.id}"`}>${esc(txT)}</div>${typeof trBox==='function'?trBox('p:'+p.id):''}`:''}${srcMeta}${chips.length?`<div class="fmeta">${chips.map(c=>`<span>${c}</span>`).join('')}</div>`:''}${mediaH}${p.poll?pollBox(p.poll):''}${p.activity&&typeof actCard==='function'?actCard(p.activity):''}${typeof xbar==='function'?xbar(p,nLike,nC):''}</article>`};
 const nav=()=>{const un=(typeof cvSrc==='function'?cvSrc():D.cv).reduce((a,c)=>a+(c.mute||c.hid?0:c.u),0)+(S.mreqCount||0);return '<nav class="fnav">'+[['home','首页','home'],['cm','社区','people'],['co','共创','spark'],['chat','聊天','chat'],['me','我的','person']].map(a=>`<button data-a="tab" data-v="${a[0]}" class="${S.tab==a[0]?'on':''}">${ic(a[2])}${a[1]}${a[0]=='chat'&&un?`<i class="bdg">${un>99?'99+':un}</i>`:''}</button>`).join('')+'</nav>'};
 function riskNoticeText(id){
   const u=S.userView&&String(S.userView.id)===String(id)&&S.userView.user;
