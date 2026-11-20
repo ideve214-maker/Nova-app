@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { useAdmin } from "@/lib/admin/store";
-import { autoAdsChips, checkPerRun, perRunPatch, readPerRun } from "@/lib/admin/auto-ads-count";
+import { autoAdsChips, checkPerRun, perRunPatch, readPerRun, stoppedText } from "@/lib/admin/auto-ads-count";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import {
   autoAdsLog, autoAdsOverview, autoAdsRun, autoAdsSave, autoAdsTakedown, autoAdsTakedownAll,
@@ -87,7 +87,7 @@ export function AutoAdsTab() {
     setBusy(false);
     if (!r.ok) { flash(r.error); return; }
     const x = r.data.result;
-    flash(x.skipped ? "没有运行：" + (SKIP[x.skipped] || x.skipped) : x.stopped === "quota_exhausted" ? `AI 额度都用完了，这一轮已停止（已发布 ${x.published?.length || 0} 条）` : x.reason ? "没有发帖：" + x.reason : x.error ? (x.error === "search_failed" ? "联网搜索失败，请稍后再试" : x.error) : `已发布 ${x.published?.length || 0} 条，拦下 ${x.rejected || 0} 条`);
+    flash(x.skipped ? "没有运行：" + (SKIP[x.skipped] || x.skipped) : x.stopped === "quota_exhausted" ? `AI 额度都用完了，这一轮已停止（已发布 ${x.published?.length || 0} 条）` : x.stopped && x.stopped !== "quota_exhausted" ? `已发布 ${x.published?.length || 0} 条，拦下 ${x.rejected || 0} 条；没发满：${stoppedText(x.stopped)}` : x.reason ? "没有发帖：" + x.reason : x.error ? (x.error === "search_failed" ? "联网搜索失败，请稍后再试" : x.error) : `已发布 ${x.published?.length || 0} 条，拦下 ${x.rejected || 0} 条`);
     void load();
   };
   const takedown = async (ad: AutoAd) => {
@@ -133,14 +133,13 @@ export function AutoAdsTab() {
           </Card>
           <Card>
             <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-              <Field label="每轮发布条数">
+              <Field label={`每轮发布条数（1–${st.runMax || 100}）`}>
                 <input className={inputClass} inputMode="numeric" value={cap} placeholder="例如 15" onChange={(e) => setCap(e.target.value.replace(/\D/g, ""))} />
               </Field>
               {/* 2.0.8：管理端不设上限，只要求正整数；runMax 只做软提示 */}
               <button type="button" className="mb-2.5 h-11 rounded-full bg-subtle px-4 text-[13px] font-semibold" onClick={() => { const c = checkPerRun(cap, st.runMax); if (!c.ok) { flash(c.error); return; } void save(perRunPatch(c.value)); }}>保存</button>
             </div>
             <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">每天 {st.hour}:00 定时发这么多条；每点一次「立即运行一轮」再加发这么多条，不受今天已发数量影响。</p>
-            {(() => { const c = checkPerRun(cap, st.runMax); return c.ok && c.warn ? <p className="-mt-1 mb-2 text-[12px] leading-4 text-warn">{c.warn}</p> : null; })()}
             {!!st.capMax && (
               <p className="-mt-1 mb-2 text-[12px] leading-4 text-warn">服务器 .env 里设了 ADMIN_AI_AUTO_ADS_CAP_MAX = {st.capMax}，超过的数字可能被服务器拒绝。</p>
             )}

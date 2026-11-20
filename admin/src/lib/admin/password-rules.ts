@@ -19,6 +19,8 @@ export type PasswordChangeOutcome =
   | { kind: "ok" }
   | { kind: "wrong"; message: string }
   | { kind: "weak"; message: string }
+  | { kind: "same"; message: string }
+  | { kind: "locked"; message: string }
   | { kind: "unsupported"; message: string }
   | { kind: "expired"; message: string }
   | { kind: "error"; message: string };
@@ -40,6 +42,8 @@ export function interpretPasswordChange(status: number, json: unknown, networkEr
   const { code, message } = errInfo(json);
   if (code === "WRONG_PASSWORD") return { kind: "wrong", message: "当前密码不正确" };
   if (code === "WEAK_PASSWORD") return { kind: "weak", message: message || `新密码太弱：需要 ${PW_MIN}–${PW_MAX} 位，且同时包含字母和数字` };
+  if (code === "SAME_PASSWORD") return { kind: "same", message: "新密码不能和当前密码相同" };
+  if (code === "LOCKED" || status === 429) return { kind: "locked", message: message || "错误次数太多，已暂时锁定，请稍后再试" };
   if (status === 404 && (!code || code === "NOT_FOUND")) return { kind: "unsupported", message: "需服务端更新后才能在这里修改密码" };
   if (status === 401) return { kind: "expired", message: "登录已失效，请重新登录" };
   if (status === 0) return { kind: "error", message: networkError || "网络连接失败，请稍后再试" };

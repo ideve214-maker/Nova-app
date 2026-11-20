@@ -21,6 +21,9 @@ test("接口结果：成功 / 当前密码错 / 太弱 / 404 未支持 / 401 失
   assert.equal(interpretPasswordChange(400, { error: { code: "WRONG_PASSWORD" } }).kind, "wrong");
   const weak = interpretPasswordChange(400, { error: { code: "WEAK_PASSWORD", message: "密码太弱" } });
   assert.equal(weak.kind, "weak"); assert.equal((weak as { message: string }).message, "密码太弱");
+  assert.equal(interpretPasswordChange(400, { error: { code: "SAME_PASSWORD" } }).kind, "same");
+  assert.equal(interpretPasswordChange(429, { error: { code: "LOCKED", message: "锁定 15 分钟" } }).kind, "locked");
+  assert.equal(interpretPasswordChange(429, null).kind, "locked");
   assert.equal(interpretPasswordChange(404, { error: { code: "NOT_FOUND" } }).kind, "unsupported");
   assert.equal(interpretPasswordChange(404, null).kind, "unsupported");
   assert.equal(interpretPasswordChange(401, { error: { code: "UNAUTHORIZED" } }).kind, "expired");

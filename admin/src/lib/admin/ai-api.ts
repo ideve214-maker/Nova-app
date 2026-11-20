@@ -55,11 +55,11 @@ export type AutoAd = {
   impressions: number; clicks: number; createdAt: number; endsAt: number | null;
   source: "ai"; sourceUrl: string; sourceTitle: string; trigger: "schedule" | "manual" | "assistant" | null; takenDownAt: number | null; live: boolean;
 };
-export type AutoAdsSettings = { enabled: boolean; dailyCap: number; query: string; blockwords: string[] };
+export type AutoAdsSettings = { enabled: boolean; dailyCap: number; perRun?: number; query: string; blockwords: string[] };
 export type AutoAdsStatus = {
   envEnabled: boolean; switchOn: boolean; configured: boolean; active: boolean; hour: number; timezone: string; lastRunDay: string | null;
   todayPublished: number; dailyCap: number;
-  /** 服务端（Dift，2.1.1 之后）：今天定时轮发了几条 / 手动「立即运行一轮」加发了几条；旧服务端没有 */
+  /** 服务端 2.1.1（e09e826）：今天定时轮发了几条 / 手动「立即运行一轮」加发了几条；旧服务端没有 */
   scheduledToday?: number; manualToday?: number;
   /** 服务器封顶（.env ADMIN_AI_AUTO_ADS_CAP_MAX）；服务端 2.1.1 起 0 = 不封顶，dailyCap 为 0 = 不限 */
   capMax: number | null; ttlDays: number;
