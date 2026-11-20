@@ -138,7 +138,7 @@ export function AutoAdsTab() {
               {/* 2.0.8：管理端不再限制最大值，按填写的数字提交；服务器有上限时由服务器提示 */}
               <button type="button" className="mb-2.5 h-11 rounded-full bg-subtle px-4 text-[13px] font-semibold" onClick={() => void save({ dailyCap: Math.max(0, Math.floor(Number(cap) || 0)) })}>保存</button>
             </div>
-            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">留空或填 0 = 不限（默认）；填正数就按这个数限制。为防止一次调用过多，每轮最多发 50 条。</p>
+            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">留空或填 0 = 不限（默认）；填正数就按这个数限制。为防止一次调用过多，每轮最多发 {st.runMax || 50} 条。</p>
             {!!st.capMax && (
               <p className="-mt-1 mb-2 text-[12px] leading-4 text-warn">服务器设了封顶 {st.capMax} 条（.env 里的 ADMIN_AI_AUTO_ADS_CAP_MAX），超过的数字会被服务器拒绝。</p>
             )}

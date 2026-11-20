@@ -60,7 +60,9 @@ export type AutoAdsStatus = {
   envEnabled: boolean; switchOn: boolean; configured: boolean; active: boolean; hour: number; timezone: string; lastRunDay: string | null;
   todayPublished: number; dailyCap: number;
   /** 服务器封顶（.env ADMIN_AI_AUTO_ADS_CAP_MAX）；服务端 2.1.1 起 0 = 不封顶，dailyCap 为 0 = 不限 */
-  capMax: number | null; ttlDays: number; running: boolean; defaultBlockwords: number;
+  capMax: number | null; ttlDays: number;
+  /** 服务端 2.1.1（8f4670e）起：每轮最多发几条；旧服务端没有这个字段，管理端按 50 显示 */
+  runMax?: number; running: boolean; defaultBlockwords: number;
 };
 export type AutoAdsOverview = { settings: AutoAdsSettings; status: AutoAdsStatus; ads: AutoAd[] };
 export type AutoAdsLogRow = { id: number; at: number; actorId: number | null; action: string; target: string | null; detail: Record<string, unknown> | null };
