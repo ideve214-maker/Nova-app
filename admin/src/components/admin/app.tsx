@@ -14,7 +14,7 @@ import { ContentScreen, ReportsScreen } from "./queue";
 import { PaymentsScreen } from "./payments";
 import { HotScreen } from "./hot";
 import { BlockwordsScreen } from "./blockwords";
-import { MarketingScreen } from "./marketing";
+import { BoostScreen, MarketingScreen, PostStatsScreen } from "./marketing";
 import { AppealsScreen, EventsScreen } from "./appeals";
 import { AssistantScreen } from "./assistant";
 import { AdsScreen } from "./ads";
@@ -143,6 +143,8 @@ export function AdminApp() {
       {name === "channel" && <ChannelMessagesScreen />}
       {name === "blockwords" && <BlockwordsScreen />}
       {name === "marketing" && <MarketingScreen />}
+      {name === "poststats" && <PostStatsScreen />}
+      {name === "boost" && <BoostScreen />}
       {name === "reports" && <ReportsScreen />}
       {name === "stats" && <StatsScreen />}
       {name === "settings" && <SettingsScreen />}

@@ -22,6 +22,8 @@ export const PAGE_NAMES = [
   "channel",
   "blockwords",
   "marketing",
+  "poststats",
+  "boost",
   "events",
   "appeals",
   "ai",

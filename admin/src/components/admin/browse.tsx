@@ -21,6 +21,8 @@ import {
   CalendarDays,
   Scale,
   TrendingUp,
+  Rocket,
+  SlidersHorizontal,
   PenLine,
   FileText,
   Sparkles,
@@ -52,7 +54,9 @@ const modules: { name: PageName; label: string; desc: string; icon: typeof Users
   { name: "blockwords", label: "屏蔽词", desc: "平台拦截规则", icon: Ban },
   { name: "events", label: "安全事件", desc: "限流与异常", icon: ShieldCheck },
   { name: "security", label: "安全中心", desc: "设备、邀请、权限", icon: KeyRound },
-  { name: "marketing", label: "营销推流", desc: "营销帖、推流加热、AI 审查", icon: TrendingUp },
+  { name: "marketing", label: "营销管理", desc: "营销帖、AI 审查、AI 发帖", icon: TrendingUp },
+  { name: "poststats", label: "数据调整", desc: "帖子展示的浏览、点赞、收藏数", icon: SlidersHorizontal },
+  { name: "boost", label: "推流加热", desc: "加热订单核对、套餐与投放设置", icon: Rocket },
   { name: "ads", label: "广告文案", desc: "每日 AI 文案与原网址", icon: PenLine },
   { name: "stats", label: "数据统计", desc: "用户与内容", icon: BarChart3 },
   { name: "aireport", label: "AI 日报", desc: "每天的运营汇总", icon: FileText },
@@ -66,7 +70,7 @@ const groups: { title: string; names: PageName[] }[] = [
   { title: "用户", names: ["users", "vip", "tags", "notify"] },
   { title: "内容与社区", names: ["content", "communities", "hot", "v2", "announce"] },
   { title: "审核与安全", names: ["reports", "appeals", "payments", "blockwords", "events", "security"] },
-  { title: "运营营销", names: ["marketing", "ads"] },
+  { title: "运营营销", names: ["marketing", "poststats", "boost", "ads"] },
   { title: "系统", names: ["stats", "aireport", "aiquota", "audit", "settings"] },
 ];
 

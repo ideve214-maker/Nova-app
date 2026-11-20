@@ -6,7 +6,8 @@ import { EmptyState, Field, inputClass, Pill, PrimaryButton, Screen, Seg, Sheet 
 import { AutoAdsTab } from "./auto-ads";
 import { ImportReviewCard } from "./import-review";
 
-/* r10 营销管理：营销帖 / 数据调整 / 推流加热 / AI 审查。 */
+/* r10 营销管理：营销帖 / AI 审查 / AI 发帖。
+   2.0.8：「数据调整」「推流加热」拆成运营营销里的两个独立入口（PostStatsScreen / BoostScreen）。 */
 
 type Res<T> = { ok: true; data: T } | { ok: false; error: string; status?: number };
 export async function mk<T = Record<string, unknown>>(
@@ -45,12 +46,10 @@ export const textareaClass = "w-full rounded-xl border border-line bg-subtle px-
 
 const TABS = [
   { id: "ads", label: "营销帖" },
-  { id: "stats", label: "数据调整" },
-  { id: "boost", label: "推流加热" },
   { id: "ai", label: "AI 审查" },
   { id: "auto", label: "AI 发帖" },
 ];
-const READY = new Set(["ads", "stats", "boost", "ai", "auto"]);
+const READY = new Set(["ads", "ai", "auto"]);
 
 export function MarketingScreen() {
   const back = useAdmin((s) => s.back);
@@ -60,10 +59,27 @@ export function MarketingScreen() {
     <Screen title="营销管理" onBack={back}>
       <Seg value={tab} options={tabs} onChange={setTab} />
       {tab === "ads" && <AdsTab />}
-      {tab === "stats" && <StatsTab />}
-      {tab === "boost" && <BoostTab />}
       {tab === "ai" && <AiTab />}
       {tab === "auto" && <AutoAdsTab />}
+    </Screen>
+  );
+}
+
+/** 2.0.8：独立入口「数据调整」 */
+export function PostStatsScreen() {
+  const back = useAdmin((s) => s.back);
+  return (
+    <Screen title="数据调整" onBack={back}>
+      <StatsTab />
+    </Screen>
+  );
+}
+/** 2.0.8：独立入口「推流加热」 */
+export function BoostScreen() {
+  const back = useAdmin((s) => s.back);
+  return (
+    <Screen title="推流加热" onBack={back}>
+      <BoostTab />
     </Screen>
   );
 }
