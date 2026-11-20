@@ -90,23 +90,70 @@ export function proxyAvatarPath(origin) {
 
 function sourceLabelOf(src) { return SOURCE_LABEL[src] || ('来自 ' + src); }
 
-async function fetchJson(fetchFn, url, {timeoutMs = 15000, headers} = {}) {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    const res = await fetchFn(url, {
-      method: 'GET',
-      headers: {'User-Agent': IMPORT_UA, Accept: 'application/json', ...(headers || {})},
-      signal: ac.signal,
-      redirect: 'follow',
-    });
-    if (!res || !res.ok) {
-      const err = new Error('fetch ' + url + ' -> ' + (res && res.status));
-      err.status = res && res.status;
-      throw err;
-    }
-    return await res.json();
-  } finally { clearTimeout(t); }
+export const IMPORT_DELAY_MS = 800;
+export const FETCH_TIMEOUT_MS = 20_000;
+export const REPLIES_TIMEOUT_MS = 45_000;
+export const FETCH_RETRIES = 3;
+export const RETRY_BASE_MS = 1000;
+
+export function isAbortError(e) {
+  if (!e) return false;
+  if (e.aborted || e.name === 'AbortError' || e.code === 'ABORT_ERR') return true;
+  return /aborted/i.test(String(e.message || e));
+}
+
+export function describeFetchError(e, url, timeoutMs) {
+  if (isAbortError(e)) return 'timeout/aborted after ' + timeoutMs + 'ms fetching ' + url;
+  if (e && e.status) return 'HTTP ' + e.status + ' fetching ' + url;
+  return String((e && e.message) || e || 'fetch failed') + ' fetching ' + url;
+}
+
+function isRetryable(e) {
+  if (!e) return false;
+  if (isAbortError(e)) return true;
+  if (e.status && [429, 500, 502, 503, 504].includes(Number(e.status))) return true;
+  return /timeout|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|fetch failed/i.test(String(e.message || e));
+}
+
+async function fetchJson(fetchFn, url, {
+  timeoutMs = FETCH_TIMEOUT_MS, headers, retries = FETCH_RETRIES, retryDelayMs = RETRY_BASE_MS, log,
+} = {}) {
+  const attempts = Math.max(1, Number(retries) || 1);
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      const res = await fetchFn(url, {
+        method: 'GET',
+        headers: {'User-Agent': IMPORT_UA, Accept: 'application/json', ...(headers || {})},
+        signal: ac.signal,
+        redirect: 'follow',
+      });
+      if (!res || !res.ok) {
+        const err = new Error('fetch ' + url + ' -> ' + (res && res.status));
+        err.status = res && res.status;
+        throw err;
+      }
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (isRetryable(e) && attempt < attempts) {
+        const wait = Math.max(0, Number(retryDelayMs) || 0) * Math.pow(2, attempt - 1);
+        if (log) log('import fetch retry', describeFetchError(e, url, timeoutMs), 'attempt', attempt + '/' + attempts, 'waitMs', wait);
+        if (wait) await sleep(wait);
+        continue;
+      }
+      if (isAbortError(e)) {
+        const err = new Error(describeFetchError(e, url, timeoutMs));
+        err.aborted = true;
+        err.timeoutMs = timeoutMs;
+        throw err;
+      }
+      throw e;
+    } finally { clearTimeout(t); }
+  }
+  throw lastErr;
 }
 
 export function ensureImportUser(db, {now}) {
@@ -135,7 +182,7 @@ export function isReservedImportIdentity(username, email) {
 export function createImportFeed(db, {
   fetchFn = globalThis.fetch,
   now = Date.now,
-  delayMs = 250,
+  delayMs = IMPORT_DELAY_MS,
   sourceLimit = 20,        // 2.1.0：每个来源每轮最多新入库多少帖（以前是「看多少帖」，已有的也算数，所以每轮几乎没有新帖）
   commentLimit = 20,       // 每帖最多导入多少条评论（2.1.0 起 10 → 20）
   scanLimit = 120,         // 每个来源每轮最多看多少个候选帖
@@ -145,8 +192,15 @@ export function createImportFeed(db, {
   commentRefreshMs = 30 * 60 * 1000, // 已入库帖的评论多久补拉一次
   refreshPerRun = 3,       // 每个来源每轮最多给几条旧帖补拉评论
   hotEvery = 5,            // V2EX 热门榜每几轮拉一次
+  timeoutMs = FETCH_TIMEOUT_MS,
+  repliesTimeoutMs = REPLIES_TIMEOUT_MS,
+  retries = FETCH_RETRIES,
+  retryDelayMs,
   log = (...a) => console.error(...a),
 } = {}) {
+  const backoffMs = retryDelayMs != null ? retryDelayMs : (delayMs > 0 ? RETRY_BASE_MS : 0);
+  const jsonOpts = {timeoutMs, retries, retryDelayMs: backoffMs, log};
+  const repliesOpts = {timeoutMs: repliesTimeoutMs, retries, retryDelayMs: backoffMs, log};
   const selPost = db.prepare('SELECT * FROM posts WHERE source=? AND source_id=?');
   const selCmt = db.prepare('SELECT * FROM post_comments WHERE source=? AND source_id=?');
   const insPost = db.prepare(`INSERT INTO posts(id,author_id,text,created_at,updated_at,client_id,audience,source,source_id,source_url,ext_author_name,ext_author_avatar)
@@ -161,24 +215,23 @@ export function createImportFeed(db, {
   const v2exCalls = [];              // 最近一小时 V2EX 请求时间
   let v2exCooldownUntil = 0;
   const commentFetchedAt = new Map(); // source:sid -> 上次拉评论时间
-  async function v2exJson(url) {
+  async function v2exJson(url, opts = jsonOpts) {
     const t = now();
     while (v2exCalls.length && v2exCalls[0] <= t - 3600e3) v2exCalls.shift();
     if (v2exCooldownUntil > t) throw Object.assign(new Error('v2ex cooldown'), {budget: true});
     if (v2exCalls.length >= v2exPerHour) throw Object.assign(new Error('v2ex hourly budget used'), {budget: true});
     v2exCalls.push(t);
-    try { return await fetchJson(fetchFn, url); }
+    try { return await fetchJson(fetchFn, url, opts); }
     catch (e) {
       if (e && (e.status === 429 || e.status === 403)) v2exCooldownUntil = now() + 15 * 60e3;
       throw e;
     }
   }
+  // 已入库帖要不要补拉评论：评论还没到 commentLimit 条（含上次超时没拉到的），且距上次成功拉取超过 commentRefreshMs
   function refreshDue(source, sid, row) {
-    if (!commentLimit) return false;
-    const key = source + ':' + sid;
-    const at = commentFetchedAt.get(key) || 0;
-    if (now() - at < commentRefreshMs) return false;
-    return now() - Number(row.created_at || 0) < 3 * 24 * 3600e3; // 只给三天内的帖补评论
+    if (!commentLimit || !needsCommentBackfill(row.id)) return false;
+    const at = commentFetchedAt.get(source + ':' + sid) || 0;
+    return now() - at >= commentRefreshMs;
   }
   function noteFetched(source, sid) {
     if (commentFetchedAt.size > 5000) commentFetchedAt.delete(commentFetchedAt.keys().next().value);
@@ -202,7 +255,11 @@ export function createImportFeed(db, {
     if (commentLimit && (!existed || refreshDue(post.source, post.sid, existed))) {
       if (existed) { if (state.refreshed >= refreshPerRun) return 'exists'; state.refreshed++; }
       try { comments = (await loadComments()) || []; noteFetched(post.source, post.sid); }
-      catch (e) { if (!e || !e.budget) log('import ' + post.source + ' comments', post.sid, e.message || e); comments = []; }
+      catch (e) {
+        if (!e || !e.budget) log('import ' + (post.source === 'v2ex' ? 'v2ex replies' : post.source + ' comments') + ' topic=' + post.sid + (existed ? ' backfill' : '')
+          + ' failed: ' + String((e && e.message) || e) + '; will retry on next run');
+        comments = [];
+      }
     }
     comments = comments.filter(c => c && String(c.text || '').trim() && !selCmt.get(post.source, String(c.sourceId))
       && !(review && review.isRejected(post.source, c.sourceId))).slice(0, commentLimit);
@@ -262,6 +319,14 @@ export function createImportFeed(db, {
 
   function blocked(row) {
     return !!(row && (row.deleted_at || row.admin_hidden));
+  }
+
+  const countImportedComments = db.prepare(
+    "SELECT COUNT(*) n FROM post_comments WHERE post_id=? AND source IS NOT NULL AND IFNULL(deleted_at,0)=0",
+  );
+  function needsCommentBackfill(postId) {
+    if (!postId || !commentLimit) return false;
+    return Number(countImportedComments.get(postId).n) < commentLimit;
   }
 
   function upsertPost({source, sourceId, sourceUrl, authorName, authorAvatar, text, createdAt}) {
@@ -348,7 +413,7 @@ export function createImportFeed(db, {
       const createdAt = (Number(topic.created) || 0) * 1000;
       await ingest({source: 'v2ex', sid, url, name, avatar, text, createdAt}, async () => {
         await sleep(delayMs);
-        const raw = await v2exJson(v2exRepliesUrl(sid));
+        const raw = await v2exJson(v2exRepliesUrl(sid), repliesOpts);
         if (!Array.isArray(raw)) return [];
         return raw.slice(0, commentLimit * 2).map(r => {
           const cid = r && r.id != null ? String(r.id) : '';
@@ -366,8 +431,10 @@ export function createImportFeed(db, {
     return out;
   }
 
+  // HN 官方 Firebase 接口没有频率限制，用更短的间隔；V2EX 仍按 delayMs（默认 800ms）
+  const hnDelayMs = Math.min(delayMs, 100);
   async function hnItem(id) {
-    return fetchJson(fetchFn, hnItemUrl(id));
+    return fetchJson(fetchFn, hnItemUrl(id), jsonOpts);
   }
 
   async function importHn(state) {
@@ -376,7 +443,7 @@ export function createImportFeed(db, {
     const errors = [];
     for (const u of [HN_TOP, HN_NEW, HN_BEST]) {
       try {
-        const raw = await fetchJson(fetchFn, u);
+        const raw = await fetchJson(fetchFn, u, jsonOpts);
         if (Array.isArray(raw)) lists.push(raw); else errors.push('hn list is not a list');
       } catch (e) { errors.push(e.message || String(e)); }
     }
@@ -402,7 +469,7 @@ export function createImportFeed(db, {
       if (existed && !(state.refreshed < refreshPerRun && refreshDue('hn', sid, existed))) { out.skipped++; continue; }
       if (!existed && state.aiDown) { out.pending++; continue; }
       out.scanned++;
-      await sleep(delayMs);
+      await sleep(hnDelayMs);
       let story;
       try { story = await hnItem(rawId); }
       catch (e) { log('import hn item', rawId, e.message || e); continue; }
@@ -422,7 +489,7 @@ export function createImportFeed(db, {
         while (queue.length && got.length < commentLimit && tries < commentLimit * 3) {
           const kid = queue.shift();
           tries++;
-          await sleep(delayMs);
+          await sleep(hnDelayMs);
           let c;
           try { c = await hnItem(kid); }
           catch (e) { log('import hn comment', kid, e.message || e); continue; }

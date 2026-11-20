@@ -62,7 +62,7 @@ import {backupOpen} from './backup.mjs';
 import {readFileSync as _readLegal} from 'node:fs';
 import {legalDoc as loadLegal, renderLegalHtml, legalConfig, LEGAL_DEFAULTS} from './legal.mjs';
 import {createTldr, TldrError} from './tldr.mjs';
-import {createImportFeed, isReservedImportIdentity} from './import-feed.mjs';
+import {createImportFeed, isReservedImportIdentity, IMPORT_DELAY_MS} from './import-feed.mjs';
 import {createAiReview} from './ai-review.mjs';
 import {appVersion} from './version.mjs';
 import {mkdirSync} from 'node:fs';
@@ -112,6 +112,7 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
   tldrFetch,
   weatherFetch, weatherEnv, weatherIpLookup,
   importFetch, importAuto, importDelayMs, importLimit, importCommentLimit, importIntervalMs,
+  importTimeoutMs, importRepliesTimeoutMs, importRetries, importRetryDelayMs,
   } = {}) {
   const testToggleOn = env === 'development' && vipTestToggle !== false;
   const now = () => clock();
@@ -375,11 +376,15 @@ export function createApp({dbPath = ':memory:', corsOrigin = process.env.NOVA_CO
     fetchFn: importFetch || globalThis.fetch,
     now,
     review: aiReview,
-    delayMs: importDelayMs != null ? importDelayMs : 150,
+    delayMs: importDelayMs != null ? importDelayMs : IMPORT_DELAY_MS,
     sourceLimit: importLimit != null ? importLimit : (envNum('NOVA_IMPORT_LIMIT') || 20),
     commentLimit: importCommentLimit != null ? importCommentLimit : (envNum('NOVA_IMPORT_COMMENT_LIMIT') || 20),
     intervalMs: importIntervalMs != null ? importIntervalMs : (envNum('NOVA_IMPORT_INTERVAL_MS') || 2 * 60 * 1000),
     v2exPerHour: envNum('NOVA_IMPORT_V2EX_PER_HOUR') || 100,
+    timeoutMs: importTimeoutMs,
+    repliesTimeoutMs: importRepliesTimeoutMs,
+    retries: importRetries,
+    retryDelayMs: importRetryDelayMs,
   });
   const routes = {
     'POST /api/auth/register'(req, b) {

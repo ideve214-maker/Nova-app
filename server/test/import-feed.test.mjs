@@ -282,3 +282,93 @@ CREATE TABLE IF NOT EXISTS post_comments(id TEXT PRIMARY KEY, post_id TEXT, auth
   assert.ok(cols.includes('source'));
   assert.ok(ccols.includes('source'));
 });
+
+function abortErr() {
+  const e = new Error('This operation was aborted');
+  e.name = 'AbortError';
+  return e;
+}
+
+test('V2EX 评论当轮中断后会退避重试；仍失败则留下帖子，下次运行补回评论', async () => {
+  let replies1001 = 0;
+  let replies1002 = 0;
+  const fetchFn = async (url, opts) => {
+    const u = String(url);
+    if (u.includes('/api/replies/show.json') && u.includes('topic_id=1001')) {
+      replies1001++;
+      if (replies1001 <= 2) throw abortErr(); // 前两次中断，第三次成功（当轮重试）
+    }
+    if (u.includes('/api/replies/show.json') && u.includes('topic_id=1002')) {
+      replies1002++;
+      if (replies1002 <= 3) throw abortErr(); // 第一轮三次都中断，第二轮才成功（补回）
+    }
+    return mockFetch()(url, opts);
+  };
+  const srv = createApp({
+    importFetch: fetchFn, importAuto: false, importDelayMs: 0, importRetryDelayMs: 0,
+    importRetries: 3, aiEnv: AI_ENV, aiFetch: allowAllAi,
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const base = 'http://127.0.0.1:' + srv.address().port;
+  try {
+    const r1 = await srv.importFeed.run();
+    assert.equal(r1.v2ex.ok, true, JSON.stringify(r1));
+    assert.equal(r1.v2ex.imported, 2);
+    const p1 = srv.db.prepare("SELECT * FROM posts WHERE source='v2ex' AND source_id='1001'").get();
+    const p2 = srv.db.prepare("SELECT * FROM posts WHERE source='v2ex' AND source_id='1002'").get();
+    assert.ok(p1 && p2, '帖子在评论失败时也要入库');
+    const c1 = srv.db.prepare("SELECT COUNT(*) n FROM post_comments WHERE post_id=?").get(p1.id).n;
+    const c2 = srv.db.prepare("SELECT COUNT(*) n FROM post_comments WHERE post_id=?").get(p2.id).n;
+    assert.equal(c1, 2, '1001 当轮重试成功应写入评论');
+    assert.equal(c2, 0, '1002 当轮三次都中断，评论应缺失');
+    assert.ok(replies1001 >= 3, '1001 应重试到第三次, got ' + replies1001);
+    assert.equal(replies1002, 3, '1002 第一轮应尝试 3 次, got ' + replies1002);
+
+    const r2 = await srv.importFeed.run();
+    assert.equal(r2.v2ex.imported, 0, '第二轮不应再新增帖');
+    const c2b = srv.db.prepare("SELECT COUNT(*) n FROM post_comments WHERE post_id=?").get(p2.id).n;
+    assert.equal(c2b, 1, '第二轮应给 1002 补回评论');
+    const texts = srv.db.prepare("SELECT text FROM post_comments WHERE post_id=?").all(p2.id).map(r => r.text);
+    assert.ok(texts.includes('只有一条'));
+    assert.ok(replies1002 >= 4, '第二轮应再次请求 1002 评论');
+
+    const who = await acc(base, 'bfill');
+    const cm = await call(base, 'GET', '/api/posts/' + p2.id + '/comments', null, who.tok);
+    assert.equal(cm.s, 200);
+    assert.ok((cm.j.comments || []).some(c => c.author.displayName === 'carol'));
+  } finally {
+    await new Promise(r => { srv.close(r); srv.closeAllConnections?.(); });
+  }
+});
+
+test('V2EX 评论超时日志写明 topic 与将在下轮重试', async () => {
+  const {createImportFeed} = await import('../import-feed.mjs');
+  const {openDb} = await import('../db.mjs');
+  const logs = [];
+  const db = openDb(':memory:');
+  let n = 0;
+  const fetchFn = async (url) => {
+    const u = String(url);
+    if (u.includes('/api/topics/hot.json')) return {ok: true, status: 200, json: async () => [V2EX_HOT[0]]};
+    if (u.includes('/api/replies/show.json')) {
+      n++;
+      throw abortErr();
+    }
+    if (u.includes('/v0/topstories.json')) return {ok: true, status: 200, json: async () => []};
+    return {ok: false, status: 404, json: async () => ({})};
+  };
+  const feed = createImportFeed(db, {
+    fetchFn, importAuto: false, delayMs: 0, retryDelayMs: 0, retries: 2,
+    repliesTimeoutMs: 45_000, log: (...a) => logs.push(a.map(String).join(' ')),
+  });
+  const r = await feed.run();
+  assert.equal(r.v2ex.imported, 1);
+  const comments = db.prepare("SELECT COUNT(*) n FROM post_comments").get().n;
+  assert.equal(comments, 0);
+  const line = logs.find(s => s.includes('import v2ex replies topic=1001'));
+  assert.ok(line, 'expected clear log, got ' + JSON.stringify(logs));
+  assert.match(line, /timeout\/aborted after 45000ms/);
+  assert.match(line, /will retry on next run/);
+  assert.equal(n, 2);
+  db.close();
+});
