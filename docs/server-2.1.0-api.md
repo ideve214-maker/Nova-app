@@ -49,3 +49,13 @@
 - 先核对 `currentPassword`；错误返回 400 `WRONG_PASSWORD`。与登录共用同一把锁定：同一管理员账号累计失败 5 次后 429 `LOCKED`，15 分钟后再试。
 - `newPassword` 沿用现有规则（8–128 位，同时包含字母和数字）；不合格返回 400 `WEAK_PASSWORD`。新密码与当前密码相同返回 400 `SAME_PASSWORD`。
 - 成功后更新密码哈希，使该管理员的其他登录会话失效（当前会话保留），并写审计 `admin.self.change_password`（详情里不含密码）。
+
+## 5. 服务端 2.1.1：AI 发帖改为每轮条数
+
+设置和状态在 `GET/POST /api/admin/ai/auto-ads`、`POST /api/admin/ai/auto-ads/settings`、`POST /api/admin/ai/auto-ads/run` 的 `settings` / `status`（以及 `GET /api/admin/ai/auto-ads/precheck`）里。
+
+- `settings.perRun`：每轮发布多少条（整数 1–100，默认 10，上限为 `status.runMax`，对应 `ADMIN_AI_AUTO_ADS_RUN_MAX`，默认 100）。`POST` 设置时也可传 `dailyCap`（旧字段别名，写入 `perRun`；传 `0` 当作默认 10）。响应里 `dailyCap` 始终等于 `perRun`。
+- 未保存过 `autoads.perRun` 时，沿用已存的 `autoads.dailyCap`（>0），否则 10。
+- 每天到点（`ADMIN_AI_AUTO_ADS_HOUR`，默认 10:00）自动跑一轮，发 `perRun` 条新帖；「立即运行一轮」再发 `perRun` 条，不检查、不占用定时那一轮的数量。同一天定时仍只跑一次；进行中的一轮仍用 `running` 互斥。
+- `status.todayPublished`：今天 AI 发帖总数（上海时间）。`scheduledToday`：其中 `ai_trigger=schedule` 的条数。`manualToday`：手动运行、助手代发、发布接口等非定时条数。
+- 一轮会按方向轮流搜索，直到发够 `perRun`、方向用尽或当天联网搜索次数用完（`ADMIN_AI_SEARCH_RPD`）。模型调用最多 `perRun × 3` 次。没发满时 `result.stopped` 为 `search_budget` 或 `no_more_results`。

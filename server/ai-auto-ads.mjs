@@ -4,8 +4,9 @@
 // 安全规则（全部在服务端执行）：
 // 1. 默认关闭：必须同时满足 环境变量 ADMIN_AI_AUTO_ADS=1 + 管理端开关（admin_ai_settings 的 autoads.enabled=1）+ 已配置智谱密钥，才会自动发布。
 //    环境变量不是 1 时连定时器都不启动，不会调用任何接口。管理端开关就是“紧急停止”，关掉后立即生效（正在跑的这一轮也会在下一条前停下）。
-// 2. 每天上限（autoads.dailyCap）：2.1.1 起默认 0 = 不限；填正数才限制。ADMIN_AI_AUTO_ADS_CAP_MAX 默认 0 = 不设封顶。按上海时间切日，AI 助手代发的也算在内。
-//    不限时每轮最多发 ADMIN_AI_AUTO_ADS_RUN_MAX（默认 50）条，防止一轮无限调用模型。
+// 2. 每轮条数（autoads.perRun）：定时一轮和每次「立即运行一轮」各自按这个数发新帖，互不影响、也不看今天已发多少。
+//    1–100，默认 10；未设 perRun 时沿用已存的 autoads.dailyCap（>0），否则 10。管理端仍可传 dailyCap 作为别名。
+//    ADMIN_AI_AUTO_ADS_RUN_MAX（默认 100）是防误填的安全上限。状态里同时返回 todayPublished、scheduledToday、manualToday。
 // 3. 必须有原网址：来自搜索结果，由系统附上（模型写的网址、电话、微信号会被去掉）；没有原网址一律拒绝；同一原网址只发一次（下架过的也不再发）。
 // 4. 屏蔽词：内置高风险词（赌博、贷款、色情等）+ 平台屏蔽词 + 管理端自定义词，搜索结果和生成的文案都要过一遍。
 // 5. 每个自动动作都写 audit_log（ai.autoads.*；管理员操作 admin.ai.autoads.*），管理端可以查看。
@@ -20,7 +21,7 @@ export const DEFAULT_BLOCKWORDS = ['赌博', '博彩', '赌场', '彩票', '六�
   '色情', '裸聊', '约炮', '成人用品', '代孕', '枪支', '毒品', '冰毒', '大麻', '发票', '办证', '假证', '传销', '资金盘', '虚拟币', '比特币', 'usdt',
   '翻墙', 'vpn', '外挂', '黑客', '医托', '包治', '壮阳', '处方药', '电子烟', '理财', '炒股', '期货'];
 const DEFAULT_QUERY = '本地商家 新店开业 优惠活动';
-const SETTING_KEYS = ['autoads.enabled', 'autoads.dailyCap', 'autoads.query', 'autoads.blockwords'];
+const SETTING_KEYS = ['autoads.enabled', 'autoads.dailyCap', 'autoads.perRun', 'autoads.query', 'autoads.blockwords'];
 
 /** 搜索方向：每行一个（也接受 , ， 、 ; ；）；旧版只用空格连在一起的，每个词算一个方向。
  *  只用空格分隔、超过 3 个词时，每个词算一个方向。
@@ -64,6 +65,7 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     setSet: db.prepare('INSERT INTO admin_ai_settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at'),
     byUrl: db.prepare('SELECT id FROM marketing_ads WHERE source_url=? LIMIT 1'),
     today: db.prepare("SELECT COUNT(*) AS n FROM marketing_ads WHERE source='ai' AND created_at>=?"),
+    todayByTrigger: db.prepare("SELECT COALESCE(ai_trigger,'') AS trig, COUNT(*) AS n FROM marketing_ads WHERE source='ai' AND created_at>=? GROUP BY trig"),
     mark: db.prepare("UPDATE marketing_ads SET source='ai', source_url=?, source_title=?, ai_trigger=?, ai_run_id=? WHERE id=?"),
     aiRow: db.prepare("SELECT * FROM marketing_ads WHERE id=? AND source='ai' AND deleted_at IS NULL"),
     list: db.prepare("SELECT * FROM marketing_ads WHERE source='ai' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?"),
@@ -77,18 +79,30 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
   const log = (actor, action, target, ip, detail) => { try { audit(actor || null, action, target, ip || null, detail); } catch {} };
 
   const envOn = () => String(env.ADMIN_AI_AUTO_ADS || '').trim() === '1';
-  const capMax = () => envInt(env.ADMIN_AI_AUTO_ADS_CAP_MAX, 0, 100000, 0); // 0 = 不设封顶
-  const runMax = () => envInt(env.ADMIN_AI_AUTO_ADS_RUN_MAX, 1, 500, 50);
+  const runMax = () => envInt(env.ADMIN_AI_AUTO_ADS_RUN_MAX, 1, 100, 100);
   const hour = () => envInt(env.ADMIN_AI_AUTO_ADS_HOUR, 0, 23, 10);
-  const perRun = () => envInt(env.ADMIN_AI_AUTO_ADS_QUERIES, 1, 20, 5); // 每轮最多搜几个方向（每个方向算一次联网搜索）
   const ttlDays = () => envInt(env.ADMIN_AI_AUTO_ADS_TTL_DAYS, 0, 90, 7);
   const switchOn = () => setting('autoads.enabled', '0') === '1';
-  // 0 = 不限
-  const dailyCap = () => { const n = envInt(setting('autoads.dailyCap'), 0, 100000, 0), m = capMax(); return m ? (n ? Math.min(n, m) : m) : n; };
-  const capReached = () => { const c = dailyCap(); return c > 0 && todayPublished() >= c; };
+  /** 每轮要发多少条。优先读 autoads.perRun；没有则用已存的 dailyCap（>0），否则 10。再封顶到 RUN_MAX。 */
+  const postsPerRun = () => {
+    const ceiling = runMax();
+    const raw = setting('autoads.perRun');
+    if (raw != null && raw !== '') return Math.min(envInt(raw, 1, 100, 10), ceiling);
+    const legacy = envInt(setting('autoads.dailyCap'), 0, 100000, 0);
+    return Math.min(legacy > 0 ? legacy : 10, ceiling);
+  };
   const customWords = () => { try { const a = JSON.parse(setting('autoads.blockwords', '[]')); return Array.isArray(a) ? a.map(String) : []; } catch { return []; } };
   const query = () => setting('autoads.query') || (() => { const d = q.activeDir.get(); return d ? clip(d.name + ' ' + (d.prompt || ''), 60) : DEFAULT_QUERY; })();
   const todayPublished = () => q.today.get(dayStart(now())).n;
+  const todayCounts = () => {
+    let scheduled = 0, manual = 0, total = 0;
+    for (const r of q.todayByTrigger.all(dayStart(now()))) {
+      total += r.n;
+      if (r.trig === 'schedule') scheduled += r.n;
+      else manual += r.n;
+    }
+    return {todayPublished: total, scheduledToday: scheduled, manualToday: manual};
+  };
   const active = () => envOn() && switchOn() && configured();
 
   /** 命中的屏蔽词（内置 + 自定义 + 平台）。 */
@@ -101,13 +115,17 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
   }
 
   function settings() {
-    return {enabled: switchOn(), dailyCap: dailyCap(), query: query(), blockwords: customWords()};
+    const n = postsPerRun();
+    return {enabled: switchOn(), perRun: n, dailyCap: n, query: query(), blockwords: customWords()};
   }
   function state() {
+    const n = postsPerRun();
+    const c = todayCounts();
     return {
       envEnabled: envOn(), switchOn: switchOn(), configured: !!configured(), active: active(),
       hour: hour(), timezone: 'Asia/Shanghai', lastRunDay: setting('autoads.lastRunDay'),
-      todayPublished: todayPublished(), dailyCap: dailyCap(), capMax: capMax(), runMax: runMax(), ttlDays: ttlDays(), running,
+      todayPublished: c.todayPublished, scheduledToday: c.scheduledToday, manualToday: c.manualToday,
+      dailyCap: n, perRun: n, runMax: runMax(), ttlDays: ttlDays(), running,
       defaultBlockwords: DEFAULT_BLOCKWORDS.length,
     };
   }
@@ -115,10 +133,13 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
   function saveSettings(admin, body = {}, ip) {
     const before = settings();
     if (body.enabled != null) setSetting('autoads.enabled', body.enabled === true || body.enabled === 1 || body.enabled === '1' || body.enabled === 'true' ? '1' : '0');
-    if (body.dailyCap != null) {
-      const n = Number(body.dailyCap);
-      const m = capMax() || 100000;
-      if (!Number.isInteger(n) || n < 0 || n > m) throw new ApiError(400, 'BAD_CAP', `每天上限需在 0–${m} 之间（0 = 不限）`);
+    if (body.perRun != null || body.dailyCap != null) {
+      const raw = body.perRun != null ? body.perRun : body.dailyCap;
+      let n = Number(raw);
+      if (body.perRun == null && n === 0) n = 10; // 旧版「0 = 不限」当作默认 10
+      const m = runMax();
+      if (!Number.isInteger(n) || n < 1 || n > m) throw new ApiError(400, 'BAD_CAP', `每轮发布条数需在 1–${m} 之间`);
+      setSetting('autoads.perRun', n);
       setSetting('autoads.dailyCap', n);
     }
     if (body.query != null) setSetting('autoads.query', normQuery(body.query));
@@ -143,7 +164,6 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     const url = cleanSourceUrl(b.sourceUrl);
     if (!url) throw new ApiError(400, 'AUTOADS_NO_SOURCE', '必须附上原网址（http/https），没有原网址不能发布');
     if (q.byUrl.get(url)) throw new ApiError(409, 'AUTOADS_DUPLICATE', '这个原网址已经发布过了');
-    if (capReached()) throw new ApiError(429, 'AUTOADS_CAP', `今天 AI 发布的营销帖已达上限（${dailyCap()} 条）`);
     const h = hits(b.title, b.text, b.advertiser, b.sourceTitle);
     if (h.length) throw new ApiError(400, 'AUTOADS_BLOCKED', '内容包含禁止的词语：' + h.join('、'));
     return url;
@@ -155,7 +175,6 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     const base = {sourceUrl: url || clip(b.sourceUrl, 200), title: clip(b.title, 60)};
     if (!url) throw reject('NO_SOURCE', '没有原网址，不能发布', ctx, base);
     if (q.byUrl.get(url)) throw reject('DUPLICATE', '这个原网址已经发布过了', ctx, base);
-    if (capReached()) throw reject('CAP', `今天 AI 发布的营销帖已达上限（${dailyCap()} 条）`, ctx, base);
     const title = clip(scrubCopy(b.title), 30), text = clip(scrubCopy(b.text), 200), advertiser = clip(scrubCopy(b.advertiser), 20);
     if (!title && !text) throw reject('EMPTY', '文案为空', ctx, base);
     const h = hits(title, text, advertiser, b.sourceTitle);
@@ -199,82 +218,100 @@ export function createAutoAds(db, {now = Date.now, env = process.env, audit, mar
     if (running) return skip('running');
     if (trigger === 'schedule' && (hourOf(t) < hour() || setting('autoads.lastRunDay') === day)) return {skipped: 'not_due'};
     if (trigger === 'schedule') setSetting('autoads.lastRunDay', day); // 先记下，失败也不会每 10 分钟重试一次
-    const cap = dailyCap();
-    const remaining = cap > 0 ? Math.min(runMax(), cap - todayPublished()) : runMax();
-    if (remaining <= 0) return skip('cap_reached', {audit: true});
+    const target = postsPerRun();
     running = true;
     const runId = 'aar_' + randomBytes(8).toString('hex');
     const ctx = {trigger, runId, actorId, ip};
-    // 这一轮搜哪些方向：轮流（每轮从上次停下的地方接着），不超过每轮上限和今天剩下的联网搜索次数
     const dirs = splitDirections(query());
-    const take = Math.max(0, Math.min(dirs.length, perRun(), searchLeft()));
     const cur = (Number(setting('autoads.dirCursor', '0')) || 0) % Math.max(dirs.length, 1);
-    const picked = Array.from({length: take}, (_, i) => dirs[(cur + i) % dirs.length]);
-    if (dirs.length) setSetting('autoads.dirCursor', String((cur + take) % dirs.length));
-    const sum = {runId, trigger, day, query: picked.join('、'), directions: [], found: 0, published: [], rejected: 0, stopped: null, reason: null};
-    log(actorId, 'ai.autoads.run_start', 'run:' + runId, ip, {trigger, query: sum.query, remaining});
+    const sum = {runId, trigger, day, query: '', directions: [], found: 0, published: [], rejected: 0, stopped: null, reason: null, perRun: target};
+    log(actorId, 'ai.autoads.run_start', 'run:' + runId, ip, {trigger, query: dirs.join('、'), perRun: target});
     try {
       const results = [], seen = new Set(), errors = [];
-      if (!picked.length) errors.push({code: 'SEARCH_LIMIT', message: dirs.length ? '今天的联网搜索次数已用完' : '没有填写搜索方向'});
-      for (const dir of picked) {
-        let res;
-        try { res = await search(dir, {count: 10}); }
-        catch (e) {
-          const code = isApiErr(e) ? e.code : 'SEARCH_FAILED', message = isApiErr(e) ? e.message : '联网搜索失败';
-          // 额度用完（智谱用完 / 所有接口用完）：停止搜索；一条都没有就这一轮直接停下，不发帖
-          if (code === 'AI_SEARCH_EXHAUSTED' || code === 'AI_ALL_EXHAUSTED') {
-            log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: dir, count: 0, code, error: message});
-            if (!results.length) {
-              log(actorId, 'ai.autoads.skipped', 'run:' + runId, ip, {trigger, reason: 'quota_exhausted', code, error: message});
-              log(actorId, 'ai.autoads.run', 'run:' + runId, ip, {trigger, query: sum.query, found: 0, published: 0, rejected: 0, stopped: 'quota_exhausted', reason: message, adIds: []});
-              return {...sum, skipped: 'quota_exhausted', error: message};
-            }
-            break;
+      const used = [];
+      let tries = 0, dirsTried = 0;
+      const finishShort = (code, reason) => {
+        if (!sum.stopped) sum.stopped = code;
+        if (reason && !sum.reason) sum.reason = reason;
+      };
+      const processResults = async (fresh) => {
+        for (const r of fresh) {
+          if (sum.published.length >= target) return;
+          if (!switchOn() || !envOn()) { finishShort('switch_off'); log(actorId, 'ai.autoads.stopped', 'run:' + runId, ip, {reason: 'switch_off'}); return; }
+          if (tries >= target * 3) { finishShort('try_limit', '本轮模型调用次数已达上限'); return; }
+          const base = {sourceUrl: r.url, title: r.title};
+          if (q.byUrl.get(r.url)) { reject('DUPLICATE', '这个原网址已经发布过了', ctx, base); sum.rejected++; continue; }
+          const h = hits(r.title, r.snippet);
+          if (h.length) { reject('BLOCKED', '搜索结果包含禁止的词语：' + h.join('、'), ctx, {...base, words: h}); sum.rejected++; continue; }
+          tries++;
+          let copy;
+          try { copy = await writeCopy(r); }
+          catch (e) {
+            if (isApiErr(e) && e.code === 'AI_ALL_EXHAUSTED') { finishShort('quota_exhausted'); log(actorId, 'ai.autoads.stopped', 'run:' + runId, ip, {reason: 'quota_exhausted', error: e.message}); return; }
+            reject('GEN_FAILED', '文案生成失败', ctx, base); sum.rejected++; continue;
           }
-          errors.push({query: dir, code, message});
-          sum.directions.push({query: dir, count: 0, error: message});
-          log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: dir, count: 0, code, error: message});
-          if (code === 'SEARCH_LIMIT') break;
-          continue;
+          if (copy.suitable !== true) { reject('NOT_SUITABLE', '模型判断不适合推广：' + clip(copy.reason, 60), ctx, base); sum.rejected++; continue; }
+          try { sum.published.push(publish({...copy, sourceUrl: r.url, sourceTitle: r.title}, ctx)); }
+          catch (e) { if (!isApiErr(e)) throw e; sum.rejected++; }
         }
-        let fresh = 0;
-        for (const r of res.results) if (!seen.has(r.url)) { seen.add(r.url); results.push(r); fresh++; }
-        sum.directions.push({query: dir, count: res.results.length, new: fresh});
-        log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: res.query, count: res.results.length, new: fresh, urls: res.results.map(r => r.url).slice(0, 10)});
+      };
+
+      if (!dirs.length) {
+        finishShort('no_more_results', '没有填写搜索方向');
+      } else if (searchLeft() <= 0) {
+        finishShort('search_budget', '今天的联网搜索次数已用完');
+      } else {
+        while (sum.published.length < target && dirsTried < dirs.length && !sum.stopped) {
+          if (searchLeft() <= 0) { finishShort('search_budget', '今天的联网搜索次数已用完'); break; }
+          const dir = dirs[(cur + dirsTried) % dirs.length];
+          dirsTried++;
+          used.push(dir);
+          let res;
+          try { res = await search(dir, {count: 10}); }
+          catch (e) {
+            const code = isApiErr(e) ? e.code : 'SEARCH_FAILED', message = isApiErr(e) ? e.message : '联网搜索失败';
+            if (code === 'AI_SEARCH_EXHAUSTED' || code === 'AI_ALL_EXHAUSTED') {
+              log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: dir, count: 0, code, error: message});
+              if (!results.length) {
+                log(actorId, 'ai.autoads.skipped', 'run:' + runId, ip, {trigger, reason: 'quota_exhausted', code, error: message});
+                log(actorId, 'ai.autoads.run', 'run:' + runId, ip, {trigger, query: used.join('、'), found: 0, published: 0, rejected: 0, stopped: 'quota_exhausted', reason: message, adIds: []});
+                return {...sum, query: used.join('、'), skipped: 'quota_exhausted', error: message, stopped: 'quota_exhausted', reason: message};
+              }
+              finishShort('quota_exhausted', message);
+              break;
+            }
+            errors.push({query: dir, code, message});
+            sum.directions.push({query: dir, count: 0, error: message});
+            log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: dir, count: 0, code, error: message});
+            if (code === 'SEARCH_LIMIT') { finishShort('search_budget', message); break; }
+            continue;
+          }
+          const fresh = [];
+          for (const r of res.results) if (!seen.has(r.url)) { seen.add(r.url); results.push(r); fresh.push(r); }
+          sum.directions.push({query: dir, count: res.results.length, new: fresh.length});
+          log(actorId, 'ai.autoads.searched', 'run:' + runId, ip, {query: res.query, count: res.results.length, new: fresh.length, urls: res.results.map(r => r.url).slice(0, 10)});
+          await processResults(fresh);
+        }
       }
+
+      if (dirs.length) setSetting('autoads.dirCursor', String((cur + dirsTried) % dirs.length));
+      sum.query = used.join('、');
       sum.found = results.length;
-      if (!results.length) {
-        // 一条都没搜到：写清楚原因（管理端日志里显示）
-        sum.reason = errors.length && errors.length === picked.length && picked.length ? '搜索失败：' + errors[0].message
-          : errors.length && !picked.length ? errors[0].message
-          : `${picked.length} 个方向都没有搜到结果，请把方向改得更具体（每行一个，例如“济南 新店开业”）` + (errors.length ? '；部分方向搜索失败：' + errors[0].message : '');
+
+      if (!results.length && !sum.reason) {
+        sum.reason = errors.length && errors.length === used.length && used.length ? '搜索失败：' + errors[0].message
+          : errors.length && !used.length ? errors[0].message
+          : `${used.length} 个方向都没有搜到结果，请把方向改得更具体（每行一个，例如“济南 新店开业”）` + (errors.length ? '；部分方向搜索失败：' + errors[0].message : '');
         log(actorId, 'ai.autoads.error', 'run:' + runId, ip, {stage: 'search', reason: sum.reason, directions: sum.directions});
         if (errors.length) sum.error = sum.reason;
-      }
-      const res = {results};
-      let tries = 0;
-      for (const r of res.results) {
-        if (sum.published.length >= remaining) break;
-        if (!switchOn() || !envOn()) { sum.stopped = 'switch_off'; log(actorId, 'ai.autoads.stopped', 'run:' + runId, ip, {reason: 'switch_off'}); break; }
-        if (tries >= remaining * 3) break; // 限制模型调用次数
-        const base = {sourceUrl: r.url, title: r.title};
-        if (q.byUrl.get(r.url)) { reject('DUPLICATE', '这个原网址已经发布过了', ctx, base); sum.rejected++; continue; }
-        const h = hits(r.title, r.snippet);
-        if (h.length) { reject('BLOCKED', '搜索结果包含禁止的词语：' + h.join('、'), ctx, {...base, words: h}); sum.rejected++; continue; }
-        tries++;
-        let copy;
-        try { copy = await writeCopy(r); }
-        catch (e) {
-          if (isApiErr(e) && e.code === 'AI_ALL_EXHAUSTED') { sum.stopped = 'quota_exhausted'; log(actorId, 'ai.autoads.stopped', 'run:' + runId, ip, {reason: 'quota_exhausted', error: e.message}); break; }
-          reject('GEN_FAILED', '文案生成失败', ctx, base); sum.rejected++; continue;
-        }
-        if (copy.suitable !== true) { reject('NOT_SUITABLE', '模型判断不适合推广：' + clip(copy.reason, 60), ctx, base); sum.rejected++; continue; }
-        try { sum.published.push(publish({...copy, sourceUrl: r.url, sourceTitle: r.title}, ctx)); }
-        catch (e) { if (!isApiErr(e)) throw e; sum.rejected++; }
+        if (!sum.stopped) sum.stopped = 'no_more_results';
+      } else if (sum.published.length < target && !sum.stopped) {
+        finishShort('no_more_results', sum.reason || '没有更多可发布的搜索结果');
       }
     } finally { running = false; }
     log(actorId, 'ai.autoads.run', 'run:' + runId, ip, {trigger, query: sum.query, reason: sum.reason, found: sum.found, published: sum.published.length, rejected: sum.rejected, stopped: sum.stopped, adIds: sum.published.map(a => a.id)});
     return sum;
+
   }
 
   function pubAi(row) {

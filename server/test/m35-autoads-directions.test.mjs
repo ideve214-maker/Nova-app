@@ -68,7 +68,7 @@ test('生产上的 5 个方向：每个方向单独搜，合并并按网址去�
   assert.equal(res.found, 11, '5×2 + 1 条共享网址（去重）');
   assert.equal(res.directions.length, 5);
   assert.ok(res.directions.every(d => d.count === 3));
-  assert.equal(res.published.length, 10, '每日上限 10');
+  assert.equal(res.published.length, 10, '每轮 10 条');
   const rows = audits('ai.autoads.searched');
   assert.deepEqual(rows.map(x => [x.d.query, x.d.count]), [['本地商家', 3], ['新店开业', 3], ['优惠活动', 3], ['科研教育', 3], ['知识培训', 3]]);
   assert.equal(audits('ai.autoads.run').at(-1).d.found, 11);
@@ -109,26 +109,26 @@ test('真实错误不再显示成“0 条”：HTTP 错误码、HTTP 200 带错�
   assert.match(audits('ai.autoads.searched')[0].d.error, /1302/);
 });
 
-test('每轮最多搜 N 个方向并轮流；不超过今天剩下的联网搜索次数', async () => {
+test('每轮按 perRun 搜方向并轮流；搜完或搜索额度用尽就停，并标明原因', async () => {
   reset();
-  searchFor = q => [item(1, q)];
-  env.ADMIN_AI_AUTO_ADS_QUERIES = '2';
-  await call('POST', '/api/admin/ai/auto-ads/settings', {query: 'A方向\nB方向\nC方向'});
+  let seq = 0;
+  searchFor = q => [item(++seq, q)]; // 每次新网址，避免第二轮把已发过的方向当成重复而继续搜完
+  await call('POST', '/api/admin/ai/auto-ads/settings', {query: 'A方向\nB方向\nC方向', perRun: 2});
   await call('POST', '/api/admin/ai/auto-ads/run');
   assert.deepEqual(sent, ['A方向', 'B方向']);
   sent.length = 0;
   await call('POST', '/api/admin/ai/auto-ads/run');
   assert.deepEqual(sent, ['C方向', 'A方向'], '接着上次轮流');
-  delete env.ADMIN_AI_AUTO_ADS_QUERIES;
   // 今天的联网搜索次数快用完：只搜剩下的次数
   sent.length = 0;
   env.ADMIN_AI_SEARCH_RPD = String(total + 1); // 只剩 1 次
   const r = await call('POST', '/api/admin/ai/auto-ads/run');
   assert.deepEqual(sent, ['B方向']);
+  assert.equal(r.j.result.stopped, 'search_budget');
   sent.length = 0;
   const r2 = await call('POST', '/api/admin/ai/auto-ads/run');
   assert.deepEqual(sent, []);
+  assert.equal(r2.j.result.stopped, 'search_budget');
   assert.match(r2.j.result.reason, /联网搜索次数已用完/);
-  void r;
   env.ADMIN_AI_SEARCH_RPD = '100';
 });

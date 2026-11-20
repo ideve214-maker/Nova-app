@@ -81,7 +81,11 @@ test('默认关闭：环境变量没开时不启动定时器、不调用智谱�
   assert.equal(r.j.settings.enabled, false);
   assert.equal(r.j.status.envEnabled, false);
   assert.equal(r.j.status.active, false);
-  assert.equal(r.j.settings.dailyCap, 0); // 2.1.1：默认不限
+  assert.equal(r.j.settings.perRun, 10); // 2.1.1：每轮默认 10 条
+  assert.equal(r.j.settings.dailyCap, 10); // 兼容别名，等于 perRun
+  assert.equal(r.j.status.todayPublished, 0);
+  assert.equal(r.j.status.scheduledToday, 0);
+  assert.equal(r.j.status.manualToday, 0);
   assert.equal(srv.adminAi.autoAds.start(1000), false);
   assert.equal(srv.adminAi.autoAds.scheduled, false);
   const run = await call('POST', '/api/admin/ai/auto-ads/run');
@@ -103,16 +107,19 @@ test('环境变量开了但管理端开关（紧急停止）关着：不搜索',
   delete env.ADMIN_AI_AUTO_ADS;
 });
 
-test('立即运行：屏蔽词过滤、原网址必填、每日上限、来源标记、审计', async () => {
+test('立即运行：屏蔽词过滤、原网址必填、每轮条数、来源标记、审计', async () => {
   reset(); env.ADMIN_AI_AUTO_ADS = '1';
   SEARCH = [R(1, {title: '济南小额贷款公司'}), {title: '没有链接的商家', content: '...'}, R(2), R(3, {title: '某某新闻不适合'}), R(4), R(5)];
   const s = await call('POST', '/api/admin/ai/auto-ads/settings', {enabled: true, dailyCap: 2});
   assert.equal(s.j.settings.enabled, true);
+  assert.equal(s.j.settings.perRun, 2);
+  assert.equal(s.j.settings.dailyCap, 2);
   assert.equal(s.j.status.active, true);
   assert.ok(audits('admin.ai.autoads.switch_on').length >= 1);
   const r = await call('POST', '/api/admin/ai/auto-ads/run');
   assert.equal(r.s, 200, JSON.stringify(r.j));
   assert.equal(r.j.result.published.length, 2);
+  assert.equal(r.j.result.perRun, 2);
   assert.equal(calls.search, 1);
   const rows = aiAds();
   assert.deepEqual(rows.map(x => x.source_url), ['https://shop2.example.com/', 'https://shop4.example.com/']);
@@ -126,20 +133,60 @@ test('立即运行：屏蔽词过滤、原网址必填、每日上限、来源�
   const rej = audits('ai.autoads.rejected').map(a => JSON.parse(a.detail).code);
   assert.ok(rej.includes('BLOCKED') && rej.includes('NOT_SUITABLE'), rej.join());
   assert.equal(audits('ai.autoads.run').length, 1);
-  // 用户信息流能拿到这条广告，链接是原网址
   const feed = srv.marketing.pickFor({id: 987654});
   assert.ok(feed.ads.some(a => a.linkUrl === 'https://shop2.example.com/'));
-  // 同一天再跑：已到上限
-  assert.equal((await call('POST', '/api/admin/ai/auto-ads/run')).j.result.skipped, 'cap_reached');
-  // 上限调高后再跑：已发过的原网址不会重复发
-  await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: 4});
+  assert.equal(r.j.status.manualToday, 2);
+  assert.equal(r.j.status.scheduledToday, 0);
+  // 同一天再跑：再发一轮，不看今天已经发了多少；已发过的原网址不会重复
   const r2 = await call('POST', '/api/admin/ai/auto-ads/run');
   assert.deepEqual(r2.j.result.published.map(a => a.sourceUrl), ['https://shop5.example.com/']);
+  assert.equal(r2.j.result.stopped, 'no_more_results');
   assert.ok(audits('ai.autoads.rejected').some(a => JSON.parse(a.detail).code === 'DUPLICATE'));
-  // 2.1.1：不再封顶 10，负数仍然拒绝
-  assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: 99})).s, 200);
+  assert.equal(r2.j.status.manualToday, 3);
+  assert.equal(r2.j.status.todayPublished, 3);
+  // perRun 1–runMax；dailyCap 是别名；0 当作默认 10；负数和超上限拒绝
+  const a99 = await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: 99});
+  assert.equal(a99.s, 200);
+  assert.equal(a99.j.settings.perRun, 99);
+  const a15 = await call('POST', '/api/admin/ai/auto-ads/settings', {perRun: 15});
+  assert.equal(a15.s, 200);
+  assert.equal(a15.j.settings.perRun, 15);
+  assert.equal(a15.j.settings.dailyCap, 15);
+  assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: 0})).j.settings.perRun, 10);
+  assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {perRun: 0})).s, 400);
   assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {dailyCap: -1})).s, 400);
-  await call('POST', '/api/admin/ai/auto-ads/settings', {enabled: false, dailyCap: 3});
+  assert.equal((await call('POST', '/api/admin/ai/auto-ads/settings', {perRun: 101})).s, 400);
+  await call('POST', '/api/admin/ai/auto-ads/settings', {enabled: false, perRun: 3});
+  delete env.ADMIN_AI_AUTO_ADS;
+});
+
+test('定时一轮和手动一轮互不影响：各发 perRun 条，状态分开计数', async () => {
+  reset(); env.ADMIN_AI_AUTO_ADS = '1';
+  SEARCH = [R(61), R(62), R(63), R(64), R(65)];
+  await call('POST', '/api/admin/ai/auto-ads/settings', {enabled: true, perRun: 2});
+  const sched = await srv.adminAi.autoAds.run({trigger: 'schedule'});
+  assert.equal(sched.published.length, 2);
+  let st = (await call('GET', '/api/admin/ai/auto-ads')).j.status;
+  assert.equal(st.scheduledToday, 2);
+  assert.equal(st.manualToday, 0);
+  assert.equal(st.todayPublished, 2);
+  const man = await call('POST', '/api/admin/ai/auto-ads/run');
+  assert.equal(man.j.result.published.length, 2);
+  st = man.j.status;
+  assert.equal(st.scheduledToday, 2);
+  assert.equal(st.manualToday, 2);
+  assert.equal(st.todayPublished, 4);
+  const pub = await call('POST', '/api/admin/ai/auto-ads/publish', {title: '丙店', text: '欢迎光临', sourceUrl: 'https://manual-today.example.com/'});
+  assert.equal(pub.s, 200, JSON.stringify(pub.j));
+  st = (await call('GET', '/api/admin/ai/auto-ads')).j.status;
+  assert.equal(st.scheduledToday, 2);
+  assert.equal(st.manualToday, 3);
+  assert.equal(st.todayPublished, 5);
+  // 未设 perRun 时沿用已存的 dailyCap
+  srv.db.prepare("DELETE FROM admin_ai_settings WHERE key='autoads.perRun'").run();
+  srv.db.prepare("INSERT INTO admin_ai_settings(key,value,updated_at) VALUES('autoads.dailyCap','7',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(T);
+  assert.equal((await call('GET', '/api/admin/ai/auto-ads')).j.settings.perRun, 7);
+  await call('POST', '/api/admin/ai/auto-ads/settings', {enabled: false, perRun: 3});
   delete env.ADMIN_AI_AUTO_ADS;
 });
 
