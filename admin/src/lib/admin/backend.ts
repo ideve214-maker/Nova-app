@@ -23,6 +23,8 @@ export const DEFAULT_ENDPOINT_MAP = {
   me: "/api/me",
   adminLogin: "/api/admin/auth/login",
   adminMe: "/api/admin/me",
+  /** 2.0.8：当前管理员修改自己的密码（服务端由 Dift 新增）。成功后服务端吊销其他会话，当前会话保留 */
+  adminMePassword: "/api/admin/me/password",
   adminUsers: "/api/admin/users",
   adminUser: "/api/admin/users/:id",
   adminUserBan: "/api/admin/users/:id/ban",
@@ -392,6 +394,8 @@ function maybeUnauthorized(name: EndpointName, token: string, result: RequestRes
   // 只有管理端路径的 401 才算会话过期。用管理员令牌去探用户路径（帖子、社区等）也会 401，不能因此退出。
   if (!String(name).startsWith("admin")) return;
   if (name === "adminLogin") return;
+  // 改密码接口自己处理 401（当前密码错误可能也是 401），不能直接踢回登录页
+  if (name === "adminMePassword") return;
   if (!token) return;
   if (result.status === 401 && unauthorizedHandler) {
     try {

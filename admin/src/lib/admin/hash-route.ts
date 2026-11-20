@@ -23,6 +23,7 @@ export const PAGE_NAMES = [
   "blockwords",
   "marketing",
   "poststats",
+  "password",
   "boost",
   "events",
   "appeals",

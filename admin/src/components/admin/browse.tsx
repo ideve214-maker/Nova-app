@@ -8,6 +8,7 @@ import {
   Flag,
   Hash,
   KeyRound,
+  LockKeyhole,
   LogOut,
   Flame,
   Megaphone,
@@ -503,11 +504,12 @@ export function MeScreen() {
           </div>
         </div>
       </div>
-      <DataHint>你已登录。在这里可以查看账号、外观和退出。</DataHint>
+      <DataHint>你已登录。在这里可以查看账号、修改密码、外观和退出。</DataHint>
       <div className="mx-5 mt-2 overflow-hidden rounded-card bg-surface shadow-card">
         <RowLink icon={<CreditCard className="size-4" />} title="付款审核" desc="收款码人工核对" onClick={() => go("payments")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ShieldCheck className="size-4" />} title="安全事件" desc="限流与异常" onClick={() => go("events")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<Flag className="size-4" />} title="申诉处理" desc="通过或驳回" onClick={() => go("appeals")} extra={<ChevronRight className="size-4 text-muted" />} />
+        <RowLink icon={<LockKeyhole className="size-4" />} title="修改密码" desc="修改当前管理员的登录密码" onClick={() => go("password")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<KeyRound className="size-4" />} title="安全设置" desc="登录保护说明" onClick={() => go("security")} extra={<ChevronRight className="size-4 text-muted" />} />
         <RowLink icon={<ScrollText className="size-4" />} title="审计日志" onClick={() => go("audit")} extra={<ChevronRight className="size-4 text-muted" />} />
       </div>

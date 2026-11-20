@@ -9,6 +9,7 @@ import { useRestoreScroll } from "@/lib/admin/scroll-restore";
 import { Frame, SkinIcon, type SkinIconName } from "./ui";
 import { LoginScreen } from "./login";
 import { HomeScreen, ManageScreen, MeScreen, MessagesScreen } from "./browse";
+import { ChangePasswordScreen } from "./password";
 import { UserScreen, UsersScreen } from "./people";
 import { ContentScreen, ReportsScreen } from "./queue";
 import { PaymentsScreen } from "./payments";
@@ -152,6 +153,7 @@ export function AdminApp() {
       {name === "settings" && <SettingsScreen />}
       {name === "audit" && <AuditScreen />}
       {name === "security" && <SecurityScreen />}
+      {name === "password" && <ChangePasswordScreen />}
       {name === "events" && <EventsScreen />}
       {name === "appeals" && <AppealsScreen />}
       {name === "vip" && <VipScreen />}

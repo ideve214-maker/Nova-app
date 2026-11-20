@@ -70,6 +70,7 @@ export type PageName =
   | "blockwords"
   | "marketing"
   | "poststats"
+  | "password"
   | "boost"
   | "events"
   | "appeals"
