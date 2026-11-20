@@ -59,6 +59,8 @@ export type AutoAdsSettings = { enabled: boolean; dailyCap: number; query: strin
 export type AutoAdsStatus = {
   envEnabled: boolean; switchOn: boolean; configured: boolean; active: boolean; hour: number; timezone: string; lastRunDay: string | null;
   todayPublished: number; dailyCap: number;
+  /** 服务端（Dift，2.1.1 之后）：今天定时轮发了几条 / 手动「立即运行一轮」加发了几条；旧服务端没有 */
+  scheduledToday?: number; manualToday?: number;
   /** 服务器封顶（.env ADMIN_AI_AUTO_ADS_CAP_MAX）；服务端 2.1.1 起 0 = 不封顶，dailyCap 为 0 = 不限 */
   capMax: number | null; ttlDays: number;
   /** 服务端 2.1.1（8f4670e）起：每轮最多发几条；旧服务端没有这个字段，管理端按 50 显示 */
@@ -69,7 +71,7 @@ export type AutoAdsLogRow = { id: number; at: number; actorId: number | null; ac
 export type AutoAdsRunResult = { skipped?: string; error?: string; reason?: string | null; directions?: { query: string; count: number; new?: number; error?: string }[]; found?: number; published?: AutoAd[]; rejected?: number; stopped?: string | null };
 
 export const autoAdsOverview = (status: "all" | "live" | "down" = "all") => call<AutoAdsOverview>("adminAutoAds", { query: { status, limit: 200 } });
-export const autoAdsSave = (patch: Partial<{ enabled: boolean; dailyCap: number; query: string; blockwords: string }>) => call<AutoAdsOverview>("adminAutoAdsSettings", { body: patch });
+export const autoAdsSave = (patch: Partial<{ enabled: boolean; dailyCap: number; query: string; blockwords: string }> & Record<string, unknown>) => call<AutoAdsOverview>("adminAutoAdsSettings", { body: patch });
 export const autoAdsRun = () => call<AutoAdsOverview & { result: AutoAdsRunResult }>("adminAutoAdsRun", { body: {}, timeoutMs: 180000 });
 export const autoAdsTakedown = (id: string) => call<AutoAdsOverview>("adminAutoAdsTakedown", { params: { id }, body: {} });
 export const autoAdsTakedownAll = () => call<AutoAdsOverview & { count: number }>("adminAutoAdsTakedownAll", { body: {} });

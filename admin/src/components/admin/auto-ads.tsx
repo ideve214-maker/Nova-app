@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { useAdmin } from "@/lib/admin/store";
+import { autoAdsChips, checkPerRun, perRunPatch, readPerRun } from "@/lib/admin/auto-ads-count";
 import { sanitizeText } from "@/lib/admin/sanitize";
 import {
   autoAdsLog, autoAdsOverview, autoAdsRun, autoAdsSave, autoAdsTakedown, autoAdsTakedownAll,
@@ -21,10 +22,10 @@ const ACTION: Record<string, string> = {
 };
 const SKIP: Record<string, string> = {
   env_off: "服务器还没开启自动发帖", switch_off: "自动发布开关是关着的", no_key: "还没有可用的 AI 接口或联网搜索（智谱）", running: "上一轮还在运行", quota_exhausted: "AI 额度用完了（智谱用完时联网搜索暂停），没有发帖",
-  cap_reached: "今天已达上限", not_due: "还没到时间",
+  cap_reached: "今天的定时轮已发完", not_due: "还没到时间",
 };
 const REASON: Record<string, string> = {
-  NO_SOURCE: "没有原网址", DUPLICATE: "原网址已发过", CAP: "已达每日上限", BLOCKED: "命中屏蔽词", NOT_SUITABLE: "不适合推广",
+  NO_SOURCE: "没有原网址", DUPLICATE: "原网址已发过", CAP: "本轮条数已满", BLOCKED: "命中屏蔽词", NOT_SUITABLE: "不适合推广",
   GEN_FAILED: "文案生成失败", EMPTY: "文案为空", INVALID: "内容不合规",
 };
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
@@ -68,7 +69,7 @@ export function AutoAdsTab() {
   const [log, setLog] = useState<AutoAdsLogRow[] | null>(null);
   const [logErr, setLogErr] = useState("");
 
-  const fill = (d: AutoAdsOverview) => { setData(d); setCap(d.settings.dailyCap ? String(d.settings.dailyCap) : ""); setQuery(toLines(d.settings.query)); setWords(d.settings.blockwords.join("\n")); };
+  const fill = (d: AutoAdsOverview) => { setData(d); { const n = readPerRun(d.settings as unknown as Record<string, unknown>); setCap(n ? String(n) : ""); } setQuery(toLines(d.settings.query)); setWords(d.settings.blockwords.join("\n")); };
   const load = useCallback(async (f = filter) => {
     const r = await autoAdsOverview(f);
     if (r.ok) { fill(r.data); setErr(""); } else setErr(r.error);
@@ -124,7 +125,7 @@ export function AutoAdsTab() {
               {st.active ? <Pill tone="ok">运行中</Pill> : <Pill tone="muted">未运行</Pill>}
               {!st.envEnabled && <Pill tone="warn">服务器未开启</Pill>}
               {!st.configured && <Pill tone="warn">未配置 AI 接口或联网搜索</Pill>}
-              <Pill tone="muted">{!st.capMax && !st.dailyCap ? `今天 ${st.todayPublished} 条 · 不限` : `今天 ${st.todayPublished} / ${st.dailyCap} 条`}</Pill>
+              {autoAdsChips(st, readPerRun(data.settings as unknown as Record<string, unknown>)).map((c) => <Pill key={c} tone="muted">{c}</Pill>)}
               {st.lastRunDay && <Pill tone="muted">上次 {st.lastRunDay}</Pill>}
             </div>
             {!st.envEnabled && <p className="mt-2 text-[12px] leading-4 text-muted">服务器默认关闭，需要在服务器上设置 ADMIN_AI_AUTO_ADS=1 才会运行；打开后每次运行会调用智谱联网搜索和生成（会产生费用）。</p>}
@@ -132,15 +133,16 @@ export function AutoAdsTab() {
           </Card>
           <Card>
             <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-              <Field label="每天最多发布（条）">
-                <input className={inputClass} inputMode="numeric" value={cap} placeholder="不限" onChange={(e) => setCap(e.target.value.replace(/\D/g, ""))} />
+              <Field label="每轮发布条数">
+                <input className={inputClass} inputMode="numeric" value={cap} placeholder="例如 15" onChange={(e) => setCap(e.target.value.replace(/\D/g, ""))} />
               </Field>
-              {/* 2.0.8：管理端不再限制最大值，按填写的数字提交；服务器有上限时由服务器提示 */}
-              <button type="button" className="mb-2.5 h-11 rounded-full bg-subtle px-4 text-[13px] font-semibold" onClick={() => void save({ dailyCap: Math.max(0, Math.floor(Number(cap) || 0)) })}>保存</button>
+              {/* 2.0.8：管理端不设上限，只要求正整数；runMax 只做软提示 */}
+              <button type="button" className="mb-2.5 h-11 rounded-full bg-subtle px-4 text-[13px] font-semibold" onClick={() => { const c = checkPerRun(cap, st.runMax); if (!c.ok) { flash(c.error); return; } void save(perRunPatch(c.value)); }}>保存</button>
             </div>
-            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">留空或填 0 = 不限（默认）；填正数就按这个数限制。为防止一次调用过多，每轮最多发 {st.runMax || 50} 条。</p>
+            <p className="-mt-1 mb-2 text-[12px] leading-4 text-muted">每天 {st.hour}:00 定时发这么多条；每点一次「立即运行一轮」再加发这么多条，不受今天已发数量影响。</p>
+            {(() => { const c = checkPerRun(cap, st.runMax); return c.ok && c.warn ? <p className="-mt-1 mb-2 text-[12px] leading-4 text-warn">{c.warn}</p> : null; })()}
             {!!st.capMax && (
-              <p className="-mt-1 mb-2 text-[12px] leading-4 text-warn">服务器设了封顶 {st.capMax} 条（.env 里的 ADMIN_AI_AUTO_ADS_CAP_MAX），超过的数字会被服务器拒绝。</p>
+              <p className="-mt-1 mb-2 text-[12px] leading-4 text-warn">服务器 .env 里设了 ADMIN_AI_AUTO_ADS_CAP_MAX = {st.capMax}，超过的数字可能被服务器拒绝。</p>
             )}
             <Field label="搜索方向（每行一个方向）">
               <textarea className={textareaClass} rows={5} value={query} maxLength={600} placeholder={"例如：\n济南 新店开业 优惠活动\n济南 知识培训\n科研教育 机构"} onChange={(e) => setQuery(e.target.value)} />
