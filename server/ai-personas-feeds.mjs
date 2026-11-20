@@ -88,9 +88,17 @@ function atomLink(block) {
   }
   return best;
 }
+const TRACKING_PARAM = /^(utm_\w+|fbclid|gclid|yclid|mc_cid|mc_eid|spm|from|share_source|share_medium|ref_src)$/i;
 export function cleanUrl(raw) {
   const s = stripHtml(raw).trim();
-  try { const u = new URL(s); if (u.protocol !== 'http:' && u.protocol !== 'https:') return null; u.username = ''; u.password = ''; return u.toString(); } catch { return null; }
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    u.username = ''; u.password = '';
+    // 去掉跟踪参数（utm_*、fbclid 等），发出去的来源链接干净，也让同一篇新闻的 url 去重能对上
+    for (const k of [...u.searchParams.keys()]) if (TRACKING_PARAM.test(k)) u.searchParams.delete(k);
+    return u.toString();
+  } catch { return null; }
 }
 function parseDate(s) { const t = Date.parse(stripHtml(s)); return Number.isFinite(t) ? t : null; }
 
@@ -190,7 +198,7 @@ export function parseAiText(content) {
 }
 
 // ---------- 来源管理 + 抓取 ----------
-export function createPersonaFeeds(db, {now = Date.now, fetchImpl = globalThis.fetch, timeoutMs = FEED_TIMEOUT_MS} = {}) {
+export function createPersonaFeeds(db, {now = Date.now, fetchImpl = globalThis.fetch, timeoutMs = FEED_TIMEOUT_MS, random = Math.random} = {}) {
   const q = {
     all: db.prepare('SELECT * FROM ai_feed_sources ORDER BY id'),
     byId: db.prepare('SELECT * FROM ai_feed_sources WHERE id=?'),
@@ -315,7 +323,7 @@ export function createPersonaFeeds(db, {now = Date.now, fetchImpl = globalThis.f
   /** 给某个账号挑一条没用过的新闻（同一原文链接全站只用一次）。 */
   function pickItem(categories) {
     const rows = q.pick.all(JSON.stringify(categories && categories.length ? categories : PERSONA_CATEGORIES), now() - 2 * 86400e3);
-    return rows.length ? rows[Math.floor(Math.random() * Math.min(rows.length, 5))] : null;
+    return rows.length ? rows[Math.floor(random() * Math.min(rows.length, 5))] : null;   // 最新 5 条里随机挑；random 可注入（测试用）
   }
   function markUsed(itemId, postId, userId) { return Number(q.use.run(postId, userId, now(), itemId).changes || 0) > 0; }
   function burn(itemId) { q.burn.run(now(), itemId); }

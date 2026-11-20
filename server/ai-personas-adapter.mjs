@@ -126,7 +126,10 @@ export function createPersonaAdapter(deps = {}) {
   }
   const savedIns = db.prepare("INSERT OR IGNORE INTO saved_items(user_id,kind,target,title,excerpt,created_at) VALUES(?,'post',?,?,?,?)");
   function favorite(user, postId, {title = '', excerpt = ''} = {}) {
-    if (has('favorite')) return ua[DIFT.favorite](user, postId, {skipQuota: true, title, excerpt}, meta);
+    if (has('favorite')) {
+      const r = ua[DIFT.favorite](user, postId, {skipQuota: true, title, excerpt}, meta);
+      return r && r.existed ? {...r, already: true} : r;   // userActions.savePost 用 existed 表示「早就收藏过」
+    }
     // 临时：AI 账号不受普通账号 20 条收藏上限限制（saved.add 会按 VIP 额度拒绝），直接写表。
     const r = savedIns.run(user.id, postId, String(title).slice(0, 80) || '动态', String(excerpt).slice(0, 200), now());
     if (!r.changes) return {already: true};

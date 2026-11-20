@@ -56,7 +56,7 @@ const uniq = a => [...new Set(a)];
 export function createAiPersonas(db, deps = {}) {
   const {now = Date.now, env = process.env, random = Math.random} = deps;
   const adapter = deps.adapter || createPersonaAdapter({...deps, db, now});
-  const feeds = deps.feeds || createPersonaFeeds(db, {now, fetchImpl: deps.feedFetch || globalThis.fetch});
+  const feeds = deps.feeds || createPersonaFeeds(db, {now, random, fetchImpl: deps.feedFetch || globalThis.fetch});
   feeds.seed();
   const avatarGen = deps.avatarJpeg || avatarJpeg;
 

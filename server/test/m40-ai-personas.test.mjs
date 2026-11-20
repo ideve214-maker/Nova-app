@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../index.mjs';
 import {createAiPersonas, DEFAULT_SETTINGS, PERSONA_BADGE, avatarPathOf, AVATAR_ROUTE_RE} from '../ai-personas.mjs';
-import {parseFeed, toSimplified, overlapRatio, composePost, politicsAllowed, postCategoryOf, POST_CATEGORIES, DEFAULT_SOURCES} from '../ai-personas-feeds.mjs';
+import {parseFeed, cleanUrl, toSimplified, overlapRatio, composePost, politicsAllowed, postCategoryOf, POST_CATEGORIES, DEFAULT_SOURCES} from '../ai-personas-feeds.mjs';
 import {PENDING} from '../ai-personas-adapter.mjs';
 import {avatarJpeg} from '../ai-personas-avatar.mjs';
 
@@ -152,18 +152,24 @@ test('只加入公开小组，私密小组不进；不私聊、不进群聊、�
 });
 
 test('发帖：读新闻写自己的看法 + 来源链接；照抄原文会被拒', async () => {
+  // 发帖挑新闻是在最新几条里随机挑的，所以「照抄」要照抄这次提示里真正给到的那条，链接也按实际用掉的那条核对（不能写死第几条）。
   const ai = P.listAccounts({}).accounts[0];
   P.saveSettings({id: 1}, {categories: ['news']});
   await P.feeds.refreshAll();
-  aiReply = () => '某地举办科技博览会 展出多款新产品 博览会为期三天，吸引大量观众。';   // 照抄
+  const echoPrompt = (messages) => { const j = JSON.parse(messages.at(-1).content); return j.title + ' ' + j.summary; };
+  aiReply = echoPrompt;   // 照抄
   const bad = await P.tick({force: true, kind: 'post', userId: ai.userId, skipFeeds: true});
-  assert.ok(bad.actions.some(a => a.kind === 'post' && !a.ok));
+  const rej = bad.actions.find(a => a.kind === 'post');
+  assert.ok(rej && !rej.ok, JSON.stringify(bad.actions));
   aiReply = () => '这种展会其实最能看出一个城市的创新活力，希望以后多一些面向普通人的体验区，而不只是看看。';
   const ok = await P.tick({force: true, kind: 'post', userId: ai.userId, skipFeeds: true});
   const a = ok.actions.find(x => x.kind === 'post' && x.ok);
   assert.ok(a, JSON.stringify(ok.actions));
   const p = srv.db.prepare('SELECT * FROM posts WHERE id=?').get(a.refId);
-  assert.match(p.text, /\n\n来源：https:\/\/www\.chinanews\.com\.cn\/a\/2\.shtml$/);
+  const item = srv.db.prepare('SELECT * FROM ai_feed_items WHERE used_post_id=?').get(a.refId);
+  assert.ok(item, '用掉的新闻记了 used_post_id');
+  assert.match(item.url, /^https:\/\/www\.chinanews\.com\.cn\/a\/[12]\.shtml$/, '链接去掉了 utm 参数');
+  assert.ok(p.text.endsWith('\n\n来源：' + item.url), p.text);
   assert.ok([...p.text].length <= 280);
   assert.equal(p.category, 'news', '用 2.1.2 的 posts.category');
   assert.equal(srv.posts.get(srv.db.prepare('SELECT * FROM users WHERE id=?').get(ai.userId), a.refId).post.category, 'news');
@@ -182,6 +188,8 @@ test('RSS 解析 + 繁转简 + 重合度 + 拼链接', async () => {
   const items = parseFeed(RSS);
   assert.equal(items.length, 2);
   assert.equal(items[0].summary, '博览会为期三天，吸引大量观众。');
+  assert.equal(items[0].url, 'https://www.chinanews.com.cn/a/1.shtml', '去掉 utm 跟踪参数');
+  assert.equal(cleanUrl('https://a.b/c?id=3&utm_medium=y&fbclid=z'), 'https://a.b/c?id=3');
   assert.equal(await toSimplified('這是國際新聞報導'), '这是国际新闻报导');
   assert.ok(overlapRatio('某地举办科技博览会展出多款新产品', '某地举办科技博览会 展出多款新产品') > 0.9);
   assert.ok(overlapRatio('我觉得这个展会挺有意思的，值得去看看', '某地举办科技博览会 展出多款新产品') < 0.3);
