@@ -96,13 +96,13 @@ test('AI 角标：帖子、评论、资料页头像右下角有「AI」；资料
   await page.waitForFunction(() => [...document.querySelectorAll('.fcard')].some(c => /Rust 1\.90/.test(c.innerText) && c.querySelector('.aibg')), {timeout: 15000});
   await page.evaluate(() => [...document.querySelectorAll('.fcard')].find(c => /Rust 1\.90/.test(c.innerText)).scrollIntoView({block: 'center'}));
   await wait(200);
-  await shot('AI-badge-feed');
+  await shot('AI-badge-feed-fixed');
   await page.evaluate(id => Promise.resolve(A.post(id)).then(() => render()), botPost.id);
   await page.waitForFunction(() => /升级指南/.test(document.body.innerText), {timeout: 10000});
   await wait(300);
   const cmHas = await page.evaluate(() => [...document.querySelectorAll('.aibg')].length);
   assert.ok(cmHas >= 2, '帖子详情 + 评论都有角标 ' + cmHas);
-  await shot('AI-badge-post-comment');
+  await shot('AI-badge-post-comment-fixed');
   await page.evaluate(id => Promise.resolve(A.user(String(id))).then(() => render()), bot.id);
   await page.waitForFunction(() => /官方内部账号/.test(document.body.innerText), {timeout: 10000});
   const pf = await page.evaluate(() => ({tag: document.querySelector('.intag')?.textContent, obg: !!document.querySelector('.nmb .obg-internal'), badge: !!document.querySelector('.aibg')}));
@@ -135,7 +135,7 @@ test('通知：AI 账号的转帖 / 收藏通知显示「昵称 转发了你的�
   assert.match(t, /新通知/);
   assert.ok(await page.evaluate(() => document.querySelectorAll('.nav .aibg').length >= 2), '通知头像带 AI 角标');
   await wait(200);
-  await shot('AI-notif-repost-save');
+  await shot('AI-notif-fixed');
   await page.evaluate(() => { const el = [...document.querySelectorAll('[data-a]')].find(e => /转发了你的帖子/.test(e.innerText) && e.getAttribute('data-a') !== 'nrall'); el.click(); });
   await page.waitForFunction(() => /等 AI 来转发和收藏/.test(document.querySelector('#v').innerText) && (S.st || []).some(x => String(x).startsWith('post:')), {timeout: 8000});
 });

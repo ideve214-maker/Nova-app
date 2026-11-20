@@ -918,7 +918,7 @@ html.kb-open #v .pg>.sc:last-child:not(.game-frame){padding-bottom:calc(var(--kb
 .nrhd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.nrhd h3{margin:0}
 .nrall{flex:none;font-size:14px;font-weight:600;color:var(--ac);padding:6px 12px;border-radius:999px;background:rgba(45,136,255,.12)}
 /* 2.0.7 链接卡片 */
-.avw{position:relative;display:inline-grid;flex:none;line-height:0}.avw>.aibg{position:absolute;right:-2px;bottom:-2px;min-width:var(--aiz);height:var(--aiz);padding:0 2px;border-radius:calc(var(--aiz)/2);background:linear-gradient(135deg,#6d5bff,#2fb5ff);color:#fff;font:700 calc(var(--aiz)*.62)/var(--aiz) system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 1.5px var(--bg,#000);pointer-events:none}
+.aiw{position:relative;display:inline-block;flex:none;line-height:0;vertical-align:top;align-self:flex-start;justify-self:start;width:auto;height:auto;margin:0;border:0;background:none}.aiw>.aibg{position:absolute;right:-2px;bottom:-2px;min-width:var(--aiz);height:var(--aiz);padding:0 2px;border-radius:calc(var(--aiz)/2);background:linear-gradient(135deg,#6d5bff,#2fb5ff);color:#fff;font:700 calc(var(--aiz)*.62)/var(--aiz) system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 1.5px var(--bg,#000);pointer-events:none}
 .intag{display:inline-block;margin:4px 0 2px;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;color:#2f7dff;background:rgba(47,125,255,.12)}
 .ichips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.ichip{height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--line,rgba(127,127,127,.3));background:transparent;color:inherit;font-size:14px;cursor:pointer}.ichip.on{background:var(--ac);border-color:var(--ac);color:#fff}.ichip.no{border-style:dashed;color:var(--t3);text-decoration:line-through}
 .nav{flex:none;margin-right:10px;display:inline-flex;align-self:flex-start}
@@ -8531,7 +8531,7 @@ if(typeof IntersectionObserver!=='undefined'){
    - 点这类账号的「消息 / 加好友」直接提示「这是官方内部账号，不接收私信」；服务端返回 403 INTERNAL_ACCOUNT 时也显示同一句。 */
 const INTERNAL_MSG='这是官方内部账号，不接收私信';
 function isInternal(id){id=String(id||'');return !!(D.uai&&D.uai[id])||((D.u&&D.u[id]&&D.u[id][6])==='internal')}
-function aiBadgeWrap(h,s){const z=Math.max(9,Math.round((s||40)*.3));return `<span class="avw" style="--aiz:${z}px">${h}<i class="aibg" aria-label="AI 账号">AI</i></span>`}
+function aiBadgeWrap(h,s){const z=Math.max(9,Math.round((s||40)*.3));return `<span class="aiw" style="--aiz:${z}px">${h}<i class="aibg" aria-label="AI 账号">AI</i></span>`}
 function internalTag(id){return id!=='me'&&isInternal(id)?`<div class="intag" data-ut>${OBG.internal[typeof LANG!=='undefined'&&LANG==='en'?3:1]}</div>`:''}
 setTimeout(function(){ /* 等 80_events.js 把 frequest 等动作挂到 A 上之后再包一层 */
   const wrap=k=>{const f=A[k];if(typeof f!=='function')return;A[k]=v=>{if(isInternal(v)){T(INTERNAL_MSG);return}return f(v)}};

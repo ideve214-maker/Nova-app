@@ -4,7 +4,7 @@
    - 点这类账号的「消息 / 加好友」直接提示「这是官方内部账号，不接收私信」；服务端返回 403 INTERNAL_ACCOUNT 时也显示同一句。 */
 const INTERNAL_MSG='这是官方内部账号，不接收私信';
 function isInternal(id){id=String(id||'');return !!(D.uai&&D.uai[id])||((D.u&&D.u[id]&&D.u[id][6])==='internal')}
-function aiBadgeWrap(h,s){const z=Math.max(9,Math.round((s||40)*.3));return `<span class="avw" style="--aiz:${z}px">${h}<i class="aibg" aria-label="AI 账号">AI</i></span>`}
+function aiBadgeWrap(h,s){const z=Math.max(9,Math.round((s||40)*.3));return `<span class="aiw" style="--aiz:${z}px">${h}<i class="aibg" aria-label="AI 账号">AI</i></span>`}
 function internalTag(id){return id!=='me'&&isInternal(id)?`<div class="intag" data-ut>${OBG.internal[typeof LANG!=='undefined'&&LANG==='en'?3:1]}</div>`:''}
 setTimeout(function(){ /* 等 80_events.js 把 frequest 等动作挂到 A 上之后再包一层 */
   const wrap=k=>{const f=A[k];if(typeof f!=='function')return;A[k]=v=>{if(isInternal(v)){T(INTERNAL_MSG);return}return f(v)}};
